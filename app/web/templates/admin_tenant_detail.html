@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.tenant.name }}{% endblock %}
+{% block content %}
+<h1><a href="/admin/tenants" class="muted" style="text-decoration:none">Companies</a> / {{ detail.tenant.name }}</h1>
+{% if registration_approved_email %}
+  {% if registration_approved_email_sent %}
+  <div class="notice"><strong>Registration approved.</strong> {{ registration_approved_email }} can now sign in with the password chosen during registration.</div>
+  {% else %}
+  <div class="error"><strong>Registration approved, but the notification email failed.</strong> The applicant can still sign in with the password chosen during registration.</div>
+  {% endif %}
+{% endif %}
+{% if new_key %}
+<div class="notice">
+  <strong>New company access credential "{{ new_key_label }}" (shown only once — share it securely):</strong><br>
+  <code>{{ new_key }}</code>
+</div>
+{% endif %}
+{% if reset_link %}
+<div class="notice">
+  <strong>Password reset link for {{ reset_email }} (one-time; also emailed):</strong><br>
+  <code>{{ reset_link }}</code>
+</div>
+{% endif %}
+{% if credentials_email %}
+  {% if credentials_sent %}
+  <div class="notice">
+    <strong>{{ 'Password reset' if credentials_reset else 'Company created' }}.</strong>
+    Sign-in details were emailed to <code>{{ credentials_email }}</code>{% if credentials_reset %}; all previous sessions were signed out{% endif %}.
+  </div>
+  {% else %}
+  <div class="error">
+    <strong>{{ 'Password was reset' if credentials_reset else 'Company was created' }}, but the sign-in email to {{ credentials_email }} FAILED.</strong>
+    Check email delivery settings, then use "Reset password (email)" on the user below to retry delivery.
+  </div>
+  {% endif %}
+{% endif %}
+<div class="card">
+  <table>
+    <tr><th>Company ID</th><td><code>{{ detail.tenant.id }}</code></td></tr>
+    <tr><th>Email domain</th><td>{{ detail.tenant.email_domain or '—' }}</td></tr>
+    <tr><th>Status</th><td>
+      <span class="badge {% if detail.tenant.status != 'active' %}muted{% endif %}">{{ detail.tenant.status }}</span>
+      <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/status" style="margin-left:8px">
+        <input type="hidden" name="status" value="{{ 'inactive' if detail.tenant.status == 'active' else 'active' }}">
+        <button class="small plain">{{ 'Suspend company' if detail.tenant.status == 'active' else 'Resume company' }}</button>
+      </form>
+      {% if detail.tenant.status == 'active' %}<span class="muted" style="font-size:12px">suspending blocks every company credential immediately</span>{% endif %}
+    </td></tr>
+  </table>
+</div>
+<div class="card">
+  <h1>Users</h1>
+  <table>
+    <thead>
+      <tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for u in detail.users %}
+      <tr>
+        <td>{{ u.email }}</td>
+        <td>{{ u.name or '—' }}</td>
+        <td><span class="badge">{{ u.role }}</span></td>
+        <td><span class="badge {% if u.status != 'active' %}muted{% endif %}">{{ u.status }}</span></td>
+        <td>
+          {% if u.status != 'invited' %}
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/users/{{ u.id }}/status">
+            <input type="hidden" name="status" value="{{ 'disabled' if u.status == 'active' else 'active' }}">
+            <button class="small plain">{{ 'Disable' if u.status == 'active' else 'Enable' }}</button>
+          </form>
+          {% endif %}
+          {% if u.status != 'disabled' %}
+          {# also activates users stuck in "invited": a fresh password is
+             generated, emailed, and the account becomes active #}
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/users/{{ u.id }}/reset-password">
+            <button class="small plain">Reset password (email)</button>
+          </form>
+          {% endif %}
+          {% if u.status == 'active' %}
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/users/{{ u.id }}/reset-link">
+            <button class="small plain">Reset link</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No users (company created before self-service signup).</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card">
+  <h1>Access credentials</h1>
+  <table>
+    <thead>
+      <tr><th>Label</th><th>Type</th><th>Role</th><th>Active</th><th>Created</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for k in detail.api_keys %}
+      <tr>
+        <td>{{ k.label or '—' }}</td>
+        <td>{% if k.user_id %}personal{% else %}company{% endif %}</td>
+        <td><span class="badge">{{ k.role }}</span></td>
+        <td><span class="badge {% if not k.is_active %}muted{% endif %}">{{ 'active' if k.is_active else 'disabled' }}</span></td>
+        <td class="muted">{{ k.created_at[:10] if k.created_at is string else k.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          {% if k.is_active %}
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/api-keys/{{ k.id }}/deactivate">
+            <button class="small plain">Deactivate</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="/admin/tenants/{{ detail.tenant.id }}/api-keys/create" class="row" style="margin-top:16px">
+    <input name="label" placeholder="Label" value="support-issued" style="max-width:280px">
+    <button class="small" style="flex:0;margin-top:0">Issue company credential</button>
+  </form>
+  <p class="muted" style="font-size:13px">Credential update: issue a new company credential, share it securely, then deactivate the old one.</p>
+</div>
+<div class="card">
+  <h1>Hosted flow driving</h1>
+  <p class="muted" style="font-size:13px">
+    Every built-in document family ORYH's agent is permitted to advance is subscribed here
+    by default, with its driver skill and work queue derived from this company's own skills
+    and lifecycles. This page is where you switch one <em>off</em> — the company having its
+    own agent for quotations, say. Nothing is switched back on by a deploy.
+  </p>
+  <p class="muted" style="font-size:13px">
+    <strong>Subscribed is not the same as running.</strong> A row only polls once three
+    things hold: it is switched on here, this company has a hosted credential for the runner
+    to act as, and the customer has published the workflow definition for that object type.
+    The map is what starts the work, and writing it is the customer's — a subscription
+    without one spends nothing and does nothing. The state column says which of the three
+    is missing.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Object type</th><th>Driver skill</th><th>Queue filter</th><th>Every</th><th>State</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for s in flow_subscriptions %}
+      <tr>
+        <td><code>{{ s.entity_type }}</code></td>
+        <td>{% if s.driver_skill %}{{ s.driver_skill }}{% else %}<span class="badge muted">no driver</span>{% endif %}</td>
+        <td>{% if s.queue_filter %}<code style="font-size:12px">{{ s.queue_filter | tojson }}</code>{% else %}<span class="muted">all records</span>{% endif %}</td>
+        <td class="muted">{{ s.cadence_seconds }}s</td>
+        <td>
+          {#- The badge answers "is this being driven", not "has anyone switched it
+              off". It used to answer the second while sitting directly above two
+              grey lines saying the row could not poll — the same cell reading
+              `running` and "will not poll" at once, which is how a reader concludes
+              seven families are being advanced when none of them are. -#}
+          {% if s.parked_at %}
+            <span class="badge muted">parked</span>
+            <div class="muted" style="font-size:12px">{{ s.parked_reason or 'several runs moved nothing' }}</div>
+          {% elif not s.enabled %}
+            <span class="badge muted">off</span>
+          {% elif not s.api_key_id or not s.has_workflow %}
+            <span class="badge warn">waiting</span>
+          {% else %}
+            <span class="badge ok">running</span>
+          {% endif %}
+          {% if s.enabled and not s.has_workflow %}<div class="muted" style="font-size:12px">no workflow definition — waiting on the customer</div>{% endif %}
+          {% if s.enabled and not s.api_key_id %}<div class="muted" style="font-size:12px">no hosted credential yet — the runner issues itself one on its next pass</div>{% endif %}
+        </td>
+        <td>
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/flow-subscriptions/{{ s.id }}/toggle">
+            <input type="hidden" name="enabled" value="{{ 'false' if s.enabled else 'true' }}">
+            <button class="small plain">{{ 'Stop' if s.enabled else 'Start' }}</button>
+          </form>
+          {% if s.parked_at %}
+          <form class="inline" method="post" action="/admin/tenants/{{ detail.tenant.id }}/flow-subscriptions/{{ s.id }}/unpark">
+            <button class="small plain">Clear park</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">
+        No subscriptions at all — this workspace predates default enrolment and the sync has
+        not run against it yet. <code>scripts/sync_tenant_defaults.py</code> creates them.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if not hosted_keys %}
+  <form method="post" action="/admin/tenants/{{ detail.tenant.id }}/flow-agent-key" style="margin-top:16px">
+    <button class="small" style="flex:0;margin-top:0">Issue hosted flow agent credential</button>
+    <span class="muted" style="font-size:13px;margin-left:8px">Needed before a subscription can run. Shown once.</span>
+  </form>
+  {% endif %}
+
+  {% if entity_options %}
+  <form method="post" action="/admin/tenants/{{ detail.tenant.id }}/flow-subscriptions/create" style="margin-top:16px">
+    <div class="row">
+      <label style="flex:1">
+        <span class="muted" style="font-size:12px">Object type</span>
+        <select name="entity_type" required>
+          {% if entity_options | selectattr('kind', 'equalto', 'builtin') | list %}
+          <optgroup label="Built-in documents">
+            {% for o in entity_options if o.kind == 'builtin' %}
+            <option value="{{ o.value }}">{{ o.label }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          {% if entity_options | selectattr('kind', 'equalto', 'business_object') | list %}
+          <optgroup label="This company's own object types">
+            {% for o in entity_options if o.kind == 'business_object' %}
+            <option value="{{ o.value }}">{{ o.label }} ({{ o.value }})</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+        </select>
+      </label>
+      <label style="flex:1">
+        <span class="muted" style="font-size:12px">Driver skill</span>
+        <select name="driver_skill" required>
+          {% for d in driver_options %}
+          <option value="{{ d.value }}">{{ d.label }} · {{ d.capability }}</option>
+          {% else %}
+          <option value="">— this company has no skill the agent could run —</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label style="flex:1">
+        <span class="muted" style="font-size:12px">Hosted credential</span>
+        <select name="api_key_id">
+          {% for k in hosted_keys %}
+          <option value="{{ k.id }}">{{ k.label }} · {{ k.id[:8] }}</option>
+          {% else %}
+          <option value="">— none issued yet —</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label style="flex:2">
+        <span class="muted" style="font-size:12px">Queue filter (JSON, optional)</span>
+        <input name="queue_filter" placeholder='{"direction": "sales", "status": "submitted"}'>
+      </label>
+      <label style="flex:0 0 120px">
+        <span class="muted" style="font-size:12px">Poll every (s)</span>
+        <input name="cadence_seconds" type="number" min="30" value="300">
+      </label>
+    </div>
+    <button class="small" style="flex:0;margin-top:12px">Enrol object type</button>
+  </form>
+  <p class="muted" style="font-size:13px">
+    This form is for the company's <em>own</em> object types — built-in families are
+    already subscribed, so nothing here needs filling in for them. Their driver cannot be
+    derived: it is a skill the company wrote, and the platform has no way to guess its name.
+  </p>
+  <p class="muted" style="font-size:13px">
+    Only skills the hosted agent holds the capability for are listed — a skill for a
+    person (<code>oryh-receivables</code> and the like) would install fine and then fail
+    every run. The queue filter is also the write boundary: the hosted agent is refused, server-side, on
+    any record outside it. Use this company's own status names — a status their lifecycle does
+    not have matches nothing and parks the subscription.
+  </p>
+  {% else %}
+  <p class="muted" style="font-size:13px" style="margin-top:16px">
+    Every object type this company can be enrolled for already has a subscription.
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

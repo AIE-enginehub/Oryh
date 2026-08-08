@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Connect a device{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  {% if result == "approved" %}
+  <h1>Device connected</h1>
+  <div class="notice">Authorized {{ client_name or "your agent" }} to work as {{ user.name or user.email }}.</div>
+  <p class="muted">You can close this page and return to your agent — it will finish setting itself up within a few seconds. Manage or revoke connected devices under <a href="/console/api-keys">Access credentials</a>.</p>
+  {% elif result == "denied" %}
+  <h1>Request denied</h1>
+  <p class="muted">The connection request was denied. Nothing was authorized; you can close this page.</p>
+  {% elif auth %}
+  <h1>Connect a device</h1>
+  <p><strong>{{ auth.client_name or "An agent" }}</strong> is asking to work in oryh as <strong>{{ user.name or user.email }}</strong>.</p>
+  <p class="muted">Approving gives this device its own access credential with your role's permissions and installs your personal skill bundle on it. Only approve if you started this from your own agent just now.</p>
+  <p>Code: <code>{{ auth.user_code }}</code></p>
+  <div class="row">
+    <form method="post" action="/web/device/approve">
+      <input type="hidden" name="code" value="{{ auth.user_code }}">
+      <button type="submit">Authorize</button>
+    </form>
+    <form method="post" action="/web/device/deny">
+      <input type="hidden" name="code" value="{{ auth.user_code }}">
+      <button type="submit" class="plain">Deny</button>
+    </form>
+  </div>
+  {% else %}
+  <h1>Connect a device</h1>
+  <p class="muted">Enter the code shown by your agent (e.g. WorkBuddy) to connect it to your oryh account.</p>
+  <form method="get" action="/web/device">
+    <label for="code">Device code</label>
+    <input id="code" name="code" required maxlength="16" placeholder="XXXX-XXXX" value="{{ code or '' }}" autocomplete="off">
+    <button type="submit">Continue</button>
+  </form>
+  <p class="muted">Agent doesn't have a code to show you yet? <a href="/web/connect">Get the oryh-connect skill</a> first.</p>
+  {% endif %}
+</div>
+{% endblock %}

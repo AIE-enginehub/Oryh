@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Check your email{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Check your email</h1>
+  <p>We sent a verification link to <strong>{{ email }}</strong>. Open it to confirm that you control this corporate mailbox.</p>
+  <p class="muted">After verification, a platform administrator will review the company request. The link expires in 48 hours. If it doesn't arrive, check your spam folder.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Order Submit"
+  short_description: "Record and submit sales orders; keep fulfilment facts current"
+  default_prompt: "Use $oryh-order-submit to turn a won quotation into a sales order, submit it for confirmation, and keep logistics/delivery facts current, with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Timesheet Submit"
+  short_description: "Fill, update, query, and submit timesheets"
+  default_prompt: "Use $oryh-timesheet-submit to fill, update, query, or submit a oryh timesheet with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

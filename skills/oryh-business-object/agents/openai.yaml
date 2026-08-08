@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Business Object"
+  short_description: "Record generic business objects, links, approvals, and todos"
+  default_prompt: "Use $oryh-business-object to record or query generic oryh business objects with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

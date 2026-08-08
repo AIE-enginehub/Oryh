@@ -1,0 +1,217 @@
+from __future__ import annotations
+
+# Permission grammar: "verb" or "verb:scope". A bare grant of a scopable verb
+# or an explicit "verb:*" covers every scope; "verb:<object_type>" covers one.
+#
+# Three enforcement layers (documented boundary):
+#   - system verbs guard the core API (code enforcement points below);
+#   - custom capabilities (tenant-defined rows) guard skill-bundle
+#     distribution and flow-routing eligibility — never the core API;
+#   - the scope dimension extends automatically with the tenant's object
+#     types: no code change when a tenant defines a new type.
+
+# (name, scopable, title, description)
+SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
+    ("timesheet.submit_own", False, "提交自己的工时", "创建、填写、提交、重交自己的工时表"),
+    ("timesheet.advance", False, "推进工时状态", "工时表状态转换（审批终局、退回）——流程推进权"),
+    ("expense.submit_own", False, "提交自己的报销", "创建、填写、提交、重交自己的报销单，含票据附件上传"),
+    ("expense.advance", False, "推进报销状态", "报销单状态转换（审批终局、退回、标记打款）——流程推进权"),
+    ("purchase.submit_own", False, "提交自己的采购申请", "创建、填写、提交、重交自己的采购申请"),
+    ("purchase.advance", False, "推进采购申请状态", "采购申请状态转换（审批终局、退回、标记下单）——流程推进权"),
+    ("quotation.submit_own", False, "提交自己的销售报价", "创建、填写、提交自己的报价单，含发送、成交/流失登记与改版"),
+    ("quotation.advance", False, "推进报价单状态", "报价单状态转换（审批终局、退回、过期清扫）——流程推进权"),
+    ("order.submit_own", False, "提交自己的销售订单", "创建、填写、提交自己的销售订单，含物流与交付事实维护"),
+    ("order.advance", False, "推进销售订单状态", "销售订单状态转换（确认、发货、签收、取消）——流程推进权"),
+    # Invoicing is a finance function, not "my own documents", so it follows the
+    # purchase_order.manage shape rather than submit_own. It is scopable on the
+    # direction (`invoice.manage:sales` / `:purchase`) so a workspace can keep
+    # 应收会计 and 应付会计 apart — 不相容职务分离 — without a second table. The
+    # scope dimension is the same grammar object types use; nothing in
+    # permissions_cover needs to know what a scope means.
+    (
+        "invoice.manage",
+        True,
+        "开具/登记发票",
+        "创建、编辑、提交发票；可按方向作用域（invoice.manage:sales 仅销项，:purchase 仅进项）",
+    ),
+    ("invoice.advance", False, "推进发票状态", "发票状态转换（开具、退回、作废、坏账核销）——流程推进权"),
+    ("payment.record", False, "登记收付款", "创建、编辑、提交收款与付款单；不含核销"),
+    ("payment.advance", False, "推进付款状态", "付款状态转换（批准、拒绝、退回、标记已付）——流程推进权"),
+    (
+        "payment.apply",
+        False,
+        "核销",
+        "把款项勾对到发票或报销单（含冲正）——与 payment.record 分开，出纳记账与会计核销可分职",
+    ),
+    # Payroll is the one thing in this system that must not be readable by every
+    # credential in the workspace, so it gets a READ capability — the first one.
+    # Everything else is tenant-scoped only.
+    (
+        "payroll.read",
+        False,
+        "查看薪酬",
+        "查看薪资档案与工资条；不持有此权限的凭据看不到任何工资条，但任何人都看得到自己那张",
+    ),
+    (
+        "payroll.manage",
+        False,
+        "定薪",
+        "写入薪资档案（调薪）——与出工资条（invoice.manage:payroll）分开，定薪是另一层的决定",
+    ),
+    # 规章制度. Reading an INTERNAL policy needs no capability on purpose — an
+    # employee handbook nobody may read is not a handbook. The gate is per-row:
+    # a policy marked `restricted` names the capability it wants, reusing the
+    # existing scopable grammar rather than inventing a second one.
+    (
+        "policy.manage",
+        False,
+        "起草制度",
+        "新建与修改制度草稿、维护制度规则；草稿只有持有此权限的凭据看得到——"
+        "草稿的裁员方案泄露比发布版更糟",
+    ),
+    (
+        "policy.publish",
+        False,
+        "发布/废止制度",
+        "把草稿发布为生效版本（并关闭上一版），以及废止已发布的制度——"
+        "与起草分开，因为发布是一个权威行为，不是一次编辑",
+    ),
+    (
+        "billing_account.manage",
+        False,
+        "账户管理",
+        "为客户/供应商/员工开立往来账户与积分账户，设定授信额度、冻结与销户",
+    ),
+    (
+        "billing_account.post",
+        True,
+        "记账户流水",
+        "写入账户增减流水（充值、扣减、发放积分、兑换、过期）；可按计量类型作用域"
+        "（billing_account.post:currency 仅钱，:points 仅积分）——发积分是高欺诈风险动作，与开户分权",
+    ),
+    ("business_object.write", True, "创建/编辑业务对象", "按对象类型作用域；含链接与软删/恢复"),
+    ("business_object.advance", True, "推进业务对象状态", "按对象类型作用域的状态转换——流程推进权"),
+    (
+        "business_object.summarize",
+        True,
+        "汇总业务对象",
+        "按对象类型作用域，门禁汇总类 skill 的分发（如经理汇总日报）——business-objects 读取本身不受此闸控制",
+    ),
+    ("approval.record", False, "记录审批事实", "写入审批记录（approved/rejected/returned/commented）"),
+    (
+        "flow_run.record",
+        False,
+        "记录流程代理运行",
+        "写入流程推进代理的运行台账（开始/结束/推进结果）——代理为自己的工作留痕，不推进任何单据",
+    ),
+    ("todos.assign", False, "为他人创建待办", "创建指派给任何员工的待办"),
+    ("todos.complete_own", False, "完成自己的待办", "完成指派给自己的待办"),
+    ("booking.own", False, "预订资源", "以自己名义创建/修改/取消资源预订"),
+    (
+        "master_data.manage",
+        False,
+        "主数据管理",
+        "创建、编辑和归档项目、供应商、客户、产品、SKU 与资源等工作空间主数据",
+    ),
+    ("employees.manage", False, "员工管理", "创建和维护员工档案"),
+    ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
+    ("keys.manage", False, "访问凭证管理", "签发、查看、停用工作空间与个人访问凭证"),
+    ("object_types.manage", False, "对象类型管理", "定义对象字段与状态流程"),
+    ("workflows.publish", False, "发布流程定义", "发布新的工作流定义版本"),
+    ("skills.manage", False, "Skill 管理", "创建、修订、归档工作空间 skills"),
+    ("purchase_order.manage", False, "采购下单与收货", "创建和维护采购订单、记录收货；不是'本人单据'——是采购职能"),
+    ("tenant.act_for_any_employee", False, "代表任意员工", "越过'仅本人'限制，代表任何员工操作记录"),
+)
+
+SYSTEM_CAPABILITY_NAMES = frozenset(name for name, *_ in SYSTEM_CAPABILITIES)
+SCOPABLE_VERBS = frozenset(name for name, scopable, *_ in SYSTEM_CAPABILITIES if scopable)
+
+ALL_PERMISSIONS: tuple[str, ...] = tuple(
+    name if not scopable else f"{name}:*" for name, scopable, *_ in SYSTEM_CAPABILITIES
+)
+
+# Seeded per tenant; tenants tune from here (e.g. strip approval.record from
+# member and grant it via an approver role, or scope a 服务商 role to specific
+# object types). todos.assign is deliberately NOT in member: assigning work to
+# someone else is routing — the flow/admin side's write — and it also gates
+# flow-side skill distribution (approval-notifier), which must not land in
+# every member's bundle. Members complete their own todos; they do not mint
+# them for colleagues.
+DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
+    "admin": ALL_PERMISSIONS,
+    "member": (
+        "timesheet.submit_own",
+        "expense.submit_own",
+        "purchase.submit_own",
+        "quotation.submit_own",
+        "order.submit_own",
+        "business_object.write:*",
+        "approval.record",
+        "todos.complete_own",
+        "booking.own",
+    ),
+}
+
+
+# Principal kinds for tenant-level (service) API keys.
+#
+# `Actor.kind` answers "is there a person behind this credential". Principal
+# kind answers "whose machine holds it". A tenant's own service key is the
+# tenant's root credential for automation — it issued the key to itself, so
+# bypassing the permission layer is not a hole, it is the point. A hosted flow
+# agent key is held by ORYH inside someone else's tenant, so it carries an
+# enumerable grant set instead, reported on the key itself (`ApiKeyRead
+# .permissions`) so the customer's answer to "what can your agent do in my
+# company" is a list they can read, not a promise they have to take.
+PRINCIPAL_TENANT_SERVICE = "tenant_service"
+PRINCIPAL_HOSTED_FLOW_AGENT = "hosted_flow_agent"
+PRINCIPAL_KINDS: tuple[str, ...] = (PRINCIPAL_TENANT_SERVICE, PRINCIPAL_HOSTED_FLOW_AGENT)
+
+# Rendered wherever the hosted agent's writes are attributed. It comes from
+# this constant, never from the key's label, so a tenant cannot mint a key that
+# reads as ORYH's agent in its own audit trail.
+HOSTED_FLOW_AGENT_DISPLAY_NAME = "ORYH 托管流程代理"
+
+# Advancement, assignment, and a record of its own work — nothing else. The
+# hosted agent moves flows and hands out todos. It cannot reshape identity or
+# access (users/roles/keys), cannot file documents in someone's name
+# (`*.submit_own`), cannot edit business object payloads, and cannot publish the
+# tenant's own definitions or skills.
+#
+# `flow_run.record` is here so the runner needs no second, wider credential: the
+# principal that did the work is the one that writes down having done it, in the
+# tenant it did it in, signed as itself.
+HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
+    "timesheet.advance",
+    "expense.advance",
+    "purchase.advance",
+    "quotation.advance",
+    "order.advance",
+    "invoice.advance",
+    "payment.advance",
+    # the hosted agent runs the points-expiry sweep, which is a ledger write
+    "billing_account.post:*",
+    "business_object.advance:*",
+    "approval.record",
+    "todos.assign",
+    "flow_run.record",
+)
+
+
+def permissions_cover(permissions: frozenset[str], verb: str, scope: str | None = None) -> bool:
+    if verb in permissions or f"{verb}:*" in permissions:
+        return True
+    return scope is not None and f"{verb}:{scope}" in permissions
+
+
+def validate_permission_grammar(grant: str, known_custom: frozenset[str]) -> str | None:
+    """Return an error string if the grant is not a system verb (optionally
+    scoped), not a custom capability, and therefore meaningless."""
+    verb, _, scope = grant.partition(":")
+    if verb in SYSTEM_CAPABILITY_NAMES:
+        if scope and verb not in SCOPABLE_VERBS:
+            return f"{verb!r} does not accept a scope"
+        return None
+    if grant in known_custom:
+        return None
+    return f"unknown capability {grant!r}"

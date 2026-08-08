@@ -1,0 +1,242 @@
+# Oryh Quotation Submit API Reference
+
+{{include:_common/api-auth-principal.md}}
+
+## Identity And Reads
+
+{{include:_common/tenant-state-names.md}}
+
+```text
+GET /auth/me                                               → linked employee_id + permissions
+GET /customers?keyword=&status=active                      → match the customer (read-only)
+GET /customers?tax_id=                                     → exact customer match by tax id
+GET /products?keyword=&status=active                       → match catalog products (read-only; has_skus flags variant products)
+GET /product-skus?product_id={id}&status=active            → the product's variants
+GET /sales-quotations?employee_id={me}&status=draft        → reuse before create
+GET /sales-quotations?employee_id={me}&status=submitted    → in-flight duplicate check (also ?status=sent)
+GET /sales-quotations?quote_number=QT-000123&include_deleted=false → every revision of one number
+GET /sales-quotations/{quotation_id}/detail                → quotation + items + adjustments + computed_total + adjustments_total + adjusted_total + unpriced_item_count + revisions + approval trail
+GET /approval-records?entity_type=sales_quotation&entity_id={quotation_id} → progress
+GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation  → tenant rules; apply its 提交要求 (step 2)
+```
+
+## Create Quotation
+
+```json
+POST /sales-quotations
+{
+  "employee_id": "my-employee-id",
+  "title": "华欣机械 数控刀具年度报价",
+  "customer_id": "customer-id-if-confidently-matched",
+  "customer_name_snapshot": "华欣机械",
+  "contact_name": "王工",
+  "contact_phone": "13800000000",
+  "quote_date": "2026-07-21",
+  "valid_until": "2026-08-20",
+  "currency": "CNY",
+  "payment_terms": "款到发货，可月结30天",
+  "delivery_terms": "含运费，华东地区3日达",
+  "remarks": "以上单价均含13%增值税",
+  "source_report_text": "华欣要一批刀具的年度价，铣刀按目录价九折，送两盒样品，月结30天。",
+  "items": [
+    {"line_no": 1, "product_id": "product-id-if-matched", "quantity": 200,
+     "unit_price": 85.00, "tax_rate": 13},
+    {"line_no": 2, "product_name_snapshot": "样品两盒", "quantity": 2,
+     "unit_price": 0, "is_gift": true}
+  ]
+}
+```
+
+`items` rides the create: the whole quotation is ONE call and one
+transaction — a bad line rolls everything back, and the response echoes the
+lines as they landed (your read-back material). Catalog `list_price_snapshot`
+capture works identically inline. Up to 200 lines.
+
+Status starts at `draft`. `POST /sales-quotation-items` (below) remains the way to ADD a line to an existing `draft`/`returned` quotation. `quote_number` omitted → the server allocates the next `QT-NNNNNN` (bring your own only for tenant numbering conventions; duplicates 409). Both customer fields are optional: a matched `customer_id` backfills an empty snapshot; free text alone is the new-prospect case. `total_amount` is usually set later, once the lines exist and a document total is negotiated (抹零) — omit it and the line sum is the total.
+
+## Items
+
+```json
+POST /sales-quotation-items
+{
+  "quotation_id": "quotation-id",
+  "line_no": 1,
+  "product_id": "product-id-if-confidently-matched",
+  "sku_id": "sku-id-when-the-variant-is-decided",
+  "product_name_snapshot": "四刃立铣刀",
+  "spec": "D10 硬质合金",
+  "quantity": 200,
+  "unit": "支",
+  "unit_price": 85.00,
+  "tax_rate": 13,
+  "lead_time": "现货",
+  "is_gift": false,
+  "notes": "按目录价九折"
+}
+```
+
+- `list_price_snapshot` is captured **automatically** from the catalog (SKU price overrides product price) when the line references one — send it explicitly only when applying a special price list. Uncataloged free-text lines carry none; the discount is then not derivable, which approvers will see.
+- `amount` is the line total override (normally omit; `quantity × unit_price` is computed at read time).
+- Gift lines: `"is_gift": true, "unit_price": 0` — counted as 0 in totals, never as "unpriced" and never as a 100% discount.
+- `line_no` is the printed document order; `/detail` returns lines sorted by it.
+
+## Adjustments (整单/行级调整)
+
+Signed amounts that move the total beside the line math — the explicit home
+for 促销、税、运费、手续费、附加费、抹零 (OFBiz QuoteAdjustment shaped):
+
+```json
+POST /sales-quotation-adjustments
+{
+  "quotation_id": "quotation-id",
+  "adjustment_type": "promotion",
+  "amount": -500.00,
+  "description": "开业促销减500",
+  "quotation_item_id": "item-id-or-omit-for-header-level",
+  "source_percentage": 5
+}
+```
+
+- `adjustment_type`: the shipped catalog is `discount | promotion | tax | shipping | fee | surcharge | rounding | other`;
+  the tenant may have added their own (开票服务费…) or archived shipped ones —
+  the current vocabulary is `GET /type-options?family=sales_adjustment_type`,
+  and an unknown value is a 422 listing the active options. The same
+  vocabulary governs order adjustments. A charge that fits none of them
+  (开票服务费、安装费…) is a new type: propose it, then
+  `POST /type-options {"family": "sales_adjustment_type", "name":
+  "invoicing_fee", "title": "开票服务费"}` (needs `object_types.manage`; on
+  403 ask an admin) — never file it as `other` when it has a real name the
+  customer sees on the quote.
+- `amount` is SIGNED: negative reduces the total (促销/折扣/抹零), positive adds (税/运费/附加费).
+- Omit `quotation_item_id` for a document-level adjustment; set it to pin the
+  adjustment to one line (400 if the line belongs to another quotation).
+- `source_percentage` records the rate it was derived from, when there was
+  one; `amount` stays the recorded fact — never make the server re-derive.
+- `PATCH /sales-quotation-adjustments/{id}` / `DELETE` while the quotation is
+  editable (409 otherwise — adjustments lock and unlock with the document,
+  exactly like items). `GET /sales-quotation-adjustments?quotation_id=` lists.
+- `/revise` copies adjustments to the new revision (line-pinned ones follow
+  the copied line), so the negotiation continues from the same facts.
+- Detail math: `adjusted_total = computed_total + adjustments_total`. Record
+  adjustments and the declared `total_amount` should EQUAL `adjusted_total`;
+  a residual gap is undocumented and the approval side will ask about it.
+- A per-line price concession is still `unit_price` vs `list_price_snapshot`
+  — that is where 单价折扣 lives. Adjustments are for amounts that sit
+  BESIDE the line prices, not a second way to discount a unit price.
+
+`PATCH /sales-quotation-items/{id}` / `DELETE` while the quotation is editable (409 otherwise). Swapping a line's product refreshes `list_price_snapshot` to the new product's catalog price automatically.
+
+Server-enforced limits (validate in conversation before calling):
+
+```text
+quantity        > 0                                     → 422 otherwise
+item identity   product_id or product_name_snapshot     → 422 otherwise
+tax_rate        0..100                                  → 422 otherwise
+items           only while quotation is draft/returned  → 409 otherwise
+customer_id / product_id / sku_id / attachment_id / project_id must exist here → 404 otherwise
+sku_id          must belong to product_id (sku alone derives it) → 400 otherwise
+```
+
+## Historical Import (迁移专用)
+
+A retired system's export, not today's filing. `POST /sales-quotations/bulk`
+takes up to 500 documents per call, each carrying its own lines and
+adjustments:
+
+```jsonc
+{"rows": [{
+  "quote_number": "QT-2023-000001",      // REQUIRED — history keeps its number
+  "employee_code": "E-001",              // the salesperson; by code (or employee_id)
+  "customer_code": "C-001",              // resolved against customer master data
+  "customer_name_snapshot": "华欣机械",   // what the document printed
+  "title": "2023年刀具年度报价", "quote_date": "2023-03-15",
+  "status": "accepted",                  // terminal states import AS-IS
+  "total_amount": 1130.00,
+  "items": [{"line_no": 1, "product_code": "P-001", "quantity": 10,
+             "unit_price": 100.00, "amount": 1000.00}],
+  "adjustments": [{"adjustment_type": "tax", "amount": 130.00,
+                   "source_percentage": 13, "line_no": 1}]
+}], "dry_run": true, "on_error": "skip", "on_missing_reference": "error"}
+```
+
+- **The number is the identity**, so a re-run is an upsert: the same file
+  twice reports `unchanged`, which is how a half-finished migration resumes —
+  just run it again. Nothing is server-allocated, so the number allocator's
+  per-tenant lock never throttles the import (~385 docs/sec measured).
+- **`status` accepts any state of the tenant's machine.** 成交/流失 documents
+  are recorded as they ended; they are NOT walked through the lifecycle.
+- **Master data is referenced by the tenant's own codes** (`employee_code`,
+  `customer_code`, `product_code`, `sku_code`, `project_code`) — import the
+  master data FIRST.
+- `on_missing_reference` decides what an unmatched code costs: `error`
+  (default) reports that document and imports the rest; `snapshot` imports it
+  anyway with the historical text standing alone (`customer_id` null, the
+  printed name kept). A missing SALESPERSON is always an error — the document
+  cannot exist without one.
+- `on_error` defaults to **`skip`** here (unlike master data): one document
+  referencing a departed customer must not stop a 300k-row migration. Use
+  `abort` when a dry run suggests the column mapping itself is wrong.
+- Lines and adjustments are **replaced wholesale** on re-import: a historical
+  document is one fact, and a corrected file is that whole fact again.
+  Adjustments pin to a line by that line's `line_no` within the same row.
+- Row results carry `number` (not `code`): report failures by document number
+  so the person finds them in their spreadsheet.
+
+## Lifecycle (machine-guarded; submit/send/close are retry-idempotent)
+
+```json
+POST /sales-quotations/{id}/submit
+{}
+```
+
+`draft/returned → submitted`; sets `submitted_at`. Internal approval runs from here.
+
+```json
+POST /sales-quotations/{id}/send
+{}
+```
+
+`approved → sent`; sets `sent_at`. Record the fact AFTER the document actually went to the customer.
+
+```json
+POST /sales-quotations/{id}/close
+{"outcome": "accepted", "outcome_note": "按 v2 报价签约，合同号 HT-2026-088"}
+```
+
+`sent → accepted | declined | expired`; sets `closed_at`. `outcome_note` is where 成交确认/流失原因 live.
+
+```json
+POST /sales-quotations/{id}/revise
+{"reason": "客户要求铣刀单价降到 80"}
+```
+
+`approved/sent → superseded` on the old revision; returns a fresh `draft` with `revision_no + 1`, same `quote_number`, lines copied, catalog snapshots refreshed to today's truth. Adjust, read back, submit again. Revise is NOT retry-idempotent: retrying after success returns 409 "already superseded" — recover the new draft via `GET /sales-quotations?quote_number={n}` (highest `revision_no`).
+
+## Submitted Fact (only if the role has approval.record)
+
+```json
+POST /approval-records
+{
+  "entity_type": "sales_quotation",
+  "entity_id": "quotation-id",
+  "round_no": 1,
+  "sequence_no": 1,
+  "action": "submitted",
+  "approver_role": "submitter",
+  "acted_at": "2026-07-21T09:00:00Z"
+}
+```
+
+403 here is expected in tenants whose member role is fact-free — the workflow admin backfills it. After a return, resubmit with `round_no` incremented. Each revision is its own record with its own trail.
+
+## Correcting The Quotation Header Before Submitting
+
+```text
+PATCH /sales-quotations/{quotation_id}
+{"title": "市第一人民医院 JC-800 采购报价", "valid_until": "2026-08-25", "remarks": "折扣理由：战略客户，年内第三次采购"}
+```
+
+Editable while the quotation is in an editable state (`draft`/`returned` by
+default; 409 otherwise). `remarks` matters here: tenants commonly require the
+discount justification in it, so read the document back after writing and
+confirm the value landed.

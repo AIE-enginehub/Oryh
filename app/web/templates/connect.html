@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Connect an agent{% endblock %}
+{% block pgtitle %}Connect an agent{% endblock %}
+{% block pgsub %}<div class="sub">A credential-free bootstrap for a permitted local Agent Skills runtime.</div>{% endblock %}
+{% block content %}
+<div class="card auth-card" style="max-width:560px">
+  <h1>oryh-connect</h1>
+  <p class="muted">Download this from the oryh environment you intend to use. It contains no password, access credential, user identity, or company data. It does contain this deployment's address, so a copy downloaded from one environment should not be reused for another.</p>
+
+  <a class="btn pri" href="/api/v1/connect-skill" download style="margin:16px 0;text-decoration:none">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+    Download oryh-connect.zip
+  </a>
+
+  <h2>Install</h2>
+  <p class="muted">Follow the <a href="/docs#install">ORYH user guide</a> for the Skill location and current validation status of each agent runtime. After installation, ask the agent “帮我连上公司的 ORYH” or “connect this device to ORYH.” You sign in and approve only on the oryh website; a compatible local runtime then downloads and installs the personal bundle in its persistent Skill directory.</p>
+
+  {% if actor %}
+  <p class="muted">Already have an agent connected? Each device gets its own key — running this again on a new machine won't disturb your existing ones. Manage or revoke individual devices under <a href="/console/api-keys">Access credentials</a>.</p>
+  {% else %}
+  <p class="muted">New here? <a href="/console/login">Sign in</a> once your agent opens the approval page.</p>
+  {% endif %}
+</div>
+{% endblock %}

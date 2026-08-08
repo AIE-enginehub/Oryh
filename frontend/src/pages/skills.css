@@ -1,0 +1,42 @@
+.skills-table td:first-child { max-width: 390px; }
+.skills-table .skill-description { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kind-chip { display: inline-flex !important; padding: 2px 7px; border-radius: 999px; background: var(--line-soft); color: var(--muted); font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.kind-chip.product { background: #eff6ff; color: #1d4ed8; }
+.skill-fields a { color: var(--accent-deep); font-weight: 650; }
+.skill-file-editor { margin-top: 22px; }
+.skill-file-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+.skill-file-editor > header strong,
+.skill-file-editor > header small { display: block; }
+.skill-file-editor > header small { color: var(--muted); font-size: 10px; }
+.skill-file { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfc; }
+.skill-file > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-bottom: 8px; }
+.skill-file label { color: var(--muted); font-size: 10.5px; font-weight: 700; }
+.skill-file input,
+.skill-file textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+.skill-file input { height: 36px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.skill-file textarea { resize: vertical; }
+
+/* --- audience: who a skill is for -------------------------------------- */
+.audience-chip { display: inline-flex; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); font-size: 10.5px; font-weight: 650; }
+.audience-empty { display: inline-flex; padding: 2px 8px; border-radius: 999px; background: #fef2f2; color: #b91c1c; font-size: 10.5px; font-weight: 650; }
+.skill-audience { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.skill-audience h4 { margin: 0 0 10px; font-size: 12px; font-weight: 750; }
+.audience-mode { display: grid; gap: 8px; margin-bottom: 12px; }
+.audience-mode label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
+.audience-mode label:has(input:checked) { border-color: var(--accent-deep); background: var(--accent-soft); }
+.audience-mode b { display: block; font-size: 11.5px; }
+.audience-mode small { display: block; margin-top: 2px; color: var(--muted); font-size: 10.5px; }
+.audience-impact { margin-bottom: 12px; padding: 10px 12px; border-radius: 9px; background: #fafbfc; border: 1px solid var(--line); }
+.audience-impact p { margin: 0; font-size: 11px; }
+.audience-impact p + p { margin-top: 7px; }
+.audience-note { color: var(--muted); }
+/* losing and blocked are the two the admin must not scroll past */
+.audience-warning { padding: 8px 10px; border-radius: 7px; background: #fffbeb; border: 1px solid #fde68a; }
+.audience-warning b { display: block; color: #92400e; font-size: 11px; }
+.audience-warning small { display: block; margin-top: 3px; color: #78350f; font-size: 10.5px; line-height: 1.5; }
+.audience-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.audience-picker select { height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font-size: 11.5px; }
+.audience-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.audience-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.audience-list strong { font-size: 11.5px; }
+.audience-blocked { grid-column: 1 / -1; color: #92400e; font-size: 10.5px; }

@@ -1,0 +1,32 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0a0e0b;
+}
+
+.console-entry-loading {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: #667085;
+  font: 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+}
+
+.console-entry-loading span {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #0f766e;
+  color: #f5fffd;
+  font-size: 17px;
+  font-weight: 800;
+}

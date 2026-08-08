@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-site
+coverage
+test-results
+playwright-report
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example

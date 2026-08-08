@@ -1,0 +1,75 @@
+/* Hosted flow driving: the tenant's view of a service someone else operates. */
+
+.flow-agent-page .section-hint {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  max-width: 68ch;
+}
+
+/* A stopped subscription is the one state that needs to interrupt the reader:
+   nothing is being driven and only a person can restart it. */
+.flow-park-banner {
+  border: 1px solid var(--status-danger-border, #e0b4b4);
+  background: var(--status-danger-bg, #fdf6f6);
+  border-radius: var(--radius-md, 8px);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.flow-park-banner h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.flow-park-banner ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.flow-park-banner li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.flow-park-banner strong {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9rem;
+}
+
+.flow-park-banner small {
+  color: var(--text-muted);
+}
+
+.flow-row-parked td {
+  background: var(--status-danger-bg, #fdf6f6);
+}
+
+.flow-run-table .activity-status {
+  margin-bottom: 0.2rem;
+}
+
+/* Outcome tones beyond the shared open/completed pair: a run that succeeded but
+   moved nothing is not a success worth a green badge. */
+.activity-status.stuck {
+  background: var(--status-warning-bg, #fdf6e3);
+  color: var(--status-warning-text, #8a6d3b);
+}
+
+.activity-status.skipped {
+  background: var(--surface-muted, #f4f4f5);
+  color: var(--text-muted, #6b7280);
+}
+
+.activity-status.running {
+  background: var(--status-info-bg, #eef4fd);
+  color: var(--status-info-text, #2c5aa0);
+}
+
+.activity-status.succeeded {
+  background: var(--status-success-bg, #eef8f0);
+  color: var(--status-success-text, #2f7a45);
+}

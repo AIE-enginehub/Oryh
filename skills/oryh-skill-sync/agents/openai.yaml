@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Skill Sync"
+  short_description: "Keep my installed oryh skills current"
+  default_prompt: "Use $oryh-skill-sync to compare the installed oryh-skills manifest against the server and refresh the bundle if anything changed, with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Sign in</h1>
+  <form method="post" action="/web/login">
+    <input type="hidden" name="next" value="{{ next or '' }}">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required maxlength="320" value="{{ email or '' }}">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required maxlength="200">
+    <p class="muted"><a href="/console/login?mode=reset">Forgot your password?</a></p>
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="muted">New company? <a href="/web/register">Register</a></p>
+  <p class="muted">Connecting an AI agent (WorkBuddy, etc.)? <a href="/web/connect">Get the oryh-connect skill</a></p>
+</div>
+{% endblock %}

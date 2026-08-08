@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh My Work"
+  short_description: "Check what I should do in oryh"
+  default_prompt: "Use $oryh-my-work to check open todos, overdue items, and in-flight approval progress with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

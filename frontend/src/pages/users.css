@@ -1,0 +1,52 @@
+.users-toolbar { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.users-filter { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.users-filter input, .users-filter select { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--ink); }
+.users-filter input { width: min(260px, 28vw); }
+.users-filter select { max-width: 170px; }
+.users-table .row-actions { width: 310px; }
+.user-name { display: flex; align-items: center; gap: 7px; }
+.self-badge { display: inline-flex; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-deep); font-size: 9px; font-weight: 750; }
+.user-status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: var(--line-soft); color: var(--muted); font-size: 10.5px; font-weight: 750; }
+.user-status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.user-status.active { background: #ecfdf3; color: #15803d; }
+.user-status.invited { background: var(--warn-soft); color: var(--warn); }
+.user-status.disabled { background: var(--line-soft); color: var(--muted); }
+.invitation-result { position: relative; display: grid; grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.3fr); align-items: center; gap: 18px; padding: 16px 46px 16px 18px; border: 1px solid #9dd8cf; border-radius: 12px; background: linear-gradient(110deg, #f0fbf8, #fff); box-shadow: var(--shadow-sm); }
+.invitation-result.warning { border-color: #fed7aa; background: var(--warn-soft); color: var(--warn); }
+.invitation-result strong { display: block; margin-top: 3px; font-size: 13px; }
+.invitation-result p { margin: 3px 0 0; color: var(--muted); font-size: 10.5px; }
+.invitation-link-row { display: flex; gap: 8px; min-width: 0; }
+.invitation-link-row input { min-width: 0; flex: 1; height: 38px; padding: 0 10px; border: 1px solid #b9ddd7; border-radius: 8px; background: #fff; color: var(--ink-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+.notice-close { position: absolute; top: 9px; right: 9px; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
+.notice-close:hover { background: var(--line-soft); color: var(--ink); }
+.copy-error { grid-column: 2; color: var(--danger) !important; }
+.list-mutation-error { margin: 0; }
+.bundle-result { position: relative; min-height: 48px; padding: 14px 46px 14px 16px; border: 1px solid #9dd8cf; border-radius: 10px; background: #f0fbf8; color: var(--accent-deep); font-size: 11.5px; font-weight: 650; }
+.bundle-result.warning { border-color: #fed7aa; background: var(--warn-soft); color: var(--warn); }
+.self-protection { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; padding: 11px 12px; border: 1px solid #b9ddd7; border-radius: 9px; background: var(--accent-soft); color: var(--accent-deep); font-size: 11px; }
+.self-protection strong { font-size: 12px; }
+.option-warning { margin-bottom: 15px; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 9px; background: var(--warn-soft); color: var(--warn); font-size: 11.5px; }
+.field-error { color: var(--danger) !important; }
+.user-form select:disabled { cursor: not-allowed; opacity: 0.68; }
+.employee-option-search > div { display: flex; align-items: center; gap: 8px; }
+.employee-option-search input { min-width: 0; flex: 1; }
+.employee-option-search .button { flex: 0 0 auto; }
+
+@media (max-width: 980px) {
+  .users-toolbar { align-items: stretch; flex-direction: column-reverse; }
+  .users-toolbar > .button { align-self: flex-end; }
+  .users-filter { flex-wrap: wrap; }
+  .users-filter input { min-width: 220px; flex: 1; width: auto; }
+  .invitation-result { grid-template-columns: 1fr; }
+  .copy-error { grid-column: 1; }
+}
+
+@media (max-width: 580px) {
+  .users-filter { align-items: stretch; }
+  .users-filter input, .users-filter select { width: 100%; max-width: none; }
+  .users-filter .button { flex: 1; }
+  .invitation-result { padding: 16px 42px 16px 15px; }
+  .invitation-link-row { align-items: stretch; flex-direction: column; }
+  .employee-option-search > div { align-items: stretch; flex-wrap: wrap; }
+  .employee-option-search input { flex-basis: 100%; }
+}

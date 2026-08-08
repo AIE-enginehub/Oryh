@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Resource Booking"
+  short_description: "Book shared resources like rooms and devices"
+  default_prompt: "Use $oryh-resource-booking to find, book, update, or cancel a oryh resource reservation."
+
+policy:
+  allow_implicit_invocation: true

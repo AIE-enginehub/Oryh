@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Company created{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Welcome, {{ result.tenant.name }}</h1>
+  <p>Your company account is ready and you are signed in as <strong>{{ result.user.email }}</strong> (admin).</p>
+  <div class="notice">
+    <strong>Initial access credential (shown only once — store it now):</strong><br>
+    <code>{{ result.plain_text_api_key }}</code>
+  </div>
+  <p class="muted">This company credential lets your AI agents work in Oryh. You can create additional company or personal credentials under Access credentials.</p>
+  <a href="/console/dashboard"><button type="button">Go to dashboard</button></a>
+</div>
+{% endblock %}

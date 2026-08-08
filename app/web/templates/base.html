@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}oryh{% endblock %} · oryh console</title>
+  <style>
+    /* Design tokens. One theme family (cool zinc neutrals), one accent
+       (ledger teal - a system of record, not another indigo admin panel).
+       Shape lock: cards 12px, controls 8px, pills full. */
+    :root{
+      --ink:#101828; --ink-2:#344054; --muted:#667085; --faint:#98a2b3;
+      --line:#e7e9ef; --line-2:#f0f2f6; --bg:#f7f8fa; --panel:#ffffff;
+      --accent:#0f766e; --accent-hi:#0d9488; --accent-weak:#e6f5f2; --accent-ink:#0b5e57; --on-accent:#ffffff;
+      --ok:#15803d; --ok-weak:#ecfdf3; --warn:#b45309; --warn-weak:#fffbeb;
+      --danger:#be123c; --danger-weak:#fff1f2; --sky:#0369a1; --sky-weak:#f0f9ff;
+      --radius:12px; --sidebar:248px;
+      --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+      --shadow:0 6px 24px -8px rgba(16,24,40,.18), 0 2px 6px -2px rgba(16,24,40,.08);
+      --focus:0 0 0 3px rgba(13,148,136,.25);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#eceef2; --ink-2:#c6cbd6; --muted:#8d96a8; --faint:#69728a;
+        --line:#232837; --line-2:#1d2230; --bg:#0d0f15; --panel:#141823;
+        --accent:#14b8a6; --accent-hi:#2dd4bf; --accent-weak:#12312f; --accent-ink:#7ce8d9; --on-accent:#04211e;
+        --ok:#4ade80; --ok-weak:#0f2a1c; --warn:#fbbf24; --warn-weak:#2a2110;
+        --danger:#fb7185; --danger-weak:#2c1220; --sky:#38bdf8; --sky-weak:#0c2436;
+        --shadow:0 10px 30px -10px rgba(0,0,0,.6);
+        --focus:0 0 0 3px rgba(45,212,191,.28);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0}
+    body{font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+      color:var(--ink);background:var(--bg);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit;cursor:pointer}
+
+    /* ---- app shell ---- */
+    .app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh}
+    .side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;
+      position:sticky;top:0;height:100vh}
+    .brand{display:flex;align-items:center;gap:10px;padding:18px 20px 16px}
+    .logo{width:30px;height:30px;border-radius:8px;background:var(--accent);
+      display:grid;place-items:center;color:var(--on-accent);font-weight:800;font-size:15px;box-shadow:var(--shadow-sm)}
+    .brand b{font-size:15px;letter-spacing:-.01em}
+    .brand .env{font-size:11px;color:var(--muted);display:block;margin-top:1px;max-width:150px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .nav{flex:1;overflow-y:auto;padding:6px 12px 16px}
+    .nav .group{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:14px 10px 6px}
+    .nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--ink-2);font-size:13.5px;margin:1px 0}
+    .nav a .ic{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+    .nav a:hover{background:var(--line-2);color:var(--ink)}
+    .nav a.active{background:var(--accent-weak);color:var(--accent-ink);font-weight:600}
+    .nav a.active .ic{opacity:1}
+    .side .who{border-top:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px}
+    .avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-weak);color:var(--accent-ink);
+      display:grid;place-items:center;font-weight:700;font-size:13px;flex:0 0 auto}
+    .who .meta{min-width:0;flex:1}
+    .who .meta b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .who .meta span{font-size:11.5px;color:var(--muted)}
+    .who form{margin:0}
+    .who button{margin:0;background:none;border:0;color:var(--muted);padding:6px;border-radius:6px;box-shadow:none}
+    .who button:hover{background:var(--line-2);color:var(--ink)}
+
+    .main{min-width:0;display:flex;flex-direction:column}
+    .topbar{position:sticky;top:0;z-index:5;background:var(--bg);
+      border-bottom:1px solid var(--line);padding:16px 32px;display:flex;align-items:flex-start;gap:16px}
+    .topbar .tt{flex:1;min-width:0}
+    .topbar h1{margin:0;font-size:19px;letter-spacing:-.02em}
+    .topbar .sub{color:var(--muted);font-size:13px;margin-top:3px;max-width:72ch}
+    .page{max-width:1120px;width:100%;padding:24px 32px 64px;margin:0}
+
+    /* ---- buttons ---- */
+    button, .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;
+      border:1px solid var(--line);background:var(--panel);
+      color:var(--ink);padding:8px 14px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:var(--shadow-sm);transition:.12s}
+    button:hover,.btn:hover{border-color:var(--faint)}
+    button:active,.btn:active{transform:translateY(1px)}
+    button:focus-visible,.btn:focus-visible,a:focus-visible{outline:none;box-shadow:var(--focus)}
+    button.pri,.btn.pri,button[type=submit]:not(.plain):not(.small){background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+    button.pri:hover,.btn.pri:hover{background:var(--accent-hi);border-color:var(--accent-hi)}
+    .btn.sm,button.small{padding:5px 10px;font-size:12px;border-radius:7px;box-shadow:none;margin:0}
+    button.plain,.btn.plain{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+    button.plain:hover{border-color:var(--faint)}
+    .btn.ghost{background:transparent;border-color:transparent;box-shadow:none;color:var(--muted)}
+    .btn.ghost:hover{background:var(--line-2);color:var(--ink)}
+    .btn.danger,button.danger{color:var(--danger)}
+    .btn.danger:hover,button.danger:hover{border-color:var(--danger);background:var(--danger-weak)}
+    .btn .ic{width:15px;height:15px}
+
+    /* ---- forms ---- */
+    label{display:block;font-size:12.5px;color:var(--ink-2);font-weight:500;margin:12px 0 6px}
+    input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+      font-size:13.5px;background:var(--bg);color:var(--ink);font-family:inherit}
+    input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+    input[type=checkbox],input[type=radio]{width:auto;padding:0;accent-color:var(--accent)}
+
+    .row{display:flex;gap:16px}
+    .row>*{flex:1}
+    form.inline{display:inline}
+
+    /* ---- cards / tables ---- */
+    h1{font-size:19px;margin:0 0 16px;letter-spacing:-.02em}
+    h2{font-size:14.5px;margin:0 0 12px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+      box-shadow:var(--shadow-sm);margin-bottom:20px;padding:20px}
+    .card.flush{padding:0;overflow:hidden}
+    .card.flush>h1,.card.flush>h2,.card.flush>p{padding:16px 20px 0}
+    .auth-card{max-width:420px;margin:64px auto 0}
+    .auth-card form>button[type=submit]{margin-top:16px}
+    table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+    thead th{text-align:left;font-size:11.5px;font-weight:600;letter-spacing:.03em;color:var(--muted);
+      padding:10px 20px;border-bottom:1px solid var(--line-2);background:var(--line-2)}
+    tbody td,td,th{padding:11px 20px;border-bottom:1px solid var(--line-2);vertical-align:middle;text-align:left}
+    tbody tr:last-child td{border-bottom:0}
+    tbody tr{transition:background .1s}
+    tbody tr:hover{background:var(--line-2)}
+    td .name,.name{font-weight:600}
+    td .sub,.sub{font-size:12px;color:var(--muted)}
+    td.actions{text-align:right;white-space:nowrap}
+    td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+
+    /* ---- pills / badges ---- */
+    .pill,.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+      padding:2px 9px;border-radius:999px;background:var(--line-2);color:var(--ink-2);white-space:nowrap}
+    /* status dot only where it conveys live state (ok/warn), not on labels */
+    .pill.ok::before,.pill.warn::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7}
+    .pill.ok,.badge.ok{background:var(--ok-weak);color:var(--ok)}
+    .pill.warn,.badge.warn{background:var(--warn-weak);color:var(--warn)}
+    .pill.sky,.badge.sky{background:var(--sky-weak);color:var(--sky)}
+    .pill.accent,.badge.accent{background:var(--accent-weak);color:var(--accent-ink)}
+    .pill.mut,.badge.muted,.pill.plain{background:var(--line-2);color:var(--muted)}
+    .badge{background:var(--accent-weak);color:var(--accent-ink)}
+    .badge.muted{background:var(--line-2);color:var(--muted)}
+    .roles{display:flex;gap:4px;flex-wrap:wrap}
+
+    /* ---- misc ---- */
+    .muted{color:var(--muted)}
+    code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+      background:var(--line-2);padding:2px 6px;border-radius:5px;word-break:break-all}
+    .error{background:var(--danger-weak);border:1px solid color-mix(in srgb,var(--danger) 35%,transparent);
+      color:var(--danger);padding:11px 15px;border-radius:10px;font-size:13.5px;margin-bottom:20px}
+    .notice{background:var(--ok-weak);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent);
+      color:var(--ok);padding:11px 15px;border-radius:10px;font-size:13.5px;margin-bottom:20px;word-break:break-all}
+    .banner{display:flex;gap:12px;align-items:flex-start;background:var(--sky-weak);
+      border:1px solid color-mix(in srgb,var(--sky) 30%,transparent);color:var(--sky);
+      padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:13px}
+    .banner .ic{width:18px;height:18px;flex:0 0 auto;margin-top:1px}
+    .banner code{background:rgba(0,0,0,.06);color:inherit}
+    @media (prefers-reduced-motion: reduce){
+      *,*::before,*::after{transition:none!important;animation:none!important}
+    }
+
+    /* ---- platform-admin simple top nav ---- */
+    .phead{background:var(--panel);border-bottom:1px solid var(--line);padding:0 24px;display:flex;
+      align-items:center;gap:24px;height:56px}
+    .phead .brand{padding:0}
+    .phead nav{display:flex;gap:16px;flex:1}
+    .phead nav a{color:var(--muted);font-size:14px}
+    .pfull{max-width:960px;margin:32px auto;padding:0 24px}
+
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}
+      .side{position:static;width:auto;height:auto;display:grid;grid-template-columns:1fr auto;
+        border-right:0;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+      .brand{padding:12px 16px}
+      .nav{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px;
+        border-top:1px solid var(--line);overflow:visible}
+      .nav .group{display:none}
+      .nav a{flex:0 0 auto;white-space:nowrap}
+      .side .who{grid-column:2;grid-row:1;border:0;padding:8px 12px}
+      .page,.topbar{padding-left:20px;padding-right:20px}
+    }
+    @media(max-width:520px){
+      .who .meta{display:none}
+      .topbar{position:static}
+      .row{flex-direction:column}
+      .phead{height:auto;min-height:56px;flex-wrap:wrap;gap:10px;padding:10px 16px}
+      .phead nav{order:3;flex-basis:100%}
+      .phead>.muted{margin-left:auto;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .pfull{margin:20px auto;padding:0 16px}
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% if actor %}
+{% set path = request.url.path %}
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">c</div>
+      <div><b>oryh</b><span class="env">{{ nav_tenant or '管理控制台' }}</span></div>
+    </div>
+    <nav class="nav">
+      <div class="group">工作入口</div>
+      <a href="/console/dashboard"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>进入控制台</a>
+
+      <div class="group">设备连接</div>
+      <a href="/web/connect" class="{{ 'active' if path == '/web/connect' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>获取连接技能</a>
+      <a href="/web/device" class="{{ 'active' if path == '/web/device' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>授权新设备</a>
+    </nav>
+    <div class="who">
+      <div class="avatar">{{ (nav_name or actor.role)[:1] | upper }}</div>
+      <div class="meta"><b>{{ nav_name or actor.role }}</b><span>{{ actor.role }}{% if nav_sub %} · {{ nav_sub }}{% endif %}</span></div>
+      <form method="post" action="/web/logout"><button title="退出登录"><svg class="ic" style="width:17px;height:17px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2M9 12h11M17 9l3 3-3 3"/></svg></button></form>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="tt">
+        <h1>{% block pgtitle %}{{ self.title() }}{% endblock %}</h1>
+        {% block pgsub %}{% endblock %}
+      </div>
+      <div>{% block pgaction %}{% endblock %}</div>
+    </div>
+    <div class="page">
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% elif platform_admin %}
+<header class="phead">
+  <span class="brand"><b>oryh</b> <span class="badge">platform</span></span>
+  <nav>
+    <a href="/admin/tenants">Companies</a>
+    <a href="/admin/pilot-applications">Pilot applications</a>
+  </nav>
+  <span class="muted" style="font-size:13px">{{ platform_admin.email }}</span>
+  <form method="post" action="/admin/logout"><button class="small plain">Sign out</button></form>
+</header>
+<main class="pfull">
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {{ self.content() }}
+</main>
+{% else %}
+<main class="pfull">
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {{ self.content() }}
+</main>
+{% endif %}
+</body>
+</html>

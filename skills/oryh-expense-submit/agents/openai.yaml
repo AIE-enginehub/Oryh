@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Expense Submit"
+  short_description: "File, update, query, and submit expense claims with receipt evidence"
+  default_prompt: "Use $oryh-expense-submit to read the principal's receipts, confirm the extracted fields, and file or submit a oryh expense claim with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

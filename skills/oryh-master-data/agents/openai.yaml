@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Master Data"
+  short_description: "Import and maintain products, vendors, and customers"
+  default_prompt: "Use $oryh-master-data to read the person's spreadsheet locally, confirm the column mapping with them, dry-run the import, and upsert products/vendors/customers into oryh by their code, with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

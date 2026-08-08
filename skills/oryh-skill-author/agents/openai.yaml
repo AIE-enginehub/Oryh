@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Skill Author"
+  short_description: "Compile natural-language process requirements into tenant skills"
+  default_prompt: "Use $oryh-skill-author to interview the admin, classify the requirement across policy / process contract / deterministic tool, draft a qualified customer workflow skill against the tenant's real objects and capabilities, and publish it to the oryh skills registry, with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

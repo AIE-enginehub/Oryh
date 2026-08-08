@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+oryh.db
+
+node_modules/
+frontend/dist/
+coverage/
+
+.env

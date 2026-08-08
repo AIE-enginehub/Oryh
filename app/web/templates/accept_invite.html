@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Reset password' if reset_mode else 'Accept invitation' }}{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>{{ 'Reset your password' if reset_mode else 'Join your team' }}</h1>
+  <p class="muted">{{ 'Choose a new password for your account.' if reset_mode else 'Set a password to activate your account.' }}</p>
+  <form method="post" action="/web/invitations/accept">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="mode" value="{{ 'reset' if reset_mode else 'invite' }}">
+    <label for="password">Password (min 8 characters)</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <label for="password_confirmation">Confirm password</label>
+    <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <button type="submit">{{ 'Set new password' if reset_mode else 'Activate account' }}</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Pilot applications{% endblock %}
+{% block content %}
+{% set management_labels = {
+  "employee_selected": "Employee-selected",
+  "company_managed": "Company-managed",
+  "both": "Employee-selected and company-managed"
+} %}
+{% set write_labels = {
+  "process_ready": "Process already permits scoped agent writes",
+  "security_review": "Permitted after security review",
+  "considering": "Under consideration",
+  "exploring": "Not yet — exploring"
+} %}
+{% set timing_labels = {
+  "asap": "As soon as possible",
+  "within_30_days": "Within 30 days",
+  "30_60_days": "30–60 days",
+  "60_90_days": "60–90 days",
+  "exploring": "Exploring — no date yet"
+} %}
+{% set status_labels = {
+  "submitted": "New",
+  "contacted": "In review",
+  "accepted": "Pilot approved",
+  "rejected": "Not proceeding"
+} %}
+
+<h1>Enterprise pilot applications</h1>
+<p class="muted">
+  Every record below was submitted through the public Enterprise Pilot form.
+  Contact, accept, or reject an application here; the applicant receives a status email.
+</p>
+{% if notice %}<div class="notice">{{ notice }}</div>{% endif %}
+
+<div class="card">
+  <strong>Filter</strong>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <a class="btn sm {{ 'pri' if not status_filter else 'plain' }}" href="/admin/pilot-applications">All</a>
+    {% for value, label in [
+      ("submitted", "New"),
+      ("contacted", "In review"),
+      ("accepted", "Pilot approved"),
+      ("rejected", "Not proceeding")
+    ] %}
+    <a class="btn sm {{ 'pri' if status_filter == value else 'plain' }}"
+       href="/admin/pilot-applications?status_filter={{ value }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% for application in applications %}
+<article class="card" id="application-{{ application.id }}">
+  <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <h2 style="font-size:18px;margin-bottom:4px">{{ application.company_name }}</h2>
+      <div class="muted">
+        <a href="mailto:{{ application.email }}">{{ application.email }}</a>
+        · <code>{{ application.email_domain }}</code>
+      </div>
+    </div>
+    <span class="badge {{ 'ok' if application.status == 'accepted' else 'warn' if application.status == 'submitted' else 'muted' }}">
+      {{ status_labels[application.status] }}
+    </span>
+  </div>
+
+  <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 24px;margin:20px 0">
+    <div><dt class="muted">Company size</dt><dd style="margin:3px 0 0">{{ application.company_size }} employees</dd></div>
+    <div><dt class="muted">Agent management</dt><dd style="margin:3px 0 0">{{ management_labels[application.agent_management] }}</dd></div>
+    <div><dt class="muted">Weekly active agent users</dt><dd style="margin:3px 0 0">{{ application.weekly_active_agent_users if application.weekly_active_agent_users is not none else "Not provided" }}</dd></div>
+    <div><dt class="muted">Pilot timing</dt><dd style="margin:3px 0 0">{{ timing_labels[application.pilot_timing] }}</dd></div>
+    <div><dt class="muted">Agent-write readiness</dt><dd style="margin:3px 0 0">{{ write_labels[application.agent_write_readiness] }}</dd></div>
+    <div><dt class="muted">Executive sponsor</dt><dd style="margin:3px 0 0">{{ application.executive_sponsor_role or "Not provided" }}</dd></div>
+  </dl>
+
+  <div class="row" style="margin-bottom:18px">
+    <div>
+      <strong>Agents in use</strong>
+      <div class="roles" style="margin-top:8px">
+        {% for agent in application.agents %}<span class="pill accent">{{ agent }}</span>{% endfor %}
+      </div>
+      {% if application.other_agents %}<p class="muted">{{ application.other_agents }}</p>{% endif %}
+    </div>
+    <div>
+      <strong>First workflows</strong>
+      <ul style="padding-left:18px;margin:8px 0">
+        {% for workflow in application.workflows %}<li>{{ workflow }}</li>{% endfor %}
+      </ul>
+      {% if application.other_workflow %}<p class="muted">{{ application.other_workflow }}</p>{% endif %}
+    </div>
+  </div>
+
+  {% if application.notes %}
+  <div class="banner"><div><strong>Applicant context</strong><br>{{ application.notes }}</div></div>
+  {% endif %}
+
+  <div class="muted" style="font-size:12px;margin-bottom:16px">
+    Submitted {{ application.created_at.strftime('%Y-%m-%d %H:%M') if application.created_at is not string else application.created_at[:16].replace('T', ' ') }}
+    · Reference <code>{{ application.id }}</code>
+    · Privacy {{ application.privacy_policy_version }} accepted
+    · Receipt email {{ "sent" if application.acknowledgement_sent_at else "not delivered" }}
+  </div>
+
+  {% if application.reviewed_at %}
+  <div class="notice">
+    Last review: {{ application.status }}
+    {% if application.review_note %} — {{ application.review_note }}{% endif %}
+  </div>
+  {% endif %}
+
+  {% if application.status in ["submitted", "contacted"] %}
+  <form method="post" action="/admin/pilot-applications/{{ application.id }}/review">
+    <input type="hidden" name="status_filter" value="{{ status_filter }}">
+    <label for="note-{{ application.id }}">Review note (required when rejecting)</label>
+    <textarea id="note-{{ application.id }}" name="note" maxlength="1000" rows="3"
+              placeholder="Context included in the applicant's status email"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      {% if application.status == "submitted" %}
+      <button class="plain" name="decision" value="contacted">Start review</button>
+      {% endif %}
+      <button name="decision" value="accepted">Approve pilot</button>
+      <button class="plain danger" name="decision" value="rejected">Decline application</button>
+    </div>
+  </form>
+  {% endif %}
+</article>
+{% else %}
+<div class="card">
+  <p class="muted" style="margin:0">No enterprise pilot applications match this filter.</p>
+</div>
+{% endfor %}
+{% endblock %}

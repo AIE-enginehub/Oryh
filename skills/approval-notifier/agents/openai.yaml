@@ -1,0 +1,7 @@
+interface:
+  display_name: "Approval Notifier"
+  short_description: "Notify approvers and submitters about approval actions"
+  default_prompt: "Use $approval-notifier to notify approvers or submitters about a oryh approval event."
+
+policy:
+  allow_implicit_invocation: true

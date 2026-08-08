@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Access Admin"
+  short_description: "Manage roles, capabilities and user access in oryh"
+  default_prompt: "Use $oryh-access-admin to review or change who can do what in oryh — roles, capabilities, invitations, role changes and deactivation — with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

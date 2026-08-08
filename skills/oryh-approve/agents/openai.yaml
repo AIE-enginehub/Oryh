@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Approve"
+  short_description: "Execute one approval action on any oryh document"
+  default_prompt: "Use $oryh-approve to record one approval action on an oryh timesheet, expense claim, purchase request, sales quotation, or sales order with base_url, api_key, and approval_step."
+
+policy:
+  allow_implicit_invocation: true

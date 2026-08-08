@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Purchase Submit"
+  short_description: "File, update, query, and submit purchase requests"
+  default_prompt: "Use $oryh-purchase-submit to capture the principal's purchase needs, match products and vendors against master data, and file or submit a oryh purchase request with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true

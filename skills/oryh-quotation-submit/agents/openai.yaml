@@ -1,0 +1,7 @@
+interface:
+  display_name: "Oryh Quotation Submit"
+  short_description: "Draft, submit, send, close, and revise sales quotations"
+  default_prompt: "Use $oryh-quotation-submit to capture the principal's quote, match the customer and products against master data, file and submit the oryh sales quotation, send it after approval, and record the customer outcome, with base_url and api_key."
+
+policy:
+  allow_implicit_invocation: true
