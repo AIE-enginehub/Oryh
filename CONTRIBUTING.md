@@ -8,10 +8,11 @@ layer that runs our hosted service, our operations directory, and our
 marketing site are not part of it. Two consequences worth knowing before you
 spend an evening:
 
-- The git history here starts fresh at each release rather than continuing.
-  Long-lived forks should track releases rather than individual commits.
+- The history here is one commit per release, not per change. Your `git pull`
+  and your fork keep working; what you will not find is the individual commits
+  behind a release.
 - A pull request cannot be merged here mechanically. We apply accepted changes
-  to the private trunk, and they return in the next export with attribution.
+  to the private trunk, and they return in the next release with attribution.
   It is not the most elegant arrangement; it is an honest description of one.
 
 So: **open an issue before writing anything substantial.** A patch we cannot
