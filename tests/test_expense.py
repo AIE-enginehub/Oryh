@@ -145,6 +145,7 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
             "entity_type": "expense_claim",
             "entity_id": claim_id,
             "action": "approved",
+            "sequence_no": 2,
             "approver_id": "mgr-1",
             "approver_role": "manager",
             "source": "ai",
@@ -159,7 +160,9 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
     assert len(detail["items"]) == 2
     assert detail["total_amount"] == pytest.approx(739.5)
     assert detail["total_tax_amount"] == pytest.approx(11.06)
-    assert len(detail["approval_records"]) == 1
+    # two facts now: the submission the server recorded when /submit ran,
+    # and the decision on top of it
+    assert [r["action"] for r in detail["approval_records"]] == ["submitted", "approved"]
     assert [a["id"] for a in detail["attachments"]] == [attachment["id"]]
     assert detail["items"][0]["extracted_fields"]["购买方名称"] == "Test Tenant"
     assert detail["items"][0]["vendor_name"] == "上海餐饮供应商"

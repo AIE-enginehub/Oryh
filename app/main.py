@@ -15,7 +15,7 @@ from app.api.bundles import router as bundles_router
 from app.api.console import router as console_router
 from app.api.roles import router as roles_router
 from app.api.workflows import router as workflows_router
-from app.core.config import settings
+from app.core.config import API_PREFIX, settings
 from app.core.legacy_usage import LegacyWebUsageMiddleware
 from app.core.request_context import RequestBaseUrlMiddleware
 from app.core.responses import JSONCharsetMiddleware
@@ -33,16 +33,16 @@ app.add_middleware(LegacyWebUsageMiddleware)
 # Added last so it wraps outermost and sees every response, including ones
 # synthesized by exception handlers and the middlewares above.
 app.add_middleware(JSONCharsetMiddleware)
-app.include_router(router, prefix="/api/v1")
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(device_router, prefix="/api/v1")
-app.include_router(skills_router, prefix="/api/v1")
-app.include_router(workflows_router, prefix="/api/v1")
-app.include_router(roles_router, prefix="/api/v1")
-app.include_router(bundles_router, prefix="/api/v1")
-app.include_router(console_router, prefix="/api/v1")
-app.include_router(flows_router, prefix="/api/v1")
-app.include_router(flow_runner_bootstrap_router, prefix="/api/v1")
+app.include_router(router, prefix=API_PREFIX)
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(device_router, prefix=API_PREFIX)
+app.include_router(skills_router, prefix=API_PREFIX)
+app.include_router(workflows_router, prefix=API_PREFIX)
+app.include_router(roles_router, prefix=API_PREFIX)
+app.include_router(bundles_router, prefix=API_PREFIX)
+app.include_router(console_router, prefix=API_PREFIX)
+app.include_router(flows_router, prefix=API_PREFIX)
+app.include_router(flow_runner_bootstrap_router, prefix=API_PREFIX)
 
 # The SaaS platform layer — registration, the operator console, pilots — is
 # attached by NAME, never by a static import: an open-core tree without

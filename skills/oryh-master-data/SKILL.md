@@ -61,7 +61,7 @@ rather than leaving a duplicate beside it.
 ```yaml
 oryh:
   base_url: "{{ORYH_BASE_URL}}"
-  api_base_url: "{{ORYH_BASE_URL}}/api/v1"
+  api_base_url: "{{ORYH_API_BASE_URL}}"
   api_key: "{{ORYH_API_KEY}}"
 ```
 

@@ -21,7 +21,8 @@ You are the OCR. oryh stores facts and evidence; it does not read receipts. Read
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
 ```
 
@@ -65,7 +66,7 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
    - Project: send `project_id` only when a real project record is confidently matched (`GET /projects?keyword=`); otherwise keep `project_name_snapshot` + `client` as free text. Never invent projects.
    - Vendor: match the receipt's seller against vendor master data — `GET /vendors?tax_id={销售方税号}` (exact key, best) or `GET /vendors?keyword={销售方名称}`. Send `vendor_id` only on a confident match; `merchant` always keeps the seller name exactly as printed. No match is normal — leave `vendor_id` null. Never create vendors; that is master-data management.
 8. **Submit**: `POST /expense-claims/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent — resubmitting a submitted claim is a no-op. The response's `status`/`submitted_at` is the confirmation; tell the principal it is submitted, with the total you already hold from step 7.
-9. **The submitted approval fact (seq 1)**: if this credential's role includes `approval.record`, also `POST /approval-records` with `entity_type=expense_claim, action=submitted, round_no=<1, or previous round + 1 after a return>, sequence_no=1`. If it does not (many tenants keep members fact-free), **skip it** — the workflow admin backfills the fact from `claim.submitted_at` when it picks the claim up. Do not treat that 403 as an error.
+9. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.
 
 ## Validate Before Writing
 

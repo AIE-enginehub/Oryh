@@ -205,6 +205,20 @@ a 出纳 processing 报销付款 and 工资代发 has to see what they are payin
 they still do not see is a payout already applied to a payslip — at that point
 its amount IS somebody's net pay, and the first clause holds for them too.
 
+"Money handler" is `payment.record`, `payment.apply` **or** `payment.advance`.
+The third was added after a workspace routed 工资发放 through payment approval
+and discovered the step was unreachable: approving a payout you cannot see is
+not a weaker version of the job, it is none of it, and the approver's queue came
+back empty for human and flow agent alike. The widening is real — whoever may
+approve payouts can read an unsettled one's amount — and it is bounded twice:
+it reaches the payout only, never the payslip with its line-by-line breakdown,
+and it ends the moment the payout is applied.
+
+An approval path therefore needs `payment.advance` and nothing from payroll. A
+reviewer who must additionally tie the batch back to the payslips needs
+`payroll.read` — but never `payroll.manage`, or they can rewrite the salary they
+were asked to check.
+
 **A tenant service key reads everything**, because `Actor.bypasses_permissions`
 is what that credential means — the company issued it to itself. The
 consequence is real and worth stating rather than discovering: any standing

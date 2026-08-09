@@ -10159,6 +10159,37 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * QuoteDriftRead
+         * @description What was agreed, against what was ordered — as arithmetic, not a verdict.
+         *
+         *     A live E2E found an order 10.29% above its quotation confirmed with nobody
+         *     looking. The agent had disclosed the gap in prose, which is the weakest
+         *     place for a number to live: it could be computed, so it could also be
+         *     computed differently, or not at all.
+         *
+         *     So the server states it. It does NOT decide what an acceptable gap is —
+         *     that is the tenant's, written in the workflow definition the flow agent
+         *     reads — and it does not gate anything on it. Both bases are reported
+         *     because the comparison is only meaningful if you can see what was
+         *     compared: a document's total is its declared `total_amount` when it has
+         *     one, and its line sum when it does not, and comparing a declared total
+         *     against a line sum is a different question from comparing like with like.
+         */
+        QuoteDriftRead: {
+            /** Amount */
+            amount: number;
+            /** Order Basis */
+            order_basis: string;
+            /** Order Total */
+            order_total: number;
+            /** Percent */
+            percent?: number | null;
+            /** Quote Basis */
+            quote_basis: string;
+            /** Quote Total */
+            quote_total: number;
+        };
         /** ReceivePurchaseOrderLine */
         ReceivePurchaseOrderLine: {
             /** Bin Number */
@@ -10478,6 +10509,7 @@ export interface components {
             /** Pending Sku Count */
             pending_sku_count: number;
             quotation?: components["schemas"]["SalesQuotationRead"] | null;
+            quote_drift?: components["schemas"]["QuoteDriftRead"] | null;
             /** Unpriced Item Count */
             unpriced_item_count: number;
         };

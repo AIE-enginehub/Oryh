@@ -4783,6 +4783,37 @@ class SalesOrderItemDetailRead(SalesOrderItemRead):
     purchase_items: list[LinkedPurchaseItemRead] = Field(default_factory=list)
 
 
+class QuoteDriftRead(BaseModel):
+    """What was agreed, against what was ordered — as arithmetic, not a verdict.
+
+    A live E2E found an order 10.29% above its quotation confirmed with nobody
+    looking. The agent had disclosed the gap in prose, which is the weakest
+    place for a number to live: it could be computed, so it could also be
+    computed differently, or not at all.
+
+    So the server states it. It does NOT decide what an acceptable gap is —
+    that is the tenant's, written in the workflow definition the flow agent
+    reads — and it does not gate anything on it. Both bases are reported
+    because the comparison is only meaningful if you can see what was
+    compared: a document's total is its declared `total_amount` when it has
+    one, and its line sum when it does not, and comparing a declared total
+    against a line sum is a different question from comparing like with like.
+    """
+
+    quote_total: float
+    # "declared" (the header's own total_amount) or "line_sum" (lines plus
+    # adjustments, which is what the total means when none was declared)
+    quote_basis: str
+    order_total: float
+    order_basis: str
+    # order − quote: positive means the customer is being charged more than
+    # the quotation they accepted
+    amount: float
+    # null when the quotation totals zero — a percentage of nothing is not 0%,
+    # it is undefined, and reporting 0 there would read as "no drift"
+    percent: float | None = None
+
+
 class SalesOrderDetailRead(BaseModel):
     order: SalesOrderRead
     items: list[SalesOrderItemDetailRead]
@@ -4790,6 +4821,9 @@ class SalesOrderDetailRead(BaseModel):
     attachments: list[AttachmentRead]
     # the won quotation this order fulfils, when linked — the closure fact
     quotation: SalesQuotationRead | None = None
+    # present only when a quotation is linked: there is no baseline otherwise,
+    # and a drift of 0 against nothing would be a lie
+    quote_drift: QuoteDriftRead | None = None
     # header- and line-level adjustments, oldest first
     adjustments: list[SalesOrderAdjustmentRead]
     computed_total: float

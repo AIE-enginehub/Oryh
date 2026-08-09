@@ -1,6 +1,8 @@
 Use with:
 
 - header: `X-API-Key: <the approver's own user-bound key>`
-- api_base_url: `<base_url>/api/v1` — EVERY path below hangs off THIS, never
-  bare `<base_url>` and never `<base_url>/api`; a wrong prefix does not 404,
-  it returns the website
+- api_base_url: the value given in Required Inputs — EVERY path below hangs
+  off THIS, exactly as handed to you. Do not append a version, do not trim one,
+  do not substitute the bare site address: a wrong prefix does not 404, it
+  returns the website, so the mistake reads as a puzzling reply rather than an
+  error

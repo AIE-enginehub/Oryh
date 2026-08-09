@@ -25,7 +25,8 @@ The caller should provide a parameter block like this:
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
   resource_request:
     resource_type: "meeting_room"

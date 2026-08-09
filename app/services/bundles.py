@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.permissions import ALL_PERMISSIONS, SYSTEM_CAPABILITY_NAMES, permissions_cover
-from app.core.request_context import resolved_base_url
+from app.core.request_context import resolved_api_base_url, resolved_base_url
 from app.models import Role, Tenant, TenantSkill, TenantSkillAssignment, User
 from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
 
@@ -21,6 +21,12 @@ from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
 # ever stores templates; a rendered bundle exists solely in the HTTP response.
 PLACEHOLDERS = (
     "ORYH_BASE_URL",
+    # The API root, rendered rather than derived. Most skills stated only
+    # `base_url` and never mentioned `/api/v1` at all, so an agent's first call
+    # went to the site root and came back 404 — recovered by a human telling it
+    # the prefix, which is a human doing the bundle's job. Two facts the server
+    # knows should not be one fact plus a convention the reader must supply.
+    "ORYH_API_BASE_URL",
     "ORYH_API_KEY",
     "EMPLOYEE_ID",
     "USER_NAME",
@@ -627,8 +633,20 @@ def bundle_identity(tenant: Tenant | None) -> dict:
             "slug": slug,
             "name": tenant.name if tenant else "",
         },
+        # A sibling of `tenant`, never a member of it. Which machines serve the
+        # workspace and which company the workspace IS are different questions,
+        # and an agent given only the first answered the second with it.
+        "environment_id": settings.environment_id or None,
         "install_dir": install_dir(slug),
+        # Three keys for two facts. `site_base_url` is where a person opens the
+        # console; `api_base_url` is where an agent sends calls. `base_url` is
+        # the original name for the first, kept because already-installed
+        # bundles read it — but its bare name is exactly what invited an agent
+        # to treat the site root as the API root, so new readers are pointed at
+        # the two explicit names and this one is documented as the alias.
         "base_url": resolved_base_url(),
+        "site_base_url": resolved_base_url(),
+        "api_base_url": resolved_api_base_url(),
     }
 
 
@@ -709,6 +727,7 @@ def build_bundle_zip(
     tenant_name = tenant.name if tenant else ""
     context = {
         "ORYH_BASE_URL": resolved_base_url(),
+        "ORYH_API_BASE_URL": resolved_api_base_url(),
         "ORYH_API_KEY": api_key_plaintext,
         "EMPLOYEE_ID": holder.employee_id,
         "USER_NAME": holder.display_name,
@@ -816,13 +835,16 @@ def build_bundle_zip(
 
 def build_connect_skill_zip() -> bytes:
     """The credential-free bootstrap skill, standalone: no tenant or user is
-    known at download time, so only ORYH_BASE_URL is rendered — the one
-    placeholder the server can always fill in for itself. Public and
+    known at download time, so only the two address placeholders are rendered —
+    the ones the server can always fill in for itself. Public and
     identical for every requester; nothing here is tenant data. Installed
     under the environment's brand ({brand}-connect) with self-references
     rewritten to match."""
     files = read_skill_dir(PRODUCT_SKILLS_DIR / "oryh-connect")
-    context = {"ORYH_BASE_URL": resolved_base_url()}
+    context = {
+        "ORYH_BASE_URL": resolved_base_url(),
+        "ORYH_API_BASE_URL": resolved_api_base_url(),
+    }
     connect_name = connect_install_name()
     connect_map = {"oryh-connect": connect_name}
     buffer = io.BytesIO()

@@ -2,20 +2,20 @@
 
 Website origin: `<base_url>` — the address rendered into this bundle by the
 deployment that issued it. Use it as-is; it is never a question for the person.
-API root: `<base_url>/api/v1`; never omit the `/api/v1` prefix from an API
-request. The two device endpoints are unauthenticated — they are how an agent
-gets its first credential.
+API root: `<api_base_url>` — rendered in the same way and already complete.
+Send every API request to it as given; the two device endpoints are
+unauthenticated, and they are how an agent gets its first credential.
 
 Both device endpoints are POST-only. A GET or HEAD request to the correct URL
 returns `405 Method Not Allowed` with `Allow: POST`; that does not mean the
-deployment is down. A POST to `<base_url>/auth/device/start` (without
-`/api/v1`) reaches the website instead of the API and also returns 405. If a
+deployment is down. A POST to `<base_url>/auth/device/start` (the website
+origin, not the API root) reaches the website instead and also returns 405. If a
 reachability check is needed, use `GET <base_url>/healthz`.
 
 ## Start
 
 ```text
-POST <base_url>/api/v1/auth/device/start
+POST <api_base_url>/auth/device/start
 Content-Type: application/json
 {"client_name": "WorkBuddy on Wenji's MacBook"}
 ```
@@ -40,7 +40,7 @@ The `device_code` is the polling secret — treat it like a password.
 ## Poll
 
 ```text
-POST <base_url>/api/v1/auth/device/token
+POST <api_base_url>/auth/device/token
 Content-Type: application/json
 {"device_code": "…"}
 ```
@@ -75,7 +75,7 @@ tell a new employer from a reconnect of one already there.
 ## Fetch the Bundle
 
 ```text
-GET <base_url>/api/v1/my/skill-bundle
+GET <api_base_url>/my/skill-bundle
 X-API-Key: <the api_key from the approved poll>
 Accept: application/zip
 ```
@@ -92,10 +92,13 @@ Afterwards that company's `oryh-<slug>-skill-sync` keeps it current.
 ## Whose Directory Is This?
 
 ```text
-GET <base_url>/api/v1/auth/me
+GET <api_base_url>/auth/me
 X-API-Key: <a key found in an installed bundle>
 ```
 
 Returns the user plus the identity block
-`{"tenant": {"id", "slug", "name"}, "install_dir", "base_url"}` — how to find
+`{"tenant": {"id", "slug", "name"}, "environment_id", "install_dir",
+"site_base_url",
+"api_base_url", "base_url"}` (`base_url` is the older alias of
+`site_base_url`) — how to find
 out which company a legacy or unlabelled install belongs to.

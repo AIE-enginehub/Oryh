@@ -68,7 +68,7 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     post(client, headers, f"/expense-claims/{claim_id}/submit", {})
     post(client, headers, "/approval-records", {
         "entity_type": "expense_claim", "entity_id": claim_id,
-        "action": "approved", "acted_at": "2026-06-04T10:00:00Z",
+        "action": "approved", "sequence_no": 2, "acted_at": "2026-06-04T10:00:00Z",
         "approver_id": approver, "comment": "票据齐全",
     })
 

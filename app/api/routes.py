@@ -319,6 +319,7 @@ from app.schemas import (
     RestoreSalesOrderRequest,
     RestoreSalesQuotationRequest,
     ReviseSalesQuotationRequest,
+    QuoteDriftRead,
     SalesOrderDetailRead,
     SalesOrderDetailEnvelope,
     SalesOrderItemDetailRead,
@@ -743,10 +744,27 @@ def hide_payroll_payments(stmt, actor: Actor):
 
 
 def handles_money(actor: Actor) -> bool:
-    """Whether this credential's job is moving money. A 出纳 recording a payout
-    and a 会计 matching it have to see payments made to people; an ordinary
-    employee has no such reason."""
-    return has_permission(actor, "payment.record") or has_permission(actor, "payment.apply")
+    """Whether this credential's job is moving money. A 出纳 recording a payout,
+    a 会计 matching it, and the approver deciding whether it goes at all have to
+    see payments made to people; an ordinary employee has no such reason.
+
+    `payment.advance` is here because approving a payout you cannot see is not
+    a weaker version of the job, it is none of it: the queue came back empty,
+    so a workspace whose workflow definition routed 工资发放 through payment
+    approval had a step nobody — human or flow agent — could ever reach. The
+    exemption is the duty, same as for the other two.
+
+    It is a real widening, and worth naming: whoever may approve payouts can
+    read an unsettled payroll payout's amount, which is somebody's net pay.
+    Two things bound it. The first clause of `hide_payroll_payments` keeps its
+    full strength regardless — once applied to a payslip, the amount IS net pay
+    and only `payroll.read` sees it. And this reaches the payout alone; the
+    payslip behind it, with its line-by-line 社保/个税 breakdown, stays shut."""
+    return (
+        has_permission(actor, "payment.record")
+        or has_permission(actor, "payment.apply")
+        or has_permission(actor, "payment.advance")
+    )
 
 
 def require_family_permission(actor: Actor, family: DocumentFamily, document) -> None:
@@ -855,6 +873,103 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     )
 
 
+DECIDED_APPROVAL_ACTIONS = ("approved", "rejected", "returned")
+
+
+def require_submission_before_decision(payload) -> None:
+    """Sequence 1 of a round is the submission; a decision cannot sit there.
+
+    The audit asks that every decided approval have a `submitted` record at a
+    LOWER sequence. Nothing enforced it, and `sequence_no` defaults to 1 — so
+    an agent recording an approval without passing a sequence put the decision
+    at the submission's own place, where no submission can ever precede it. An
+    integrity audit found 133 such rows. Cleaning them would not have stopped
+    the next one; the default did that.
+
+    The refusal is deliberately about the ARITHMETIC and not about the rest of
+    the trail. Whether a decision may be recorded for a document that was
+    never submitted is the tenant's flow to define — the server records the
+    facts an agent reports and does not adjudicate their order beyond this:
+    position 1 is taken, by definition, by the submission. Refusing more than
+    that would block a historical import, an auto-approval, or a
+    tenant-defined object whose flow has no submission step at all.
+    """
+    if payload.action in DECIDED_APPROVAL_ACTIONS and payload.sequence_no <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"sequence_no 1 is the submission; a {payload.action} record "
+                "belongs after it. Use the sequence the workflow admin put on "
+                "the todo (metadata.sequence_no), or the next free sequence in "
+                "this round."
+            ),
+        )
+
+
+def record_submission_fact(
+    db: Session,
+    actor: Actor,
+    entity_type: str,
+    entity_id: str,
+    acted_at: datetime,
+) -> None:
+    """Write the `submitted` approval fact for a submission the server just made.
+
+    The approval trail is supposed to open with it — `round_no=1,
+    sequence_no=1` — and every later decision is ordered against it. It used to
+    be the SUBMITTER's job: post the fact if your role carries
+    `approval.record`, and if it does not, skip it and let the workflow admin
+    backfill from `submitted_at`. Two agents had to remember, one of them
+    conditionally, for a fact the server itself performs and already stores.
+    They did not always remember, and the integrity audit found 133 decided
+    approvals with nothing in front of them.
+
+    So the server writes it. The round is derived rather than passed: a
+    submission opens round 1, and each `returned` sends the document back for
+    another one, which is exactly the rule the submit skills stated in prose.
+    The natural key makes this idempotent against an agent that posts the same
+    fact anyway — the create endpoint hands back the existing row — so nothing
+    breaks for a skill that has not been updated.
+    """
+    returns = db.scalar(
+        select(func.count())
+        .select_from(ApprovalRecord)
+        .where(
+            ApprovalRecord.tenant_id == actor.tenant_id,
+            ApprovalRecord.entity_type == entity_type,
+            ApprovalRecord.entity_id == entity_id,
+            ApprovalRecord.action == "returned",
+        )
+    )
+    round_no = (returns or 0) + 1
+    already = db.scalar(
+        select(ApprovalRecord).where(
+            ApprovalRecord.tenant_id == actor.tenant_id,
+            ApprovalRecord.entity_type == entity_type,
+            ApprovalRecord.entity_id == entity_id,
+            ApprovalRecord.round_no == round_no,
+            ApprovalRecord.sequence_no == 1,
+            ApprovalRecord.action == "submitted",
+        )
+    )
+    if already is not None:
+        return
+    db.add(
+        ApprovalRecord(
+            tenant_id=actor.tenant_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            round_no=round_no,
+            sequence_no=1,
+            action="submitted",
+            approver_id=actor.label,
+            approver_role="submitter",
+            source="system",
+            acted_at=acted_at,
+        )
+    )
+
+
 def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
     """POST .../submit — the one transition a member may drive themselves."""
     family = DOCUMENT_FAMILIES[model]
@@ -879,6 +994,9 @@ def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
     )
     document.status = "submitted"
     document.submitted_at = datetime.now(timezone.utc)
+    record_submission_fact(
+        db, actor, family.object_type, document.id, document.submitted_at
+    )
     db.commit()
     db.refresh(document)
     return envelope(_document_read(family, document))
@@ -930,9 +1048,113 @@ def get_active_document_or_404(db: Session, model, tenant_id: str, document_id: 
     return document
 
 
+def document_total(declared, line_sum: float) -> tuple[float, str]:
+    """What a document says it totals, and which fact answered.
+
+    The contract every family here keeps: `total_amount` is the agreed total,
+    and null means the line sum IS the total. Drift is only meaningful if the
+    caller can see which of the two was used on each side.
+    """
+    if declared is None:
+        return line_sum, "line_sum"
+    return float(declared), "declared"
+
+
+def quote_drift(
+    db: Session,
+    tenant_id: str,
+    quotation,
+    order_line_sum: float,
+    order_declared,
+) -> QuoteDriftRead | None:
+    """Order total minus the quotation's — stated, never judged.
+
+    Nothing is gated on it. What an acceptable gap is belongs to the tenant's
+    workflow definition, which the flow agent reads; the server's part is that
+    the number exists, is computed the same way every time, and is measured
+    against a baseline `ensure_not_consumed_by_an_order` keeps from moving.
+    """
+    if quotation is None:
+        return None
+    items = db.scalars(
+        select(SalesQuotationItem).where(
+            SalesQuotationItem.tenant_id == tenant_id,
+            SalesQuotationItem.quotation_id == quotation.id,
+            SalesQuotationItem.deleted_at.is_(None),
+        )
+    ).all()
+    adjustments = db.scalars(
+        select(SalesQuotationAdjustment.amount).where(
+            SalesQuotationAdjustment.tenant_id == tenant_id,
+            SalesQuotationAdjustment.quotation_id == quotation.id,
+            SalesQuotationAdjustment.deleted_at.is_(None),
+        )
+    ).all()
+    line_sum = float(
+        sum(
+            amount
+            for amount in (quotation_item_effective_amount(item) for item in items)
+            if amount is not None
+        )
+    ) + float(sum(adjustments))
+
+    quote_total, quote_basis = document_total(quotation.total_amount, line_sum)
+    order_total, order_basis = document_total(order_declared, order_line_sum)
+    amount = round(order_total - quote_total, 2)
+    return QuoteDriftRead(
+        quote_total=round(quote_total, 2),
+        quote_basis=quote_basis,
+        order_total=round(order_total, 2),
+        order_basis=order_basis,
+        amount=amount,
+        percent=round(amount / quote_total * 100, 2) if quote_total else None,
+    )
+
+
+def ensure_not_consumed_by_an_order(db: Session, document) -> None:
+    """A quotation an order was written from is history, not a draft.
+
+    The states a document may be edited in are the tenant's to choose, and a
+    workspace that keeps `accepted` editable is making a legitimate choice —
+    right up to the moment an order quotes it. From then on the quotation is
+    the BASELINE that order is measured against: what was agreed, against what
+    was ordered. Move it afterwards and every later answer about the gap is
+    computed from a number nobody agreed to.
+
+    This is the same argument `ensure_money_fields_editable` already makes one
+    level down — a settlement guard is worth nothing if the amount it measured
+    can be moved afterwards — applied to the quote→order pair.
+
+    Note what it does NOT depend on: any status, any threshold, any reading of
+    the tenant's vocabulary. "An order references this quotation" is a fact
+    about rows, which is why the server may hold it.
+    """
+    if not isinstance(document, SalesQuotation):
+        return
+    order = db.scalar(
+        select(SalesOrder.order_no).where(
+            SalesOrder.tenant_id == document.tenant_id,
+            SalesOrder.quotation_id == document.id,
+            SalesOrder.deleted_at.is_(None),
+        )
+    )
+    if order is None:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"sales order {order} was written from this quotation, so it is "
+            "now the agreed baseline and cannot be changed. Revise it into a "
+            "new version (POST /sales-quotations/{id}/revise) if the customer "
+            "renegotiated, or record the difference on the order itself"
+        ),
+    )
+
+
 def ensure_document_editable(db: Session, document) -> None:
     """409 unless the document sits in one of its machine's editable states —
     the single write-gate for lines and adjustments across every family."""
+    ensure_not_consumed_by_an_order(db, document)
     family = DOCUMENT_FAMILIES[type(document)]
     machine = get_builtin_machine(db, document.tenant_id, family.object_type)
     editable = editable_states(machine, family.object_type)
@@ -1269,16 +1491,47 @@ def delete_item(db: Session, actor: Actor, model, item_id: str) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-def archive_row(db: Session, actor: Actor, model, row_id: str, *, permission: str | None = None) -> Response:
+def archive_row(
+    db: Session,
+    actor: Actor,
+    model,
+    row_id: str,
+    *,
+    permission: str | None = None,
+    audit_action: str | None = None,
+    audit_entity_type: str | None = None,
+    audit_detail=None,
+) -> Response:
     """Master data archives, never deletes: existing records keep whatever
     they already reference — archiving only removes the row from what NEW
-    records may use, and the history beneath it stays readable."""
+    records may use, and the history beneath it stays readable.
+
+    `audit_action` is opt-in per family rather than always-on: most families
+    here have never written an audit entry for an archive, and turning that on
+    for all of them at once is a separate decision from fixing the one family
+    whose vocabulary changes silently reinterpret existing records."""
     if permission:
         require_permission(actor, permission)
     else:
         require_master_data_manage(actor)
     row = get_scoped_or_404(db, model, actor.tenant_id, row_id)
     row.status = "archived"
+    if audit_action:
+        # Stated, not singularized off the table name: `rstrip("s")` is right
+        # for `type_options` and wrong the first time a table is not spelled
+        # that way, and a wrong entity_type in an audit trail is worse than a
+        # missing one — it is a record filed under something that never
+        # happened.
+        assert audit_entity_type, "audit_action needs audit_entity_type"
+        record_audit(
+            db,
+            tenant_id=actor.tenant_id,
+            action=audit_action,
+            entity_type=audit_entity_type,
+            entity_id=row.id,
+            actor=actor.label,
+            detail=audit_detail(row) if callable(audit_detail) else audit_detail,
+        )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -3327,6 +3580,16 @@ def create_type_option(
         created_by=attributed(actor, None),
     )
     db.add(row)
+    db.flush()
+    record_audit(
+        db,
+        tenant_id=tenant_id,
+        action="type_option.created",
+        entity_type="type_option",
+        entity_id=row.id,
+        actor=actor.label,
+        detail={"family": row.family, "name": row.name, "title": row.title},
+    )
     db.commit()
     db.refresh(row)
     return envelope(TypeOptionRead.model_validate(row).model_dump(by_alias=True))
@@ -3351,8 +3614,28 @@ def update_type_option(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="a system value's wording follows the catalog; only its status is the tenant's",
         )
+    # Recorded BEFORE the writes, and only what actually moves: a business
+    # vocabulary silently changing its meaning is exactly the thing nobody can
+    # reconstruct later. "渠道价" being redefined is a different price in every
+    # report that reads it, and until now the row's `updated_at` was the only
+    # trace — no actor, no old value, no reason.
+    changed = {
+        field: {"from": getattr(row, field), "to": value}
+        for field, value in updates.items()
+        if getattr(row, field) != value
+    }
     for field, value in updates.items():
         setattr(row, field, value)
+    if changed:
+        record_audit(
+            db,
+            tenant_id=actor.tenant_id,
+            action="type_option.updated",
+            entity_type="type_option",
+            entity_id=row.id,
+            actor=actor.label,
+            detail={"family": row.family, "name": row.name, "changed": changed},
+        )
     db.commit()
     db.refresh(row)
     return envelope(TypeOptionRead.model_validate(row).model_dump(by_alias=True))
@@ -3366,7 +3649,16 @@ def archive_type_option(
 ):
     """Archive, never delete: existing records keep whatever value they
     already carry; archiving only removes it from what NEW records may use."""
-    return archive_row(db, actor, TypeOption, type_option_id, permission="object_types.manage")
+    return archive_row(
+        db,
+        actor,
+        TypeOption,
+        type_option_id,
+        permission="object_types.manage",
+        audit_action="type_option.archived",
+        audit_entity_type="type_option",
+        audit_detail=lambda row: {"family": row.family, "name": row.name},
+    )
 
 
 # --- product prices: the price book beside the product's own list_price ----
@@ -7155,6 +7447,11 @@ def update_sales_quotation(
     enforce_member_employee(actor, quotation.employee_id)
     updates = payload.model_dump(exclude_unset=True)
     ensure_content_edit_allowed(actor, "quotation", updates)
+    # Status still moves: an order existing does not stop the quotation's own
+    # lifecycle from being recorded (`accepted`, `expired`). What freezes is
+    # what the order was measured against — the content and the money.
+    if any(field != "status" for field in updates):
+        ensure_not_consumed_by_an_order(db, quotation)
     if "status" in updates and updates["status"] != quotation.status:
         # flow advancement is the workflow admin's write: members submit via
         # POST .../submit — never a raw status patch (no self-approval)
@@ -7194,6 +7491,11 @@ def delete_sales_quotation(
     actor: Annotated[Actor, Depends(get_actor)] = None,
     db: Annotated[Session, Depends(get_db)] = None,
 ):
+    quotation = get_scoped_or_404(db, SalesQuotation, actor.tenant_id, quotation_id)
+    if quotation.deleted_at is None:
+        # archiving it would take the baseline out from under a live order just
+        # as surely as editing it
+        ensure_not_consumed_by_an_order(db, quotation)
     return delete_document(db, actor, SalesQuotation, quotation_id, payload)
 
 
@@ -7974,6 +8276,9 @@ def get_sales_order_detail(
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
         attachments=[AttachmentRead.model_validate(attachment) for attachment in attachments],
         quotation=SalesQuotationRead.model_validate(quotation) if quotation is not None else None,
+        quote_drift=quote_drift(
+            db, tenant_id, quotation, computed_total + adjustments_total, order.total_amount
+        ),
         adjustments=[SalesOrderAdjustmentRead.model_validate(adjustment) for adjustment in adjustments],
         computed_total=computed_total,
         adjustments_total=adjustments_total,
@@ -12090,6 +12395,7 @@ def create_approval_record(
         db, tenant_id, payload.entity_type, payload.entity_id,
         allowed=ALLOWED_APPROVAL_ENTITY_TYPES, label="approval",
     )
+    require_submission_before_decision(payload)
     # idempotency on the natural key: an agent retrying the same action gets
     # the already-recorded fact back instead of a duplicate
     existing = db.scalar(

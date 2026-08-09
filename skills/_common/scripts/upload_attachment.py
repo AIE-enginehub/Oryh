@@ -58,11 +58,22 @@ def _configured(flag: str | None, env: str, rendered: str) -> str:
     return "" if rendered.startswith("{{") else rendered
 
 
+def _site_origin(base_url: str) -> str:
+    """The site origin, whichever address was handed in. Bundles now surface
+    `api_base_url` (…/api/v1) more prominently than the bare site URL, so a
+    caller passing that to --base-url is the likely mistake, not an exotic one —
+    and it would build …/api/v1/api/v1/… , a 404 blamed on the server. Trimming
+    a trailing API prefix costs nothing and cannot misfire: no site origin ends
+    in /api/v1."""
+    trimmed = base_url.rstrip("/")
+    return trimmed[: -len("/api/v1")] if trimmed.endswith("/api/v1") else trimmed
+
+
 def _post(base_url: str, api_key: str, payload: dict) -> tuple[int, dict]:
     """(status, data). 201 = these bytes are new to the server; 200 = it
     already held them. That is the server's own statement, not a guess."""
     request = urllib.request.Request(
-        base_url.rstrip("/") + "/api/v1/attachments",
+        _site_origin(base_url) + "/api/v1/attachments",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "X-API-Key": api_key},
         method="POST",
@@ -113,7 +124,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("files", nargs="+", help="receipt/evidence files to upload")
     parser.add_argument("--content-type", help="override the guessed MIME type for every file")
-    parser.add_argument("--base-url", help="server base URL (default: env ORYH_BASE_URL, then bundle)")
+    parser.add_argument("--base-url", help="server base URL; the API root is accepted too (default: env ORYH_BASE_URL, then bundle)")
     parser.add_argument("--api-key", help="user-bound API key (default: env ORYH_API_KEY, then bundle)")
     args = parser.parse_args()
 

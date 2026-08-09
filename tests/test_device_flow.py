@@ -216,7 +216,12 @@ def test_connect_skill_download_is_public_and_rendered(client: TestClient) -> No
     assert 'api_base_url: "http://testserver/api/v1"' in skill_md
     assert "POST `<api_base_url>/auth/device/start`" in skill_md
     assert "POST /auth/device/start" not in skill_md
-    assert "POST <base_url>/api/v1/auth/device/start" in api_reference
+    assert "POST <api_base_url>/auth/device/start" in api_reference
+    # The reference used to spell endpoints as `<base_url>/api/v1/…`,
+    # which reads as an instruction to assemble the address. Endpoint lines now
+    # hang off the rendered API root; the only surviving mention of the prefix
+    # is the 405 explanation, which is describing the mistake, not teaching it.
+    assert "<base_url>/api/v1" not in api_reference
     assert "405 Method Not Allowed" in api_reference
 
     # the connect page itself is public too, before and after login

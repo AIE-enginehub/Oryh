@@ -1285,3 +1285,138 @@ def test_reach_carries_the_description_an_agent_matches_on(client: TestClient) -
     assert reach.status_code == 200, reach.text
     withheld = {item["name"]: item for item in reach.json()["data"]["withheld"]}
     assert "工资条" in (withheld["oryh-payroll"]["description"] or "")
+
+
+def test_every_skill_states_a_complete_api_base_url(client: TestClient) -> None:
+    """A bundle used to hand out only `base_url`, and most skills never
+    mentioned `/api/v1` at all — so an agent's first call went to the site root,
+    got the website back with a 200 or a 404, and only recovered when a human
+    told it the prefix. The address is a fact the server knows; deriving it was
+    never the reader's job. Every rendered skill that names an API base must
+    therefore carry a usable one, not a stem to complete."""
+    ctx = provision_tenant(client)
+    service = ctx["service"]
+    employee_id = client.post(
+        "/api/v1/employees", json={"name": "路由"}, headers=service
+    ).json()["data"]["id"]
+    user_id = invite(client, service, "router@bundle-co.com", "member", employee_id)
+
+    archive = bundle_zip(client, service, user_id)
+    checked = 0
+    for name in bundle_skill_names(archive):
+        rendered = skill_md(archive, name)
+        if "api_base_url:" not in rendered:
+            continue
+        checked += 1
+        assert "{{" not in rendered, f"{name} shipped an unrendered placeholder"
+        stated = re.search(r'api_base_url:\s*"([^"]+)"', rendered).group(1)
+        assert stated.startswith("http"), f"{name} states {stated!r}"
+        assert stated.endswith("/api/v1"), (
+            f"{name} states {stated!r} — an agent following it verbatim misses the API"
+        )
+    # Guard the guard: a loop over a bundle whose skills stopped declaring the
+    # field would pass while proving nothing.
+    assert checked >= 5, f"only {checked} skills declared an api_base_url"
+
+
+def test_no_skill_asks_the_reader_to_build_an_api_url(client: TestClient) -> None:
+    """The other half of that defect, pinned at the source rather than the
+    render:
+    a skill that says `{{ORYH_BASE_URL}}/api/v1` is still making the agent
+    assemble an address, and the next skill written by copy-paste inherits it.
+    The server renders the whole value or the instruction is incomplete."""
+    offenders = [
+        str(path.relative_to(PRODUCT_SKILLS_DIR))
+        for path in sorted(PRODUCT_SKILLS_DIR.rglob("*.md"))
+        if "{{ORYH_BASE_URL}}/api" in path.read_text(encoding="utf-8")
+    ]
+    assert not offenders, f"these concatenate an API base: {offenders}"
+
+
+def test_identity_block_separates_the_site_from_the_api(client: TestClient) -> None:
+    """`base_url` alone was ambiguous, and the ambiguity is what an agent
+    resolved wrongly. The manifest now names both roles outright; the old key
+    stays as an alias because installed bundles already read it."""
+    ctx = provision_tenant(client)
+    service = ctx["service"]
+    employee_id = client.post(
+        "/api/v1/employees", json={"name": "清单"}, headers=service
+    ).json()["data"]["id"]
+    user_id = invite(client, service, "manifest@bundle-co.com", "member", employee_id)
+    archive = bundle_zip(client, service, user_id)
+
+    # manifest.json is the copy that lands on disk and outlives this download.
+    for identity in (
+        json.loads(archive.read(f"{ROOT}/manifest.json")),
+        client.get(
+            "/api/v1/my/skills/manifest",
+            headers={"X-API-Key": re.search(
+                r"calw_[A-Za-z0-9_-]+", skill_md(archive, "oryh-my-work")
+            ).group(0)},
+        ).json()["meta"],
+    ):
+        site, api = identity["site_base_url"], identity["api_base_url"]
+        assert site and api == f"{site}/api/v1"
+        assert identity["base_url"] == site
+
+
+def test_the_deployment_is_named_beside_the_tenant_not_inside_it(client: TestClient) -> None:
+    """An agent given only a place name read the deployment as a tenant and
+    refused a legitimate payment as cross-tenant. Nothing leaked and nothing was
+    written, but a real approval stalled on a distinction that did not exist.
+    Which machines serve the workspace and which company the workspace IS are
+    two questions; the manifest now answers them in two fields."""
+    from app.core.config import settings
+
+    ctx = provision_tenant(client)
+    service = ctx["service"]
+    employee_id = client.post(
+        "/api/v1/employees", json={"name": "环境"}, headers=service
+    ).json()["data"]["id"]
+    user_id = invite(client, service, "env@bundle-co.com", "member", employee_id)
+
+    # unset by default: a single-workspace install has no deployment name, and
+    # inventing one would be the same guess from the other direction
+    installed = json.loads(bundle_zip(client, service, user_id).read(f"{ROOT}/manifest.json"))
+    assert installed["environment_id"] is None
+    assert "environment_id" not in installed["tenant"]
+
+    settings.environment_id = "acme-example-test"
+    try:
+        installed = json.loads(bundle_zip(client, service, user_id).read(f"{ROOT}/manifest.json"))
+    finally:
+        settings.environment_id = ""
+    assert installed["environment_id"] == "acme-example-test"
+    # a sibling of the tenant block, never a member of it
+    assert set(installed["tenant"]) == {"id", "slug", "name"}
+
+
+def test_the_approval_skills_say_a_role_change_is_not_a_person_change() -> None:
+    """One user held two roles — flow admin and 总经理 — and the agent read its
+    own earlier admin calls as evidence that somebody else was now present,
+    refusing a legitimate approval as service impersonation. Identity comes from
+    the credential, not from tool history, and every skill that records an
+    approval fact now says so."""
+    fragment = (PRODUCT_SKILLS_DIR / "_common" / "who-you-are-acting-as.md").read_text(
+        encoding="utf-8"
+    )
+    # the two claims that resolve the false positive without dissolving the real one
+    assert "ignores any identity you supply" in fragment
+    assert "service" in fragment and "tenant_id" in fragment
+
+    include = "{{include:_common/who-you-are-acting-as.md}}"
+    wants_it = [
+        path.parent.name
+        for path in sorted(PRODUCT_SKILLS_DIR.glob("*/SKILL.md"))
+        if path.parent.name.endswith("-approval-flow") or path.parent.name == "oryh-approve"
+    ]
+    for name in wants_it:
+        text = (PRODUCT_SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+        assert include in text, f"{name} records approval facts but never says whose"
+
+    # Guard the guard, per tree. The `*-approval-flow` family is withheld from
+    # the open-core export, so a flat count would be a silent pass there and an
+    # over-strict failure here; `oryh-approve` ships in both.
+    assert "oryh-approve" in wants_it
+    flows = [name for name in wants_it if name.endswith("-approval-flow")]
+    assert len(flows) in (0, 7), f"expected all seven flow skills or none, got {flows}"

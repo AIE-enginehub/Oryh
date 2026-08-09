@@ -27,7 +27,8 @@ not mean starting over, and one departed customer must not stop the run.
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # needs tenant.act_for_any_employee
 ```
 
@@ -71,7 +72,8 @@ but is only a sequencing mistake. Say this out loud before starting: "先导客
    and every failing document by its number. This is the moment to decide the
    reference policy below.
 5. **Import in chunks of 500**, in order, reporting cumulative progress.
-   Prefer the bundled `scripts/import_documents.py` when you can run Python —
+   Prefer the bundled `scripts/import_documents.py` when you can run Python
+   (in this skill's directory — the path is relative to it) —
    it chunks, keeps a running summary, and collects every problem document
    into one list instead of drowning the person in per-chunk output.
 6. **Report the problem documents** at the end: their numbers, grouped by

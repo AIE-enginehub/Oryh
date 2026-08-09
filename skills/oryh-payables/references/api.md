@@ -1,6 +1,6 @@
 # Payables API
 
-Every path hangs off `<base_url>/api/v1`.
+Every path hangs off `api_base_url` exactly as given — no version prefix to add.
 
 ## Supplier invoices (purchase side)
 

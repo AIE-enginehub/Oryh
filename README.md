@@ -2,13 +2,21 @@
 
 **Agent-native business records for one company, self-hosted.**
 
-oryh is the system of record that AI agents operate against: durable business
-documents, approval facts, todos and an audit trail, behind an API designed to
-be driven by an agent rather than clicked through by a person. It stores facts
-and state; the agents your people already use drive the flow.
+oryh is a **headless ERP/CRM** — the system of record that AI agents operate
+against. Customers and vendors, products and inventory, quotations, orders,
+invoices in both directions, payments and settlement, payroll: the documents a
+business actually runs on, behind an API designed to be driven by an agent
+rather than clicked through by a person. It stores facts and state; the agents
+your people already use drive the flow.
 
-Bring your own agent. Connect it once, and it works your company's records
-through skills your workspace owns.
+**Bring your own agent.** Skills are markdown instructions plus plain HTTP —
+no SDK, no client library, nothing to keep in step with a release. So most
+general-purpose agents work as they are: Claude Code, Codex, Hermes and others
+of that class. Connect one once, and it works your company's records through
+skills your workspace owns.
+
+**Just want to look?** <https://oryh.ai> runs the same product as a hosted
+service — nothing to install.
 
 ```bash
 git clone https://github.com/AIE-enginehub/oryh.git
@@ -41,7 +49,9 @@ signing in.
 
 ## What this is not
 
-Not a page-first OA suite, not a BPM engine, not an ERP module. There is a
+Headless is the substance of the claim, not a label: no page-first OA suite,
+no BPM engine, and none of the six-month master-data configuration a
+traditional ERP asks for before it holds a single document. There is a
 console, and it is for administering the workspace — the work itself happens
 through agents.
 
@@ -87,6 +97,9 @@ deployments run on; `sql/schema.sql` is the snapshot the tests pin the ORM
 against.
 
 ## Relationship to the hosted service
+
+<https://oryh.ai> is that hosted service, and the fastest way to see what this
+is before cloning anything.
 
 This repository is the product, exported from a private trunk at each release.
 What stays private is the layer that runs it as a hosted multi-tenant service

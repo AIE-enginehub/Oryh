@@ -4,6 +4,14 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Where the record API lives under the public origin. Stated once because it
+# is stated to two different audiences: every router mounts under it, and every
+# skill bundle tells an agent to call it. It was a literal in fourteen places,
+# and the places that FORGOT it are why an agent's first call 404'd against the
+# site root.
+API_PREFIX = "/api/v1"
+
+
 class Settings(BaseSettings):
     app_name: str = "Oryh API"
     # Which assembly this deployment is: "cloud" mounts the SaaS platform
@@ -25,6 +33,13 @@ class Settings(BaseSettings):
     # scripts/bootstrap_db_roles.py.
     app_db_password: str | None = None
     database_schema: str = "oryh"
+    # What to call THIS deployment — "acme-test", "production". Handed
+    # to agents beside the tenant identity so the two are separate fields
+    # rather than one blur: an agent told only a place name read it as
+    # a tenant name and refused a legitimate payment as cross-tenant. Empty
+    # means the deployment has no name of its own, which is the honest answer
+    # for a single-workspace install and reads that way in the manifest.
+    environment_id: str = ""
     # Canonical public URL for links in outbound email. Leave empty in
     # dev/test with no fixed domain: links then follow the address the request
     # actually came in on (see app.core.request_context). Set it in production

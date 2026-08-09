@@ -19760,6 +19760,51 @@
         "title": "QuotationSkuReferenceRead",
         "type": "object"
       },
+      "QuoteDriftRead": {
+        "description": "What was agreed, against what was ordered — as arithmetic, not a verdict.\n\nA live E2E found an order 10.29% above its quotation confirmed with nobody\nlooking. The agent had disclosed the gap in prose, which is the weakest\nplace for a number to live: it could be computed, so it could also be\ncomputed differently, or not at all.\n\nSo the server states it. It does NOT decide what an acceptable gap is —\nthat is the tenant's, written in the workflow definition the flow agent\nreads — and it does not gate anything on it. Both bases are reported\nbecause the comparison is only meaningful if you can see what was\ncompared: a document's total is its declared `total_amount` when it has\none, and its line sum when it does not, and comparing a declared total\nagainst a line sum is a different question from comparing like with like.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "number"
+          },
+          "order_basis": {
+            "title": "Order Basis",
+            "type": "string"
+          },
+          "order_total": {
+            "title": "Order Total",
+            "type": "number"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "quote_basis": {
+            "title": "Quote Basis",
+            "type": "string"
+          },
+          "quote_total": {
+            "title": "Quote Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "quote_total",
+          "quote_basis",
+          "order_total",
+          "order_basis",
+          "amount"
+        ],
+        "title": "QuoteDriftRead",
+        "type": "object"
+      },
       "ReceivePurchaseOrderLine": {
         "additionalProperties": false,
         "properties": {
@@ -20748,6 +20793,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/SalesQuotationRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quote_drift": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteDriftRead"
               },
               {
                 "type": "null"

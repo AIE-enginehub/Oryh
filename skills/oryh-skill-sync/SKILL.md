@@ -19,13 +19,14 @@ This copy serves **one employer**. Its key, its manifest and its directory all b
 
 ```yaml
 oryh:
-  api_base_url: "{{ORYH_BASE_URL}}/api/v1"   # every path below hangs off THIS
+  api_base_url: "{{ORYH_API_BASE_URL}}"   # every path below hangs off THIS
   api_key: "{{ORYH_API_KEY}}"                # the principal's user-bound key, for THIS company
   install_dir: <where this company's {{INSTALL_DIR}}/ directory lives locally —
                 the installed manifest.json carries it>
 ```
 
-**Never drop `/api/v1`.** A path without it is not an error you will notice:
+**Build every path on `api_base_url` as given.** A path built on the bare site
+origin instead is not an error you will notice:
 the server answers 200 with an HTML page, so `GET /my/skill-bundle` hands you
 2.6 KB of web page where you expected a zip — and step 5 moves the live
 directory aside before step 4's download is ever opened.
@@ -39,13 +40,16 @@ If the person has more than one employer installed, sync the one this request is
    {{INSTALL_DIR}}/manifest.json →
      {generated_at,
       tenant: {id, slug, name},   ← which company this directory serves
-      install_dir, base_url,
+      environment_id,            ← which DEPLOYMENT, not a company
+      install_dir, site_base_url, api_base_url,
       skills: [{name, installed_as, version, files_hash}]}
 
 2. GET {api_base_url}/my/skills/manifest
    → the server's current list for YOUR role, plus the same identity block:
      {"data": [{name, installed_as, title, version, files_hash}],
-      "meta": {total, tenant: {id, slug, name}, install_dir, base_url}}
+      "meta": {total, tenant: {id, slug, name}, environment_id, install_dir,
+                site_base_url,
+                api_base_url}}
 
 3. Compare:
    - `meta.tenant.id` must equal the installed `tenant.id`. If it does not, this
@@ -70,7 +74,8 @@ If the person has more than one employer installed, sync the one this request is
    → a freshly rendered bundle for you, using the same key you called with.
      It holds exactly ONE company directory, plus the shared `oryh-connect/`.
      Check it is really a zip before touching the installed directory; an HTML
-     body means the URL lost its `/api/v1`, not that the bundle is empty.
+     body means the URL was built on the site origin rather than
+     `api_base_url`, not that the bundle is empty.
 
 5. Replace THIS company's directory with the zip's — whole-directory swap,
    never file-by-file patching, so a half-updated skill can never run. Keep the
@@ -177,7 +182,7 @@ different names is precisely the ambiguity the company prefix exists to remove.
 
 ## Failure Handling
 
-- `401 invalid API key`: this device's key was rotated (an admin issued a new bundle) or deactivated. Stop syncing and hand over to `$oryh-connect` — the shared, company-agnostic bootstrap skill; the principal reconnects through the browser, no admin needed. If it is not installed, it is a public download that needs no credential: `GET {{ORYH_BASE_URL}}/api/v1/connect-skill`.
+- `401 invalid API key`: this device's key was rotated (an admin issued a new bundle) or deactivated. Stop syncing and hand over to `$oryh-connect` — the shared, company-agnostic bootstrap skill; the principal reconnects through the browser, no admin needed. If it is not installed, it is a public download that needs no credential: `GET {{ORYH_API_BASE_URL}}/connect-skill`.
 - `403 a user-bound API key is required`: the configured key is a tenant service key; this skill only works with a personal bundle key.
 - Network failure mid-refresh: keep the currently installed skills; retry the whole check next session.
 

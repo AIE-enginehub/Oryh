@@ -3,7 +3,7 @@
 Use these templates with:
 
 - header: `X-API-Key: <api_key>`
-- base path: `<base_url>/api/v1`
+- base path: `api_base_url`, exactly as given — no version prefix to add
 
 ## Common read endpoints
 

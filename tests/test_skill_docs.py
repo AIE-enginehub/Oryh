@@ -415,3 +415,70 @@ def test_documented_response_fields_exist() -> None:
                 where = f"{md.relative_to(PRODUCT_SKILLS_DIR.parent)}: {method} {raw_path}"
                 complaints.append(f"{where}: fields not in response: {sorted(unknown)}")
     assert not complaints, "\n".join(sorted(complaints))
+
+
+SCRIPT_REFERENCE = re.compile(r"(?<![\w/.])(scripts/[A-Za-z0-9_./-]+\.(?:py|sh|mjs|js))")
+
+
+def _skill_directories() -> list[Path]:
+    roots = [
+        path
+        for path in PRODUCT_SKILLS_DIR.iterdir()
+        if path.is_dir() and path.name != "_common"
+    ]
+    if DEMO_SKILLS_DIR.is_dir():
+        roots += [
+            skill
+            for tenant in DEMO_SKILLS_DIR.iterdir()
+            if tenant.is_dir()
+            for skill in tenant.iterdir()
+            if skill.is_dir()
+        ]
+    return sorted(roots)
+
+
+def test_every_script_a_skill_names_ships_inside_it() -> None:
+    """A tool path in a SKILL is a promise that the bundle keeps it.
+
+    An agent filing an expense called `scripts/upload_attachment.py`, got a
+    file-not-found, and fell back to reading the API by hand. The bundle
+    carries every file in the skill directory, so the promise is cheap to
+    keep — and cheaper still to check, since the alternative is finding out
+    from an agent's error transcript.
+    """
+    missing = []
+    checked = 0
+    for skill in _skill_directories():
+        for document in sorted(skill.rglob("*.md")):
+            for reference in SCRIPT_REFERENCE.findall(document.read_text(encoding="utf-8")):
+                checked += 1
+                if not (skill / reference).is_file():
+                    missing.append(
+                        f"{document.relative_to(PRODUCT_SKILLS_DIR.parent)}: {reference}"
+                    )
+    assert checked > 5, f"only {checked} script references found — the scan is not reading the corpus"
+    assert not missing, "skills name scripts their bundle does not carry:\n" + "\n".join(missing)
+
+
+def test_a_document_that_names_a_script_says_where_to_run_it() -> None:
+    """`scripts/x.py` is relative to the skill's own directory, and an agent
+    whose working directory is the bundle root — or anywhere else — resolves
+    it to nothing.
+
+    One document said "in this skill's directory" and three said nothing,
+    which is the whole difference between a tool that runs and a tool the
+    agent decides is broken. The rule is per document, because an agent reads
+    whichever one it opened.
+    """
+    unanchored = []
+    for skill in _skill_directories():
+        for document in sorted(skill.rglob("*.md")):
+            text = document.read_text(encoding="utf-8")
+            if not SCRIPT_REFERENCE.search(text):
+                continue
+            if "this skill's directory" not in text:
+                unanchored.append(str(document.relative_to(PRODUCT_SKILLS_DIR.parent)))
+    assert not unanchored, (
+        "these name a script without saying the path is relative to the skill "
+        "directory:\n" + "\n".join(unanchored)
+    )

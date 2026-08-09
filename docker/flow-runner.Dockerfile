@@ -58,8 +58,25 @@ COPY pyproject.toml README.md ./
 COPY flow_runner ./flow_runner
 
 # The runner is stdlib-only; this is here so the image fails loudly at build
-# time if that ever stops being true.
+# time if that ever stops being true. It runs BEFORE the agent's toolbox is
+# installed, which is what makes it proof rather than decoration.
 RUN python -c "import flow_runner.dispatcher, flow_runner.adapter, flow_runner.bundles"
+
+# The AGENT's toolbox, not the runner's. pi drives the skills through shell and
+# python, and a spreadsheet import means openpyxl. Without it an agent asked to
+# read an .xlsx unzips the workbook and parses the XML by hand — which works on
+# a simple sheet and quietly misreads merged headers, formulas and encodings,
+# so the failure arrives as wrong data rather than an error.
+#
+# Deliberately not a `pyproject` dependency: the dispatcher must stay
+# importable with nothing installed, and the check above proves it still is.
+# The verification below builds a workbook with the awkward parts — two sheets,
+# a merged banner, a formula, non-ASCII, a trailing total — and reads it back,
+# so a fresh Pod cannot start without a toolchain that handles them.
+COPY docker/verify-xlsx-toolchain.py /tmp/verify-xlsx-toolchain.py
+RUN pip install --no-cache-dir "openpyxl==3.1.5" \
+    && python /tmp/verify-xlsx-toolchain.py \
+    && rm /tmp/verify-xlsx-toolchain.py
 
 # Never root: the agent runs shell commands, and the blast radius of a prompt
 # injection should not include the container's own filesystem.

@@ -3,7 +3,7 @@
 Use with:
 
 - header: `X-API-Key: <the principal's user-bound key — this company's>`
-- base path: `<base_url>/api/v1`
+- base path: `api_base_url`, exactly as given — no version prefix to add
 
 Both endpoints reject web sessions and tenant-level service keys — only a personal bundle key works. The key decides the company: there is no tenant parameter, and none is needed.
 

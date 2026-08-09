@@ -45,7 +45,8 @@ The three facts that follow from that:
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # needs payroll.manage, payroll.read,
                                   # invoice.manage:payroll, payment.record, payment.apply
   employee_id: "{{EMPLOYEE_ID}}"  # the HR 经办人 recorded on what you file
@@ -55,6 +56,16 @@ oryh:
 purpose — deciding what someone earns and producing the monthly document are
 different jobs. If your key holds only one, do that half and say plainly which
 step someone else must take.
+
+发放 needs `payment.record`, which is what lets you **create and submit** the
+payout — and deliberately not approve it: moving it past submitted needs
+`payment.advance`, which belongs to whoever the workflow definition names. A
+403 on `POST /payments` means this key files pay but does not disburse it; hand
+the batch over rather than looking for another credential.
+
+**只读的人不需要这个技能.** 本人查自己的工资条、审批人核对一批工资条合计，都走
+`$oryh-payslip` — it is ungated, so everyone already has it. This skill is the
+write half.
 
 ## 定薪与调薪
 
@@ -239,6 +250,8 @@ about.
 - Approve the payout, or move it to paid on your own reading — that is
   `$oryh-payment-approval-flow`.
 - Import history — that is `$oryh-data-migration`.
+- Answer "我这个月发了多少" — that is `$oryh-payslip`, which every employee
+  holds and which needs no payroll capability to read one's own pay.
 
 ## Reference
 

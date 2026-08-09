@@ -36,7 +36,8 @@ rows. This skill files ONE quotation the principal is working on now.
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
 ```
 
@@ -80,7 +81,7 @@ Everything else comes from conversation: who the customer is, what to quote, at 
    (`POST /sales-quotation-items` still exists for adding a line to an
    existing `draft`/`returned` quotation — a 409 there means revise instead.)
 7. **Submit**: `POST /sales-quotations/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent. Internal approval (if the tenant requires any) runs from here; a tenant with no rules gets it finalized by the flow agent without human nodes.
-8. **The submitted approval fact (seq 1)**: if this credential's role includes `approval.record`, also `POST /approval-records` with `entity_type=sales_quotation, action=submitted, round_no=<1, or previous round + 1 after a return>, sequence_no=1`. If not, **skip it** — the workflow admin backfills from `submitted_at`. That 403 is not an error.
+8. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.
 9. **Send**: once `approved`, render the customer-facing document from `GET /sales-quotations/{id}/detail` (lines in `line_no` order with prices, tax rates, lead times, terms, validity — the principal's own template if they have one), deliver it however the principal does, then `POST /sales-quotations/{id}/send` to record the fact. Idempotent.
 10. **Outcome**: when the customer decides — `POST /sales-quotations/{id}/close` with `outcome: accepted|declined|expired` and an `outcome_note` (成交金额确认、流失原因). 报价成功率 lives on these facts.
 11. **Revision**: customer negotiates → `POST /sales-quotations/{id}/revise` (allowed from `approved`/`sent`). The old revision becomes `superseded`; you get a fresh `draft` with lines copied and catalog snapshots refreshed — adjust prices, then submit again (discount rules apply to the NEW numbers). Read back `GET .../detail` — its `revisions` array is the negotiation trail.

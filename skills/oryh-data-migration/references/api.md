@@ -158,6 +158,8 @@ postgres, i.e. ~13 minutes for 300k).
 
 ## Chunking Script
 
+Run from this skill's directory; the paths below are relative to it.
+
 ```text
 python3 scripts/import_documents.py --kind quotations rows.json            (dry run)
 python3 scripts/import_documents.py --kind quotations rows.json --apply

@@ -36,7 +36,8 @@ Two ideas run through everything here:
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # policy.manage to draft; policy.publish to publish or repeal
   employee_id: "{{EMPLOYEE_ID}}"  # 经办人 — the owner recorded on a policy, if any
 ```

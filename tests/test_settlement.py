@@ -867,6 +867,7 @@ def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
             "entity_type": "payment",
             "entity_id": payment["id"],
             "action": "approved",
+            "sequence_no": 2,
             "approver_id": person,
             "comment": "账号与档案一致",
             "acted_at": "2026-08-02T10:00:00Z",
@@ -874,7 +875,9 @@ def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
     )
 
     detail = client.get(f"/api/v1/payments/{payment['id']}/detail", headers=HEADERS).json()["data"]
-    assert [record["action"] for record in detail["approval_records"]] == ["approved"]
+    # the submission is a fact the server records when /submit runs, so the
+    # trail opens with it rather than with the decision
+    assert [record["action"] for record in detail["approval_records"]] == ["submitted", "approved"]
 
 
 def test_the_ledgers_target_is_constrained_in_the_database() -> None:

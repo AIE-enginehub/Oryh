@@ -150,6 +150,7 @@ def test_purchase_flow_with_optional_vendor_product_price(client: TestClient) ->
             "entity_type": "purchase_request",
             "entity_id": request_id,
             "action": "approved",
+            "sequence_no": 2,
             "approver_role": "manager",
             "source": "ai",
             "acted_at": "2026-07-12T10:00:00Z",
@@ -165,7 +166,9 @@ def test_purchase_flow_with_optional_vendor_product_price(client: TestClient) ->
     # estimated total is honest: 2×2999 + 800, with one line unpriced
     assert detail["estimated_total"] == pytest.approx(6798.0)
     assert detail["unpriced_item_count"] == 1
-    assert len(detail["approval_records"]) == 1
+    # two facts now: the submission the server recorded when /submit ran,
+    # and the decision on top of it
+    assert [r["action"] for r in detail["approval_records"]] == ["submitted", "approved"]
 
     # finalize: submitted -> approved -> ordered follows the default machine
     for target in ("approved", "ordered"):

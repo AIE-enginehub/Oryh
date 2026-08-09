@@ -30,7 +30,8 @@ clearing a rep to send — belongs to the flow skills
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"          # the approver's own user-bound key
   approval_step:
     entity_type: "expense_claim"  # timesheet_header | expense_claim | purchase_request | sales_quotation | sales_order
@@ -48,9 +49,17 @@ oryh:
 (`metadata.round_no` / `metadata.sequence_no`). Reusing them makes retries
 idempotent: posting the same action twice returns the already-recorded fact.
 
+**Never send `sequence_no: 1` for a decision, and never omit it** — the field
+defaults to 1, and 1 is where the submission sits. The server refuses a
+decision there, saying so; a decision belongs after the submission or the
+trail cannot show it followed one. If the todo carries no sequence, use the
+next free one in the round.
+
 ## Steps
 
 {{include:_common/fewer-round-trips.md}}
+
+{{include:_common/who-you-are-acting-as.md}}
 
 1. **Read context** — the document's own `/detail`, which returns the lines,
    the totals, and the prior approval trail in one call:

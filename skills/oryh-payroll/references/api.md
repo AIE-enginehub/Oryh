@@ -1,6 +1,6 @@
 # Payroll API
 
-Every path hangs off `<base_url>/api/v1`.
+Every path hangs off `api_base_url` exactly as given — no version prefix to add.
 
 Everything here is behind `payroll.read`. Without that capability a credential
 sees only the records of the employee it is linked to, and someone else's

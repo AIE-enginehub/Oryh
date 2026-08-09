@@ -307,3 +307,72 @@ def test_error_messages_point_at_how_to_define_a_type(client: TestClient) -> Non
     error = bulk.json()["data"]["results"][0]["error"]
     assert "dealer_tier2" in error
     assert "/type-options" in error  # names the way forward, not just the failure
+
+
+def audit_entries(client: TestClient, headers, action: str) -> list[dict]:
+    response = client.get(f"/api/v1/audit-logs?action={action}", headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()["data"]
+
+
+def test_every_vocabulary_change_leaves_an_audit_entry(client: TestClient) -> None:
+    """A business vocabulary that changes meaning silently is unauditable.
+
+    "渠道价" redefined is a different number in every report that reads it, and
+    the only trace used to be the row's `updated_at`: no actor, no old value,
+    nothing to answer "who changed what, from what, when". The audit
+    report filed this against PATCH; in fact NO type-option operation was
+    audited, so fixing only the door the E2E happened to walk through would
+    have left the same hole one door over.
+    """
+    headers = provision(client)
+
+    created = client.post(
+        "/api/v1/type-options",
+        json={"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"},
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    option_id = created.json()["data"]["id"]
+
+    entries = audit_entries(client, headers, "type_option.created")
+    assert len(entries) == 1
+    assert entries[0]["entity_id"] == option_id
+    assert entries[0]["detail"]["name"] == "dealer_tier2"
+    assert entries[0]["actor"]
+
+    patched = client.patch(
+        f"/api/v1/type-options/{option_id}",
+        json={"title": "二级渠道价", "description": "二级渠道的成交口径"},
+        headers=headers,
+    )
+    assert patched.status_code == 200, patched.text
+
+    updates = audit_entries(client, headers, "type_option.updated")
+    assert len(updates) == 1
+    changed = updates[0]["detail"]["changed"]
+    # the OLD value is the half that makes the trail answerable
+    assert changed["title"] == {"from": "二级经销价", "to": "二级渠道价"}
+    assert changed["description"]["from"] is None
+    assert set(changed) == {"title", "description"}
+
+    archived = client.delete(f"/api/v1/type-options/{option_id}", headers=headers)
+    assert archived.status_code == 204, archived.text
+    assert len(audit_entries(client, headers, "type_option.archived")) == 1
+
+
+def test_a_patch_that_changes_nothing_records_nothing(client: TestClient) -> None:
+    """An audit trail of no-ops is a trail nobody reads."""
+    headers = provision(client)
+    created = client.post(
+        "/api/v1/type-options",
+        json={"family": "expense_category", "name": "client_gift", "title": "客户礼品"},
+        headers=headers,
+    )
+    option_id = created.json()["data"]["id"]
+
+    repeated = client.patch(
+        f"/api/v1/type-options/{option_id}", json={"title": "客户礼品"}, headers=headers
+    )
+    assert repeated.status_code == 200, repeated.text
+    assert audit_entries(client, headers, "type_option.updated") == []

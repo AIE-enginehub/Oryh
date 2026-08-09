@@ -19,7 +19,8 @@ Record and submit the principal's own timesheet. The credential is the identity:
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
 ```
 
@@ -59,7 +60,7 @@ Everything else comes from conversation: the period, the hours, the original des
    pre-submit read-back below got an explicit yes. Idempotent — resubmitting
    a submitted header is a no-op. The response's `status`/`submitted_at` is
    the confirmation; nothing needs re-reading.
-6. **The submitted approval fact (seq 1)**: if this credential's role includes `approval.record`, also `POST /approval-records` with `action=submitted, round_no=<1, or previous round + 1 after a return>, sequence_no=1`. If it does not (many tenants keep members fact-free), **skip it** — the workflow admin backfills the fact from `header.submitted_at` when it picks the timesheet up. Do not treat that 403 as an error.
+6. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.
 
 ## Validate Before Writing
 

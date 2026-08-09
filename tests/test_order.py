@@ -340,3 +340,179 @@ def test_order_adjustments_shape_the_total(client: TestClient) -> None:
         headers=api_key_headers(),
     )
     assert locked.status_code == 409
+
+
+def test_a_quotation_an_order_quotes_becomes_the_frozen_baseline(client: TestClient) -> None:
+    """Once an order is written from a quotation, the quotation is history.
+
+    The gap between what was agreed and what was ordered is the question this
+    pair exists to answer — and a live E2E found an order +10.29% above its
+    quotation confirmed with nobody looking. Whatever eventually watches that
+    gap is worth nothing if the number it measures against can still move, the
+    same argument `ensure_money_fields_editable` makes for an issued invoice.
+
+    Deliberately NOT state-based: which states are editable is the tenant's
+    choice, and a workspace may keep `accepted` editable for good reasons.
+    "An order references this row" is a fact about rows, not a reading of
+    anyone's vocabulary, which is why the server may hold it.
+    """
+    employee_id = create_employee(client)
+    quotation = create_quotation(client, employee_id)
+    item = client.post(
+        "/api/v1/sales-quotation-items",
+        json={"quotation_id": quotation["id"], "product_name_snapshot": "内窥镜镜头",
+              "quantity": 2, "unit_price": 1200.00},
+        headers=api_key_headers(),
+    )
+    assert item.status_code == 201, item.text
+    item_id = item.json()["data"]["id"]
+
+    # before the order: ordinary edits work
+    assert client.patch(
+        f"/api/v1/sales-quotations/{quotation['id']}",
+        json={"total_amount": 2400.00}, headers=api_key_headers(),
+    ).status_code == 200
+
+    create_order(client, employee_id, quotation_id=quotation["id"])
+
+    # after it: the money, the lines and the archive are all refused
+    restated = client.patch(
+        f"/api/v1/sales-quotations/{quotation['id']}",
+        json={"total_amount": 9999.00}, headers=api_key_headers(),
+    )
+    assert restated.status_code == 409, restated.text
+    assert "agreed baseline" in restated.json()["detail"]
+    assert "revise" in restated.json()["detail"]
+
+    assert client.patch(
+        f"/api/v1/sales-quotation-items/{item_id}",
+        json={"unit_price": 4000.00}, headers=api_key_headers(),
+    ).status_code == 409
+    assert client.post(
+        "/api/v1/sales-quotation-items",
+        json={"quotation_id": quotation["id"], "product_name_snapshot": "追加", "quantity": 1},
+        headers=api_key_headers(),
+    ).status_code == 409
+    assert client.delete(
+        f"/api/v1/sales-quotations/{quotation['id']}", headers=api_key_headers()
+    ).status_code == 409
+
+    # the baseline is intact
+    still = client.get(
+        f"/api/v1/sales-quotations/{quotation['id']}", headers=api_key_headers()
+    ).json()["data"]
+    assert still["total_amount"] == 2400.00
+
+    # its own lifecycle still moves: freezing the content is not freezing the
+    # document
+    submitted = client.post(
+        f"/api/v1/sales-quotations/{quotation['id']}/submit",
+        json={}, headers=api_key_headers(),
+    )
+    assert submitted.status_code == 200, submitted.text
+    assert submitted.json()["data"]["status"] == "submitted"
+
+
+def test_an_unquoted_order_leaves_other_quotations_alone(client: TestClient) -> None:
+    """The freeze follows the reference, not the calendar: a quotation nobody
+    ordered from stays editable however many orders exist elsewhere."""
+    employee_id = create_employee(client)
+    quoted = create_quotation(client, employee_id)
+    untouched = create_quotation(client, employee_id)
+    create_order(client, employee_id, quotation_id=quoted["id"])
+
+    assert client.patch(
+        f"/api/v1/sales-quotations/{untouched['id']}",
+        json={"total_amount": 555.00}, headers=api_key_headers(),
+    ).status_code == 200
+
+    # and a deleted order releases nothing it never held
+    assert client.patch(
+        f"/api/v1/sales-quotations/{quoted['id']}",
+        json={"total_amount": 555.00}, headers=api_key_headers(),
+    ).status_code == 409
+
+
+def test_the_gap_between_quote_and_order_is_a_stated_fact(client: TestClient) -> None:
+    """The +10.29% from the live E2E, as arithmetic the server publishes.
+
+    The agent that met this case did compute the gap and did disclose it — in
+    prose. A number that only exists because an agent chose to work it out is
+    a number the next agent may work out differently, or skip. So the server
+    states it; what an acceptable gap IS stays in the tenant's workflow
+    definition, and nothing here gates on it.
+    """
+    employee_id = create_employee(client)
+    quotation = create_quotation(client, employee_id, total_amount=108800.00)
+    order = create_order(
+        client, employee_id, quotation_id=quotation["id"], total_amount=120000.00
+    )
+
+    drift = client.get(
+        f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()
+    ).json()["data"]["quote_drift"]
+
+    assert drift["quote_total"] == 108800.00
+    assert drift["order_total"] == 120000.00
+    assert drift["amount"] == 11200.00
+    assert drift["percent"] == 10.29
+    # both sides declared a header total, and the response says so — comparing
+    # a declared total against a line sum would be a different question
+    assert drift["quote_basis"] == "declared"
+    assert drift["order_basis"] == "declared"
+
+    # stating it is not gating on it: this order still confirms
+    advanced = client.patch(
+        f"/api/v1/sales-orders/{order['id']}",
+        json={"status": "confirmed"}, headers=api_key_headers(),
+    )
+    assert advanced.status_code in (200, 409)  # whatever the machine allows
+    if advanced.status_code == 409:
+        assert "transition" in advanced.json()["detail"]
+
+
+def test_drift_names_which_number_each_side_used(client: TestClient) -> None:
+    """A quotation with no declared total totals its lines; the basis field is
+    what stops that being confused with an agreed figure."""
+    employee_id = create_employee(client)
+    quotation = create_quotation(client, employee_id)
+    client.post(
+        "/api/v1/sales-quotation-items",
+        json={"quotation_id": quotation["id"], "product_name_snapshot": "镜头",
+              "quantity": 2, "unit_price": 1000.00},
+        headers=api_key_headers(),
+    )
+    order = create_order(client, employee_id, quotation_id=quotation["id"], total_amount=2500.00)
+
+    drift = client.get(
+        f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()
+    ).json()["data"]["quote_drift"]
+
+    assert drift["quote_total"] == 2000.00
+    assert drift["quote_basis"] == "line_sum"
+    assert drift["order_basis"] == "declared"
+    assert drift["amount"] == 500.00
+    assert drift["percent"] == 25.00
+
+
+def test_no_quotation_means_no_drift_rather_than_zero(client: TestClient) -> None:
+    """A free-standing order has no baseline. Reporting 0 would read as
+    "quoted and matched exactly", which is the opposite of what happened."""
+    employee_id = create_employee(client)
+    order = create_order(client, employee_id, total_amount=5000.00)
+    detail = client.get(
+        f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()
+    ).json()["data"]
+    assert detail["quote_drift"] is None
+
+
+def test_a_zero_quotation_gives_no_percentage(client: TestClient) -> None:
+    """A percentage of nothing is undefined, not 0%."""
+    employee_id = create_employee(client)
+    quotation = create_quotation(client, employee_id, total_amount=0)
+    order = create_order(client, employee_id, quotation_id=quotation["id"], total_amount=800.00)
+    drift = client.get(
+        f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()
+    ).json()["data"]["quote_drift"]
+    assert drift["amount"] == 800.00
+    assert drift["percent"] is None

@@ -28,8 +28,8 @@ employer and is named after it.
 
 ```yaml
 oryh:
-  base_url: "{{ORYH_BASE_URL}}"          # THIS deployment's address — use it
-  api_base_url: "{{ORYH_BASE_URL}}/api/v1" # required prefix for every API call
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   install_dir: <the agent's skills folder — where the oryh-skills-* directories
                live or should live>
 ```
@@ -40,14 +40,15 @@ in at that moment — it is a fact about this copy, not a default to confirm.
 Deployments do differ (a company's test server, a private install), which is
 exactly why each one hands out its own connect skill carrying its own address;
 a person who uses two deployments holds two connect skills, each already
-correct. Derive `api_base_url` by appending `/api/v1`.
+correct. The same goes for `api_base_url`: it arrives complete, so send API
+calls straight to it and never append a version prefix or trim one off.
 
 The single exception: if the value still contains the literal `{{...}}`, this
 copy was never rendered (someone copied it out of a repo rather than
 downloading it). Only then ask for the company's oryh URL.
 
-Treat `base_url` as the website origin, not the API root. Never omit `/api/v1`
-from an API request. Do not probe the device start or token endpoints with GET
+`base_url` is the website origin, `api_base_url` is the API root, and API
+requests go to the latter unchanged. Do not probe the device start or token endpoints with GET
 or HEAD: both are POST-only and such a probe returns `405 Method Not Allowed`
 even when the deployment is healthy. To check reachability, GET
 `<base_url>/healthz`; otherwise proceed directly with the POST below.
@@ -61,7 +62,9 @@ named the company in step 5.
 ```text
 1. List `oryh-skills-*/` in the install dir. Each is ONE employer, and each
    holds a `manifest.json` with:
-     {"tenant": {"id", "slug", "name"}, "install_dir", "base_url", "skills": [...]}
+     {"tenant": {"id", "slug", "name"}, "environment_id", "install_dir",
+      "site_base_url",
+      "api_base_url", "skills": [...]}
    Read them: that is the map from directory → company, and the only reliable
    one, because the company name a person says out loud ("晶诚") appears
    nowhere in a directory listing otherwise.
@@ -109,7 +112,7 @@ it needs no login at all.
    {"client_name": "<agent + machine, e.g. WorkBuddy on Wenji's MacBook>"}
    → {device_code, user_code, verification_uri_complete, expires_in, interval}
 
-   The exact URL is `{{ORYH_BASE_URL}}/api/v1/auth/device/start` — the address
+   The exact URL is `{{ORYH_API_BASE_URL}}/auth/device/start` — the address
    rendered into this file, used as-is. Do not ask for it or substitute one.
 
 4. Give the person the verification_uri_complete link AND the user_code, and

@@ -139,6 +139,7 @@ def test_scoped_custom_role(client: TestClient) -> None:
             "entity_type": "business_object",
             "entity_id": "00000000-0000-0000-0000-000000000000",
             "action": "approved",
+            "sequence_no": 2,
             "acted_at": "2026-07-06T09:00:00Z",
         },
         headers=vendor["headers"],
@@ -678,3 +679,89 @@ def test_roles_carry_their_headcount(client: TestClient) -> None:
     )
     assert created.status_code == 201, created.text
     assert created.json()["data"]["user_count"] == 0
+
+
+def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
+    """A workspace's roles are the only role names it has.
+
+    A live E2E reported that a new tenant's `dept_manager` could not approve,
+    and filed the root cause against provisioning. Provisioning never made that
+    role: the product ships `admin` and `member`, and `member` already carries
+    `approval.record` and `todos.complete_own`. A fixture had written the
+    string straight into `users.role`, producing an account that authenticates
+    and can do nothing — the 403 was correct, and the report read it as a
+    permissions bug because a permission-less account looks exactly like one.
+
+    What the API must never do is create that state, so this pins both ends:
+    an undeclared name is refused on the way in, and a declared one that
+    people hold cannot be removed underneath them.
+    """
+    ctx = provision_tenant(client)
+    service = ctx["service"]
+
+    refused = client.post(
+        "/api/v1/auth/invitations",
+        json={"email": "manager@rbac-co.com", "role": "dept_manager"},
+        headers=service,
+    )
+    assert refused.status_code == 422, refused.text
+    assert "not defined for this tenant" in refused.json()["detail"]
+
+    # declare it, and the same invitation is ordinary
+    created = client.post(
+        "/api/v1/roles",
+        json={
+            "name": "dept_manager",
+            "title": "部门经理",
+            "permissions": ["approval.record", "todos.complete_own"],
+        },
+        headers=service,
+    )
+    assert created.status_code == 201, created.text
+    manager = invite_with_role(client, service, "manager@rbac-co.com", "dept_manager")
+
+    # the capability the report said was missing, exercised end to end
+    employee_id = client.post(
+        "/api/v1/employees", json={"name": "提交人"}, headers=service
+    ).json()["data"]["id"]
+    header = client.post(
+        "/api/v1/timesheet-headers",
+        json={"employee_id": employee_id, "period_start": "2026-07-06", "period_end": "2026-07-12"},
+        headers=service,
+    ).json()["data"]["id"]
+    client.post(f"/api/v1/timesheet-headers/{header}/submit", json={}, headers=service)
+    recorded = client.post(
+        "/api/v1/approval-records",
+        json={
+            "entity_type": "timesheet_header",
+            "entity_id": header,
+            "action": "approved",
+            "sequence_no": 2,
+            "comment": "ok",
+            # required, and required for a reason: an approval fact without
+            # the moment it was made cannot be ordered against the submission
+            "acted_at": "2026-07-13T09:00:00+08:00",
+        },
+        headers=manager["headers"],
+    )
+    assert recorded.status_code == 201, recorded.text
+
+    # and the role cannot be deleted while it is what makes that possible
+    removed = client.delete("/api/v1/roles/dept_manager", headers=service)
+    assert removed.status_code == 409, removed.text
+    assert "assigned to users" in removed.json()["detail"]
+
+
+def test_changing_a_user_to_an_undeclared_role_is_refused(client: TestClient) -> None:
+    """The second door onto the same state: PATCH rather than invitation."""
+    ctx = provision_tenant(client)
+    service = ctx["service"]
+    member = invite_with_role(client, service, "member@rbac-co.com", "member")
+
+    response = client.patch(
+        f"/api/v1/auth/users/{member['user_id']}",
+        json={"role": "finance_reviewer"},
+        headers=service,
+    )
+    assert response.status_code == 422, response.text
+    assert "not defined for this tenant" in response.json()["detail"]

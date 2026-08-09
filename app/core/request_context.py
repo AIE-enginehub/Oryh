@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
-from app.core.config import settings
+from app.core.config import API_PREFIX, settings
 
 # Final fallback when neither ORYH_BASE_URL nor a request context is set
 # (e.g. links built from an offline script).
@@ -39,6 +39,16 @@ def resolved_base_url() -> str:
     if request_base:
         return request_base.rstrip("/")
     return _DEFAULT_BASE_URL
+
+
+def resolved_api_base_url() -> str:
+    """Where an agent should send API calls: the site origin plus the mount
+    prefix, already joined. Skills used to receive only the site base and were
+    expected to append `/api/v1` themselves — most never said so, and an agent
+    that read one of those called the site root and got a 404 it could only
+    escape by being told the prefix. Deriving a base URL is not the
+    reader's job when the server knows the answer."""
+    return f"{resolved_base_url()}{API_PREFIX}"
 
 
 class RequestBaseUrlMiddleware:

@@ -149,7 +149,7 @@ carries the company:
 | install root | `oryh-skills-<slug>/` — one directory per employer, siblings, never merged |
 | skill name | `oryh-<slug>-timesheet-submit` — the company sits inside the skill's own name |
 | description | opens with `[晶诚医疗设备有限公司]` and says the copy is bound to that company |
-| `manifest.json` | carries `tenant: {id, slug, name}`, `install_dir`, `base_url` |
+| `manifest.json` | carries `tenant: {id, slug, name}`, `environment_id` (which deployment, never a company), `install_dir`, `site_base_url`, `api_base_url` (and `base_url`, the older alias of `site_base_url`) |
 
 The slug (`Tenant.slug`) is derived once from the tenant's email domain
 (`jc-medical.cn` → `jc-medical`) and is then **immutable**: it is a directory

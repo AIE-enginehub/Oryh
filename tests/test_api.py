@@ -277,6 +277,7 @@ def test_timesheet_flow(client: TestClient) -> None:
             "entity_type": "timesheet_header",
             "entity_id": header_id,
             "action": "approved",
+            "sequence_no": 2,
             "approver_id": "mgr-1",
             "approver_role": "manager",
             "source": "ai",
@@ -292,7 +293,9 @@ def test_timesheet_flow(client: TestClient) -> None:
     assert detail["header"]["status"] == "submitted"
     assert "ERP Upgrade" in detail["header"]["source_report_text"]
     assert len(detail["entries"]) == 1
-    assert len(detail["approval_records"]) == 1
+    # two facts now: the submission the server recorded when /submit ran,
+    # and the decision on top of it
+    assert [r["action"] for r in detail["approval_records"]] == ["submitted", "approved"]
 
 
 def test_project_crud_and_filters(client: TestClient) -> None:
@@ -1264,6 +1267,7 @@ def test_tenant_isolation_across_resources(client: TestClient) -> None:
             "entity_type": "timesheet_header",
             "entity_id": header_id,
             "action": "approved",
+            "sequence_no": 2,
             "acted_at": "2026-03-12T10:00:00Z",
         },
         headers=api_key_headers(TEST_API_KEY),
@@ -1504,3 +1508,150 @@ def test_console_lists_export_typed_openapi_contracts() -> None:
     assert display_name_schema["$ref"] == (
         "#/components/schemas/Envelope_DisplayNameResolutionRead_"
     )
+
+
+def test_the_submission_is_a_fact_the_server_records(client: TestClient) -> None:
+    """The trail opens with `submitted`, written by whoever performed the
+    submission — which is the server.
+
+    It used to be the submitter agent's job, conditional on its role carrying
+    `approval.record`, with the workflow admin backfilling when it did not.
+    Two agents had to remember, one of them conditionally, for a fact the
+    server both performs and already stores as `submitted_at`. An integrity
+    audit found 133 decided approvals with nothing in front of them.
+    """
+    employee_id = create_employee(client)
+    header_id = create_header(client, employee_id)
+
+    trail = client.get(
+        f"/api/v1/approval-records?entity_type=timesheet_header&entity_id={header_id}",
+        headers=api_key_headers(),
+    ).json()["data"]
+    assert trail == []  # nothing happened yet
+
+    client.post(f"/api/v1/timesheet-headers/{header_id}/submit", json={}, headers=api_key_headers())
+
+    trail = client.get(
+        f"/api/v1/approval-records?entity_type=timesheet_header&entity_id={header_id}",
+        headers=api_key_headers(),
+    ).json()["data"]
+    assert [(r["action"], r["round_no"], r["sequence_no"]) for r in trail] == [("submitted", 1, 1)]
+    assert trail[0]["source"] == "system"
+    assert trail[0]["approver_role"] == "submitter"
+
+    # resubmitting is idempotent on the document AND on its trail
+    client.post(f"/api/v1/timesheet-headers/{header_id}/submit", json={}, headers=api_key_headers())
+    trail = client.get(
+        f"/api/v1/approval-records?entity_type=timesheet_header&entity_id={header_id}",
+        headers=api_key_headers(),
+    ).json()["data"]
+    assert len(trail) == 1
+
+    # and an agent that posts the fact anyway gets the recorded one back
+    again = client.post(
+        "/api/v1/approval-records",
+        json={
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "round_no": 1,
+            "sequence_no": 1,
+            "action": "submitted",
+            "acted_at": "2026-03-10T09:00:00Z",
+        },
+        headers=api_key_headers(),
+    )
+    assert again.status_code == 201, again.text
+    assert again.json()["data"]["id"] == trail[0]["id"]
+
+
+def test_a_decision_cannot_take_the_submissions_place(client: TestClient) -> None:
+    """`sequence_no` defaults to 1, and a decision recorded there can never
+    have a submission before it — which is how the audit's 133 rows were
+    written, one omitted field at a time."""
+    employee_id = create_employee(client)
+    header_id = create_header(client, employee_id)
+    client.post(f"/api/v1/timesheet-headers/{header_id}/submit", json={}, headers=api_key_headers())
+
+    refused = client.post(
+        "/api/v1/approval-records",
+        json={
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "action": "approved",       # no sequence_no: the trap
+            "acted_at": "2026-03-11T10:00:00Z",
+        },
+        headers=api_key_headers(),
+    )
+    assert refused.status_code == 422, refused.text
+    assert "sequence_no 1 is the submission" in refused.json()["detail"]
+
+    accepted = client.post(
+        "/api/v1/approval-records",
+        json={
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "sequence_no": 2,
+            "action": "approved",
+            "acted_at": "2026-03-11T10:00:00Z",
+        },
+        headers=api_key_headers(),
+    )
+    assert accepted.status_code == 201, accepted.text
+
+    # a comment is not a decision and may sit anywhere
+    commented = client.post(
+        "/api/v1/approval-records",
+        json={
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "action": "commented",
+            "acted_at": "2026-03-11T11:00:00Z",
+        },
+        headers=api_key_headers(),
+    )
+    assert commented.status_code == 201, commented.text
+
+
+def test_the_integrity_audits_own_query_finds_nothing(client: TestClient) -> None:
+    """The check the ops audit runs, run against a workspace driven only
+    through the API.
+
+    Pinning the two rules separately is not the same as pinning what they were
+    for. This asks the audit's own question — "is there a decided approval
+    with no submitted record before it" — of data produced the way a tenant
+    produces it.
+    """
+    from sqlalchemy import text
+
+    employee_id = create_employee(client)
+    for index in range(3):
+        header_id = create_header(
+            client,
+            employee_id,
+            period_start=f"2026-04-{6 + index * 7:02d}",
+            period_end=f"2026-04-{12 + index * 7:02d}",
+        )
+        client.post(f"/api/v1/timesheet-headers/{header_id}/submit", json={}, headers=api_key_headers())
+        client.post(
+            "/api/v1/approval-records",
+            json={
+                "entity_type": "timesheet_header",
+                "entity_id": header_id,
+                "sequence_no": 2,
+                "action": "returned" if index == 0 else "approved",
+                "acted_at": "2026-03-11T10:00:00Z",
+            },
+            headers=api_key_headers(),
+        )
+    # the returned one goes round again; the server opens round 2 for it
+    client.post(f"/api/v1/timesheet-headers/{header_id}/submit", json={}, headers=api_key_headers())
+
+    with client.session_factory() as db:
+        count = db.execute(text(
+            "select count(*) from approval_records d"
+            " where d.action in ('approved','rejected','returned')"
+            " and not exists (select 1 from approval_records s"
+            "   where s.entity_id=d.entity_id and s.tenant_id=d.tenant_id"
+            "   and s.action='submitted' and s.sequence_no<d.sequence_no)"
+        )).scalar()
+    assert count == 0
