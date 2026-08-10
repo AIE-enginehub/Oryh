@@ -32,6 +32,8 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/read-before-you-decide.md}}
+
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (发票时限、抬头要求、类别限额 and the like) and let it shape the conversation from the first receipt — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a claim → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
 3. **Reuse before create**: `GET /expense-claims?employee_id={me}&status=draft` — reuse an open draft for the same trip/purpose; retries must not duplicate. A `returned` claim is also reused: fix it, don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. After a successful resubmit, complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`; needs `todos.complete_own`, in the default member role) — while it stays open, the claim is invisible to the flow admin's work queue.
@@ -104,7 +106,9 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 - Never silently "fix" an amount, date, or merchant — a correction the principal didn't see is worse than the error.
 - If the principal confirms an unusual fact (the ¥3,000 dinner was a client banquet), record it exactly as stated and put the clarification in `notes`. Judging reasonableness is the approver's job; yours is faithful capture plus honest flagging.
 
-**Pre-submit read-back:** before step 9, echo the complete claim — each receipt's line and the total — and get an explicit confirmation. Submission hands the record to the approval flow; changing it afterwards costs a return round.
+**Pre-submit read-back:** before step 9, `GET /expense-claims/{id}/detail` and echo the complete claim **from that response** — each receipt's line and the total — then get an explicit confirmation. Submission hands the record to the approval flow; changing it afterwards costs a return round.
+
+Echoing it from memory is what this step exists to prevent, and doing so has already cost a live session: an agent listed two lines to a person whose draft held three, and refused the submission they then confirmed. The count you read out must be the count that just came back.
 
 ## What Happens Next (so you can answer the principal)
 

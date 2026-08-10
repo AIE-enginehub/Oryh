@@ -10,7 +10,7 @@ purchase orders were accepted by the API — `TODO_TARGET_MODELS` derives from
 `DOCUMENT_FAMILIES`, so they resolved fine — and then refused by the database.
 The IntegrityError was not caught, so an ordinary "create the approval todo for
 this payment" answered **500**, on a path `$oryh-payment-approval-flow` tells
-every finance agent to walk. Found in a live test environment, not
+every finance agent to walk. Found by a deployed agent, not
 here: nothing in the suite created a todo against a payment.
 
 The list is now GENERATED from `DOCUMENT_FAMILIES` rather than typed out again.

@@ -38,7 +38,8 @@ Two ideas run through everything here:
 oryh:
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
-  api_key: "{{ORYH_API_KEY}}"     # policy.manage to draft; policy.publish to publish or repeal
+  api_key: "{{ORYH_API_KEY}}"     # policy.manage to draft; policy.publish to publish,
+                                  # repeal, or change who may read a published one
   employee_id: "{{EMPLOYEE_ID}}"  # 经办人 — the owner recorded on a policy, if any
 ```
 
@@ -96,6 +97,21 @@ too. Never answer "what were the rules then" from the current version.
   `PATCH` a published policy — that is a 409, and it would change what people
   were told without leaving a trace that they were told something else.
 - **`PATCH`** is for fixing a draft before it goes out.
+- **改可见范围** = `POST /policies/{id}/visibility` with the new `visibility`
+  and, for `restricted`, the `required_capability` that may read it. This is
+  the one thing about a published policy that is NOT frozen, and deliberately:
+  what the rule says was stated on a date, but who may read it is a standing
+  decision that changes when the company does — a rule announced to 管理层 that
+  later goes company-wide, or one published wider than intended.
+
+  **Do not publish a new version to fix an audience.** A v2 whose only
+  difference is who can read it puts a second document in the history that says
+  the same thing, and the over-visible v1 stays readable as the superseded
+  version anyway — so it does not even work. Re-scope the version itself; it
+  works on `superseded` and `repealed` ones too, which is where it matters most.
+
+  Needs `policy.publish`, and it is audited with the before and after. It
+  changes visibility only — the body, the figures and the dates are untouched.
 - **废止** = `POST /policies/{id}/repeal` with the date it stops applying. It is
   not deleted — people acted on it. A repealed policy also drops out of view for
   everyone but `policy.manage` holders, because a repealed rule left in the

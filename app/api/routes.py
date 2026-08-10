@@ -273,6 +273,7 @@ from app.schemas import (
     CreatePolicyRequest,
     PublishPolicyRequest,
     RepealPolicyRequest,
+    RescopePolicyRequest,
     UpdatePolicyRequest,
     CreateBillingAccountRequest,
     UpdateBillingAccountRequest,
@@ -9835,7 +9836,9 @@ def ensure_policy_editable(policy: Policy) -> None:
             detail=(
                 f"policy {policy.code} v{policy.version} is {policy.status} — a published "
                 "policy is corrected by publishing a new version, never edited in place, "
-                "so that what people were told stays recoverable"
+                "so that what people were told stays recoverable. To change only who "
+                "may READ it, which is not a change to what it says, use "
+                "POST /policies/{id}/visibility"
             ),
         )
 
@@ -9954,13 +9957,14 @@ def create_policy(
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(policy)
-    db.commit()
-    db.refresh(policy)
+    db.flush()
     record_audit(
         db, tenant_id=tenant_id, action="policy.drafted", entity_type="policy",
         entity_id=policy.id, actor=attributed(actor, None),
         detail={"code": policy.code, "version": policy.version},
     )
+    db.commit()
+    db.refresh(policy)
     return envelope(PolicyRead.model_validate(policy).model_dump(by_alias=True))
 
 
@@ -10107,10 +10111,6 @@ def publish_policy(
     policy.effective_from = effective_from
     policy.published_at = datetime.now(timezone.utc)
     policy.published_by = attributed(actor, None)
-    db.commit()
-    db.refresh(policy)
-    if superseded is not None:
-        db.refresh(superseded)
     record_audit(
         db, tenant_id=tenant_id, action="policy.published", entity_type="policy",
         entity_id=policy.id, actor=attributed(actor, None),
@@ -10122,12 +10122,81 @@ def publish_policy(
             "note": payload.note,
         },
     )
+    db.commit()
+    db.refresh(policy)
+    if superseded is not None:
+        db.refresh(superseded)
     return envelope(
         PolicyPublishRead(
             current=PolicyRead.model_validate(policy),
             superseded=PolicyRead.model_validate(superseded) if superseded else None,
         ).model_dump(by_alias=True)
     )
+
+
+@router.post(
+    "/policies/{policy_id}/visibility",
+    response_model=PolicyEnvelope,
+    response_model_exclude_unset=True,
+)
+def rescope_policy(
+    policy_id: str,
+    payload: RescopePolicyRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Change who may read a policy, at any status, without touching a word of
+    it.
+
+    Publication freezes what the rule SAYS — that is what lets the handbook
+    answer "what were people told in March". It never should have frozen who
+    may read it. Those are different kinds of fact: one is a statement made on
+    a date, the other is a standing decision that outlives the statement and
+    changes when the company does.
+
+    Conflating them left the worst case with no remedy. A policy published to
+    a wider audience than intended could not be edited (409), could not be
+    deleted (published policies never are), and repealing it would retire a
+    rule that is still in force — so the only way to close the reading was to
+    stop applying the rule. That is not a choice a workspace should have to
+    make about its own handbook.
+
+    Superseded and repealed versions are re-scopable for the same reason, and
+    it matters more there: they stay readable to whoever could read them, so a
+    version that should never have been broadly visible has to be closable
+    after the fact.
+
+    `policy.publish` rather than `policy.manage`, because this is the authority
+    act on a published document that drafting is deliberately kept apart from —
+    the same line publish and repeal already draw.
+    """
+    require_permission(actor, "policy.publish")
+    tenant_id = actor.tenant_id
+    policy = get_live_or_404(db, Policy, tenant_id, policy_id)
+    ensure_policy_visibility_shape(payload.visibility, payload.required_capability)
+    before = (policy.visibility, policy.required_capability)
+    after = (payload.visibility, payload.required_capability)
+    if before == after:
+        # nothing to record; a no-op audit row is noise in the one trail that
+        # should read as a list of real decisions
+        return envelope(PolicyRead.model_validate(policy).model_dump(by_alias=True))
+    policy.visibility = payload.visibility
+    policy.required_capability = payload.required_capability
+    record_audit(
+        db, tenant_id=tenant_id, action="policy.visibility_changed", entity_type="policy",
+        entity_id=policy.id, actor=attributed(actor, None),
+        detail={
+            "code": policy.code,
+            "version": policy.version,
+            "status": policy.status,
+            "from": {"visibility": before[0], "required_capability": before[1]},
+            "to": {"visibility": after[0], "required_capability": after[1]},
+            "note": payload.note,
+        },
+    )
+    db.commit()
+    db.refresh(policy)
+    return envelope(PolicyRead.model_validate(policy).model_dump(by_alias=True))
 
 
 @router.post(
@@ -10175,8 +10244,6 @@ def repeal_policy(
         )
     policy.status = "repealed"
     policy.effective_thru = effective_thru
-    db.commit()
-    db.refresh(policy)
     record_audit(
         db, tenant_id=tenant_id, action="policy.repealed", entity_type="policy",
         entity_id=policy.id, actor=attributed(actor, None),
@@ -10187,6 +10254,8 @@ def repeal_policy(
             "note": payload.note,
         },
     )
+    db.commit()
+    db.refresh(policy)
     return envelope(PolicyRead.model_validate(policy).model_dump(by_alias=True))
 
 

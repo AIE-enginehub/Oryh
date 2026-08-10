@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, SYSTEM_CAPABILITIES
@@ -76,6 +77,42 @@ def parse_frontmatter(skill_md: str) -> dict[str, str]:
     return meta
 
 
+def insert_unless_raced(db: Session, instance, lookup) -> bool:
+    """Insert a default object; return False if another writer got there first.
+
+    Everything provisioned here is a check-then-insert, which is a race the
+    moment two API replicas boot together — and a rolling update boots two by
+    definition. Both read "missing", both insert, one takes a unique violation.
+    Because the whole sync shares a single transaction, that one collision
+    discarded 38 tenants' work and exited the container; it restarted and
+    succeeded, so the cost was a slower rollout rather than lost data.
+
+    A SAVEPOINT keeps the failure local: the collision rolls back this INSERT
+    instead of the transaction, and the re-read finds the row the other replica
+    committed — which is the row we wanted to exist. Losing the race is
+    therefore success, and returns False only so callers can keep an honest
+    changed-count.
+
+    A savepoint rather than `ON CONFLICT DO NOTHING` because deployments run on
+    Postgres and the suite runs on SQLite, and this must be the same code on
+    both — a concurrency guard that is not exercised by the tests is decoration.
+    """
+    try:
+        with db.begin_nested():
+            db.add(instance)
+    except IntegrityError:
+        if instance in db:
+            db.expunge(instance)
+        if db.scalar(lookup) is not None:
+            return False
+        # Nothing there to have collided with, so this was some OTHER
+        # constraint. Swallowing it would turn a real defect into a silently
+        # skipped default — exactly the kind of quiet the original crash at
+        # least did not have.
+        raise
+    return True
+
+
 def provision_product_skills(db: Session, tenant_id: str) -> int:
     """Upsert the shipped product skill catalog into a tenant's registry.
     Idempotent; file changes bump the skill version. Returns changed count."""
@@ -97,7 +134,8 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
         )
         required_capability = meta.get("required_capability") or None
         if skill is None:
-            db.add(
+            changed += insert_unless_raced(
+                db,
                 TenantSkill(
                     tenant_id=tenant_id,
                     name=name,
@@ -108,9 +146,11 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
                     catalog_required_capability=required_capability,
                     files_jsonb=files,
                     created_by="product-catalog",
-                )
+                ),
+                select(TenantSkill).where(
+                    TenantSkill.tenant_id == tenant_id, TenantSkill.name == name
+                ),
             )
-            changed += 1
         elif skill.kind == "product":
             # Content follows the catalog; gating and archival belong to the
             # tenant. A required_capability equal to the recorded catalog
@@ -244,7 +284,8 @@ def provision_builtin_definitions(db: Session, tenant_id: str) -> int:
         )
         if existing is not None:
             continue
-        db.add(
+        created += insert_unless_raced(
+            db,
             ObjectTypeDefinition(
                 tenant_id=tenant_id,
                 entity_kind="builtin",
@@ -254,9 +295,13 @@ def provision_builtin_definitions(db: Session, tenant_id: str) -> int:
                 json_schema={},
                 state_machine=machine,
                 created_by="product-catalog",
-            )
+            ),
+            select(ObjectTypeDefinition).where(
+                ObjectTypeDefinition.tenant_id == tenant_id,
+                ObjectTypeDefinition.entity_kind == "builtin",
+                ObjectTypeDefinition.object_type == object_type,
+            ),
         )
-        created += 1
     return created
 
 
@@ -274,14 +319,17 @@ def provision_system_capabilities(db: Session, tenant_id: str) -> int:
     for name, scopable, title, description in SYSTEM_CAPABILITIES:
         row = existing.get(name)
         if row is None:
-            db.add(
+            changed += insert_unless_raced(
+                db,
                 Capability(
                     tenant_id=tenant_id, name=name, kind="system",
                     title=title, description=description, scopable=scopable,
                     created_by="product-catalog",
-                )
+                ),
+                select(Capability).where(
+                    Capability.tenant_id == tenant_id, Capability.name == name
+                ),
             )
-            changed += 1
         elif (row.title, row.description, row.scopable) != (title, description, scopable):
             row.title, row.description, row.scopable = title, description, scopable
             changed += 1
@@ -307,14 +355,19 @@ def provision_system_type_options(db: Session, tenant_id: str) -> int:
             sign = system_type_sign(family, name)
             row = existing.get((family, name))
             if row is None:
-                db.add(
+                changed += insert_unless_raced(
+                    db,
                     TypeOption(
                         tenant_id=tenant_id, family=family, name=name, kind="system",
                         title=title, description=description, sign=sign,
                         created_by="product-catalog",
-                    )
+                    ),
+                    select(TypeOption).where(
+                        TypeOption.tenant_id == tenant_id,
+                        TypeOption.family == family,
+                        TypeOption.name == name,
+                    ),
                 )
-                changed += 1
             elif (row.title, row.description, row.sign) != (title, description, sign):
                 row.title, row.description, row.sign = title, description, sign
                 changed += 1
@@ -345,13 +398,14 @@ def provision_system_roles(db: Session, tenant_id: str) -> tuple[int, int]:
     for name, permissions in DEFAULT_ROLE_PERMISSIONS.items():
         existing = db.scalar(select(Role).where(Role.tenant_id == tenant_id, Role.name == name))
         if existing is None:
-            db.add(
+            created += insert_unless_raced(
+                db,
                 Role(
                     tenant_id=tenant_id, name=name, title=name,
                     permissions_jsonb=list(permissions), is_system=True,
-                )
+                ),
+                select(Role).where(Role.tenant_id == tenant_id, Role.name == name),
             )
-            created += 1
             continue
         if name != "admin" or not existing.is_system:
             continue

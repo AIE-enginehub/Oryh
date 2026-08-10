@@ -37,6 +37,8 @@ Everything else comes from conversation: what to buy, how many, for when, from w
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/read-before-you-decide.md}}
+
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=purchase_request` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (报价单要求、用途说明、needed_by and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a request → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
 3. **Reuse before create**: `GET /purchase-requests?employee_id={me}&status=draft` — reuse an open draft for the same purpose; retries must not duplicate. A `returned` request is also reused: fix it (typically add prices or quotes), don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. After a successful resubmit, complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`; needs `todos.complete_own`, in the default member role) — while it stays open, the request is invisible to the flow admin's work queue.

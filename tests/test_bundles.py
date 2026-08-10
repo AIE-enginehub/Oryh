@@ -1420,3 +1420,31 @@ def test_the_approval_skills_say_a_role_change_is_not_a_person_change() -> None:
     assert "oryh-approve" in wants_it
     flows = [name for name in wants_it if name.endswith("-approval-flow")]
     assert len(flows) in (0, 7), f"expected all seven flow skills or none, got {flows}"
+
+
+def test_the_write_then_decide_skills_are_told_to_re_read_first() -> None:
+    """An agent wrote three lines into a draft, then twice told the person the
+    third had never been written, and refused the submission they had just
+    confirmed. The skill said "echo the complete claim" without saying from
+    where, so it echoed its own memory. Every skill that writes a record and
+    later decides about it now carries the rule."""
+    fragment = (PRODUCT_SKILLS_DIR / "_common" / "read-before-you-decide.md").read_text(
+        encoding="utf-8"
+    )
+    assert "the re-read wins" in fragment
+
+    include = "{{include:_common/read-before-you-decide.md}}"
+    writes_then_decides = sorted(
+        path.parent.name
+        for path in PRODUCT_SKILLS_DIR.glob("*/SKILL.md")
+        if path.parent.name.endswith("-submit") or path.parent.name == "oryh-payroll"
+    )
+    assert len(writes_then_decides) >= 6, writes_then_decides
+    for name in writes_then_decides:
+        text = (PRODUCT_SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+        assert include in text, f"{name} submits what it wrote without re-reading it"
+
+    # the expense skill's own read-back must name its source, since a read-back
+    # that does not say "from the response" is what failed
+    expense = (PRODUCT_SKILLS_DIR / "oryh-expense-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/detail` and echo the complete claim **from that response**" in expense

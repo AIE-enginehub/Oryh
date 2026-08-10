@@ -4079,6 +4079,26 @@ class PublishPolicyRequest(RequestModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
+class RescopePolicyRequest(RequestModel):
+    """Who may read a policy, changed after it was published.
+
+    What the rule SAYS is frozen once published — that is what makes the
+    handbook answerable about what people were told. Who may read it is not the
+    same kind of fact: it is a standing administrative decision that outlives
+    the publication and legitimately changes when a department reorganizes, or
+    when a rule announced to管理层 becomes company-wide.
+
+    Treating the two as one thing left a workspace with no remedy at all for a
+    policy published to a wider audience than intended: the edit is refused, a
+    published policy cannot be deleted, and repealing it retires a rule that is
+    still in force. The only way to close it was to stop applying it.
+    """
+
+    visibility: Literal["internal", "restricted", "public"]
+    required_capability: str | None = Field(default=None, max_length=100)
+    note: str | None = Field(default=None, max_length=2000)
+
+
 class RepealPolicyRequest(RequestModel):
     """废止. `effective_thru` is when it STOPS applying, which is usually today
     but need not be — a policy can be repealed retroactively to the day a law

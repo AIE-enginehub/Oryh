@@ -194,3 +194,188 @@ def test_writing_a_policy_needs_the_capability(workspace: dict) -> None:
     assert client.post(
         f"/api/v1/policies/{made['id']}/publish", json={}, headers=staff
     ).status_code == 403
+
+
+def test_a_published_policy_can_be_closed_without_being_repealed(workspace: dict) -> None:
+    """The case that had no remedy. A rule published to the whole company that
+    should have been restricted could not be edited (409), could not be deleted
+    (published policies never are), and repealing it would retire a rule that
+    is still in force — so the only way to stop people reading it was to stop
+    applying it."""
+    client, hr, staff = workspace["client"], workspace["hr"], workspace["staff"]
+    handbook = workspace["handbook"]
+    assert "HR-001" in codes(client, staff)
+
+    # the edit is still refused, and now says where to go instead
+    frozen = client.patch(
+        f"/api/v1/policies/{handbook['id']}",
+        json={"visibility": "restricted", "required_capability": "payroll.read"},
+        headers=hr,
+    )
+    assert frozen.status_code == 409
+    assert "/visibility" in frozen.json()["detail"]
+
+    rescoped = client.post(
+        f"/api/v1/policies/{handbook['id']}/visibility",
+        json={"visibility": "restricted", "required_capability": "payroll.read",
+              "note": "含调薪区间，误发全员"},
+        headers=hr,
+    )
+    assert rescoped.status_code == 200, rescoped.text
+    assert rescoped.json()["data"]["visibility"] == "restricted"
+
+    assert "HR-001" not in codes(client, staff)
+    assert "HR-001" in codes(client, workspace["manager"])
+    # still in force: closing the reading must not have retired the rule
+    assert rescoped.json()["data"]["status"] == "published"
+
+
+def test_rescoping_never_touches_what_the_rule_says(workspace: dict) -> None:
+    """The half that stays frozen. If this call could move a word of the body,
+    it would be the in-place edit the freeze exists to prevent, wearing a
+    different name."""
+    client, hr = workspace["client"], workspace["hr"]
+    handbook = workspace["handbook"]
+    before = client.get(f"/api/v1/policies/{handbook['id']}", headers=hr).json()["data"]
+
+    client.post(
+        f"/api/v1/policies/{handbook['id']}/visibility",
+        json={"visibility": "public"}, headers=hr,
+    )
+    after = client.get(f"/api/v1/policies/{handbook['id']}", headers=hr).json()["data"]
+
+    for field in ("code", "version", "title", "body", "rules_json",
+                  "effective_from", "effective_thru", "published_at", "status"):
+        assert after[field] == before[field], f"{field} moved"
+
+
+def test_a_superseded_version_is_closable_after_the_fact(workspace: dict) -> None:
+    """Where it matters most. A superseded version stays readable to whoever
+    could read it, so one that should never have been broadly visible has to be
+    closable once somebody notices."""
+    client, hr, staff = workspace["client"], workspace["hr"], workspace["staff"]
+    v2 = client.post(
+        "/api/v1/policies",
+        json={"code": "HR-001", "category": "hr", "title": "员工手册 v2", "body": "# v2"},
+        headers=hr,
+    ).json()["data"]
+    client.post(f"/api/v1/policies/{v2['id']}/publish",
+                json={"effective_from": "2026-06-01"}, headers=hr)
+
+    old = client.get(f"/api/v1/policies/{workspace['handbook']['id']}", headers=hr).json()["data"]
+    assert old["status"] == "superseded"
+
+    closed = client.post(
+        f"/api/v1/policies/{old['id']}/visibility",
+        json={"visibility": "restricted", "required_capability": "payroll.read"},
+        headers=hr,
+    )
+    assert closed.status_code == 200, closed.text
+    visible = {
+        row["id"] for row in client.get("/api/v1/policies?include_history=true",
+                                        headers=staff).json()["data"]
+    }
+    assert old["id"] not in visible
+
+
+def test_rescoping_is_a_publisher_act_and_is_audited(workspace: dict) -> None:
+    """Drafting and publishing are separate capabilities because publishing is
+    an authority act. Deciding who may read a published rule is the same kind
+    of act, and leaves the same kind of trace."""
+    client, hr = workspace["client"], workspace["hr"]
+    drafter = {"X-API-Key": client.post(
+        "/api/v1/tenant/api-keys", json={"label": "drafter-probe"}, headers=hr
+    ).json()["data"]["plain_text_api_key"]}
+    client.post("/api/v1/roles",
+                json={"name": "drafter", "permissions": ["policy.manage"]}, headers=hr)
+    user_id = client.post("/api/v1/auth/invitations",
+                          json={"email": "drafter@rule-co.com", "role": "drafter"},
+                          headers=hr).json()["data"]["id"]
+    client.post("/api/v1/auth/invitations/accept",
+                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"})
+    drafter = {"X-API-Key": client.post(
+        "/api/v1/tenant/api-keys", json={"label": "drafter", "user_id": user_id}, headers=hr
+    ).json()["data"]["plain_text_api_key"]}
+
+    refused = client.post(
+        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        json={"visibility": "public"}, headers=drafter,
+    )
+    assert refused.status_code == 403
+    assert "policy.publish" in refused.json()["detail"]
+
+    client.post(
+        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        json={"visibility": "restricted", "required_capability": "payroll.read",
+              "note": "误发全员"},
+        headers=hr,
+    )
+    trail = client.get("/api/v1/audit-logs?action=policy.visibility_changed",
+                       headers=hr).json()
+    assert trail["meta"]["total"] == 1
+    detail = trail["data"][0]["detail"]
+    assert detail["from"]["visibility"] == "internal"
+    assert detail["to"] == {"visibility": "restricted", "required_capability": "payroll.read"}
+    assert detail["note"] == "误发全员"
+
+
+def test_a_restricted_rescope_must_still_name_its_capability(workspace: dict) -> None:
+    """The same shape check the write path applies: restricted-and-nameless is
+    readable by everyone, which is the opposite of what it says."""
+    client, hr = workspace["client"], workspace["hr"]
+    bad = client.post(
+        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        json={"visibility": "restricted"}, headers=hr,
+    )
+    assert bad.status_code == 422
+    assert "required_capability" in bad.json()["detail"]
+
+
+def test_every_policy_lifecycle_act_leaves_a_trail(workspace: dict) -> None:
+    """None of these were being written. `record_audit` adds to the caller's
+    transaction — "committed if and only if the business write commits" — and
+    all four policy endpoints called it AFTER their own `db.commit()`, so the
+    row went into a session nothing committed again and was dropped at request
+    end. Drafting, publishing, re-scoping and repealing a company rule are
+    exactly the acts a trail exists for, and the trail was empty.
+
+    No test looked, which is why it survived: each endpoint was checked for the
+    state it produced and never for the record of having produced it."""
+    client, hr = workspace["client"], workspace["hr"]
+
+    drafted = client.post(
+        "/api/v1/policies",
+        json={"code": "AUD-1", "category": "hr", "title": "审计用", "body": "# t"},
+        headers=hr,
+    ).json()["data"]
+    client.post(f"/api/v1/policies/{drafted['id']}/publish",
+                json={"effective_from": "2026-03-01"}, headers=hr)
+    client.post(f"/api/v1/policies/{drafted['id']}/visibility",
+                json={"visibility": "public"}, headers=hr)
+    client.post(f"/api/v1/policies/{drafted['id']}/repeal", json={}, headers=hr)
+
+    for action in ("policy.drafted", "policy.published",
+                   "policy.visibility_changed", "policy.repealed"):
+        rows = client.get(
+            f"/api/v1/audit-logs?action={action}&entity_id={drafted['id']}", headers=hr
+        ).json()
+        assert rows["meta"]["total"] == 1, f"{action} wrote no audit row"
+        assert rows["data"][0]["detail"]["code"] == "AUD-1"
+
+
+def test_a_rescope_that_changes_nothing_writes_no_audit(workspace: dict) -> None:
+    """The trail should read as a list of decisions. Re-sending the visibility
+    a policy already has is a retry, not a decision."""
+    client, hr = workspace["client"], workspace["hr"]
+    pay_rules = workspace["pay_rules"]
+    same = client.post(
+        f"/api/v1/policies/{pay_rules['id']}/visibility",
+        json={"visibility": "restricted", "required_capability": "payroll.read"},
+        headers=hr,
+    )
+    assert same.status_code == 200
+    rows = client.get(
+        f"/api/v1/audit-logs?action=policy.visibility_changed&entity_id={pay_rules['id']}",
+        headers=hr,
+    ).json()
+    assert rows["meta"]["total"] == 0

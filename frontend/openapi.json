@@ -20078,6 +20078,50 @@
         "title": "ReportDriverStateRequest",
         "type": "object"
       },
+      "RescopePolicyRequest": {
+        "additionalProperties": false,
+        "description": "Who may read a policy, changed after it was published.\n\nWhat the rule SAYS is frozen once published — that is what makes the\nhandbook answerable about what people were told. Who may read it is not the\nsame kind of fact: it is a standing administrative decision that outlives\nthe publication and legitimately changes when a department reorganizes, or\nwhen a rule announced to管理层 becomes company-wide.\n\nTreating the two as one thing left a workspace with no remedy at all for a\npolicy published to a wider audience than intended: the edit is refused, a\npublished policy cannot be deleted, and repealing it retires a rule that is\nstill in force. The only way to close it was to stop applying it.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "required_capability": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Capability"
+          },
+          "visibility": {
+            "enum": [
+              "internal",
+              "restricted",
+              "public"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "visibility"
+        ],
+        "title": "RescopePolicyRequest",
+        "type": "object"
+      },
       "ResourceBookingRead": {
         "properties": {
           "booked_by_employee_id": {
@@ -49963,6 +50007,136 @@
           }
         },
         "summary": "Repeal Policy"
+      }
+    },
+    "/api/v1/policies/{policy_id}/visibility": {
+      "post": {
+        "description": "Change who may read a policy, at any status, without touching a word of\nit.\n\nPublication freezes what the rule SAYS — that is what lets the handbook\nanswer \"what were people told in March\". It never should have frozen who\nmay read it. Those are different kinds of fact: one is a statement made on\na date, the other is a standing decision that outlives the statement and\nchanges when the company does.\n\nConflating them left the worst case with no remedy. A policy published to\na wider audience than intended could not be edited (409), could not be\ndeleted (published policies never are), and repealing it would retire a\nrule that is still in force — so the only way to close the reading was to\nstop applying the rule. That is not a choice a workspace should have to\nmake about its own handbook.\n\nSuperseded and repealed versions are re-scopable for the same reason, and\nit matters more there: they stay readable to whoever could read them, so a\nversion that should never have been broadly visible has to be closable\nafter the fact.\n\n`policy.publish` rather than `policy.manage`, because this is the authority\nact on a published document that drafting is deliberately kept apart from —\nthe same line publish and repeal already draw.",
+        "operationId": "rescope_policy_api_v1_policies__policy_id__visibility_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescopePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rescope Policy"
       }
     },
     "/api/v1/product-prices": {

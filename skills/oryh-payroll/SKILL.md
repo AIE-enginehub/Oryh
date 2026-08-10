@@ -33,6 +33,8 @@ The three facts that follow from that:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/read-before-you-decide.md}}
+
 ## Trigger Examples
 
 - "给新来的销售定薪，月薪 15000，提成按回款 3%"

@@ -122,6 +122,40 @@ directions at once:
 Single fetches return **404, not 403**: that a 薪酬管理办法 exists at all is part
 of what it hides.
 
+## What publication freezes, and what it does not
+
+Publication freezes what the rule SAYS. That is what lets the handbook answer
+"what were people told in March", and it is why a published policy is amended
+by publishing a new version rather than edited in place.
+
+It does not freeze **who may read it**, and for a while it did, which left the
+worst case with no remedy at all. A policy published to a wider audience than
+intended could not be edited (409), could not be deleted (published policies
+never are), and repealing it would retire a rule that is still in force — so
+the only way to stop people reading it was to stop applying it. That is not a
+choice a workspace should have to make about its own handbook.
+
+```text
+POST /policies/{policy_id}/visibility
+{"visibility": "restricted", "required_capability": "payroll.read", "note": "误发全员"}
+```
+
+Any status, including `superseded` and `repealed` — and it matters most there,
+since an old version stays readable to whoever could read it, so one that
+should never have been broadly visible has to be closable after the fact. It
+touches `visibility` and `required_capability` and nothing else: a call that
+could move a word of the body would be the in-place edit the freeze exists to
+prevent, wearing a different name.
+
+It needs `policy.publish`, not `policy.manage`. Deciding who in the company may
+read a published rule is the authority act that drafting is deliberately kept
+apart from — the same line publish and repeal already draw. And it is audited
+as `policy.visibility_changed`, with the before and after, because a change to
+who can read the rules is exactly the kind of decision a trail is for.
+
+Two facts, one date each: what the rule said on a date, and who could read it
+at a time. Conflating them cost the second one.
+
 The whole gate is a SQL predicate rather than a post-filter, which matters more
 than it looks. Filtering rows after the query would leave `total` counting
 documents the caller cannot see — and how many restricted policies a workspace

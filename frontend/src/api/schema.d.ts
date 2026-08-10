@@ -2448,6 +2448,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/policies/{policy_id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rescope Policy
+         * @description Change who may read a policy, at any status, without touching a word of
+         *     it.
+         *
+         *     Publication freezes what the rule SAYS — that is what lets the handbook
+         *     answer "what were people told in March". It never should have frozen who
+         *     may read it. Those are different kinds of fact: one is a statement made on
+         *     a date, the other is a standing decision that outlives the statement and
+         *     changes when the company does.
+         *
+         *     Conflating them left the worst case with no remedy. A policy published to
+         *     a wider audience than intended could not be edited (409), could not be
+         *     deleted (published policies never are), and repealing it would retire a
+         *     rule that is still in force — so the only way to close the reading was to
+         *     stop applying the rule. That is not a choice a workspace should have to
+         *     make about its own handbook.
+         *
+         *     Superseded and repealed versions are re-scopable for the same reason, and
+         *     it matters more there: they stay readable to whoever could read them, so a
+         *     version that should never have been broadly visible has to be closable
+         *     after the fact.
+         *
+         *     `policy.publish` rather than `policy.manage`, because this is the authority
+         *     act on a published document that drafting is deliberately kept apart from —
+         *     the same line publish and repeal already draw.
+         */
+        post: operations["rescope_policy_api_v1_policies__policy_id__visibility_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/product-prices": {
         parameters: {
             query?: never;
@@ -10276,6 +10319,32 @@ export interface components {
             parked_reason?: string | null;
             /** Unmoved Runs */
             unmoved_runs: number;
+        };
+        /**
+         * RescopePolicyRequest
+         * @description Who may read a policy, changed after it was published.
+         *
+         *     What the rule SAYS is frozen once published — that is what makes the
+         *     handbook answerable about what people were told. Who may read it is not the
+         *     same kind of fact: it is a standing administrative decision that outlives
+         *     the publication and legitimately changes when a department reorganizes, or
+         *     when a rule announced to管理层 becomes company-wide.
+         *
+         *     Treating the two as one thing left a workspace with no remedy at all for a
+         *     policy published to a wider audience than intended: the edit is refused, a
+         *     published policy cannot be deleted, and repealing it retires a rule that is
+         *     still in force. The only way to close it was to stop applying it.
+         */
+        RescopePolicyRequest: {
+            /** Note */
+            note?: string | null;
+            /** Required Capability */
+            required_capability?: string | null;
+            /**
+             * Visibility
+             * @enum {string}
+             */
+            visibility: "internal" | "restricted" | "public";
         };
         /** ResourceBookingRead */
         ResourceBookingRead: {
@@ -19141,6 +19210,48 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RepealPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rescope_policy_api_v1_policies__policy_id__visibility_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                policy_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescopePolicyRequest"];
             };
         };
         responses: {

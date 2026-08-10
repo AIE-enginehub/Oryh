@@ -31,6 +31,8 @@ oryh:
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/read-before-you-decide.md}}
+
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` — what a valid order must carry (合同号、收货地址、发货前审批 and the like), current as of this moment. Never invent requirements.
 3. **From the won quotation** (the normal path): `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array rides `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when承诺了交期). `POST /sales-order-items` remains for adding a line to an existing draft. A quote-less order (直接下单) is also legal — snapshots stand alone.

@@ -47,6 +47,8 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/read-before-you-decide.md}}
+
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation` — the tenant's natural-language rules, current as of this moment. Read what it requires of a submission (折扣权限、有效期上限、必须含税率/交期 and the like) and let it shape the conversation from the first question. No definition, or nothing about filing → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
 3. **Reuse before create**: `GET /sales-quotations?employee_id={me}&status=draft` — reuse an open draft for the same deal; retries must not duplicate. A `returned` quotation is also reused: fix it, don't recreate — the rework todo's `description` and the latest `returned` approval record's `comment` say exactly what to fix. After a successful resubmit, complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`; needs `todos.complete_own`, in the default member role) — while it stays open, the quotation is invisible to the flow admin's work queue.
