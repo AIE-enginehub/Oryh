@@ -15,6 +15,8 @@ most common way this goes wrong:
 
 所以"给谢婷加一个权限"这句话在系统里没有直接对应的动作。见下方"授权的三条路"——**选哪条是本 skill 最重要的判断**，不是机械操作。
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "让谢婷也能下采购单和收货"

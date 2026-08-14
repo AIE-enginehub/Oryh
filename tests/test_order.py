@@ -118,7 +118,7 @@ def test_order_full_lifecycle_with_stamps(client: TestClient) -> None:
     assert client.post(
         "/api/v1/approval-records",
         json={"entity_type": "sales_order", "entity_id": order["id"], "round_no": 1,
-              "sequence_no": 1, "action": "submitted", "acted_at": "2026-07-22T09:00:00Z"},
+              "sequence_no": 1, "action": "submitted"},
         headers=api_key_headers(),
     ).status_code == 201
     assert client.post(

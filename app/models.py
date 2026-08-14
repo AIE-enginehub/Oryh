@@ -10,7 +10,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
-from app.core.entity_types import APPROVAL_ENTITY_TYPES, TODO_ENTITY_TYPES
+from app.core.table_constraints import apply_table_constraints
+from app.core.entity_types import (
+    APPROVAL_ENTITY_TYPES,
+    DECIDED_APPROVAL_ACTIONS,
+    TODO_ENTITY_TYPES,
+    TODO_STATUSES,
+)
 from app.core.permissions import PRINCIPAL_TENANT_SERVICE
 from app.db.session import Base
 
@@ -95,6 +101,13 @@ class Employee(TenantRecord, MetadataJsonbMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # When this person's employment started. A real column rather than a custom
+    # field because it is universal to employment and because a computation
+    # depends on it: 年假 entitlement is a function of 工龄, and an agent that
+    # has to guess the start date cannot answer "how many days do I have" at
+    # all. Nullable — an imported roster may not carry it, and a null is an
+    # honest "nobody said", which an agent can ask about.
+    hire_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
 
     timesheet_headers: Mapped[list["TimesheetHeader"]] = relationship(back_populates="employee")
@@ -657,6 +670,22 @@ class Role(TenantRecord, Base):
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     permissions_jsonb: Mapped[list] = mapped_column("permissions_jsonb", JsonType, default=list)
+    # What our shipped defaults last gave this role, recorded at the moment we
+    # gave it. Same device as `TenantSkill.catalog_required_capability`, and it
+    # answers the question that made new capabilities unreachable for years:
+    # a capability absent from `member` is either one we shipped after this
+    # workspace was created, or one the workspace removed on purpose, and
+    # `permissions_jsonb` alone cannot tell those apart. With a record of what
+    # we gave, it can — absent from both means never offered, so grant it;
+    # present here and absent there means removed, so leave it removed.
+    #
+    # NULL means we have no record: roles a tenant invented (we ship no
+    # defaults for them and never will), and any role predating the column.
+    # A NULL baseline grants nothing — it is filled in on the next sync so the
+    # comparison starts working from then on, rather than guessing backwards.
+    catalog_permissions_jsonb: Mapped[list | None] = mapped_column(
+        "catalog_permissions_jsonb", JsonType, nullable=True, default=None
+    )
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -905,6 +934,65 @@ class TimesheetHeader(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJson
 
     employee: Mapped[Employee] = relationship(back_populates="timesheet_headers")
     entries: Mapped[list["TimesheetEntry"]] = relationship(back_populates="header")
+
+
+class EmployeeLeave(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, Base):
+    """One person's leave, as a fact: which kind, over which dates, how long,
+    and where it got to. OFBiz's `EmplLeave`, with its three compromises undone.
+
+    OFBiz keys this `(partyId, leaveTypeId, fromDate)` and hangs the approval
+    off two columns on the row — `approverPartyId` and `leaveStatus`. Both are
+    dropped here. The key becomes an id so that changing the dates is a new
+    record rather than a delete-and-recreate that loses the history; the
+    approval becomes `approval_records` + todos like every other family, so a
+    workspace can have two levels, a return with a reason, and a trail.
+
+    **There is no balance anywhere in this model, and that is the design.**
+    "How many days do I have left" is not a fact anybody recorded — it follows
+    from the tenant's leave policy applied to this person's 工龄 and these
+    rows. Storing it would freeze a conclusion drawn under rules that change:
+    a company that revises 年假 mid-year, or backdates a 调休 ratio, would have
+    a ledger full of entries that were true under the old text. Computed, the
+    same revision simply produces different answers, including for the past —
+    `GET /policies?in_force_on=…` answers what the rule WAS. This is the same
+    stance payroll takes on tax and quotations take on drift: the server keeps
+    the facts, the agent applies the rules and shows its working.
+
+    `duration_days` is the exception that proves it. It is a snapshot of the
+    length as computed when the request was filed — weekends and holidays
+    already taken out per the policy of that day — and it freezes with the
+    approval, exactly as a quotation freezes `list_price_snapshot`. What the
+    entitlement was is recomputed on demand; what this particular absence cost
+    is what the approver agreed to."""
+
+    __tablename__ = "employee_leaves"
+    __table_args__ = (
+        CheckConstraint("thru_date >= from_date", name="employee_leaves_period_ck"),
+        # Half days are the point of the decimal; a request for zero days is a
+        # request for nothing, and negative leave is not a thing.
+        CheckConstraint("duration_days > 0", name="employee_leaves_duration_ck"),
+        Index("employee_leaves_employee_idx", "tenant_id", "employee_id", "from_date"),
+        Index("employee_leaves_type_idx", "tenant_id", "leave_type", "from_date"),
+    )
+
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # `leave_type` type-option family; the server never branches on the value
+    leave_type: Mapped[str] = mapped_column(String(50), index=True)
+    from_date: Mapped[date] = mapped_column(Date, index=True)
+    thru_date: Mapped[date] = mapped_column(Date)
+    # Days, with halves. Whether a Saturday inside the range counts is the
+    # tenant's rule, applied by the agent before it writes this number — the
+    # server stores what was agreed, not a date subtraction of its own.
+    duration_days: Mapped[float] = mapped_column(Numeric(6, 2))
+    # OFBiz splits this into a second classification table. Free text here: the
+    # reason for one absence is prose, and a tree of reason codes is structure
+    # nobody queries.
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_report_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee: Mapped[Employee] = relationship()
 
 
 class TimesheetEntry(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
@@ -1933,6 +2021,34 @@ class ApprovalRecord(IdMixin, TenantMixin, CreatedAtMixin, MetadataJsonbMixin, B
             "tenant_id", "entity_type", "entity_id", "round_no", "sequence_no", "action",
             name="approval_records_action_uk",
         ),
+        # ONE decision per node. The key above includes `action`, so it made a
+        # retry idempotent and left `approved` and `rejected` at the same
+        # round/sequence as two perfectly legal rows — a document carrying both
+        # decisions from the same seat, with nothing to say which one stands.
+        #
+        # It is reachable without anyone doing anything odd: the same approver
+        # in two agent sessions, one of them working from a queue it listed
+        # before the other acted. A Python check alone would be the same
+        # check-then-insert those two sessions are already racing on, so the
+        # guard is the index and the readable 409 is the courtesy.
+        #
+        # `commented` stays outside the predicate — an objection that decides
+        # nothing may sit beside the decision, and several may.
+        Index(
+            "approval_records_one_decision_uk",
+            "tenant_id", "entity_type", "entity_id", "round_no", "sequence_no",
+            unique=True,
+            postgresql_where=text(
+                "historical_conflict_closed is false and action in ("
+                + ", ".join(f"'{value}'" for value in DECIDED_APPROVAL_ACTIONS)
+                + ")"
+            ),
+            sqlite_where=text(
+                "historical_conflict_closed is false and action in ("
+                + ", ".join(f"'{value}'" for value in DECIDED_APPROVAL_ACTIONS)
+                + ")"
+            ),
+        ),
         # Declared here, not only in the migration. A constraint that lives only
         # in migrations is absent from every test database — `create_all` builds
         # from this file — which is exactly how invoices and payments went
@@ -1951,6 +2067,11 @@ class ApprovalRecord(IdMixin, TenantMixin, CreatedAtMixin, MetadataJsonbMixin, B
     round_no: Mapped[int] = mapped_column(default=1)
     sequence_no: Mapped[int] = mapped_column(default=1)
     action: Mapped[str] = mapped_column(String(20))
+    # A read-only operator closure for a pre-index contradiction. Both original
+    # approval facts stay in the trail; this flag says the *node* has been
+    # retired and must not occupy the one-active-decision index. It is not an
+    # API input: setting it is a separately approved data-remediation act.
+    historical_conflict_closed: Mapped[bool] = mapped_column(Boolean, default=False)
     approver_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     approver_role: Mapped[str | None] = mapped_column(String(100), nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -2030,6 +2151,17 @@ class Todo(TenantRecord, MetadataJsonbMixin, Base):
             + ", ".join(f"'{value}'" for value in TODO_ENTITY_TYPES)
             + ")",
             name="todos_entity_type_chk",
+        ),
+        # The status vocabulary, declared here for the third time and the first
+        # one that matters. Postgres has carried
+        # `check (status in ('open','completed'))` since the baseline while
+        # `schemas.TodoStatus` has said `cancelled` — and because this was not
+        # declared, SQLite had no constraint, so the whole suite passed over a
+        # value the real database refused. Deleting a document with an open
+        # todo was a 500 in production the entire time.
+        CheckConstraint(
+            "status in (" + ", ".join(f"'{value}'" for value in TODO_STATUSES) + ")",
+            name="todos_status_chk",
         ),
     )
 
@@ -2113,3 +2245,13 @@ class FlowRun(TenantRecord, Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     detail_jsonb: Mapped[dict] = mapped_column("detail_jsonb", JsonType, default=dict)
     recorded_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
+# Every fixed-value column's CHECK, attached from one registry rather than
+# restated on thirty classes. Runs after the last class so `Base.metadata`
+# already holds every table this module defines.
+#
+# It has to be here and not only in the migrations: SQLite builds its schema
+# from this metadata, so a constraint absent here is absent from every test
+# database, and the suite then passes over values the real database refuses.
+_attached_constraints = apply_table_constraints(Base.metadata)

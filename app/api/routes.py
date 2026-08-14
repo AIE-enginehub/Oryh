@@ -20,7 +20,12 @@ from sqlalchemy.orm import Session, aliased
 from app.api.common import envelope, get_tenant_id, list_rows, page_only_pagination, requested_pagination
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, has_permission, require_permission
 from app.core.config import settings
-from app.core.entity_types import APPROVAL_ENTITY_TYPES, TODO_ENTITY_TYPES
+from app.core.entity_types import (
+    APPROVAL_ENTITY_TYPES,
+    DECIDED_APPROVAL_ACTIONS,
+    OPERATOR_CONFLICT_CLOSURE_KEY,
+    TODO_ENTITY_TYPES,
+)
 from app.core.permissions import (
     HOSTED_FLOW_AGENT_DISPLAY_NAME,
     PRINCIPAL_HOSTED_FLOW_AGENT,
@@ -35,6 +40,7 @@ from app.models import (
     BusinessObjectLink,
     Customer,
     Employee,
+    EmployeeLeave,
     AuditLog,
     ExpenseClaim,
     ExpenseItem,
@@ -79,6 +85,12 @@ from app.models import (
     hash_api_key,
 )
 from app.schemas import (
+    CreateEmployeeLeaveRequest,
+    DeleteEmployeeLeaveRequest,
+    EmployeeLeaveEnvelope,
+    EmployeeLeaveListEnvelope,
+    EmployeeLeaveRead,
+    UpdateEmployeeLeaveRequest,
     BuiltinObjectTypeEnvelope,
     BulkTodoEnvelope,
     BulkTodoCreateRequest,
@@ -538,6 +550,21 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         },
         "timesheet", advance_permission="timesheet.advance",
     ),
+    EmployeeLeave: DocumentFamily(
+        # No line items: a leave request is one absence, so the items_phrase /
+        # parent_noun pair only ever surfaces in the editable-state 409, where
+        # it reads correctly because that gate also guards header edits.
+        "employee_leave", "leave details", "request",
+        "leave.submit_own", EmployeeLeaveRead, "leave",
+        lambda d: {
+            "employee_id": d.employee_id,
+            "leave_type": d.leave_type,
+            "from_date": d.from_date.isoformat(),
+            "thru_date": d.thru_date.isoformat(),
+            "duration_days": float(d.duration_days),
+        },
+        "leave", advance_permission="leave.advance",
+    ),
     ExpenseClaim: DocumentFamily(
         "expense_claim", "expense items", "claim",
         "expense.submit_own", ExpenseClaimRead, "expense",
@@ -874,7 +901,95 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     )
 
 
-DECIDED_APPROVAL_ACTIONS = ("approved", "rejected", "returned")
+def ensure_no_operator_closure_marker(metadata: dict | None) -> None:
+    """A tenant may not mint its own historical-conflict closure.
+
+    The typed column is unwritable through the API, which is the guarantee the
+    exemption rests on — but the migration that fills that column promotes this
+    metadata key, and metadata IS caller-supplied. Before an environment has
+    run that migration, anybody holding `approval.record` could plant the word
+    and be exempted from the one-decision rule the moment it does. The key
+    ships in the open-core export, so it is public knowledge, not a secret.
+
+    Same shape as `ensure_label_is_not_impersonation`: the real guarantee is
+    structural, and this keeps the tenant-supplied side from imitating it.
+    A genuine closure is written by the operator script straight to the
+    database, which never passes through here.
+    """
+    if metadata and OPERATOR_CONFLICT_CLOSURE_KEY in metadata:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"metadata key {OPERATOR_CONFLICT_CLOSURE_KEY!r} is reserved for "
+                "an authorized operator remediation and cannot be set through "
+                "the API"
+            ),
+        )
+
+
+def ensure_node_undecided(db: Session, tenant_id: str, payload) -> None:
+    """One decision per node — the readable half of a guard the index enforces.
+
+    The natural key includes `action`, which makes a retry idempotent and used
+    to let `approved` and `rejected` both stand at the same round and sequence:
+    one seat, two contradictory decisions, nothing saying which one counts.
+
+    Nobody has to misbehave to get there. The same approver opens two agent
+    sessions, lists the queue in both, decides in one — and the other is now
+    holding a list that was true when it was read. That is the ordinary shape
+    of the mistake, which is why the server takes it rather than leaving it to
+    an agent's memory of what it has already done.
+
+    The 409 names the decision that already stands, because "conflict" alone
+    sends an agent looking for its own error when the answer is that a
+    colleague — or its other self — got there first.
+    """
+    if payload.action not in DECIDED_APPROVAL_ACTIONS:
+        return
+    closed_history = db.scalar(
+        select(ApprovalRecord).where(
+            ApprovalRecord.tenant_id == tenant_id,
+            ApprovalRecord.entity_type == payload.entity_type,
+            ApprovalRecord.entity_id == payload.entity_id,
+            ApprovalRecord.round_no == payload.round_no,
+            ApprovalRecord.sequence_no == payload.sequence_no,
+            ApprovalRecord.historical_conflict_closed.is_(True),
+        )
+    )
+    if closed_history is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"round {payload.round_no} step {payload.sequence_no} is a closed "
+                "historical approval conflict. Do not decide it again; retire its "
+                "remaining work through the document or Todo workflow."
+            ),
+        )
+    decided = db.scalar(
+        select(ApprovalRecord).where(
+            ApprovalRecord.tenant_id == tenant_id,
+            ApprovalRecord.entity_type == payload.entity_type,
+            ApprovalRecord.entity_id == payload.entity_id,
+            ApprovalRecord.round_no == payload.round_no,
+            ApprovalRecord.sequence_no == payload.sequence_no,
+            ApprovalRecord.action.in_(DECIDED_APPROVAL_ACTIONS),
+            ApprovalRecord.historical_conflict_closed.is_(False),
+        )
+    )
+    if decided is None:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"round {payload.round_no} step {payload.sequence_no} was already "
+            f"{decided.action} by {decided.approver_id} at {decided.acted_at} — "
+            "a step holds one decision. Re-read the approval trail before acting: "
+            "this one is settled, and if it needs revisiting that is a new round, "
+            "not a second decision in this one"
+        ),
+    )
+
+
 
 
 def require_submission_before_decision(payload) -> None:
@@ -1003,6 +1118,64 @@ def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
     return envelope(_document_read(family, document))
 
 
+def cancel_todos_for(
+    db: Session, actor: Actor, entity_type: str, entity_id: str, *, reason: str
+) -> int:
+    """Close the open todos pointing at a record that has just been deleted.
+
+    HR issued five payslips, the CEO returned them, and five rework todos
+    appeared. HR then voided all five and issued five fresh ones, which were
+    approved — and the five todos stayed open forever, attached to documents
+    that no longer exist. Nothing was wrong with the flow: "fix the returned
+    document" and "void it and redo it" are both reasonable, and only the first
+    one had anything that closed the todo.
+
+    So the server closes them, and only on the fact it is certain of: the thing
+    this work item points at is gone, therefore the work item cannot be done.
+    That is not a judgment about the flow — a todo whose subject was deleted is
+    unactionable whatever the workspace's rules say.
+
+    `cancelled`, never `completed`. The work was not done, and recording that it
+    was would make the trail lie about a person's queue. The partial unique
+    index only reserves `open`, so a replacement todo on the same record is free
+    to exist the moment this one leaves that state.
+
+    Restoring the document does NOT resurrect these rows. The restored record
+    re-enters the flow agent's queue (`without_open_todo=true` is what finds
+    it), and letting the agent raise fresh work is both simpler and truer than
+    reviving a cancellation — the old todo's text may no longer be what needs
+    doing.
+    """
+    open_todos = list(
+        db.scalars(
+            select(Todo).where(
+                Todo.tenant_id == actor.tenant_id,
+                Todo.entity_type == entity_type,
+                Todo.entity_id == entity_id,
+                Todo.status == "open",
+            )
+        )
+    )
+    for todo in open_todos:
+        todo.status = "cancelled"
+        record_audit(
+            db,
+            tenant_id=actor.tenant_id,
+            action="todo.cancelled",
+            entity_type="todo",
+            entity_id=todo.id,
+            actor=attributed(actor, None),
+            detail={
+                "employee_id": todo.employee_id,
+                "title": todo.title,
+                "target_type": entity_type,
+                "target_id": entity_id,
+                "reason": reason,
+            },
+        )
+    return len(open_todos)
+
+
 def delete_document(db: Session, actor: Actor, model, document_id: str, payload=None) -> Response:
     family = DOCUMENT_FAMILIES[model]
     document = get_scoped_or_404(db, model, actor.tenant_id, document_id)
@@ -1015,6 +1188,10 @@ def delete_document(db: Session, actor: Actor, model, document_id: str, payload=
     if family.attributed_delete:
         document.deleted_by = attributed(actor, payload.deleted_by if payload else None)
         document.delete_reason = payload.delete_reason if payload else None
+    cancel_todos_for(
+        db, actor, family.object_type, document.id,
+        reason=f"{family.object_type} deleted",
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -2268,13 +2445,17 @@ ALLOWED_TODO_ENTITY_TYPES: frozenset[str] = frozenset(TODO_ENTITY_TYPES)
 def ensure_referenced_entity_exists(
     db: Session, tenant_id: str, entity_type: str, entity_id: str, *,
     allowed: frozenset[str], label: str,
-) -> None:
-    """One resolver for both todos and approval facts.
+):
+    """One resolver for both todos and approval facts. Returns the row.
 
     An unknown type is refused here rather than left to the database. The
     approval path used to fall through an if-chain with no else, so a type it
     did not recognise skipped the existence check entirely and reached the
     CHECK constraint — which answered with a 500 rather than a sentence.
+
+    It returns the row it resolved because it had already fetched it and threw
+    it away, and the approval path needs the target's `created_at` to refuse a
+    decision recorded before the thing it decides existed.
     """
     if entity_type not in allowed:
         raise HTTPException(
@@ -2286,15 +2467,78 @@ def ensure_referenced_entity_exists(
         )
     model = TODO_TARGET_MODELS.get(entity_type)
     if model is not None:
-        get_active_document_or_404(db, model, tenant_id, entity_id)
-        return
+        return get_active_document_or_404(db, model, tenant_id, entity_id)
     if entity_type == "approval_target":
-        get_active_approval_target_or_404(db, tenant_id, entity_id)
-        return
+        return get_active_approval_target_or_404(db, tenant_id, entity_id)
     if entity_type == "business_object":
-        get_active_business_object_or_404(db, tenant_id, entity_id)
-        return
-    get_scoped_or_404(db, Project, tenant_id, entity_id)
+        return get_active_business_object_or_404(db, tenant_id, entity_id)
+    return get_scoped_or_404(db, Project, tenant_id, entity_id)
+
+
+# An agent's host clock is not the server's. Wide enough that an honestly
+# stamped "now" never trips the future check, narrow enough that a date pulled
+# out of a document never passes it.
+ACTED_AT_CLOCK_SKEW = timedelta(minutes=5)
+
+
+def resolve_acted_at(supplied: datetime | None, target) -> datetime:
+    """When the decision happened — the server's answer unless told otherwise.
+
+    This used to be a required field, which meant every caller had to produce a
+    timestamp and an agent has no clock. Every skill example showed a literal
+    (`"2026-07-11T09:00:00Z"`), so an agent filling the template in took the
+    most plausible date in front of it — usually one off the document it was
+    approving. Production ended up with approvals recorded before the thing
+    they approved existed, which is not a wrong number so much as a trail that
+    cannot be true.
+
+    So the server stamps it. Supplying one is now a deliberate act rather than
+    a tax on every write, and the two impossible shapes are refused:
+
+    - **the future**, beyond clock skew: nobody decides in advance, and this is
+      the shape a guessed date takes when the guess runs forward;
+    - **before the target existed**: the shape it takes running backward, and
+      the one found in production.
+
+    Backfilling stays possible and one case is already legitimate — the missing
+    `submitted` fact takes the document's own `submitted_at`, a stored fact
+    rather than an invention, and it satisfies both rules by construction.
+    Recording an approval that genuinely predates its record — a historical
+    import — is refused: that path does not exist through this API today, and
+    when it does it should arrive as a designed feature rather than as the
+    absence of a check.
+    """
+    now = datetime.now(timezone.utc)
+    if supplied is None:
+        return now
+
+    acted = supplied if supplied.tzinfo else supplied.replace(tzinfo=timezone.utc)
+    if acted > now + ACTED_AT_CLOCK_SKEW:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"acted_at {acted.isoformat()} is in the future — a decision cannot be "
+                "recorded before it is made. Omit acted_at and the server stamps the "
+                "moment of the call."
+            ),
+        )
+
+    created = getattr(target, "created_at", None)
+    if created is not None:
+        created = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+        if acted < created:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"acted_at {acted.isoformat()} is before this record existed "
+                    f"({created.isoformat()}) — the trail would say it was decided "
+                    "before it was created. Omit acted_at and the server stamps the "
+                    "moment of the call; supply one only when the person you are "
+                    "acting for told you the decision happened at another time, and "
+                    "never infer it from a date on the document."
+                ),
+            )
+    return acted
 
 
 def ensure_todo_entity_exists(db: Session, tenant_id: str, entity_type: str, entity_id: str) -> None:
@@ -4356,6 +4600,7 @@ def create_employee(
         name=payload.name,
         email=payload.email,
         timezone=payload.timezone,
+        hire_date=payload.hire_date,
         status=payload.status,
         metadata_jsonb=payload.metadata,
     )
@@ -4591,6 +4836,10 @@ def delete_approval_target(
     approval_target.deleted_at = datetime.now(timezone.utc)
     approval_target.deleted_by = attributed(actor, payload.deleted_by if payload else None)
     approval_target.delete_reason = payload.delete_reason if payload else None
+    cancel_todos_for(
+        db, actor, "approval_target", approval_target.id,
+        reason="approval target deleted",
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -4706,6 +4955,12 @@ def get_object_directory(
         "timesheet_header": db.scalar(
             select(func.count()).select_from(TimesheetHeader).where(
                 TimesheetHeader.tenant_id == tenant_id
+            )
+        )
+        or 0,
+        "employee_leave": db.scalar(
+            select(func.count()).select_from(EmployeeLeave).where(
+                EmployeeLeave.tenant_id == tenant_id
             )
         )
         or 0,
@@ -5340,6 +5595,12 @@ def delete_business_object(
     business_object.deleted_at = datetime.now(timezone.utc)
     business_object.deleted_by = attributed(actor, payload.deleted_by if payload else None)
     business_object.delete_reason = payload.delete_reason if payload else None
+    # todos on a custom object name it by the generic type, not by its
+    # object_type — see TODO_ENTITY_TYPES
+    cancel_todos_for(
+        db, actor, "business_object", business_object.id,
+        reason="business object deleted",
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -5479,6 +5740,191 @@ def delete_business_object_link(
     db.delete(link)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/employee-leaves",
+    response_model=EmployeeLeaveListEnvelope,
+    response_model_exclude_unset=True,
+)
+def list_employee_leaves(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    employee_id: str | None = None,
+    leave_type: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    overlapping_from: date | None = None,
+    overlapping_thru: date | None = None,
+    include_deleted: bool = False,
+    without_open_todo: bool = False,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+):
+    """The rows an agent computes a balance FROM.
+
+    `overlapping_from`/`overlapping_thru` is the filter that makes the
+    computation one call: leave that overlaps the period at all, which is what
+    "how much annual leave has this person used this year" needs — a request
+    straddling New Year belongs to both years in part, and the caller decides
+    how to split it by the tenant's rule. Filtering on `from_date` alone would
+    silently drop it from one side.
+    """
+    validate_status_filter(db, tenant_id, "employee_leave", status_filter)
+    stmt = select(EmployeeLeave).where(EmployeeLeave.tenant_id == tenant_id)
+    if not include_deleted:
+        stmt = stmt.where(EmployeeLeave.deleted_at.is_(None))
+    if without_open_todo:
+        stmt = exclude_rows_with_open_todo(stmt, EmployeeLeave, tenant_id, "employee_leave")
+    if overlapping_from is not None:
+        stmt = stmt.where(EmployeeLeave.thru_date >= overlapping_from)
+    if overlapping_thru is not None:
+        stmt = stmt.where(EmployeeLeave.from_date <= overlapping_thru)
+    return list_rows(
+        db, stmt,
+        filters={
+            EmployeeLeave.employee_id: employee_id,
+            EmployeeLeave.leave_type: leave_type,
+            EmployeeLeave.status: status_filter,
+        },
+        keyword=keyword,
+        keyword_columns=(
+            cast(EmployeeLeave.id, String),
+            cast(EmployeeLeave.employee_id, String),
+            EmployeeLeave.leave_type,
+            EmployeeLeave.reason,
+            EmployeeLeave.status,
+            EmployeeLeave.source_report_text,
+        ),
+        order_by=(
+            EmployeeLeave.from_date.desc(),
+            EmployeeLeave.created_at.desc(),
+            EmployeeLeave.id.desc(),
+        ),
+        pagination=requested_pagination(page, size),
+        read_model=EmployeeLeaveRead,
+    )
+
+
+@router.post("/employee-leaves", status_code=status.HTTP_201_CREATED)
+def create_employee_leave(
+    payload: CreateEmployeeLeaveRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """File one absence.
+
+    Deliberately absent: any check that the person has the days. Entitlement is
+    computed from the tenant's policy, not stored, so the server has nothing to
+    check against and inventing one would be the server deciding a rule that
+    belongs in a document somebody can revise. Over-requesting is a legal
+    record; the approver — informed by the agent's computation — decides.
+    """
+    tenant_id = actor.tenant_id
+    require_permission(actor, "leave.submit_own")
+    get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
+    enforce_member_employee(actor, payload.employee_id)
+    require_type_option(db, tenant_id, "leave_type", payload.leave_type)
+    require_machine_state(db, tenant_id, EmployeeLeave, payload.status)
+    if payload.thru_date < payload.from_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="thru_date cannot precede from_date",
+        )
+    leave = EmployeeLeave(
+        tenant_id=tenant_id,
+        employee_id=payload.employee_id,
+        leave_type=payload.leave_type,
+        from_date=payload.from_date,
+        thru_date=payload.thru_date,
+        duration_days=payload.duration_days,
+        reason=payload.reason,
+        status=payload.status,
+        source_report_text=payload.source_report_text,
+        custom_fields_jsonb=payload.custom_fields,
+    )
+    db.add(leave)
+    db.commit()
+    db.refresh(leave)
+    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+
+
+@router.get(
+    "/employee-leaves/{leave_id}",
+    response_model=EmployeeLeaveEnvelope,
+    response_model_exclude_unset=True,
+)
+def get_employee_leave(
+    leave_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    leave = get_scoped_or_404(db, EmployeeLeave, tenant_id, leave_id)
+    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+
+
+@router.patch(
+    "/employee-leaves/{leave_id}",
+    response_model=EmployeeLeaveEnvelope,
+    response_model_exclude_unset=True,
+)
+def update_employee_leave(
+    leave_id: str,
+    payload: UpdateEmployeeLeaveRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    tenant_id = actor.tenant_id
+    leave = get_active_document_or_404(db, EmployeeLeave, tenant_id, leave_id)
+    enforce_member_employee(actor, leave.employee_id)
+    updates = payload.model_dump(exclude_unset=True)
+    ensure_content_edit_allowed(actor, "leave", updates)
+    if updates.get("leave_type"):
+        require_type_option(db, tenant_id, "leave_type", updates["leave_type"])
+    from_date = updates.get("from_date", leave.from_date)
+    thru_date = updates.get("thru_date", leave.thru_date)
+    if thru_date < from_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="thru_date cannot precede from_date",
+        )
+    if "status" in updates and updates["status"] != leave.status:
+        apply_status_change(db, actor, leave, updates["status"])
+    if "custom_fields" in updates:
+        leave.custom_fields_jsonb = updates.pop("custom_fields")
+    for field, value in updates.items():
+        setattr(leave, field, value)
+    db.commit()
+    db.refresh(leave)
+    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+
+
+@router.delete("/employee-leaves/{leave_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_employee_leave(
+    leave_id: str,
+    payload: DeleteEmployeeLeaveRequest | None = None,
+    actor: Annotated[Actor, Depends(get_actor)] = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    return delete_document(db, actor, EmployeeLeave, leave_id, payload)
+
+
+@router.post("/employee-leaves/{leave_id}/restore")
+def restore_employee_leave(
+    leave_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return restore_document(db, actor, EmployeeLeave, leave_id)
+
+
+@router.post("/employee-leaves/{leave_id}/submit")
+def submit_employee_leave(
+    leave_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return submit_document(db, actor, EmployeeLeave, leave_id)
 
 
 @router.get(
@@ -11808,15 +12254,38 @@ def attach_todo_targets(db: Session, tenant_id: str, rows: list[dict]) -> None:
                     summary.currency = doc.currency
                 if doc.employee_id:
                     employee_ids.add(doc.employee_id)
+                # Deliberately not filtered out of the query above: a todo whose
+                # target was deleted still needs describing, and dropping the
+                # row here would report it as `missing` — the same word used for
+                # an id that names nothing, which is a different problem with a
+                # different fix.
+                summary.deleted = doc.deleted_at is not None
                 summaries[(entity_type, doc.id)] = summary
-        elif entity_type == "business_object":
+        elif entity_type in ("business_object", "approval_target"):
+            # `approval_target` is a BusinessObject too — the same row reached
+            # by a different verb. It was absent from this branch, so every
+            # todo pointing at one came back `missing: true` while the row sat
+            # there readable. Two of the three non-document types reporting a
+            # phantom integrity problem is what made `missing` unusable as the
+            # signal a sweep looks for.
             for doc in db.scalars(
                 select(BusinessObject).where(
                     BusinessObject.tenant_id == tenant_id, BusinessObject.id.in_(ids)
                 )
             ).all():
                 summaries[(entity_type, doc.id)] = TodoTargetSummary(
-                    object_type=doc.object_type, title=doc.title, status=doc.status
+                    object_type=doc.object_type, title=doc.title, status=doc.status,
+                    deleted=doc.deleted_at is not None,
+                )
+        elif entity_type == "project":
+            # A project is archived rather than deleted, so `deleted` is never
+            # set here; an archived one shows its status and the sweep judges
+            # it the same way it judges any dead state.
+            for row in db.scalars(
+                select(Project).where(Project.tenant_id == tenant_id, Project.id.in_(ids))
+            ).all():
+                summaries[(entity_type, row.id)] = TodoTargetSummary(
+                    object_type="project", title=row.project_name, status=row.status,
                 )
 
     # line-derived amounts, one grouped query per family that stores none
@@ -12411,19 +12880,24 @@ def update_todo(
     if "due_at" in updates:
         todo.due_at = updates.pop("due_at")
     if "status" in updates:
-        newly_completed = updates["status"] == "completed" and todo.status != "completed"
+        was = todo.status
         todo.status = updates["status"]
         if todo.status == "completed":
             todo.completed_at = datetime.now(timezone.utc)
             todo.completed_by = attributed(actor, updates.get("completed_by") or todo.completed_by)
         else:
+            # `cancelled` leaves these null on purpose. The columns say
+            # COMPLETED, and a report counting `completed_at is not null` must
+            # not pick up work that nobody did — who cancelled it and when is
+            # in the audit row below, which is where an administrative act
+            # belongs anyway.
             todo.completed_at = None
             todo.completed_by = None
-        if newly_completed:
+        if todo.status != was and todo.status in ("completed", "cancelled"):
             record_audit(
                 db,
                 tenant_id=actor.tenant_id,
-                action="todo.completed",
+                action=f"todo.{todo.status}",
                 entity_type="todo",
                 entity_id=todo.id,
                 actor=actor.label,
@@ -12460,11 +12934,13 @@ def create_approval_record(
             scoped_write_target(db, tenant_id, payload.entity_type, payload.entity_id),
             ignore=("status",),
         )
-    ensure_referenced_entity_exists(
+    target = ensure_referenced_entity_exists(
         db, tenant_id, payload.entity_type, payload.entity_id,
         allowed=ALLOWED_APPROVAL_ENTITY_TYPES, label="approval",
     )
+    acted_at = resolve_acted_at(payload.acted_at, target)
     require_submission_before_decision(payload)
+    ensure_no_operator_closure_marker(payload.metadata)
     # idempotency on the natural key: an agent retrying the same action gets
     # the already-recorded fact back instead of a duplicate
     existing = db.scalar(
@@ -12475,10 +12951,12 @@ def create_approval_record(
             ApprovalRecord.round_no == payload.round_no,
             ApprovalRecord.sequence_no == payload.sequence_no,
             ApprovalRecord.action == payload.action,
+            ApprovalRecord.historical_conflict_closed.is_(False),
         )
     )
     if existing is not None:
         return envelope(ApprovalRecordRead.model_validate(existing).model_dump(by_alias=True))
+    ensure_node_undecided(db, tenant_id, payload)
     record = ApprovalRecord(
         tenant_id=tenant_id,
         entity_type=payload.entity_type,
@@ -12491,7 +12969,7 @@ def create_approval_record(
         comment=payload.comment,
         source=payload.source,
         metadata_jsonb=payload.metadata,
-        acted_at=payload.acted_at,
+        acted_at=acted_at,
     )
     db.add(record)
     db.flush()

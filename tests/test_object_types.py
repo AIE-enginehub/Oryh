@@ -252,7 +252,6 @@ def test_business_object_detail_contract(client: TestClient) -> None:
             "entity_id": object_ids[0],
             "action": "commented",
             "comment": "Looks good",
-            "acted_at": "2026-07-12T09:00:00Z",
         },
         headers=HEADERS,
     )

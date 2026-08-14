@@ -21,7 +21,11 @@ What makes this side different from receivables:
   `draft → submitted → approved → paid`. You file and submit it; someone else
   approves it.
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
+
+{{include:_common/leave-no-orphan-work.md}}
 
 ## Trigger Examples
 

@@ -21,7 +21,11 @@ Three facts shape everything here:
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
   Matched the wrong invoice? Apply a negative amount and then apply it right.
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
+
+{{include:_common/leave-no-orphan-work.md}}
 
 ## Trigger Examples
 

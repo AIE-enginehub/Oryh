@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260804_0046
+-- Alembic revision: 20260813_0054
 --
 
 --
@@ -84,8 +84,9 @@ CREATE TABLE oryh.approval_records (
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     acted_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    historical_conflict_closed boolean DEFAULT false NOT NULL,
     CONSTRAINT approval_records_action_chk CHECK ((action = ANY (ARRAY['submitted'::text, 'approved'::text, 'rejected'::text, 'returned'::text, 'commented'::text]))),
-    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['timesheet_header'::text, 'expense_claim'::text, 'purchase_request'::text, 'sales_quotation'::text, 'sales_order'::text, 'approval_target'::text, 'business_object'::text]))),
+    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
     CONSTRAINT approval_records_round_no_chk CHECK ((round_no >= 1)),
     CONSTRAINT approval_records_sequence_no_chk CHECK ((sequence_no >= 1)),
     CONSTRAINT approval_records_source_chk CHECK (((source = ANY (ARRAY['web'::text, 'api'::text, 'ai'::text, 'system'::text])) OR (source IS NULL)))
@@ -317,6 +318,33 @@ CREATE TABLE oryh.device_authorizations (
 
 
 --
+-- Name: employee_leaves; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.employee_leaves (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    leave_type text NOT NULL,
+    from_date date NOT NULL,
+    thru_date date NOT NULL,
+    duration_days numeric(6,2) NOT NULL,
+    reason text,
+    status text DEFAULT 'draft'::text NOT NULL,
+    submitted_at timestamp with time zone,
+    source_report_text text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    deleted_by text,
+    delete_reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone,
+    CONSTRAINT employee_leaves_duration_ck CHECK ((duration_days > (0)::numeric)),
+    CONSTRAINT employee_leaves_period_ck CHECK ((thru_date >= from_date))
+);
+
+
+--
 -- Name: employees; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -331,6 +359,7 @@ CREATE TABLE oryh.employees (
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    hire_date date,
     CONSTRAINT employees_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text])))
 );
 
@@ -1118,7 +1147,8 @@ CREATE TABLE oryh.roles (
     permissions_jsonb jsonb DEFAULT '[]'::jsonb NOT NULL,
     is_system boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    catalog_permissions_jsonb jsonb
 );
 
 
@@ -1419,8 +1449,7 @@ CREATE TABLE oryh.timesheet_entries (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    CONSTRAINT timesheet_entries_hours_chk CHECK (((hours > (0)::numeric) AND (hours <= (24)::numeric))),
-    CONSTRAINT timesheet_entries_work_type_chk CHECK ((work_type = ANY (ARRAY['regular'::text, 'overtime'::text, 'holiday'::text, 'travel'::text, 'other'::text])))
+    CONSTRAINT timesheet_entries_hours_chk CHECK (((hours > (0)::numeric) AND (hours <= (24)::numeric)))
 );
 
 
@@ -1468,8 +1497,8 @@ CREATE TABLE oryh.todos (
     todo_type text,
     created_by text,
     due_at timestamp with time zone,
-    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['timesheet_header'::text, 'expense_claim'::text, 'purchase_request'::text, 'sales_quotation'::text, 'sales_order'::text, 'project'::text, 'approval_target'::text, 'business_object'::text]))),
-    CONSTRAINT todos_status_chk CHECK ((status = ANY (ARRAY['open'::text, 'completed'::text])))
+    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
+    CONSTRAINT todos_status_chk CHECK ((status = ANY (ARRAY['open'::text, 'completed'::text, 'cancelled'::text])))
 );
 
 
@@ -1722,6 +1751,14 @@ ALTER TABLE ONLY oryh.device_authorizations
 
 ALTER TABLE ONLY oryh.device_authorizations
     ADD CONSTRAINT device_authorizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: employee_leaves employee_leaves_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.employee_leaves
+    ADD CONSTRAINT employee_leaves_pkey PRIMARY KEY (id);
 
 
 --
@@ -2314,6 +2351,13 @@ CREATE INDEX api_keys_user_idx ON oryh.api_keys USING btree (user_id);
 
 
 --
+-- Name: approval_records_one_decision_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX approval_records_one_decision_uk ON oryh.approval_records USING btree (tenant_id, entity_type, entity_id, round_no, sequence_no) WHERE ((historical_conflict_closed IS FALSE) AND (action = ANY (ARRAY['approved'::text, 'rejected'::text, 'returned'::text])));
+
+
+--
 -- Name: attachments_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -2493,6 +2537,27 @@ CREATE INDEX customers_tenant_phone_idx ON oryh.customers USING btree (tenant_id
 --
 
 CREATE INDEX device_authorizations_user_code_idx ON oryh.device_authorizations USING btree (user_code);
+
+
+--
+-- Name: employee_leaves_employee_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX employee_leaves_employee_idx ON oryh.employee_leaves USING btree (tenant_id, employee_id, from_date);
+
+
+--
+-- Name: employee_leaves_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX employee_leaves_tenant_idx ON oryh.employee_leaves USING btree (tenant_id);
+
+
+--
+-- Name: employee_leaves_type_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX employee_leaves_type_idx ON oryh.employee_leaves USING btree (tenant_id, leave_type, from_date);
 
 
 --
@@ -3491,6 +3556,22 @@ ALTER TABLE ONLY oryh.business_object_links
 
 
 --
+-- Name: employee_leaves employee_leaves_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.employee_leaves
+    ADD CONSTRAINT employee_leaves_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: employee_leaves employee_leaves_tenant_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.employee_leaves
+    ADD CONSTRAINT employee_leaves_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES oryh.tenants(id);
+
+
+--
 -- Name: enterprise_pilot_applications enterprise_pilot_applications_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4341,6 +4422,12 @@ ALTER TABLE oryh.capabilities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.customers ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: employee_leaves; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.employee_leaves ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: employees; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -4641,6 +4728,13 @@ CREATE POLICY tenant_isolation ON oryh.capabilities USING ((((tenant_id)::text =
 --
 
 CREATE POLICY tenant_isolation ON oryh.customers USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: employee_leaves tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.employee_leaves USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

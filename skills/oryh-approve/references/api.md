@@ -34,8 +34,7 @@ POST /approval-records
   "action": "approved",
   "approver_role": "manager",
   "comment": "amounts match the receipts",
-  "source": "ai",
-  "acted_at": "2026-07-11T09:00:00Z"
+  "source": "ai"
 }
 ```
 
@@ -47,7 +46,7 @@ that does not decide). `submitted` is written by the submitter side.
 `approver_id` is server-attributed from the authenticated user; a
 self-reported value is ignored for user credentials.
 
-`acted_at` is the decision moment and is required.
+{{include:_common/when-the-decision-happened.md}}
 
 ## Complete Own Todo
 

@@ -241,7 +241,6 @@ def test_approval_record_idempotency(client: TestClient) -> None:
         "round_no": 1,
         "sequence_no": 1,
         "action": "submitted",
-        "acted_at": "2026-07-01T09:00:00Z",
     }
     first = client.post("/api/v1/approval-records", json=body, headers=HEADERS)
     retry = client.post("/api/v1/approval-records", json=body, headers=HEADERS)
@@ -365,10 +364,12 @@ def test_new_tenant_gets_product_skills_and_builtin_machine(client: TestClient) 
         "/api/v1/object-type-definitions?entity_kind=builtin", headers=headers
     ).json()["data"]
     by_type = {d["object_type"]: d for d in definitions}
-    assert set(by_type) == {
-        "timesheet_header", "expense_claim", "purchase_request", "sales_quotation",
-        "sales_order", "purchase_order", "invoice", "payment",
-    }
+    # Derived from the registry rather than restated: this list was a literal
+    # and the eighth family (请假) made it wrong without saying anything about
+    # the behaviour under test, which is that EVERY builtin machine provisions.
+    from app.services.state_machines import BUILTIN_MACHINES
+
+    assert set(by_type) == set(BUILTIN_MACHINES)
     assert by_type["timesheet_header"]["state_machine"]["initial"] == "draft"
     assert by_type["expense_claim"]["state_machine"]["initial"] == "draft"
     assert "paid" in by_type["expense_claim"]["state_machine"]["states"]
@@ -683,3 +684,54 @@ def test_status_filter_guard_covers_every_builtin_document(client: TestClient) -
     assert client.get(
         "/api/v1/business-objects?status=no_such_state", headers=HEADERS
     ).status_code == 200
+
+
+def test_a_capability_that_reaches_nobody_is_reported() -> None:
+    """Three releases shipped a capability that reached nobody who needed it —
+    结算, 工资, 请假 — and each was found days later by a 403 in somebody's
+    flow. `provision_system_roles` cannot fix it (a capability missing from a
+    role the tenant designed might be a decision, not an omission), but the
+    deploy log can say so.
+
+    The condition has to be exactly right or the alarm is useless, and the two
+    obvious versions both are. Asking "does any role hold it" can never fire —
+    `admin` is topped up with everything. Asking "does `member` hold what our
+    defaults give `member`" always fires on any workspace that tuned its
+    baseline, which our own demo seed does on purpose. Both are pinned here."""
+    from sqlalchemy import select
+
+    from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
+    from app.models import Role
+    from app.services.provisioning import unheld_shipped_capabilities
+    from conftest import provision_tenant
+
+    with make_client([]) as client:
+        data = provision_tenant(client, company_name="Gap Co",
+                                email="admin@gap-co.com", password="gap-pass1234")
+        root = {"X-API-Key": data["plain_text_api_key"]}
+        with client.session_factory() as db:
+            tenant_id = db.scalar(select(Tenant.id))
+            # a fresh tenant is complete: every shipped capability reaches someone
+            assert unheld_shipped_capabilities(db, tenant_id) == {}
+
+        # take it off `member`, the way a tenant older than the capability looks
+        stripped = [p for p in DEFAULT_ROLE_PERMISSIONS["member"] if p != "leave.submit_own"]
+        client.patch("/api/v1/roles/member", json={"permissions": stripped}, headers=root)
+
+        with client.session_factory() as db:
+            report = unheld_shipped_capabilities(db, tenant_id)
+            assert report.get("leave.submit_own") == ["member"]
+            # `admin` still holding it must NOT silence the report — that is the
+            # bug which made the first version permanently quiet
+            admin = db.scalar(
+                select(Role).where(Role.tenant_id == tenant_id, Role.name == "admin")
+            )
+            assert "leave.submit_own" in (admin.permissions_jsonb or [])
+
+        # a capability a CUSTOM role carries is a workspace organising itself,
+        # not a gap — the noise that made the second version permanently loud
+        client.post("/api/v1/roles",
+                    json={"name": "leave_desk", "permissions": ["leave.submit_own"]},
+                    headers=root)
+        with client.session_factory() as db:
+            assert "leave.submit_own" not in unheld_shipped_capabilities(db, tenant_id)

@@ -114,6 +114,7 @@ def derived_driver_skill(db: Session, tenant_id: str, entity_type: str) -> str |
 # rather than imported from `routes.DOCUMENT_FAMILIES` because that module
 # imports this layer; `tests/test_new_document_family.py` pins the two together.
 HOSTED_ADVANCE_VERBS: dict[str, str] = {
+    "employee_leave": "leave.advance",
     "expense_claim": "expense.advance",
     "invoice": "invoice.advance",
     "payment": "payment.advance",

@@ -45,9 +45,13 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 ## Steps
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/read-before-you-decide.md}}
+
+{{include:_common/leave-no-orphan-work.md}}
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation` — the tenant's natural-language rules, current as of this moment. Read what it requires of a submission (折扣权限、有效期上限、必须含税率/交期 and the like) and let it shape the conversation from the first question. No definition, or nothing about filing → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.

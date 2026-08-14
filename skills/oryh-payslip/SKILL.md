@@ -21,6 +21,8 @@ Nothing here writes. If the person wants a raise recorded, a payslip issued, or
 a payout made, that is `$oryh-payroll` and it needs `payroll.manage` /
 `invoice.manage:payroll`; say so plainly rather than reaching for another tool.
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 ## Trigger Examples

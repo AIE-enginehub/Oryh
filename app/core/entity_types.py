@@ -22,6 +22,7 @@ from __future__ import annotations
 # Every builtin document family. Kept in step with `state_machines
 # .BUILTIN_MACHINES` and `routes.DOCUMENT_FAMILIES` by test, not by memory.
 DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
+    "employee_leave",
     "expense_claim",
     "invoice",
     "payment",
@@ -51,6 +52,7 @@ TODO_ENTITY_TYPES: tuple[str, ...] = APPROVAL_ENTITY_TYPES + ("project",)
 # So it is declared, and `tests/test_new_document_family.py` pins it against
 # every registry it must agree with.
 HOSTED_DRIVABLE_ENTITY_TYPES: tuple[str, ...] = (
+    "employee_leave",
     "expense_claim",
     "invoice",
     "payment",
@@ -72,6 +74,7 @@ HOSTED_DRIVABLE_ENTITY_TYPES: tuple[str, ...] = (
 # The server now hands the path to the runner with each subscription, so there
 # is one copy and it sits beside the list it must agree with.
 BUILTIN_QUEUE_PATHS: dict[str, str] = {
+    "employee_leave": "/employee-leaves",
     "expense_claim": "/expense-claims",
     "invoice": "/invoices",
     "payment": "/payments",
@@ -80,3 +83,41 @@ BUILTIN_QUEUE_PATHS: dict[str, str] = {
     "sales_quotation": "/sales-quotations",
     "timesheet_header": "/timesheet-headers",
 }
+
+
+# The approval actions that DECIDE. `commented` is deliberately outside: an
+# objection that does not settle the node can be recorded alongside a decision,
+# and more than one of them is ordinary.
+#
+# Lives here rather than in routes.py because three places need the same list
+# and must not drift: the write path's refusal, the partial unique index on
+# `approval_records` that makes that refusal hold under concurrency, and the
+# migration that creates it.
+DECIDED_APPROVAL_ACTIONS: tuple[str, ...] = ("approved", "rejected", "returned")
+
+
+# What a todo's status may be. `cancelled` is not decoration: it is how a work
+# item whose subject went away leaves somebody's queue without the trail
+# claiming they did the work.
+#
+# It lives here because it had three homes and one of them disagreed. The
+# baseline migration wrote `check (status in ('open','completed'))`, the model
+# declared no constraint at all, and `schemas.TodoStatus` listed `cancelled`.
+# SQLite builds its schema from the model, so the tests had no constraint and
+# stayed green while Postgres refused every cancellation — including the
+# server's own `cancel_todos_for`, which meant deleting a document that had an
+# open todo was a 500 in every real environment.
+TODO_STATUSES: tuple[str, ...] = ("open", "completed", "cancelled")
+
+
+# The metadata key an authorized operator writes, out-of-band and directly
+# against the database, to retire an approval node that carried contradictory
+# decisions before the one-decision index existed. Migration `20260810_0049`
+# promotes it into a typed, API-unwritable column.
+#
+# Declared here because two places must agree on the exact string — the
+# migration that promotes it and the write path that REFUSES it — and because
+# it ships in the open-core export, so it is a known word rather than a secret.
+# Reserved the same way ORYH's hosted-agent display name is: a tenant cannot
+# mint one, or the exemption would be self-service.
+OPERATOR_CONFLICT_CLOSURE_KEY = "oryh_operator_approval_conflict_closure"

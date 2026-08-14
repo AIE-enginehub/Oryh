@@ -16,6 +16,7 @@ from app.core.entity_types import (
     APPROVAL_ENTITY_TYPES,
     BUILTIN_QUEUE_PATHS,
     TODO_ENTITY_TYPES,
+    TODO_STATUSES,
 )
 from app.core.type_options import TYPE_NAME_PATTERN
 
@@ -40,6 +41,7 @@ ResourceBookingStatus = Literal["confirmed", "cancelled"]
 # at the endpoint against the tenant's definition, not by this type.
 TimesheetStatus = str
 # Tenant-configurable via the builtin state machine, same as TimesheetStatus.
+LeaveStatus = str
 ExpenseStatus = str
 PurchaseStatus = str
 QuotationStatus = str
@@ -98,7 +100,15 @@ SourceType = Literal["web", "api", "ai", "system"]
 ApprovalEntityType = Literal[APPROVAL_ENTITY_TYPES]  # type: ignore[valid-type]
 TodoEntityType = Literal[TODO_ENTITY_TYPES]  # type: ignore[valid-type]
 TenantStatus = Literal["active", "inactive"]
-TodoStatus = Literal["open", "completed"]
+# `cancelled` is not a third flavour of done — it is the honest word for a work
+# item that stopped being actionable without anybody doing it. The server sets
+# it when the record a todo points at is deleted, and a flow agent sets it when
+# the workspace's own rules retire the work. Recording either as `completed`
+# would make a person's queue history claim they did something they did not.
+# Derived, not restated. The third copy of this list is what let the
+# database keep a narrower one than the API for the whole life of the
+# product.
+TodoStatus = Literal[TODO_STATUSES]
 # tenant-defined role names; validated against the tenant roles table
 UserRole = str
 RegistrationStatus = Literal["pending_email", "pending_review", "approved", "rejected"]
@@ -1597,6 +1607,10 @@ class EmployeeBase(RequestModel):
     name: str | None = Field(default=None, max_length=200)
     email: str | None = Field(default=None, max_length=320)
     timezone: str | None = Field(default=None, max_length=100)
+    # 入职日期 — what 工龄 is measured from, and therefore what a leave
+    # entitlement is computed against. Null means nobody stated it, which an
+    # agent should ask about rather than guess around.
+    hire_date: date | None = None
     status: EmployeeStatus = "active"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -1615,6 +1629,7 @@ class EmployeeRead(APIModel):
     name: str
     email: str | None = None
     timezone: str | None = None
+    hire_date: date | None = None
     status: EmployeeStatus
     metadata_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("metadata_jsonb", "metadata"),
@@ -2512,6 +2527,71 @@ class TimesheetHeaderRead(APIModel):
 TimesheetHeaderListEnvelope = ListEnvelope[TimesheetHeaderRead]
 
 
+class CreateEmployeeLeaveRequest(RequestModel):
+    """One absence. Note what is NOT here: any statement about entitlement.
+
+    The server is not told, and does not ask, how many days this person has —
+    that follows from the tenant's leave policy applied to their 工龄 and their
+    other leave, and it is recomputed every time somebody wants to know. A
+    request that exceeds the allowance is still a legal record of a request;
+    whether it is granted is the approver's call, informed by the same
+    computation.
+    """
+
+    employee_id: str
+    # a `leave_type` type-option value, validated against the tenant's list
+    leave_type: str = Field(max_length=50)
+    from_date: date
+    thru_date: date
+    # Days, halves allowed. The agent computes it from the tenant's rules about
+    # weekends and holidays BEFORE filing; the server records the figure that
+    # was agreed rather than subtracting two dates itself.
+    duration_days: float = Field(gt=0)
+    reason: str | None = Field(default=None, max_length=2000)
+    status: LeaveStatus = "draft"
+    source_report_text: str | None = Field(default=None, max_length=10000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateEmployeeLeaveRequest(RequestModel):
+    leave_type: str | None = Field(default=None, max_length=50)
+    from_date: date | None = None
+    thru_date: date | None = None
+    duration_days: float | None = Field(default=None, gt=0)
+    reason: str | None = Field(default=None, max_length=2000)
+    status: LeaveStatus | None = None
+    source_report_text: str | None = Field(default=None, max_length=10000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class DeleteEmployeeLeaveRequest(RequestModel):
+    deleted_by: str | None = Field(default=None, max_length=100)
+    delete_reason: str | None = Field(default=None, max_length=2000)
+
+
+class EmployeeLeaveRead(APIModel):
+    id: str
+    employee_id: str
+    leave_type: str
+    from_date: date
+    thru_date: date
+    duration_days: float
+    reason: str | None = None
+    status: LeaveStatus
+    submitted_at: datetime | None = None
+    source_report_text: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+EmployeeLeaveListEnvelope = ListEnvelope[EmployeeLeaveRead]
+EmployeeLeaveEnvelope = Envelope[EmployeeLeaveRead]
+
+
 class TimesheetEntryBase(RequestModel):
     header_id: str | None = None
     employee_id: str | None = None
@@ -2910,7 +2990,16 @@ class CreateApprovalRecordRequest(RequestModel):
     comment: str | None = Field(default=None, max_length=2000)
     source: SourceType | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    acted_at: datetime
+    # Omit it. The server stamps the moment of the call, which is what the
+    # decision moment is for every approval made through this API.
+    #
+    # It was required, and a required timestamp is a question an agent cannot
+    # answer — it has no clock, so it took the most plausible date in front of
+    # it, usually one off the document being approved. That is how production
+    # acquired approvals recorded before their target existed. Supply it only
+    # when the person you act for said the decision happened at another time;
+    # the server refuses a future time and one before the target existed.
+    acted_at: datetime | None = None
 
 
 class ApprovalRecordRead(APIModel):
@@ -2920,6 +3009,9 @@ class ApprovalRecordRead(APIModel):
     round_no: int
     sequence_no: int
     action: ApprovalAction
+    # Historical conflict closure is operator-only remediation metadata; the
+    # create request deliberately has no matching field.
+    historical_conflict_closed: bool = False
     approver_id: str | None = None
     approver_role: str | None = None
     comment: str | None = None
@@ -3049,8 +3141,22 @@ class TodoTargetSummary(APIModel):
     customer_name: str | None = None
     approval_count: int = 0
     last_approval: TodoLastApproval | None = None
-    # the target row is gone (deleted); the todo is dangling
+    # no row of this type carries this id at all. Either the id never named
+    # anything here, or the row was removed by something other than the API.
+    # This is a data-integrity report, not a workflow state.
     missing: bool = False
+    # the row exists and is soft-deleted, so its own detail endpoint answers
+    # 404 while this list happily described it. That disagreement is what the
+    # flag exists to end: an agent that reads a target here and then fetches it
+    # got a summary and then nothing, with no way to tell a deletion from an
+    # outage.
+    #
+    # Deleting a document cancels its open todos, so an open todo on a deleted
+    # target is from before that was true, or from a route that bypassed the
+    # API. Either way it is worth a person's attention rather than an agent's
+    # cleanup — `_common/stale-todo-sweep.md` tells agents to report these and
+    # not to close them.
+    deleted: bool = False
 
 
 class TodoRead(APIModel):

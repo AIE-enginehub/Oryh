@@ -8,6 +8,8 @@ required_capability: business_object.summarize
 
 Turn a set of business-object records into a briefing. This is the read/aggregate counterpart to `$oryh-business-object`: that skill records one object at a time, this one reads many and summarizes them. It never creates, edits, or advances anything.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "总结一下这周的日报"

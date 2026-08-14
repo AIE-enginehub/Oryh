@@ -68,8 +68,7 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     post(client, headers, f"/expense-claims/{claim_id}/submit", {})
     post(client, headers, "/approval-records", {
         "entity_type": "expense_claim", "entity_id": claim_id,
-        "action": "approved", "sequence_no": 2, "acted_at": "2026-06-04T10:00:00Z",
-        "approver_id": approver, "comment": "票据齐全",
+        "action": "approved", "sequence_no": 2, "approver_id": approver, "comment": "票据齐全",
     })
 
     object_id = post(client, headers, "/business-objects", {
@@ -107,8 +106,7 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     # employee lookup (this passed on sqlite and 500ed on the real stack)
     post(client, headers, "/approval-records", {
         "entity_type": "expense_claim", "entity_id": claim_id,
-        "action": "commented", "acted_at": "2026-06-04T11:00:00Z",
-        "approver_id": "workflow-admin", "sequence_no": 2,
+        "action": "commented", "approver_id": "workflow-admin", "sequence_no": 2,
     })
     refreshed = targets_by_type(client, headers, approver)["expense_claim"]
     assert refreshed["last_approval"]["approver_name"] == "workflow-admin"

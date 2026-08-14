@@ -153,7 +153,6 @@ def test_purchase_flow_with_optional_vendor_product_price(client: TestClient) ->
             "sequence_no": 2,
             "approver_role": "manager",
             "source": "ai",
-            "acted_at": "2026-07-12T10:00:00Z",
         },
         headers=api_key_headers(),
     )

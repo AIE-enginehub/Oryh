@@ -16,6 +16,8 @@ This skill is **not** company-specific — it is the one oryh skill installed
 once per machine, unprefixed. Every other skill belongs to exactly one
 employer and is named after it.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "帮我连上公司的 oryh"

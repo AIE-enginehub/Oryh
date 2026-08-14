@@ -27,6 +27,8 @@ artifact correctly, and the two failure modes are silent ones:
 
 Both are resolved the same way: **ask the person**. They have the file open.
 
+{{include:_common/answer-the-question.md}}
+
 ## The Code Is The Identity
 
 Every row needs the tenant's own code — `product_code`, `vendor_code`, or

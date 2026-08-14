@@ -25,6 +25,8 @@ oryh:
 
 ## The Check-in
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 Three waves, not eleven. Everything inside a wave is independent — send it

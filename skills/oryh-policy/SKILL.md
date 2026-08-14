@@ -22,6 +22,8 @@ Two ideas run through everything here:
   would only be a second source of truth free to drift from the prose. **You
   can read the prose.**
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 ## Trigger Examples

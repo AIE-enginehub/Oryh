@@ -281,7 +281,6 @@ def test_timesheet_flow(client: TestClient) -> None:
             "approver_id": "mgr-1",
             "approver_role": "manager",
             "source": "ai",
-            "acted_at": "2026-03-11T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -478,7 +477,6 @@ def test_approval_target_soft_delete_include_deleted_and_restore(client: TestCli
             "entity_type": "approval_target",
             "entity_id": approval_target_id,
             "action": "submitted",
-            "acted_at": "2026-04-02T13:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -557,7 +555,6 @@ def test_business_object_crud_links_approval_and_todo(client: TestClient) -> Non
             "action": "submitted",
             "approver_id": approver_employee_id,
             "source": "ai",
-            "acted_at": "2026-04-22T09:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -591,7 +588,6 @@ def test_business_object_soft_delete_blocks_links_and_approval(client: TestClien
             "entity_type": "business_object",
             "entity_id": warranty_card_id,
             "action": "submitted",
-            "acted_at": "2026-04-22T09:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1004,7 +1000,6 @@ def test_approval_record_listing_and_detail(client: TestClient) -> None:
             "sequence_no": 2,
             "action": "commented",
             "comment": "Needs clarification",
-            "acted_at": "2026-03-10T09:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1019,7 +1014,6 @@ def test_approval_record_listing_and_detail(client: TestClient) -> None:
             "sequence_no": 3,
             "action": "approved",
             "approver_id": "mgr-2",
-            "acted_at": "2026-03-10T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1053,7 +1047,6 @@ def test_approval_target_approval_records_do_not_generate_or_complete_employee_t
             "approver_id": approver_employee_id,
             "approver_role": "manager",
             "source": "ai",
-            "acted_at": "2026-04-02T09:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1076,7 +1069,6 @@ def test_approval_target_approval_records_do_not_generate_or_complete_employee_t
             "action": "approved",
             "approver_id": approver_employee_id,
             "source": "ai",
-            "acted_at": "2026-04-02T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1144,7 +1136,6 @@ def test_approval_todo_is_created_and_completed_explicitly(client: TestClient) -
             "action": "approved",
             "approver_id": approver_employee_id,
             "approver_role": "manager",
-            "acted_at": "2026-03-10T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1268,7 +1259,6 @@ def test_tenant_isolation_across_resources(client: TestClient) -> None:
             "entity_id": header_id,
             "action": "approved",
             "sequence_no": 2,
-            "acted_at": "2026-03-12T10:00:00Z",
         },
         headers=api_key_headers(TEST_API_KEY),
     ).json()["data"]["id"]
@@ -1381,10 +1371,10 @@ def test_todo_optional_pagination_and_keyword_contract(client: TestClient) -> No
 def test_approval_optional_pagination_action_and_keyword_contract(client: TestClient) -> None:
     employee_id = create_employee(client)
     header_id = create_header(client, employee_id)
-    for sequence_no, action, comment, acted_at in (
-        (1, "commented", "Needle clarification", "2026-03-10T09:00:00Z"),
-        (2, "approved", "Needle resolved", "2026-03-10T10:00:00Z"),
-        (3, "commented", "Unrelated", "2026-03-10T11:00:00Z"),
+    for sequence_no, action, comment in (
+        (1, "commented", "Needle clarification"),
+        (2, "approved", "Needle resolved"),
+        (3, "commented", "Unrelated"),
     ):
         response = client.post(
             "/api/v1/approval-records",
@@ -1394,7 +1384,6 @@ def test_approval_optional_pagination_action_and_keyword_contract(client: TestCl
                 "sequence_no": sequence_no,
                 "action": action,
                 "comment": comment,
-                "acted_at": acted_at,
             },
             headers=api_key_headers(),
         )
@@ -1556,7 +1545,6 @@ def test_the_submission_is_a_fact_the_server_records(client: TestClient) -> None
             "round_no": 1,
             "sequence_no": 1,
             "action": "submitted",
-            "acted_at": "2026-03-10T09:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1578,7 +1566,6 @@ def test_a_decision_cannot_take_the_submissions_place(client: TestClient) -> Non
             "entity_type": "timesheet_header",
             "entity_id": header_id,
             "action": "approved",       # no sequence_no: the trap
-            "acted_at": "2026-03-11T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1592,7 +1579,6 @@ def test_a_decision_cannot_take_the_submissions_place(client: TestClient) -> Non
             "entity_id": header_id,
             "sequence_no": 2,
             "action": "approved",
-            "acted_at": "2026-03-11T10:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1605,7 +1591,6 @@ def test_a_decision_cannot_take_the_submissions_place(client: TestClient) -> Non
             "entity_type": "timesheet_header",
             "entity_id": header_id,
             "action": "commented",
-            "acted_at": "2026-03-11T11:00:00Z",
         },
         headers=api_key_headers(),
     )
@@ -1639,7 +1624,6 @@ def test_the_integrity_audits_own_query_finds_nothing(client: TestClient) -> Non
                 "entity_id": header_id,
                 "sequence_no": 2,
                 "action": "returned" if index == 0 else "approved",
-                "acted_at": "2026-03-11T10:00:00Z",
             },
             headers=api_key_headers(),
         )

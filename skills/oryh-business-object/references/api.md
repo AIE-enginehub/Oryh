@@ -194,7 +194,6 @@ POST /approval-records
   "approver_role": "manager",
   "comment": "approved",
   "source": "ai",
-  "acted_at": "2026-04-22T09:00:00Z",
   "metadata": {
     "workflow_id": "customer-specific-flow"
   }
@@ -239,3 +238,7 @@ PATCH /todos/{todo_id}
   "completed_by": "approver-employee-id"
 }
 ```
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

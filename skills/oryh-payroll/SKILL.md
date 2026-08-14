@@ -31,9 +31,13 @@ The three facts that follow from that:
   credential sees only its own. Do not work around this, and do not repeat a
   colleague's figures to someone who asked.
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 {{include:_common/read-before-you-decide.md}}
+
+{{include:_common/leave-no-orphan-work.md}}
 
 ## Trigger Examples
 
@@ -226,6 +230,30 @@ Whether the batch needs approval before the bank sees it is the workspace's
 decision, in its workflow definition — `$oryh-payment-approval-flow` runs it.
 Do not create the payout in a terminal state to skip a queue you were told
 about.
+
+## 被退回之后
+
+A payslip or a payout that comes back `returned` leaves a rework todo on you,
+and the todo's `description` plus the latest `returned` approval record's
+`comment` say exactly what to fix. Read both before touching anything —
+`GET /approval-records?entity_type=invoice&entity_id={id}`.
+
+**修原单，不要作废重做.** The 一人一期一张 constraint only counts live payslips,
+so voiding and re-issuing does work — and it is the more expensive answer every
+time. It breaks the link between what was rejected and what replaced it, it
+puts two documents in the period's history where the reviewer expects one, and
+the approval trail restarts with no record that a previous round happened.
+Correct the lines on the original and resubmit; the round number advances and
+the whole exchange stays readable.
+
+After a successful resubmit, close your own rework todo
+(`PATCH /todos/{todo_id}` `{"status": "completed"}`). While it stays open the
+document is invisible to the flow admin's queue, so nobody picks it up.
+
+If voiding really is right — the whole batch was computed against the wrong
+month, say — then it is a void, and the rules in "Leave No Orphan Work" above
+apply: the todos are yours to close, and the two documents should name each
+other.
 
 ## What This Skill Never Does
 

@@ -22,6 +22,31 @@ DEFAULT_TIMESHEET_MACHINE: dict = {
     "editable_states": ["draft", "returned"],
 }
 
+# Shipped default for the builtin 请假 lifecycle. Two states the other
+# families do not have, and both are about time passing after approval:
+#
+# `cancelled` — approved leave the person did not take. It cannot be deleted:
+# an approver said yes, and the record of what was approved has to survive the
+# plan changing. Since the balance is COMPUTED, cancelling is the whole of the
+# refund — nothing is credited back because nothing was ever debited.
+# `taken` — the leave actually happened. Optional in the sense that a workspace
+# that never records it just leaves rows at `approved`; for one that does, it
+# is what separates "was allowed to" from "did", which payroll may care about.
+DEFAULT_LEAVE_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "submitted", "approved", "rejected", "returned", "cancelled", "taken"],
+    "transitions": {
+        "draft": ["submitted", "cancelled"],
+        "submitted": ["approved", "rejected", "returned", "cancelled"],
+        "returned": ["submitted", "cancelled"],
+        "approved": ["taken", "cancelled"],
+        "taken": [],
+        "rejected": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft", "returned"],
+}
+
 # Shipped default for the builtin expense-claim lifecycle. Same contract as
 # the timesheet machine; "paid" models the finance payout step and tenants
 # may edit it away.
@@ -193,6 +218,7 @@ DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "
 # and skills lean on those two names existing.
 BUILTIN_MACHINES: dict[str, dict] = {
     "timesheet_header": DEFAULT_TIMESHEET_MACHINE,
+    "employee_leave": DEFAULT_LEAVE_MACHINE,
     "expense_claim": DEFAULT_EXPENSE_MACHINE,
     "purchase_request": DEFAULT_PURCHASE_MACHINE,
     "sales_quotation": DEFAULT_QUOTATION_MACHINE,

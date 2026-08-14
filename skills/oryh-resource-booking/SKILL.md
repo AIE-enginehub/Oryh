@@ -19,6 +19,8 @@ This skill should trigger for user intents like:
 
 This skill is for API usage only. It does not do calendar sync, mail notifications, or approval orchestration by itself.
 
+{{include:_common/answer-the-question.md}}
+
 ## Required inputs
 
 The caller should provide a parameter block like this:

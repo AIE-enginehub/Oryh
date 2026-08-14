@@ -10,6 +10,8 @@ Store tenant-specific business facts when the object is not a built-in module (t
 
 **One skill, every custom type.** What makes a `daily_report` different from a `warranty_card` is tenant data — the object-type definition (fields + lifecycle) and the workflow definition (what a valid submission contains) — both read fresh at use time (rules 1 and 2). A tenant writes a dedicated customer skill for an object type only when the *process* exceeds what reading those definitions can express (e.g. a correction-confirm gate over dirty input, fixed customer-facing 话术); the mere existence of a new object type never justifies a new skill.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "记录一个保修卡申请"

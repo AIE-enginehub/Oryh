@@ -1361,6 +1361,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/employee-leaves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Employee Leaves
+         * @description The rows an agent computes a balance FROM.
+         *
+         *     `overlapping_from`/`overlapping_thru` is the filter that makes the
+         *     computation one call: leave that overlaps the period at all, which is what
+         *     "how much annual leave has this person used this year" needs — a request
+         *     straddling New Year belongs to both years in part, and the caller decides
+         *     how to split it by the tenant's rule. Filtering on `from_date` alone would
+         *     silently drop it from one side.
+         */
+        get: operations["list_employee_leaves_api_v1_employee_leaves_get"];
+        put?: never;
+        /**
+         * Create Employee Leave
+         * @description File one absence.
+         *
+         *     Deliberately absent: any check that the person has the days. Entitlement is
+         *     computed from the tenant's policy, not stored, so the server has nothing to
+         *     check against and inventing one would be the server deciding a rule that
+         *     belongs in a document somebody can revise. Over-requesting is a legal
+         *     record; the approver — informed by the agent's computation — decides.
+         */
+        post: operations["create_employee_leave_api_v1_employee_leaves_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employee-leaves/{leave_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Employee Leave */
+        get: operations["get_employee_leave_api_v1_employee_leaves__leave_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Employee Leave */
+        delete: operations["delete_employee_leave_api_v1_employee_leaves__leave_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Employee Leave */
+        patch: operations["update_employee_leave_api_v1_employee_leaves__leave_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/employee-leaves/{leave_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Employee Leave */
+        post: operations["restore_employee_leave_api_v1_employee_leaves__leave_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/employee-leaves/{leave_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Employee Leave */
+        post: operations["submit_employee_leave_api_v1_employee_leaves__leave_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/employees": {
         parameters: {
             query?: never;
@@ -4356,7 +4446,12 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            /**
+             * Historical Conflict Closed
+             * @default false
+             */
+            historical_conflict_closed: boolean;
             /** Id */
             id: string;
             /** Metadata */
@@ -5746,11 +5841,8 @@ export interface components {
         };
         /** CreateApprovalRecordRequest */
         CreateApprovalRecordRequest: {
-            /**
-             * Acted At
-             * Format: date-time
-             */
-            acted_at: string;
+            /** Acted At */
+            acted_at?: string | null;
             /**
              * Action
              * @enum {string}
@@ -5768,7 +5860,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -5943,12 +6035,56 @@ export interface components {
             /** Tax Id */
             tax_id?: string | null;
         };
+        /**
+         * CreateEmployeeLeaveRequest
+         * @description One absence. Note what is NOT here: any statement about entitlement.
+         *
+         *     The server is not told, and does not ask, how many days this person has —
+         *     that follows from the tenant's leave policy applied to their 工龄 and their
+         *     other leave, and it is recomputed every time somebody wants to know. A
+         *     request that exceeds the allowance is still a legal record of a request;
+         *     whether it is granted is the approver's call, informed by the same
+         *     computation.
+         */
+        CreateEmployeeLeaveRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Duration Days */
+            duration_days: number;
+            /** Employee Id */
+            employee_id: string;
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /** Leave Type */
+            leave_type: string;
+            /** Reason */
+            reason?: string | null;
+            /** Source Report Text */
+            source_report_text?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /**
+             * Thru Date
+             * Format: date
+             */
+            thru_date: string;
+        };
         /** CreateEmployeeRequest */
         CreateEmployeeRequest: {
             /** Email */
             email?: string | null;
             /** Employee Code */
             employee_code?: string | null;
+            /** Hire Date */
+            hire_date?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -7251,7 +7387,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -7261,7 +7397,7 @@ export interface components {
              * @default open
              * @enum {string}
              */
-            status: "open" | "completed";
+            status: "open" | "completed" | "cancelled";
             /** Title */
             title: string;
             /** Todo Type */
@@ -7376,6 +7512,13 @@ export interface components {
             /** Deleted By */
             deleted_by?: string | null;
         };
+        /** DeleteEmployeeLeaveRequest */
+        DeleteEmployeeLeaveRequest: {
+            /** Delete Reason */
+            delete_reason?: string | null;
+            /** Deleted By */
+            deleted_by?: string | null;
+        };
         /** DeleteExpenseClaimRequest */
         DeleteExpenseClaimRequest: {
             /** Delete Reason */
@@ -7464,6 +7607,46 @@ export interface components {
             /** Employee Ids */
             employee_ids?: string[];
         };
+        /** EmployeeLeaveRead */
+        EmployeeLeaveRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Duration Days */
+            duration_days: number;
+            /** Employee Id */
+            employee_id: string;
+            /**
+             * From Date
+             * Format: date
+             */
+            from_date: string;
+            /** Id */
+            id: string;
+            /** Leave Type */
+            leave_type: string;
+            /** Reason */
+            reason?: string | null;
+            /** Source Report Text */
+            source_report_text?: string | null;
+            /** Status */
+            status: string;
+            /** Submitted At */
+            submitted_at?: string | null;
+            /**
+             * Thru Date
+             * Format: date
+             */
+            thru_date: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** EmployeeRead */
         EmployeeRead: {
             /**
@@ -7475,6 +7658,8 @@ export interface components {
             email?: string | null;
             /** Employee Code */
             employee_code?: string | null;
+            /** Hire Date */
+            hire_date?: string | null;
             /** Id */
             id: string;
             /** Metadata */
@@ -7671,6 +7856,11 @@ export interface components {
         /** Envelope[DisplayNameResolutionRead] */
         Envelope_DisplayNameResolutionRead_: {
             data: components["schemas"]["DisplayNameResolutionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[EmployeeLeaveRead] */
+        Envelope_EmployeeLeaveRead_: {
+            data: components["schemas"]["EmployeeLeaveRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[EmployeeRead] */
@@ -8831,6 +9021,12 @@ export interface components {
         ListEnvelope_CustomerRead_: {
             /** Data */
             data: components["schemas"]["CustomerRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[EmployeeLeaveRead] */
+        ListEnvelope_EmployeeLeaveRead_: {
+            /** Data */
+            data: components["schemas"]["EmployeeLeaveRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[EmployeeRead] */
@@ -11438,7 +11634,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -11449,7 +11645,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "open" | "completed";
+            status: "open" | "completed" | "cancelled";
             target?: components["schemas"]["TodoTargetSummary"] | null;
             /** Title */
             title: string;
@@ -11479,6 +11675,11 @@ export interface components {
             currency?: string | null;
             /** Customer Name */
             customer_name?: string | null;
+            /**
+             * Deleted
+             * @default false
+             */
+            deleted: boolean;
             /** Employee Id */
             employee_id?: string | null;
             /** Employee Name */
@@ -11632,12 +11833,35 @@ export interface components {
             /** Tax Id */
             tax_id?: string | null;
         };
+        /** UpdateEmployeeLeaveRequest */
+        UpdateEmployeeLeaveRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Duration Days */
+            duration_days?: number | null;
+            /** From Date */
+            from_date?: string | null;
+            /** Leave Type */
+            leave_type?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Source Report Text */
+            source_report_text?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Thru Date */
+            thru_date?: string | null;
+        };
         /** UpdateEmployeeRequest */
         UpdateEmployeeRequest: {
             /** Email */
             email?: string | null;
             /** Employee Code */
             employee_code?: string | null;
+            /** Hire Date */
+            hire_date?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -12527,7 +12751,7 @@ export interface components {
             /** Due At */
             due_at?: string | null;
             /** Status */
-            status?: ("open" | "completed") | null;
+            status?: ("open" | "completed" | "cancelled") | null;
         };
         /** UpdateTypeOptionRequest */
         UpdateTypeOptionRequest: {
@@ -16040,6 +16264,289 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_DisplayNameResolutionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_employee_leaves_api_v1_employee_leaves_get: {
+        parameters: {
+            query?: {
+                employee_id?: string | null;
+                leave_type?: string | null;
+                status?: string | null;
+                overlapping_from?: string | null;
+                overlapping_thru?: string | null;
+                include_deleted?: boolean;
+                without_open_todo?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_EmployeeLeaveRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_employee_leave_api_v1_employee_leaves_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployeeLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_employee_leave_api_v1_employee_leaves__leave_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                leave_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EmployeeLeaveRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_employee_leave_api_v1_employee_leaves__leave_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                leave_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeleteEmployeeLeaveRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_employee_leave_api_v1_employee_leaves__leave_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                leave_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmployeeLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EmployeeLeaveRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_employee_leave_api_v1_employee_leaves__leave_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                leave_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_employee_leave_api_v1_employee_leaves__leave_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                leave_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

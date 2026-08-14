@@ -16,6 +16,8 @@ The volume is the other reason. A migration is tens of thousands to hundreds
 of thousands of documents; at that size a mistake found on row 200,000 must
 not mean starting over, and one departed customer must not stop the run.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "把老系统的历史报价单导进来"

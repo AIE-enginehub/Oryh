@@ -95,8 +95,7 @@ POST /approval-records
   "round_no": 1,
   "sequence_no": 1,
   "action": "submitted",
-  "approver_role": "submitter",
-  "acted_at": "2026-07-06T09:00:00Z"
+  "approver_role": "submitter"
 }
 ```
 
@@ -113,3 +112,7 @@ Editable while the header is in an editable state (`draft`/`returned` by
 default; 409 otherwise). This is how a wrong period or title is fixed — do
 not delete and recreate, and do not leave a wrong value standing because the
 document is already filled in.
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

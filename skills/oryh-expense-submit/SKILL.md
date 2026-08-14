@@ -30,9 +30,13 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 
 ## Steps
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/read-before-you-decide.md}}
+
+{{include:_common/leave-no-orphan-work.md}}
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (发票时限、抬头要求、类别限额 and the like) and let it shape the conversation from the first receipt — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a claim → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.

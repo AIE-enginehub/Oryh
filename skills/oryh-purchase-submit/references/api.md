@@ -93,8 +93,7 @@ POST /approval-records
   "round_no": 1,
   "sequence_no": 1,
   "action": "submitted",
-  "approver_role": "submitter",
-  "acted_at": "2026-07-11T09:00:00Z"
+  "approver_role": "submitter"
 }
 ```
 
@@ -110,3 +109,7 @@ PATCH /purchase-requests/{request_id}
 Editable while the request is in an editable state (`draft`/`returned` by
 default; 409 otherwise). Detach a wrongly matched vendor by sending `null`;
 the free-text `vendor_name_snapshot` stands on its own.
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

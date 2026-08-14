@@ -39,7 +39,6 @@ oryh:
     todo_id: "todo-id"            # the approver's own open todo for this document
     action: "approved"            # approved | rejected | returned | commented
     comment: "amounts match the receipts"
-    acted_at: "2026-07-11T09:00:00Z"
     round_no: 1                   # copy from the todo's metadata
     sequence_no: 2                # copy from the todo's metadata
     approver_role: "manager"
@@ -56,6 +55,8 @@ trail cannot show it followed one. If the todo carries no sequence, use the
 next free one in the round.
 
 ## Steps
+
+{{include:_common/answer-the-question.md}}
 
 {{include:_common/fewer-round-trips.md}}
 
@@ -88,14 +89,24 @@ POST /approval-records
   "action": "approved",
   "approver_role": "manager",
   "comment": "amounts match the receipts",
-  "source": "ai",
-  "acted_at": "2026-07-11T09:00:00Z"
+  "source": "ai"
 }
 ```
 
 `approver_id` is filled by the server from the authenticated user — do not
 self-report it. Allowed actions: `approved`, `rejected`, `returned`,
 `commented` (an objection that does not decide).
+
+**One step holds one decision.** Re-sending the SAME action is idempotent — a
+retry gets the recorded fact back. A DIFFERENT decision at the same
+`round_no`/`sequence_no` is a **409** naming the one that already stands, with
+who made it and when. That is not your error to retry around: it means the step
+was settled while you were holding a queue you listed earlier — most often by
+the same person in another session. Re-read
+`GET /approval-records?entity_type=…&entity_id=…`, tell the principal what the
+trail actually says, and stop. Revisiting a settled decision is a new round,
+which is the workflow admin's to open, not a second decision in this one.
+`commented` is outside this — an objection may sit beside a decision.
 
 4. **Complete the approver's own todo**: `PATCH /todos/{todo_id}` with
    `{"status": "completed"}` — needs `todos.complete_own` (the default member

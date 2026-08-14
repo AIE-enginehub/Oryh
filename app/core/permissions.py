@@ -13,6 +13,12 @@ from __future__ import annotations
 # (name, scopable, title, description)
 SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ("timesheet.submit_own", False, "提交自己的工时", "创建、填写、提交、重交自己的工时表"),
+    # 请假. `submit_own` like a timesheet, because a leave request is a fact
+    # about the person filing it. What it deliberately does NOT carry is any
+    # notion of entitlement: how many days somebody has is computed from the
+    # tenant's policy, never stored, so there is nothing here to grant.
+    ("leave.submit_own", False, "提交自己的请假", "创建、填写、提交、撤回、重交自己的请假单"),
+    ("leave.advance", False, "推进请假状态", "请假单状态转换（审批终局、退回、销假）——流程推进权"),
     ("timesheet.advance", False, "推进工时状态", "工时表状态转换（审批终局、退回）——流程推进权"),
     ("expense.submit_own", False, "提交自己的报销", "创建、填写、提交、重交自己的报销单，含票据附件上传"),
     ("expense.advance", False, "推进报销状态", "报销单状态转换（审批终局、退回、标记打款）——流程推进权"),
@@ -141,6 +147,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "admin": ALL_PERMISSIONS,
     "member": (
         "timesheet.submit_own",
+        "leave.submit_own",
         "expense.submit_own",
         "purchase.submit_own",
         "quotation.submit_own",
@@ -183,6 +190,7 @@ HOSTED_FLOW_AGENT_DISPLAY_NAME = "ORYH 托管流程代理"
 # tenant it did it in, signed as itself.
 HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
     "timesheet.advance",
+    "leave.advance",
     "expense.advance",
     "purchase.advance",
     "quotation.advance",

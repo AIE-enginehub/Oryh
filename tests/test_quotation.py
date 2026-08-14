@@ -214,7 +214,6 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
             "round_no": 1,
             "sequence_no": 1,
             "action": "submitted",
-            "acted_at": "2026-07-21T09:00:00Z",
         },
         headers=api_key_headers(),
     )

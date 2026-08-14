@@ -209,3 +209,7 @@ Not guarded on purpose: the status of either document — which states mean
   paying it.
 - `POST /approval-records` with `entity_type: "payment"` — the approval fact on
   a 付款申请.
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

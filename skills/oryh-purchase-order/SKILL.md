@@ -20,6 +20,8 @@ Two facts shape every step:
   so there is no submit/approve split and no built-in second approval. Tenants
   wanting PO审批 add it via workflow definitions and the flow agent.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "给戴尔下采购单" / "按上周批的采购申请下单"

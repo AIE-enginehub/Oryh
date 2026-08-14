@@ -18,6 +18,8 @@ The single most important thing you do is **classify before you write**. Tenant 
 
 A requirement usually decomposes across all three. "折扣超过10%要销售总监批" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "成交后必须建订单、生成SO号、追物流到签收" is a process contract — that is a skill. "按客户分级从价格矩阵取价、不得低于成本" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "我想让所有销售的 agent 都按我们的规矩报价"

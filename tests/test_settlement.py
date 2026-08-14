@@ -870,7 +870,6 @@ def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
             "sequence_no": 2,
             "approver_id": person,
             "comment": "账号与档案一致",
-            "acted_at": "2026-08-02T10:00:00Z",
         },
     )
 

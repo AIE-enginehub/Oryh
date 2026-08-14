@@ -192,3 +192,7 @@ Shipped default: `draft → submitted → issued`, then `paid`, `written_off` or
 - `POST /todos` with `entity_type: "invoice"` — a chase-up assignment.
 - `POST /approval-records` with `entity_type: "invoice"` — an approval fact on
   an 开票申请.
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

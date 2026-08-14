@@ -128,8 +128,7 @@ POST /approval-records
   "round_no": 1,
   "sequence_no": 1,
   "action": "submitted",
-  "approver_role": "submitter",
-  "acted_at": "2026-07-10T09:00:00Z"
+  "approver_role": "submitter"
 }
 ```
 
@@ -146,3 +145,7 @@ Editable while the claim is in an editable state (`draft`/`returned` by
 default; 409 otherwise). Fix a wrong title, date, or project here rather
 than deleting the claim and starting over — the items and their attachments
 stay attached.
+
+## When the decision happened
+
+{{include:_common/when-the-decision-happened.md}}

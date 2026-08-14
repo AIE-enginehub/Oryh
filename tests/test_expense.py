@@ -149,7 +149,6 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
             "approver_id": "mgr-1",
             "approver_role": "manager",
             "source": "ai",
-            "acted_at": "2026-07-11T10:00:00Z",
         },
         headers=api_key_headers(),
     )

@@ -177,6 +177,24 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("offset", "抵账", "以款抵款/往来冲抵，不产生实际资金流"),
         ("other", "其他", "未归类的结算方式"),
     ),
+    # 请假类型. A vocabulary rather than a constrained column because the list
+    # is genuinely local: 陪产假 and 丧假 exist in some workspaces and not
+    # others, and their length is set by provincial regulation. Nothing in the
+    # server branches on the value — how many days a type is worth, whether it
+    # is paid, whether it needs a certificate, all of that is in the tenant's
+    # leave policy and read by an agent. This list only keeps the spelling
+    # consistent so "年假" and "年休假" are not two different things.
+    "leave_type": (
+        ("annual", "年假", "带薪年休假"),
+        ("sick", "病假", "因病缺勤；是否需要证明由制度规定"),
+        ("personal", "事假", "因私缺勤"),
+        ("marriage", "婚假", "婚假"),
+        ("maternity", "产假", "产假"),
+        ("paternity", "陪产假", "配偶生育陪护假"),
+        ("bereavement", "丧假", "丧假"),
+        ("compensatory", "调休", "以加班折抵的休假"),
+        ("other", "其他", "未归类的假别"),
+    ),
     "work_type": (
         ("regular", "正常工时", "常规工作时间"),
         ("overtime", "加班", "加班工时"),

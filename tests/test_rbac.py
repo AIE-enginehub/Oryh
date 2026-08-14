@@ -140,7 +140,6 @@ def test_scoped_custom_role(client: TestClient) -> None:
             "entity_id": "00000000-0000-0000-0000-000000000000",
             "action": "approved",
             "sequence_no": 2,
-            "acted_at": "2026-07-06T09:00:00Z",
         },
         headers=vendor["headers"],
     ).status_code == 403  # no approval.record
@@ -740,7 +739,6 @@ def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
             "comment": "ok",
             # required, and required for a reason: an approval fact without
             # the moment it was made cannot be ordered against the submission
-            "acted_at": "2026-07-13T09:00:00+08:00",
         },
         headers=manager["headers"],
     )

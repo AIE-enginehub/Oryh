@@ -23,6 +23,8 @@ Four facts shape everything:
   single most important line in this skill.
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
 
+{{include:_common/answer-the-question.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 ## Trigger Examples

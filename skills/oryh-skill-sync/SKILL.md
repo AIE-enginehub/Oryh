@@ -9,6 +9,8 @@ Tenant admins publish new skills and revise existing ones; this skill keeps your
 
 This copy serves **one employer**. Its key, its manifest and its directory all belong to that company. Someone who works for two companies has two of these, one per directory, and each syncs only its own — never reach across into a sibling `oryh-skills-*` directory.
 
+{{include:_common/answer-the-question.md}}
+
 ## Trigger Examples
 
 - "我的 oryh 技能是最新的吗？"

@@ -20,6 +20,7 @@ from app.models import ObjectTypeDefinition
 # and payments came to be invisible in the console after they shipped.
 BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
     "timesheet_header",
+    "employee_leave",
     "expense_claim",
     "purchase_request",
     "sales_quotation",

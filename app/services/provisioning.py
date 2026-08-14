@@ -14,6 +14,7 @@ from app.services.flow_subscriptions import provision_flow_subscriptions
 from app.services.state_machines import (
     DEFAULT_EXPENSE_MACHINE,
     DEFAULT_INVOICE_MACHINE,
+    DEFAULT_LEAVE_MACHINE,
     DEFAULT_PAYMENT_MACHINE,
     DEFAULT_PURCHASE_ORDER_MACHINE,
     DEFAULT_ORDER_MACHINE,
@@ -226,6 +227,15 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         DEFAULT_TIMESHEET_MACHINE,
     ),
     (
+        "employee_leave",
+        "Employee Leave",
+        "Lifecycle of 请假 requests; edit to add tenant-specific review steps. "
+        "Entitlement rules are NOT here — they live in the tenant's leave policy "
+        "and are applied by an agent, because a balance that was stored would "
+        "outlive the rule it was computed under.",
+        DEFAULT_LEAVE_MACHINE,
+    ),
+    (
         "expense_claim",
         "Expense Claim",
         "Lifecycle of expense claims; edit to add tenant-specific review or payment steps.",
@@ -388,10 +398,23 @@ def provision_system_roles(db: Session, tenant_id: str) -> tuple[int, int]:
     So `admin` is topped up. It is defined as ALL_PERMISSIONS; a tenant that
     narrowed it narrowed it from a smaller universe, and a workspace wanting a
     restricted administrator should make a role rather than hollow out this
-    one. The top-up only ADDS — nothing a tenant granted is ever removed — and
-    only `admin` is touched. `member` and every custom role are left exactly as
-    the tenant left them, because there is no defensible way to guess whether a
-    new capability belongs to a role somebody else designed.
+    one. The top-up only ADDS — nothing a tenant granted is ever removed.
+
+    Every OTHER system role follows the catalog through
+    `catalog_permissions_jsonb`, which records what we last gave it. "There is
+    no defensible way to guess whether a new capability belongs to a role
+    somebody else designed" was true only while `permissions_jsonb` was the
+    single source: a gap in it could be an omission or a decision, and the two
+    look identical. Recording what we gave separates them. A capability in
+    neither the live set nor the baseline was never offered here, so offering
+    it now is not overriding anybody; one in the baseline but not the live set
+    was taken away deliberately, and stays away.
+
+    Custom roles keep the old stance for the old reason, which has not gone
+    anywhere: we ship no defaults for a role a tenant invented, so there is
+    nothing to follow. Their baseline stays NULL and they are never touched.
+    `scripts/reconcile_demo_roles.py` remains the named, reviewed way to widen
+    specific ones.
     """
     created = 0
     widened = 0
@@ -402,18 +425,36 @@ def provision_system_roles(db: Session, tenant_id: str) -> tuple[int, int]:
                 db,
                 Role(
                     tenant_id=tenant_id, name=name, title=name,
-                    permissions_jsonb=list(permissions), is_system=True,
+                    permissions_jsonb=list(permissions),
+                    catalog_permissions_jsonb=list(permissions),
+                    is_system=True,
                 ),
                 select(Role).where(Role.tenant_id == tenant_id, Role.name == name),
             )
             continue
-        if name != "admin" or not existing.is_system:
+        if not existing.is_system:
             continue
+
         held = set(existing.permissions_jsonb or [])
-        missing = [p for p in permissions if p not in held]
-        if missing:
-            existing.permissions_jsonb = list(existing.permissions_jsonb or []) + missing
+        if name == "admin":
+            grant = [p for p in permissions if p not in held]
+        elif existing.catalog_permissions_jsonb is None:
+            # No record of what we ever gave this role, so every gap is
+            # ambiguous and none of them are ours to close. Start the record;
+            # from the next capability onward the comparison works.
+            grant = []
+        else:
+            baseline = set(existing.catalog_permissions_jsonb)
+            grant = [p for p in permissions if p not in baseline and p not in held]
+
+        if grant:
+            existing.permissions_jsonb = list(existing.permissions_jsonb or []) + grant
             widened += 1
+        # Recorded even when nothing was granted: the baseline has to move to
+        # what we ship NOW, or a capability the tenant removes tomorrow gets
+        # re-granted the day after as "never offered".
+        if list(existing.catalog_permissions_jsonb or []) != list(permissions):
+            existing.catalog_permissions_jsonb = list(permissions)
     return created, widened
 
 
@@ -426,3 +467,54 @@ def provision_tenant_defaults(db: Session, tenant_id: str) -> None:
     # Last, and not by accident: it reads the skills and the machines the four
     # calls above just wrote, to derive each subscription's driver and queue.
     provision_flow_subscriptions(db, tenant_id)
+
+
+def unheld_shipped_capabilities(db: Session, tenant_id: str) -> dict[str, list[str]]:
+    """Capabilities that reach NOBODY in this tenant but the administrator.
+
+    Read-only. `provision_system_roles` tops up `admin` and deliberately
+    touches nothing else: a capability missing from a role might be an
+    omission, or might be a decision, and the two are indistinguishable in the
+    data. The sync cannot grant it — but it can say so, and saying so is what
+    was missing when settlement, payroll and leave each shipped to a
+    workspace where the people who needed them got a 403 instead.
+
+    Getting the QUESTION right took two tries, and both wrong versions are
+    worth naming because each fails in the way alarms usually fail.
+
+    "No role holds it" is permanently false: `admin` is defined as every
+    capability and is topped up automatically, so the union always contains
+    everything and the report is silent forever — an alarm that cannot ring.
+
+    "`member` lacks what our defaults give `member`" is permanently true for
+    any workspace that tuned its baseline. Our own demo seed narrows `member`
+    on purpose, so that version reported four settled decisions per tenant —
+    an alarm that always rings, which is the same as one that never does.
+
+    What is actually actionable is narrower than either: a capability that no
+    role a PERSON can hold carries. `quotation.submit_own` sitting only on a
+    custom `sales` role is a workspace organising itself; `leave.submit_own`
+    sitting nowhere but `admin` means the feature shipped and nobody can use
+    it. Only the second is worth a line in a release log.
+
+    Returns {capability: [the non-admin roles our defaults give it to]}.
+    """
+    from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
+
+    roles = list(db.scalars(select(Role).where(Role.tenant_id == tenant_id)))
+    # admin excluded from the union — it holds everything by definition, and
+    # counting it is what made the first version unable to ever fire
+    reachable: set[str] = set()
+    for role in roles:
+        if role.name == "admin" and role.is_system:
+            continue
+        reachable.update(role.permissions_jsonb or [])
+
+    report: dict[str, list[str]] = {}
+    for role_name, shipped in DEFAULT_ROLE_PERMISSIONS.items():
+        if role_name == "admin":
+            continue
+        for capability in shipped:
+            if capability not in reachable:
+                report.setdefault(capability, []).append(role_name)
+    return report

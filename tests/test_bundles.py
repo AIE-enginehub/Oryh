@@ -1418,8 +1418,13 @@ def test_the_approval_skills_say_a_role_change_is_not_a_person_change() -> None:
     # the open-core export, so a flat count would be a silent pass there and an
     # over-strict failure here; `oryh-approve` ships in both.
     assert "oryh-approve" in wants_it
+    # Derived, not a literal: this said "7" and the eighth family (请假) made it
+    # wrong. One flow skill per hosted-drivable family, all of them or — in the
+    # open-core export, which withholds the family — none.
+    from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES
+
     flows = [name for name in wants_it if name.endswith("-approval-flow")]
-    assert len(flows) in (0, 7), f"expected all seven flow skills or none, got {flows}"
+    assert len(flows) in (0, len(HOSTED_DRIVABLE_ENTITY_TYPES)), flows
 
 
 def test_the_write_then_decide_skills_are_told_to_re_read_first() -> None:

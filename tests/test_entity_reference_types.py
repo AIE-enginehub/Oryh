@@ -130,7 +130,7 @@ def test_a_payment_can_carry_an_approval_todo(client: TestClient) -> None:
         "/api/v1/approval-records",
         json={"entity_type": "payment", "entity_id": payment["id"],
               "round_no": 1, "sequence_no": 2, "action": "approved",
-              "approver_id": person, "acted_at": "2026-08-04T09:00:00Z"},
+              "approver_id": person},
         headers=HEADERS,
     )
     assert record.status_code == 201, record.text
@@ -160,7 +160,7 @@ def test_an_invoice_can_too(client: TestClient) -> None:
         "/api/v1/approval-records",
         json={"entity_type": "invoice", "entity_id": invoice["id"],
               "round_no": 1, "sequence_no": 2, "action": "approved",
-              "approver_id": person, "acted_at": "2026-08-04T09:00:00Z"},
+              "approver_id": person},
         headers=HEADERS,
     ).status_code == 201
 
@@ -178,8 +178,7 @@ def test_an_unknown_entity_type_is_a_sentence_not_a_500(client: TestClient) -> N
           "title": "打错了"}),
         ("/api/v1/approval-records",
          {"entity_type": "invoicce", "entity_id": person, "round_no": 1,
-          "sequence_no": 2, "action": "approved", "approver_id": person,
-          "acted_at": "2026-08-04T09:00:00Z"}),
+          "sequence_no": 2, "action": "approved", "approver_id": person}),
     ):
         response = client.post(path, json=body, headers=HEADERS)
         # the Literal refuses it at the door and names the real ones; the
