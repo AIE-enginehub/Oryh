@@ -90,7 +90,7 @@ POST /resource-bookings
   "start_at": "2026-04-03T09:00:00Z",
   "end_at": "2026-04-03T10:00:00Z",
   "quantity": 1,
-  "source_text": "帮我订明天上午 9 点到 10 点的会议室",
+  "source_text": "book me the meeting room tomorrow 9 to 10",
   "notes": "Need a screen",
   "metadata": {}
 }
@@ -108,7 +108,7 @@ POST /resource-bookings
   "start_at": "2026-04-04T09:00:00Z",
   "end_at": "2026-04-04T18:00:00Z",
   "quantity": 2,
-  "source_text": "帮我借两台投影仪到今天下班",
+  "source_text": "lend me two projectors until end of day",
   "metadata": {}
 }
 ```

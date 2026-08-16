@@ -1240,12 +1240,16 @@ def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClie
     assert "improvise" in readme, "the instruction is the point, not the list"
 
     # A plain member is withheld most of the catalog, so the README carries
-    # excerpts — but the excerpt has to keep the words that make 做工资单 find
-    # this entry. Truncating past them would leave a tidy list that matches
-    # nothing, which is the original failure with better formatting.
+    # excerpts — but the excerpt has to keep the words that make a request for
+    # 工资条 find this entry. Truncating past them would leave a tidy list that
+    # matches nothing, which is the original failure with better formatting.
+    #
+    # The description is English prose now, with the Chinese trigger terms kept
+    # as matching keys (see `DESCRIPTION_LINE` in the export). So the term is
+    # what this asserts, not the phrase the description happened to use before.
     entry = readme[readme.index("- **oryh-payroll**"):]
     entry = entry[: entry.index("\n- **")]
-    assert "生成工资条" in entry, entry
+    assert "工资条" in entry, entry
     # …and the full text is still one file away
     assert len(payroll["description"]) > len(entry)
     assert payroll["description"].endswith(".")

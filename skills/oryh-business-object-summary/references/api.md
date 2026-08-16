@@ -15,7 +15,7 @@ Returns the active `json_schema` (which fields exist) and `state_machine` (if an
 ```text
 GET /business-objects?object_type=daily_report
 GET /business-objects?object_type=daily_report&status=open
-GET /business-objects?object_type=daily_report&payload_match={"department":"研发部"}
+GET /business-objects?object_type=daily_report&payload_match={"department":"Engineering"}
 ```
 
 Notes:

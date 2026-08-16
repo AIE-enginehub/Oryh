@@ -36,7 +36,7 @@ signing in.
 - **Documents that already know their shape** — timesheets, expense claims
   with receipt extraction, purchase requests and orders, sales quotations and
   orders, invoices in both directions, payments with an append-only settlement
-  ledger, payroll, billing accounts for 挂账 and points.
+  ledger, payroll, billing accounts for charge-to-account and points.
 - **Your own object types** on top: a warranty card, a site survey, whatever
   the business actually tracks, with a JSON schema and a lifecycle you define.
 - **Tenant-defined authorization** — capabilities, roles, and per-credential

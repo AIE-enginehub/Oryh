@@ -12,10 +12,10 @@ Turn a set of business-object records into a briefing. This is the read/aggregat
 
 ## Trigger Examples
 
-- "总结一下这周的日报"
-- "研发部还有哪些人没交日报"
-- "看看本月的费用申请都是什么情况"
-- "汇总一下张三团队最近的保修卡申请"
+- "Summarise this week's daily reports"
+- "Who in engineering has not filed a daily report?"
+- "How do this month's expense applications look?"
+- "Summarise the recent warranty-card applications from Zhang's team"
 
 ## Required Inputs
 
@@ -31,8 +31,8 @@ oryh:
 ## Steps
 
 1. **Confirm the type and scope** with the principal if either is ambiguous: which `object_type`, what time window, any filter (department, project, a specific person). Do not guess a scope wide enough to include records outside what was asked.
-2. **Read the schema, if one exists**: `GET /object-type-definitions?object_type=<type>` — its `json_schema` tells you what fields are worth summarizing (e.g. a daily report's "完成事项" / "问题" / "明日计划" fields) and its `state_machine` (if any) tells you what statuses mean.
-3. **Fetch the records**: `GET /business-objects?object_type=<type>&payload_match={"field":"value"}` for a payload-field filter (e.g. `{"department":"研发部"}`). There is no server-side date-range filter; `keyword=` searches title/summary/source_text, and `page`/`size` paginate (omit both to get every non-deleted match in one response). For time-window questions, read the results and filter/sort by `created_at` yourself. Say so if the result set looks too large to have summarized completely, rather than silently truncating.
+2. **Read the schema, if one exists**: `GET /object-type-definitions?object_type=<type>` — its `json_schema` tells you what fields are worth summarizing (e.g. a daily report's "done" / "blockers" / "plan for tomorrow" fields) and its `state_machine` (if any) tells you what statuses mean.
+3. **Fetch the records**: `GET /business-objects?object_type=<type>&payload_match={"field":"value"}` for a payload-field filter (e.g. `{"department":"engineering"}`). There is no server-side date-range filter; `keyword=` searches title/summary/source_text, and `page`/`size` paginate (omit both to get every non-deleted match in one response). For time-window questions, read the results and filter/sort by `created_at` yourself. Say so if the result set looks too large to have summarized completely, rather than silently truncating.
 4. **For "who hasn't submitted" questions**, cross-reference `GET /employees?status=active` against a payload field that records the submitter (`created_by` is `user:<user_id>` — mapping user ids to employees needs `users.manage`, which this credential normally lacks) — oryh has no dedicated "missing submission" query, so the gap is computed by the agent, not the API.
 5. **Summarize**, grouped in whatever way answers the question (by person, by status, by day). Call out anything that stands out: overdue or missing entries, a cluster of `rejected`/`returned` statuses, a record whose payload flags a problem.
 

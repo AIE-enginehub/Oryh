@@ -16,7 +16,7 @@ So whenever you retire a record that had work outstanding on it:
   pointed at it, because a work item whose subject is gone cannot be done. You
   will see them come back `cancelled`, not `completed` — nobody did that work.
 - **Retiring it BY STATUS is handled too, when the state is an ending.** The
-  server still has no opinion about what 作废 or 已完成 mean to you. It asks
+  server still has no opinion about what "void" or "done" mean to you. It asks
   your workspace's own state machine two questions instead: does any transition
   leave this state, and is it editable? If the answer is no to both, nothing
   can happen to the document, so the open todos on it are cancelled with it.

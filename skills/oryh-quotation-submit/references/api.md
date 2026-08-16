@@ -17,7 +17,7 @@ GET /sales-quotations?employee_id={me}&status=submitted    → in-flight duplica
 GET /sales-quotations?quote_number=QT-000123&include_deleted=false → every revision of one number
 GET /sales-quotations/{quotation_id}/detail                → quotation + items + adjustments + computed_total + adjustments_total + adjusted_total + unpriced_item_count + revisions + approval trail
 GET /approval-records?entity_type=sales_quotation&entity_id={quotation_id} → progress
-GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation  → tenant rules; apply its 提交要求 (step 2)
+GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation  → tenant rules; apply its submission requirements (step 2)
 ```
 
 ## Create Quotation
@@ -26,22 +26,22 @@ GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation  → t
 POST /sales-quotations
 {
   "employee_id": "my-employee-id",
-  "title": "华欣机械 数控刀具年度报价",
+  "title": "Huaxin Machinery — annual CNC tooling quotation",
   "customer_id": "customer-id-if-confidently-matched",
-  "customer_name_snapshot": "华欣机械",
-  "contact_name": "王工",
+  "customer_name_snapshot": "Huaxin Machinery",
+  "contact_name": "Engineer Wang",
   "contact_phone": "13800000000",
   "quote_date": "2026-07-21",
   "valid_until": "2026-08-20",
   "currency": "CNY",
-  "payment_terms": "款到发货，可月结30天",
-  "delivery_terms": "含运费，华东地区3日达",
-  "remarks": "以上单价均含13%增值税",
-  "source_report_text": "华欣要一批刀具的年度价，铣刀按目录价九折，送两盒样品，月结30天。",
+  "payment_terms": "payment before shipment; net 30 available",
+  "delivery_terms": "freight included; 3 days within East China",
+  "remarks": "all unit prices include 13% VAT",
+  "source_report_text": "Huaxin wants annual pricing on a batch of tools: mills at 10% off list, two boxes of samples included, net 30.",
   "items": [
     {"line_no": 1, "product_id": "product-id-if-matched", "quantity": 200,
      "unit_price": 85.00, "tax_rate": 13},
-    {"line_no": 2, "product_name_snapshot": "样品两盒", "quantity": 2,
+    {"line_no": 2, "product_name_snapshot": "Samples, two boxes", "quantity": 2,
      "unit_price": 0, "is_gift": true}
   ]
 }
@@ -52,7 +52,8 @@ transaction — a bad line rolls everything back, and the response echoes the
 lines as they landed (your read-back material). Catalog `list_price_snapshot`
 capture works identically inline. Up to 200 lines.
 
-Status starts at `draft`. `POST /sales-quotation-items` (below) remains the way to ADD a line to an existing `draft`/`returned` quotation. `quote_number` omitted → the server allocates the next `QT-NNNNNN` (bring your own only for tenant numbering conventions; duplicates 409). Both customer fields are optional: a matched `customer_id` backfills an empty snapshot; free text alone is the new-prospect case. `total_amount` is usually set later, once the lines exist and a document total is negotiated (抹零) — omit it and the line sum is the total.
+Status starts at `draft`. `POST /sales-quotation-items` (below) remains the way to ADD a line to an existing `draft`/`returned` quotation. `quote_number` omitted → the server allocates the next `QT-NNNNNN` (bring your own only for tenant numbering conventions; duplicates 409). Both customer fields are optional: a matched `customer_id` backfills an empty snapshot; free text alone is the new-prospect case. `total_amount` is usually set later, once the lines exist and a document total is negotiated (rounding it down, for instance) — omit it and
+the line sum is the total.
 
 ## Items
 
@@ -63,15 +64,15 @@ POST /sales-quotation-items
   "line_no": 1,
   "product_id": "product-id-if-confidently-matched",
   "sku_id": "sku-id-when-the-variant-is-decided",
-  "product_name_snapshot": "四刃立铣刀",
-  "spec": "D10 硬质合金",
+  "product_name_snapshot": "Four-flute end mill",
+  "spec": "D10 carbide",
   "quantity": 200,
-  "unit": "支",
+  "unit": "each",
   "unit_price": 85.00,
   "tax_rate": 13,
-  "lead_time": "现货",
+  "lead_time": "in stock",
   "is_gift": false,
-  "notes": "按目录价九折"
+  "notes": "10% off list price"
 }
 ```
 
@@ -80,10 +81,11 @@ POST /sales-quotation-items
 - Gift lines: `"is_gift": true, "unit_price": 0` — counted as 0 in totals, never as "unpriced" and never as a 100% discount.
 - `line_no` is the printed document order; `/detail` returns lines sorted by it.
 
-## Adjustments (整单/行级调整)
+## Adjustments (document-level and line-level)
 
 Signed amounts that move the total beside the line math — the explicit home
-for 促销、税、运费、手续费、附加费、抹零 (OFBiz QuoteAdjustment shaped):
+for promotions, tax, freight, handling, surcharges and rounding (OFBiz
+QuoteAdjustment shaped):
 
 ```json
 POST /sales-quotation-adjustments
@@ -91,23 +93,25 @@ POST /sales-quotation-adjustments
   "quotation_id": "quotation-id",
   "adjustment_type": "promotion",
   "amount": -500.00,
-  "description": "开业促销减500",
+  "description": "opening promotion, less 500",
   "quotation_item_id": "item-id-or-omit-for-header-level",
   "source_percentage": 5
 }
 ```
 
 - `adjustment_type`: the shipped catalog is `discount | promotion | tax | shipping | fee | surcharge | rounding | other`;
-  the tenant may have added their own (开票服务费…) or archived shipped ones —
+  the tenant may have added their own (an invoicing service fee…) or archived
+  shipped ones —
   the current vocabulary is `GET /type-options?family=sales_adjustment_type`,
   and an unknown value is a 422 listing the active options. The same
   vocabulary governs order adjustments. A charge that fits none of them
-  (开票服务费、安装费…) is a new type: propose it, then
+  (an invoicing service fee, an installation charge…) is a new type: propose it, then
   `POST /type-options {"family": "sales_adjustment_type", "name":
-  "invoicing_fee", "title": "开票服务费"}` (needs `object_types.manage`; on
+  "invoicing_fee", "title": "Invoicing service fee"}` (needs `object_types.manage`; on
   403 ask an admin) — never file it as `other` when it has a real name the
   customer sees on the quote.
-- `amount` is SIGNED: negative reduces the total (促销/折扣/抹零), positive adds (税/运费/附加费).
+- `amount` is SIGNED: negative reduces the total (promotion, discount, rounding),
+  positive adds (tax, freight, surcharge).
 - Omit `quotation_item_id` for a document-level adjustment; set it to pin the
   adjustment to one line (400 if the line belongs to another quotation).
 - `source_percentage` records the rate it was derived from, when there was
@@ -121,7 +125,7 @@ POST /sales-quotation-adjustments
   adjustments and the declared `total_amount` should EQUAL `adjusted_total`;
   a residual gap is undocumented and the approval side will ask about it.
 - A per-line price concession is still `unit_price` vs `list_price_snapshot`
-  — that is where 单价折扣 lives. Adjustments are for amounts that sit
+  — that is where a unit-price discount lives. Adjustments are for amounts that sit
   BESIDE the line prices, not a second way to discount a unit price.
 
 `PATCH /sales-quotation-items/{id}` / `DELETE` while the quotation is editable (409 otherwise). Swapping a line's product refreshes `list_price_snapshot` to the new product's catalog price automatically.
@@ -137,7 +141,7 @@ customer_id / product_id / sku_id / attachment_id / project_id must exist here �
 sku_id          must belong to product_id (sku alone derives it) → 400 otherwise
 ```
 
-## Historical Import (迁移专用)
+## Historical Import (migration only)
 
 A retired system's export, not today's filing. `POST /sales-quotations/bulk`
 takes up to 500 documents per call, each carrying its own lines and
@@ -148,8 +152,8 @@ adjustments:
   "quote_number": "QT-2023-000001",      // REQUIRED — history keeps its number
   "employee_code": "E-001",              // the salesperson; by code (or employee_id)
   "customer_code": "C-001",              // resolved against customer master data
-  "customer_name_snapshot": "华欣机械",   // what the document printed
-  "title": "2023年刀具年度报价", "quote_date": "2023-03-15",
+  "customer_name_snapshot": "Huaxin Machinery",   // what the document printed
+  "title": "2023 annual tooling quotation", "quote_date": "2023-03-15",
   "status": "accepted",                  // terminal states import AS-IS
   "total_amount": 1130.00,
   "items": [{"line_no": 1, "product_code": "P-001", "quantity": 10,
@@ -163,7 +167,7 @@ adjustments:
   twice reports `unchanged`, which is how a half-finished migration resumes —
   just run it again. Nothing is server-allocated, so the number allocator's
   per-tenant lock never throttles the import (~385 docs/sec measured).
-- **`status` accepts any state of the tenant's machine.** 成交/流失 documents
+- **`status` accepts any state of the tenant's machine.** Won and lost documents
   are recorded as they ended; they are NOT walked through the lifecycle.
 - **Master data is referenced by the tenant's own codes** (`employee_code`,
   `customer_code`, `product_code`, `sku_code`, `project_code`) — import the
@@ -200,14 +204,15 @@ POST /sales-quotations/{id}/send
 
 ```json
 POST /sales-quotations/{id}/close
-{"outcome": "accepted", "outcome_note": "按 v2 报价签约，合同号 HT-2026-088"}
+{"outcome": "accepted", "outcome_note": "signed on the v2 quotation, contract HT-2026-088"}
 ```
 
-`sent → accepted | declined | expired`; sets `closed_at`. `outcome_note` is where 成交确认/流失原因 live.
+`sent → accepted | declined | expired`; sets `closed_at`. `outcome_note` is where
+the confirmation of a win, or the reason for a loss, lives.
 
 ```json
 POST /sales-quotations/{id}/revise
-{"reason": "客户要求铣刀单价降到 80"}
+{"reason": "customer asked for the mill unit price to come down to 80"}
 ```
 
 `approved/sent → superseded` on the old revision; returns a fresh `draft` with `revision_no + 1`, same `quote_number`, lines copied, catalog snapshots refreshed to today's truth. Adjust, read back, submit again. Revise is NOT retry-idempotent: retrying after success returns 409 "already superseded" — recover the new draft via `GET /sales-quotations?quote_number={n}` (highest `revision_no`).
@@ -232,7 +237,7 @@ POST /approval-records
 
 ```text
 PATCH /sales-quotations/{quotation_id}
-{"title": "市第一人民医院 JC-800 采购报价", "valid_until": "2026-08-25", "remarks": "折扣理由：战略客户，年内第三次采购"}
+{"title": "City First Hospital — JC-800 purchase quotation", "valid_until": "2026-08-25", "remarks": "discount rationale: strategic account, third purchase this year"}
 ```
 
 Editable while the quotation is in an editable state (`draft`/`returned` by

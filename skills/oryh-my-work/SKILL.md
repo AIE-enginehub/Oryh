@@ -9,10 +9,10 @@ The check-in routine for every employee's local agent (WorkBuddy-style), approve
 
 ## Trigger Examples
 
-- "今天有什么要办的？"
-- "我的工时批下来了吗？"
-- "打开时先看看 oryh 有没有我的任务"
-- "有没有被退回要修改的东西？"
+- "What is on my plate today?"
+- "Has my timesheet been approved?"
+- "Check oryh for my tasks when I start"
+- "Is there anything returned that I need to fix?"
 
 ## Required Inputs
 
@@ -65,7 +65,7 @@ of each of MY in-flight submissions. (Todo context needs nothing here — wave
 
    per in-flight item:
    GET /approval-records?entity_type=…&entity_id=…
-   → "经理已批，正在财务复核" — position is read from the trail, never
+   → "the manager approved it; finance is reviewing" — position is read from the trail, never
      from the status field.
    Zero in-flight items → wave 2 is zero requests. Skip it; never spend a
    turn on an empty batch to honor the structure.
@@ -79,16 +79,16 @@ WAVE 3 — one batch, using the state names wave 1 read. See step 5.
    the defaults in parentheses are what an untouched workspace calls them,
    not what this one necessarily does:
 
-   quotation cleared-but-unsent  (default `approved`)  → 批下来了，还没发
-   quotation with the customer   (default `sent`)      → 待客户答复
-   order awaiting fulfilment     (default `confirmed`) → 待发货
+   quotation cleared-but-unsent  (default `approved`)  → approved, not yet sent
+   quotation with the customer   (default `sent`)      → awaiting the customer
+   order awaiting fulfilment     (default `confirmed`) → awaiting shipment
    order in transit              (default `shipped` — often renamed, e.g.
-                                  `in_delivery`)       → 在途（跟到签收）
+                                  `in_delivery`)       → in transit (followed to sign-off)
 
    as `GET /sales-quotations?employee_id={me}&status=<name>` etc., all four
    in one batch.
    → a 422 here means the substitution was skipped or wrong; the error lists
-     the real states — map the intent and retry. **Never report "没有在途订单"
+     the real states — map the intent and retry. **Never report "no orders in transit"
      off a failed or empty query you did not check** — that is the same
      sentence whether there is nothing to chase or you asked about a state
      this company does not have.

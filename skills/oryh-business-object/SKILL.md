@@ -8,16 +8,16 @@ required_capability: business_object.write
 
 Store tenant-specific business facts when the object is not a built-in module (timesheets, bookings). oryh records objects, links, and facts; workflow definitions and the flow admin own the process around them.
 
-**One skill, every custom type.** What makes a `daily_report` different from a `warranty_card` is tenant data — the object-type definition (fields + lifecycle) and the workflow definition (what a valid submission contains) — both read fresh at use time (rules 1 and 2). A tenant writes a dedicated customer skill for an object type only when the *process* exceeds what reading those definitions can express (e.g. a correction-confirm gate over dirty input, fixed customer-facing 话术); the mere existence of a new object type never justifies a new skill.
+**One skill, every custom type.** What makes a `daily_report` different from a `warranty_card` is tenant data — the object-type definition (fields + lifecycle) and the workflow definition (what a valid submission contains) — both read fresh at use time (rules 1 and 2). A tenant writes a dedicated customer skill for an object type only when the *process* exceeds what reading those definitions can express (e.g. a correction-confirm gate over dirty input, fixed customer-facing wording); the mere existence of a new object type never justifies a new skill.
 
 {{include:_common/answer-the-question.md}}
 
 ## Trigger Examples
 
-- "记录一个保修卡申请"
-- "把这条维修记录挂到那张保修卡下面"
-- "更新这个业务对象的字段"
-- "查询某张保修卡下的维修记录"
+- "Record a warranty-card application"
+- "Attach this repair record to that warranty card"
+- "Update this business object's fields"
+- "List the repair records under a given warranty card"
 
 ## Required Inputs
 
@@ -34,26 +34,26 @@ The rest is business context from the conversation or the calling customer skill
 
 0. **Is this already a built-in? Decide before you define.** Custom objects are
    for what ORYH does not ship. `GET /builtin-object-types` lists every shipped
-   collection with the words that mean it, so "帮我建个产品对象" is recognisable
+   collection with the words that mean it, so "create a product object for me" is recognisable
    as `products` before anything is written.
 
    **The server will not stop you.** It states the fact and leaves the reading
-   to you, because whether this company's "产品" is our `products` is a question
+   to you, because whether this company's "product" is our `products` is a question
    about their business, and you are the one who can ask them. A 409 could not.
 
-   So the judgement is yours, and it is not only exact matches: `货品`,
-   `merchandise`, `商品目录` are the same thing under another name, and the
+   So the judgement is yours, and it is not only exact matches: `goods`,
+   `merchandise`, `product catalog` are the same thing under another name, and the
    endpoint will not say so. When it matches — exactly or in meaning — **say so
    and stop**: name the real collection, say what is already in it, and ask
    whether that is what they meant. Fields it lacks belong in `custom_fields` on
    the real record.
 
-   **Never resolve a collision by renaming** to `product_2` or `产品_new`. That
+   **Never resolve a collision by renaming** to `product_2` or `product_new`. That
    is the same two-sources-of-truth with a worse name, and once the shadow has
    rows nothing merges them back. If they confirm it genuinely means something
    else in this company, name it after what makes it different.
 1. **Check the type definition first**: `GET /object-type-definitions?object_type=<type>` — if it exists, the payload must conform to its JSON Schema (422 with the failing path otherwise) and status changes obey its state machine. Types without a definition are free-form with the default status set.
-2. **Read the tenant's submission requirements**: `GET /workflow-definitions?entity_kind=business_object&object_type=<type>` — the active definition's 提交要求 (required evidence, numbering conventions, who reviews) shapes the conversation before you write; the flow admin calibrates against the same text, so a requirement skipped here is a guaranteed rework round. No definition → only the schema applies; never invent requirements.
+2. **Read the tenant's submission requirements**: `GET /workflow-definitions?entity_kind=business_object&object_type=<type>` — the active definition's submission requirements (required evidence, numbering conventions, who reviews) shapes the conversation before you write; the flow admin calibrates against the same text, so a requirement skipped here is a guaranteed rework round. No definition → only the schema applies; never invent requirements.
 3. **Payload is a full replacement on PATCH**: read the object, merge changes in the agent, send the complete payload. Sending only changed keys deletes the rest.
 4. **Statuses are the coarse lifecycle, not workflow position.** Do not advance `status` from this skill — that requires `business_object.advance` (flow admin / admin credential). While an approval flow runs, the object's status does not move; progress lives in approval records and todos.
 5. **Scoped permissions**: the credential may be limited to specific object types (`business_object.write:<type>`); a 403 names the missing capability — do not retry with another type to "work around" it.

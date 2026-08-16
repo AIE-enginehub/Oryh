@@ -57,6 +57,12 @@ approval_notification:
 
 ## Suggested email templates
 
+**Write in the recipient's language, not this page's.** The bodies below are
+the shape and the fields, not the wording to send: a person who works in
+Chinese should receive a Chinese message. Take the language from the workspace's
+own data — the document title, the object type's label, how the principal
+writes — and keep the placeholders as they are.
+
 ### approval_requested
 
 Subject:
@@ -68,14 +74,14 @@ Approval needed: {entity_title}
 Body:
 
 ```text
-{approver_name}，你好：
+Hello {approver_name},
 
-有一项业务记录需要你审批。
-类型：{entity_type}
-标题：{entity_title}
-摘要：{summary}
+A record needs your approval.
+Type: {entity_type}
+Title: {entity_title}
+Summary: {summary}
 
-请查看并完成审批：
+Review and approve it here:
 {detail_url}
 ```
 
@@ -90,10 +96,10 @@ Reminder: pending approval for {entity_title}
 Body:
 
 ```text
-这是对先前审批请求的提醒。以下业务记录仍待处理：
+A reminder about an earlier approval request. This record is still pending:
 {entity_title}
 
-请查看：
+Review it here:
 {detail_url}
 ```
 

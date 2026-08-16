@@ -1,4 +1,4 @@
-# Invoices, payments and 核销
+# Invoices, payments and settlement
 
 How the order-to-cash tail is modeled, and why each decision went the way it
 did. The short version: **the server guards the money, the agent decides the
@@ -11,7 +11,7 @@ process**, and settlement progress is derived rather than stored as a state.
 
 An invoice fails that same test, so it follows OFBiz's `Invoice` instead: one
 table, direction on a column. The closure mechanic is *identical* on both sides
-— apply money until nothing is outstanding — and a 增值税发票 has one physical
+— apply money until nothing is outstanding — and a VAT invoice has one physical
 shape whether we issued it or received it. Splitting would have duplicated the
 settlement machinery, which is the expensive half.
 
@@ -29,7 +29,7 @@ settle; an invoice filed the wrong way round is voided and refiled.
 |---|---|---|
 | `Invoice.invoiceTypeId` | `invoices.direction` + `invoice_type` | direction is structural; the tax-document kind is tenant vocabulary |
 | `Invoice(invoiceTypeId = PAYROL_INVOICE)` | `invoices.direction = 'payroll'` | a payslip is an invoice payable to an employee, so the whole settlement path is reused unchanged — see [payroll.md](payroll.md) |
-| `InvoiceItem.invoiceItemTypeId` | `invoice_items.invoice_item_type` | 运费/折扣/税 are line types, so this family needs no adjustments table (unlike quotations and orders, which have one) |
+| `InvoiceItem.invoiceItemTypeId` | `invoice_items.invoice_item_type` | freight, discount and tax are line types, so this family needs no adjustments table (unlike quotations and orders, which have one) |
 | `OrderItemBilling` | `invoice_items.sales_order_item_id` / `purchase_order_item_id` | explicit FKs, matching how `PurchaseOrderItem.purchase_request_item_id` records its own chain |
 | `Payment.paymentTypeId` | `payments.direction` | same reasoning as the invoice |
 | `PaymentApplication` | `payment_applications` | kept whole, including `toPaymentId` |
@@ -79,7 +79,7 @@ The rule that makes it stick: **an invoice must bill something.** Neither lines
 nor a declared `total_amount` is a 422, because such a document is not a draft
 awaiting detail — its `billed_total` is 0, nothing can ever be settled against
 it, and it says nothing. A header-only invoice with a stated total remains
-perfectly legal; that is how most 汇总开票 arrive.
+perfectly legal; that is how most summary invoices arrive.
 
 `POST /invoice-items` still exists, for adding a line to an invoice that already
 has some. It is not how an invoice is raised.
@@ -124,7 +124,7 @@ Everything follows from that:
   purchase order needs none.
 - `billed_total` is the declared `total_amount` when the tenant stated one,
   else the live line sum. This is what makes a header-only invoice — no lines
-  at all, which is how most 汇总开票 arrive — a complete, settleable document.
+  at all, which is how most summary invoices arrive — a complete, settleable document.
 - `paid` survives in the shipped machine as the **flow's marker**, and the
   integrity audit reports disagreement between marker and ledger as *advisory*.
   It legitimately lags: an invoice is set `paid` moments before the receipt is
@@ -157,7 +157,7 @@ draws the same line:
 - when to issue an invoice and what goes on it;
 - which customer a bank line belongs to;
 - whether a three-way-match gap is acceptable;
-- collection and 账期 policy, and whether to write something off;
+- collection and payment-term policy, and whether to write something off;
 - whether a payment needs a human approver.
 
 The status of either document is deliberately **not** a gate. State names are
@@ -183,14 +183,14 @@ the record layer; the agent reads the tenant's definition and judges.
 
 | capability | holder |
 |---|---|
-| `invoice.manage` (scopable `:sales` / `:purchase`) | 应收 / 应付会计 — the scope is what lets them be different people |
-| `invoice.advance` | whoever finalizes an 开票申请; also the hosted flow agent |
-| `payment.record` | 出纳 — files and submits payments |
+| `invoice.manage` (scopable `:sales` / `:purchase`) | the AR and AP clerks — the scope is what lets them be different people |
+| `invoice.advance` | whoever finalizes an invoicing request; also the hosted flow agent |
+| `payment.record` | the cashier — files and submits payments |
 | `payment.advance` | approves and marks paid; also the hosted flow agent |
-| `payment.apply` | 会计 — 核销 |
+| `payment.apply` | the accountant — settlement |
 
 `payment.record` and `payment.apply` are separate on purpose: recording money
-and matching it are 不相容职务 in Chinese practice, and the split makes that
+and matching it are incompatible duties in Chinese practice, and the split makes that
 separation expressible rather than merely intended. None of the five is in the
 `member` default — they are finance functions, granted through a role.
 
@@ -199,7 +199,7 @@ now carried object types. Nothing in `permissions_cover` needed to change: a
 scope is an opaque string to the permission layer, and the routes pass the
 document's own direction.
 
-## 期初余额
+## Opening balances
 
 Opening balances are two imports and a matching pass, never a column:
 
@@ -226,7 +226,7 @@ months.
   layer rather than beside the ledger. (Credit limits do now exist — they live
   on the billing account, not on the customer, and orders/invoices charged to
   an account occupy its credit from order time; the charging model, the
-  transfer-核销 pattern and the release paths are in
+  transfer-and-settle pattern and the release paths are in
   [billing-accounts.md](billing-accounts.md).)
 - **Credit notes as their own entity.** A refund is an outbound payment netted
   against the receipt (OFBiz's `toPaymentId`); a corrected invoice is a voided

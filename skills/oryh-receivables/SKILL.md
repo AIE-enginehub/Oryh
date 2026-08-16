@@ -6,16 +6,16 @@ required_capability: invoice.manage:sales
 
 # Oryh Receivables
 
-应收会计的一条龙: 开票 → 收款 → 核销 → 催收.
+The AR clerk's whole arc: invoice → receive → settle → chase.
 
 Three facts shape everything here:
 
 - **An invoice's settlement is never a status.** How much is still owed is
-  `outstanding_amount`, derived from the 核销 ledger. A half-paid invoice does
+  `outstanding_amount`, derived from the settlement ledger. A half-paid invoice does
   not get a special state, and you must never invent one.
 - **The server guards the money, not the process.** It refuses to let anything
   be over-applied, to settle across currencies, or to apply an inbound payment
-  to a supplier's bill. It does NOT gate 核销 on either document's status —
+  to a supplier's bill. It does NOT gate settlement on either document's status —
   state names belong to the workspace, so which of them mean "collectable" is
   your judgment, read from the workflow definition.
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
@@ -29,11 +29,11 @@ Three facts shape everything here:
 
 ## Trigger Examples
 
-- "给上海市第一医院开票，按 SO-2026-0031 的金额"
-- "银行收到一笔 6 万，是华东医院打过来的，核销一下"
-- "这笔钱核错单了，撤回来"
-- "哪些客户的钱逾期了"
-- "这张票客户说收不到，作废重开"
+- "Invoice City First Hospital for the amount on SO-2026-0031"
+- "60,000 came in from East China Hospital — settle it"
+- "That money was matched to the wrong invoice, reverse it"
+- "Which customers are overdue?"
+- "The customer says they never got this invoice — void it and reissue"
 
 ## Required Inputs
 
@@ -42,11 +42,12 @@ oryh:
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # needs invoice.manage:sales, payment.record, payment.apply
-  employee_id: "{{EMPLOYEE_ID}}"  # the 经办人 recorded on what you file
+  employee_id: "{{EMPLOYEE_ID}}"  # the officer recorded on what you file
 ```
 
-Whether a workspace splits 出纳记账 (`payment.record`) from 会计核销
-(`payment.apply`) is its own choice — 不相容职务分离. If your key holds only one
+Whether a workspace separates recording a receipt (`payment.record`) from
+matching it (`payment.apply`) is its own choice — segregation of incompatible
+duties. If your key holds only one
 of them, do that half and say plainly which step someone else must take.
 
 ## Issuing an Invoice
@@ -66,16 +67,16 @@ of them, do that half and say plainly which step someone else must take.
    number. Set `due_date` from the order's payment terms — **this is what the
    overdue queue reads**, so an invoice without one is never chased.
 4. **An invoice must bill something** (422 otherwise): either `items`, or a
-   `total_amount` when the amount is agreed as one figure — a 汇总开票 with only
+   `total_amount` when the amount is agreed as one figure — a summary invoice with only
    a header total is a complete, settleable invoice, so do not fabricate lines
    to look tidy. Lines pinned to order lines (`sales_order_item_id`) make
-   已开票进度 answerable per line and are worth the effort on partial billing.
+   billing progress answerable per line and are worth the effort on partial billing.
    Charges and allowances are line TYPES (`shipping`, `discount`), not separate
    documents. `POST /invoice-items` adds a line to an invoice that already
    exists; it is not how an invoice is raised.
 5. **Read back, then issue.** `GET /invoices/{invoice_id}/detail` reports
    `computed_total` (the line sum) beside `billed_total` (what settlement
-   measures). When they differ, say so and confirm before moving on — 抹零 is
+   measures). When they differ, say so and confirm before moving on — rounding the total is
    normal, a typo is not.
 6. Correct a wrong header with `PATCH /invoices/{invoice_id}`; the direction is
    not correctable by design, so a wrongly-directed invoice is voided and
@@ -90,15 +91,15 @@ of them, do that half and say plainly which step someone else must take.
 from. Money that already landed is created directly in the terminal state
 (`status: "paid"`) — an inbound receipt has nothing to approve.
 
-Record `reference_no` (银行流水号) whenever the person has it: it is how the
+Record `reference_no` (the bank reference) whenever the person has it: it is how the
 same transfer is recognised if it turns up twice.
 
 **Identifying who paid is yours, not the server's.** A bank line saying
-"XX医院 60000" is a person's judgment against open invoices, and getting it
+"60,000 from that hospital" is a person's judgment against open invoices, and getting it
 wrong is a wrong balance for two customers. When it is not obvious, list the
 candidates and ask rather than guessing.
 
-## 核销 — Matching Money to Invoices
+## Settlement — matching money to invoices
 
 ```json
 POST /payments/{payment_id}/apply
@@ -118,7 +119,8 @@ POST /payments/{payment_id}/apply
 - What is left over is money still in transit — `unapplied_amount` on the
   payment. Find it later with
   `GET /payments?direction=inbound&unapplied=true`.
-- If the customer keeps a **standing account** with you (预存款/挂账), apply the
+- If the customer keeps a **standing account** with you (a prepayment or a
+  charge account), apply the
   payment to that instead of leaving it floating:
   `{"applied_to_type": "billing_account", "applied_to_id": "..."}`. Unlike an
   invoice, an account has no ceiling — a deposit is not a claim — so the
@@ -127,7 +129,7 @@ POST /payments/{payment_id}/apply
 - Over-applying is a 409 that names the remaining amount on whichever side ran
   out. Read it and re-plan; never retry the same numbers.
 
-**Settling a charged invoice from the account (划拨)**: when the invoice is
+**Settling a charged invoice from the account (a transfer)**: when the invoice is
 carried on the customer's account and their money is already deposited there,
 move it in ONE call on the deposit payment — negative line off the account,
 positive line onto the invoice, atomic:
@@ -196,10 +198,10 @@ policy decision: confirm with the principal, never take it on your own reading.
 
 - Invent a settlement status, or read "paid" as truth — `outstanding_amount` is
   the answer, and `paid` is only the flow's marker.
-- Delete or edit a 核销 row, or delete a payment that still has applications.
+- Delete or edit a settlement row, or delete a payment that still has applications.
 - Apply money to a supplier's bill or an expense claim (that is
   `$oryh-payables`), or settle across currencies.
-- Decide 账期 or write-off policy on its own — those live in the workspace's
+- Decide payment terms or write-off policy on its own — those live in the workspace's
   workflow definition.
 - Approve anything. Routing and approval are `the hosted workflow admin agent` for
   the bill and `the hosted workflow admin agent` for the money.
@@ -210,5 +212,5 @@ policy decision: confirm with the principal, never take it on your own reading.
 
 ## Reference
 
-- [references/api.md](references/api.md): every endpoint, the 核销 contract, and
+- [references/api.md](references/api.md): every endpoint, the settlement contract, and
   the guards with the exact conditions that raise them.

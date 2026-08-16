@@ -26,7 +26,7 @@ GET /my/skills/manifest
   ],
   "meta": {
     "total": 1,
-    "tenant": {"id": "…", "slug": "jc-medical", "name": "晶诚医疗设备有限公司"},
+    "tenant": {"id": "…", "slug": "jc-medical", "name": "Jingcheng Medical Equipment Co."},
     "install_dir": "oryh-skills-jc-medical",
     "base_url": "https://oryh.ai"
   }
@@ -38,7 +38,7 @@ Compare against the installed `oryh-skills-<slug>/manifest.json`:
 ```json
 {
   "generated_at": "2026-07-14T12:00:00+00:00",
-  "tenant": {"id": "…", "slug": "jc-medical", "name": "晶诚医疗设备有限公司"},
+  "tenant": {"id": "…", "slug": "jc-medical", "name": "Jingcheng Medical Equipment Co."},
   "install_dir": "oryh-skills-jc-medical",
   "base_url": "https://oryh.ai",
   "skills": [
@@ -77,7 +77,7 @@ GET /my/skills/reach
 
 ```json
 {"data": {
-  "subject_type": "user", "subject_id": "…", "subject_label": "谢婷", "role": "member",
+  "subject_type": "user", "subject_id": "…", "subject_label": "Xie Ting", "role": "member",
   "received": [
     {"name": "oryh-my-work", "reasons": ["capability"]},
     {"name": "jc-quote", "reasons": ["targeted_role"], "named_via": ["role:project_manager"]}

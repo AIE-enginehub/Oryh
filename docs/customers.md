@@ -1,6 +1,6 @@
 # Customers: one table for retail and B2B, and why not Party
 
-A company's book routinely holds both a 零售会员 and a 集团客户. `customers` is
+A company's book routinely holds both a retail member and a group account. `customers` is
 one table, and the question this document answers is why — because the two
 obvious alternatives (a second table, or an OFBiz Party layer) were both on the
 table and both refused.
@@ -18,7 +18,7 @@ machinery — the expensive half.
 Customers fail the splitting test the same way an invoice does. A member and a
 hospital go through identical machinery end to end:
 
-| | 零售会员 | B2B 客户 |
+| | Retail member | B2B customer |
 |---|---|---|
 | quotation → order → invoice | same | same |
 | `applied_amount` settlement | same | same |
@@ -26,8 +26,9 @@ hospital go through identical machinery end to end:
 | standing balance | `billing_accounts`, `unit_type: points` | `billing_accounts`, `unit_type: currency` |
 | exactly-one-counterparty guard | same | same |
 
-What genuinely differs is the FILE — a member has a phone and no 税号, a
-hospital has 税号, 开票信息 and an 采购科 contact — and a file's differences are
+What genuinely differs is the FILE — a member has a phone and no tax id, a
+hospital has a tax id, invoicing details and a procurement contact — and a
+file's differences are
 what nullable columns and `metadata_jsonb` are for.
 
 Splitting would have cost more than the duplication. `customer_id` appears on
@@ -54,17 +55,18 @@ the discriminator it needs, unchanged.
 
 Null is a first-class answer on that axis. Nobody stated a kind is a true
 statement; `company` guessed onto ten thousand imported members is a false one
-repeated by every later report, and 个体工商户 sits genuinely on the line. The
+repeated by every later report, and a sole proprietor sits genuinely on the line. The
 0048 migration backfills `company` only where `tax_id is not null` — a
-统一社会信用代码 on the record means the tenant already files that customer as an
+A unified social credit code on the record means the tenant already files that customer as an
 organization, which is what the number IS rather than an inference from it.
 
-`customer_type` is the tenant's own segmentation (零售/批发/经销/电商/政企/关联方),
+`customer_type` is the tenant's own segmentation (retail, wholesale, dealer,
+e-commerce, government and public bodies, related parties),
 so it is a `type_options` family like every other `*_type`. A workspace adds
-团购客户 or 加盟商 without waiting for a release.
+a group buyer or a franchisee without waiting for a release.
 
 **Neither field gates anything**, and that is load-bearing rather than an
-omission. What a 经销商 may be sold at, whether a member prepays, who gets 账期
+omission. What a dealer may be sold at, whether a member prepays, who gets payment terms
 — those are judgments, and judgments live in agents and workflow definitions.
 The moment the server branches on `customer_type`, the tenant can no longer
 extend it safely, which is the same argument that keeps `Invoice.direction` and
@@ -93,8 +95,9 @@ single `party_id`. It was considered and deferred:
 - OFBiz's own `Payment` does not carry one `partyId` — it carries `partyIdFrom`,
   `partyIdTo` and `roleTypeIdTo`. "One pointer" is really a pointer plus a role
   plus a role vocabulary; here, the role is encoded in the column NAME, free.
-- The counterparty set is stable at three (卖方 / 买方 / 自己人). 税局, banks,
-  landlords and 劳务人员 are all 往来单位 — vendors — which is how OFBiz files
+- The counterparty set is stable at three (seller, buyer, our own people). Tax
+  authorities, banks, landlords and contractors are all counterparties —
+  vendors — which is how OFBiz files
   them too (a tax authority is a PartyGroup with a `TAX_AUTHORITY` role).
 - Database guarantees would weaken. `invoices_direction_counterparty_ck` today
   proves in the DB that `direction='sales'` implies a customer and no vendor.
@@ -108,7 +111,7 @@ Revisit when any of these is actually true — not before:
 
 1. A fourth or fifth counterparty type appears that genuinely needs its own
    master-data lifecycle, and is not a vendor wearing a hat. (Shareholders —
-   分红, 股东借款 — are the plausible one.)
+   dividends and shareholder loans — are the plausible one.)
 2. Something needs "any party" as data: a unified contact-method or bank-account
    table (OFBiz's `ContactMech`), or cross-role netting that must be stored
    rather than computed by an agent.

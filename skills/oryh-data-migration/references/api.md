@@ -25,26 +25,26 @@ POST /sales-quotations/bulk
   "quote_number": "QT-2023-000001",      // REQUIRED — the historical number IS the identity
   "employee_code": "E-001",              // or employee_id; never omitted
   "customer_code": "C-001",              // resolved against customer master data
-  "customer_name_snapshot": "华欣机械",   // what the document printed
-  "contact_name": "王工", "contact_phone": "138…",
-  "title": "2023年刀具年度报价",
+  "customer_name_snapshot": "Huaxin Machinery",   // what the document printed
+  "contact_name": "Engineer Wang", "contact_phone": "138…",
+  "title": "2023 annual tooling quotation",
   "project_code": "PRJ-2023-07",         // optional
   "quote_date": "2023-03-15", "valid_until": "2023-04-15",
   "currency": "CNY",
   "status": "accepted",                  // any state of the tenant's machine
   "total_amount": 1130.00,               // the historical document total
-  "payment_terms": "月结30天", "remarks": "…",
+  "payment_terms": "net 30", "remarks": "…",
   "items": [{
     "line_no": 1,
     "product_code": "P-001", "sku_code": null,
-    "product_name_snapshot": "四刃立铣刀", "spec": "D10",
-    "quantity": 10, "unit": "支",
+    "product_name_snapshot": "Four-flute end mill", "spec": "D10",
+    "quantity": 10, "unit": "each",
     "list_price_snapshot": 120.00, "unit_price": 100.00, "amount": 1000.00,
-    "tax_rate": 13, "is_gift": false, "lead_time": "7天", "notes": null
+    "tax_rate": 13, "is_gift": false, "lead_time": "7 days", "notes": null
   }],
   "adjustments": [{
     "adjustment_type": "tax", "amount": 130.00, "source_percentage": 13,
-    "line_no": null                      // null = 整单级; a line_no pins it to that line
+    "line_no": null                      // null = document level; a line_no pins it to that line
   }]
 }],
  "dry_run": true,
@@ -62,8 +62,8 @@ POST /sales-orders/bulk
   "order_no": "SO-2023-000001",            // REQUIRED
   "source_quote_number": "QT-2023-000001", // links the won quotation, by number
   "employee_code": "E-001", "customer_code": "C-001",
-  "title": "2023年首批订单", "order_date": "2023-04-01",
-  "contract_no": "HT-2023-088", "ship_to_address": "苏州市…",
+  "title": "2023 first order", "order_date": "2023-04-01",
+  "contract_no": "HT-2023-088", "ship_to_address": "Suzhou…",
   "promised_date": "2023-04-20",
   "status": "signed",
   "items": [{"line_no": 1, "product_code": "P-001", "quantity": 10,
@@ -85,12 +85,12 @@ POST /purchase-orders/bulk
 {"rows": [{
   "po_number": "CG-2019-042",              // REQUIRED — the historical number IS the identity
   "vendor_code": "V-DELL",                 // REQUIRED-to-resolve (or vendor_id)
-  "vendor_name_snapshot": "戴尔计算机（中国）有限公司",  // what the document printed; kept verbatim
+  "vendor_name_snapshot": "Dell Computer (China) Co., Ltd.",  // what the document printed; kept verbatim
   "employee_code": "E-001",                // the buyer; never omitted
-  "title": "2019年显示器框架采购",
+  "title": "2019 monitor framework purchase",
   "contract_no": "HT-2019-102",
   "order_date": "2019-03-15", "promised_date": "2019-04-01",
-  "currency": "CNY", "payment_terms": "月结30天",
+  "currency": "CNY", "payment_terms": "net 30",
   "status": "closed",                      // any state of the tenant's purchase_order machine
   "total_amount": 28000.00,
   "items": [{"line_no": 1, "product_code": "PRD-MON", "quantity": 10,

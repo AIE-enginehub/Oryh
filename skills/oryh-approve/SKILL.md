@@ -20,11 +20,11 @@ clearing a rep to send — belongs to the flow skills
 
 ## Trigger Examples
 
-- "审批这张工时单 / 报销单 / 采购申请 / 报价单 / 订单"
-- "看看这笔报销的发票对不对"
-- "折扣给得太深，退回去重新算"
-- "合同没签完，这张订单先驳回"
-- "把审批意见写回 oryh"
+- "Approve this timesheet / expense claim / purchase request / quotation / order"
+- "Check whether the receipts on this expense claim are right"
+- "The discount is too deep — send it back to be recalculated"
+- "The contract is not signed; reject this order for now"
+- "Write my approval note back into oryh"
 
 ## Required Inputs
 
@@ -65,13 +65,13 @@ next free one in the round.
 1. **Read context** — the document's own `/detail`, which returns the lines,
    the totals, and the prior approval trail in one call:
 
-   | 单据 | `entity_type` | detail endpoint |
+   | Document | `entity_type` | detail endpoint |
    |---|---|---|
-   | 工时表 | `timesheet_header` | `GET /timesheet-headers/{header_id}/detail` |
-   | 报销单 | `expense_claim` | `GET /expense-claims/{claim_id}/detail` |
-   | 采购申请 | `purchase_request` | `GET /purchase-requests/{request_id}/detail` |
-   | 销售报价 | `sales_quotation` | `GET /sales-quotations/{quotation_id}/detail` |
-   | 销售订单 | `sales_order` | `GET /sales-orders/{order_id}/detail` |
+   | Timesheet | `timesheet_header` | `GET /timesheet-headers/{header_id}/detail` |
+   | Expense claim | `expense_claim` | `GET /expense-claims/{claim_id}/detail` |
+   | Purchase request | `purchase_request` | `GET /purchase-requests/{request_id}/detail` |
+   | Sales quotation | `sales_quotation` | `GET /sales-quotations/{quotation_id}/detail` |
+   | Sales order | `sales_order` | `GET /sales-orders/{order_id}/detail` |
 
 2. **Review what this document type demands** — see the section below. This
    is the part that is not mechanical, and it is the reason a human approver
@@ -121,11 +121,11 @@ status.
 
 ## What Each Document Type Demands
 
-**工时表 (`timesheet_header`)** — entries, hours, and the period. Nothing is
+**Timesheet (`timesheet_header`)** — entries, hours, and the period. Nothing is
 derived and there is no evidence to fetch; judge the hours against what the
 period should hold.
 
-**报销单 (`expense_claim`) — the evidence.** Every line should trace to a
+**Expense claim (`expense_claim`) — the evidence.** Every line should trace to a
 receipt: fetch every item's `attachment_id` **in one batch** —
 `GET /attachments/{id}/content` per receipt, all sent together, not one claim
 line at a time — and read them. Verify amount, date, and merchant against the item; note items
@@ -133,7 +133,7 @@ with no receipt at all. Discrepancies belong in the `comment` and usually mean
 `returned`, not `approved`. **Never approve without having looked at the
 receipts.**
 
-**采购申请 (`purchase_request`) — the unpriced lines.** Check quantities and
+**Purchase request (`purchase_request`) — the unpriced lines.** Check quantities and
 prices against the stated purpose; open quote files via
 `GET /attachments/{id}/content` when present; compare priced lines against the
 catalog `list_price` (`GET /products/{product_id}`, or the variant's own via
@@ -141,10 +141,11 @@ catalog `list_price` (`GET /products/{product_id}`, or the variant's own via
 the catalog lookups are independent of each other — **send them as one
 batch**, once, rather than walking the lines. `unpriced_item_count`
 and `pending_sku_count` say what is still open — **decide knowingly**: approve
-within a stated budget/配比 expectation, or `returned` for sourcing/细化. Put
+within a stated budget or allocation expectation, or `returned` for sourcing or
+further detail. Put
 what you relied on in the `comment`; never approve unpriced lines silently.
 
-**销售报价 (`sales_quotation`) — the money facts are derived, and the
+**Sales quotation (`sales_quotation`) — the money facts are derived, and the
 commitment is outward.** Nothing stores a discount rate: each line carries
 `list_price_snapshot` (catalog truth at quoting time) and `unit_price` (what
 the rep wants to offer) — the discount is the gap, and only YOU judge whether
@@ -154,10 +155,11 @@ it is acceptable. Line by line:
     say so in the comment instead of pretending.
   - Gift lines (`is_gift: true`) are 0-value by design — judge whether the
     giveaway itself is acceptable, not the "discount".
-  - Header gap: the declared `total_amount` vs `computed_total`. 抹零 is
+  - Header gap: the declared `total_amount` vs `computed_total`. Rounding the
+    total down is
     normal; a material gap is an extra discount and must be judged as one.
   - Validity: a `valid_until` far out locks the price in for that long.
-  - Terms: payment/delivery terms are commitments too (月结60天 is financing
+  - Terms: payment and delivery terms are commitments too (net 60 is financing
     the customer).
   - `revisions` with `revision_no > 1` means the customer already negotiated —
     compare against the superseded revision to see what moved.
@@ -165,16 +167,18 @@ it is acceptable. Line by line:
   Once you approve, the rep sends this document to a customer: a wrong price
   approved here is a price the company has offered.
 
-**销售订单 (`sales_order`) — it should match its won quotation.** `/detail`
+**Sales order (`sales_order`) — it should match its won quotation.** `/detail`
 returns the linked quotation's **header** beside the order (totals, terms,
 quote number); for line-level comparison fetch
 `GET /sales-quotations/{quotation_id}/detail`. Price drift, changed terms, a
 missing `contract_no` on a contract-required tenant, or a `ship_to_address`
 that does not match are exactly what this node exists to catch before goods
-move. Drift must be **named in the comment** (合理的补充条款 vs 私自改价).
+move. Drift must be **named in the comment** — a legitimate additional clause
+is not the same as a price changed without authority.
 
-**付款申请 (`payment`) — the account is the attack surface.** This is the one
-node where the standing fraud is aimed directly at you: 改单诈骗 works by
+**Payment request (`payment`) — the account is the attack surface.** This is the one
+node where the standing fraud is aimed directly at you: payment-diversion fraud
+works by
 changing the bank account on an otherwise genuine invoice, and everything else
 about the request looks right. Before approving:
   - **Compare `counterparty_account` on the payment against the account on the
@@ -191,7 +195,7 @@ about the request looks right. Before approving:
   - The amount against the workspace's tier rules, which the flow agent has
     already put in your todo's description.
 
-**发票/开票申请 (`invoice`) — what leaves the building.** On the sales side you
+**Invoice (`invoice`) — what leaves the building.** On the sales side you
 are approving what the company will bill a customer: check `billed_total`
 against the order it names and the terms behind `due_date`. On the purchase
 side, the same `order_match` reasoning as above. Note that

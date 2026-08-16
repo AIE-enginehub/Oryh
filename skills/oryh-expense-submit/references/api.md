@@ -7,13 +7,13 @@
 ```text
 GET /auth/me                                             → linked employee_id + permissions
 GET /projects?keyword=&status=active                     → match a real project (read-only)
-GET /vendors?tax_id={销售方税号}                          → exact vendor match by tax id (read-only)
-GET /vendors?keyword={销售方名称}&status=active           → fuzzy vendor match by name (read-only)
+GET /vendors?tax_id={seller_tax_id}                          → exact vendor match by tax id (read-only)
+GET /vendors?keyword={seller_name}&status=active           → fuzzy vendor match by name (read-only)
 GET /expense-claims?employee_id={me}&status=draft        → reuse before create
 GET /expense-items?invoice_number={n}                    → duplicate check before filing
 GET /expense-claims/{claim_id}/detail                    → claim + items + totals + attachments + approval trail
 GET /approval-records?entity_type=expense_claim&entity_id={claim_id}   → progress
-GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim → tenant rules; apply its 提交要求 (step 2)
+GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim → tenant rules; apply its submission requirements (step 2)
 ```
 
 ## Create Claim
@@ -22,13 +22,13 @@ GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim → tena
 POST /expense-claims
 {
   "employee_id": "my-employee-id",
-  "title": "6月上海出差",
+  "title": "Shanghai trip, June",
   "claim_date": "2026-07-10",
   "currency": "CNY",
-  "source_report_text": "6月底去上海出差三天，餐费和高铁票一起报，发票都在附件里。",
+  "source_report_text": "Three days in Shanghai at the end of June; meals and train tickets claimed together, receipts attached.",
   "items": [
     {"expense_date": "2026-06-28", "amount": 386.0, "category": "meal",
-     "merchant": "上海楼外楼餐饮有限公司", "invoice_number": "25317000000123456789",
+     "merchant": "Shanghai Louwailou Catering Co., Ltd.", "invoice_number": "25317000000123456789",
      "attachment_id": "<from the upload>"}
   ]
 }
@@ -57,7 +57,7 @@ Response carries `id` + `sha256`. Idempotent per (tenant, file content): **201**
 Prefer the bundled script when you can run Python — same contract, with the base64, the size pre-check, and the duplicate signal computed for you:
 
 ```text
-python3 scripts/upload_attachment.py 发票1.pdf 高铁票.jpg    (in this skill's directory)
+python3 scripts/upload_attachment.py invoice1.pdf train-ticket.jpg    (in this skill's directory)
 ```
 
 One JSON entry per file: `id`, `sha256`, `size_bytes`, `created_at`, `already_existed` — `already_existed: true` is the duplicate signal above, taken from the server's response code (200 reused / 201 stored), not guessed from a timestamp. The raw endpoint stays the fallback when Python is unavailable.
@@ -74,11 +74,11 @@ POST /expense-items
   "amount": 186.50,
   "tax_amount": 11.06,
   "vendor_id": "vendor-id-if-confidently-matched",
-  "merchant": "上海某餐饮有限公司",
+  "merchant": "A Shanghai catering company",
   "invoice_number": "032001900311",
   "invoice_type": "vat_electronic",
   "attachment_id": "attachment-id",
-  "extracted_fields": {"发票代码": "032001900311", "购买方名称": "客户公司全称", "税率": "6%"},
+  "extracted_fields": {"invoice_code": "032001900311", "buyer_name": "the company's full legal name", "tax_rate": "6%"},
   "project_id": "project-id-if-confidently-matched",
   "project_name_snapshot": "ERP Upgrade",
   "notes": "optional"
@@ -86,12 +86,12 @@ POST /expense-items
 ```
 
 `category`: the shipped catalog is travel | lodging | meal | transport | office | entertainment | communication | other;
-the tenant may have defined their own (培训费…) or archived shipped ones — the
+the tenant may have defined their own (training costs…) or archived shipped ones — the
 current vocabulary is `GET /type-options?family=expense_category`, and an
 unknown value is a 422 listing the active options. A receipt that belongs to
 no active category is a new category worth proposing —
 `POST /type-options {"family": "expense_category", "name": "training",
-"title": "培训费"}` (needs `object_types.manage`; on 403 tell the principal
+"title": "Training costs"}` (needs `object_types.manage`; on 403 tell the principal
 which category is missing and file under `other` only with their agreement).
 `invoice_type`: vat_special | vat_general | vat_electronic | receipt | other.
 
@@ -138,7 +138,7 @@ POST /approval-records
 
 ```text
 PATCH /expense-claims/{claim_id}
-{"title": "7月苏州宏达项目出差", "claim_date": "2026-07-26", "project_id": null}
+{"title": "Suzhou Hongda project trip, July", "claim_date": "2026-07-26", "project_id": null}
 ```
 
 Editable while the claim is in an editable state (`draft`/`returned` by

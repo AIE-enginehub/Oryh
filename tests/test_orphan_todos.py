@@ -202,4 +202,7 @@ def test_both_halves_of_the_cleanup_are_taught_where_they_apply() -> None:
 
     # and payroll must now teach the path that was missing entirely
     payroll = (PRODUCT_SKILLS_DIR / "oryh-payroll" / "SKILL.md").read_text(encoding="utf-8")
-    assert "被退回之后" in payroll and "修原单，不要作废重做" in payroll
+    # Matched on the English, which is what the published skill carries. The
+    # marker's language is incidental; the section existing is the point.
+    assert "After it comes back returned" in payroll
+    assert "Correct the original; do not void and redo" in payroll

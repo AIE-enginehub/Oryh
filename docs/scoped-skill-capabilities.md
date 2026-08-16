@@ -38,7 +38,7 @@ strings, same as before.
 
    ```text
    POST /object-type-definitions
-   {"object_type": "daily_report", "title": "日报", "json_schema": {...}}
+   {"object_type": "daily_report", "title": "Daily report", "json_schema": {...}}
    ```
 
 2. **Write the skill** — when one is warranted at all (see the note under

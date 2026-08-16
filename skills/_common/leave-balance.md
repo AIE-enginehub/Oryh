@@ -1,10 +1,11 @@
-## 假期余额是算出来的，不是查出来的
+## A leave balance is computed, never looked up
 
 There is no balance field, no allowance table and no entitlement endpoint, and
 looking for one is the first wrong turn. **A leave balance is not a fact
 anybody recorded** — it is what the workspace's rules imply about this person
-today, and the rules change. A company that revises 年假 in June, or backdates
-a 调休 ratio to January, changes every balance in the company retroactively;
+today, and the rules change. A company that revises annual leave in June, or
+backdates a time-off-in-lieu ratio to January, changes every balance in the
+company retroactively;
 a stored number would be a pile of figures that were true under text nobody
 follows any more.
 
@@ -13,7 +14,7 @@ So you compute it, every time, from two things the server does keep:
 ```text
 GET /policies?category=hr&status=published&in_force_on=2026-06-15   ← the rules
 GET /employee-leaves?employee_id={id}&overlapping_from=…&overlapping_thru=…  ← the facts
-GET /employees/{id}                                                 ← hire_date, for 工龄
+GET /employees/{id}                                                 ← hire_date, for length of service
 ```
 
 `in_force_on` is why this is better than a stored balance rather than merely
@@ -24,16 +25,16 @@ without rewriting itself.
 ### The formula
 
 ```text
-可用 = 应得(policy, 工龄, 期间) − 已批准 − 在途
+available = entitled(policy, length of service, period) − approved − in flight
 ```
 
-- **应得** comes from the policy. Read `rules_json` if the document carries one
+- **Entitled** comes from the policy. Read `rules_json` if the document carries one
   — a tier table is easier to apply than a paragraph — and fall back to the
   prose. The policy also says what to do about a partial year, whether unused
   days carry over, and whether the balance may go negative.
-- **已批准** is the sum of `duration_days` over rows in the tenant's approved
+- **Approved** is the sum of `duration_days` over rows in the tenant's approved
   states, of the leave type in question, overlapping the period.
-- **在途** is the same sum over `submitted` rows. **Do not leave this out.** It
+- **In flight** is the same sum over `submitted` rows. **Do not leave this out.** It
   is what stops somebody spending the same three days twice by filing two
   requests before either is decided — there is no server-side hold, and this
   subtraction is the whole of the protection.
@@ -42,12 +43,13 @@ without rewriting itself.
 period boundary. The policy says how to split it; do not silently count it as
 belonging to whichever year it started in.
 
-### 报数的规矩
+### How to report the number
 
 **Show the arithmetic, every time — in one line, answer first.** Not a bare
-"你还有 4 天", and not a paragraph either:
+"you have 4 days left", and not a paragraph either:
 
-> **可用 4 天** = 应得 10（工龄 7 年，《员工请假管理制度》v3）− 已批 5 − 在途 1
+> **4 days available** = entitled 10 (7 years' service, Leave Policy v3)
+> − approved 5 − in flight 1
 
 Expand the derivation — hire date, the tier table, how a straddling request
 was split — only when the person asks or disputes the number.
@@ -63,14 +65,16 @@ and stop — do not fall back to statutory defaults you happen to know. The
 workspace's rule being unwritten is a fact worth surfacing, and guessing it
 puts an answer in somebody's mouth that nobody in the company agreed to.
 
-### 边界
+### Boundaries
 
-- **不要为了记住余额去写任何东西** —— 不建自定义对象、不动 billing account、不在
-  `custom_fields` 里存一个数。那正是这套设计要避免的：把一个推论固化成伪事实。
+- **Never write anything down to remember a balance** — no custom object, no
+  billing account, no number stashed in `custom_fields`. That is exactly what
+  this design avoids: freezing an inference into a pseudo-fact.
 - Over-entitlement is not yours to refuse. Filing a request for more days than
   the balance allows is legal — it is a request. Say clearly that it exceeds
   the balance and by how much, then let the person decide whether to file and
   the approver decide whether to grant.
-- 调休 is the same computation with a different source for 应得: approved
+- Time off in lieu is the same computation with a different source for the
+  entitlement: approved
   overtime on the timesheets, converted by whatever ratio the policy states.
   Same rule — read the ratio, do not assume 1:1.

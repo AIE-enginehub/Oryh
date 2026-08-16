@@ -10,9 +10,10 @@ File the principal's own leave, and answer what they have left. The credential
 is the identity: the server only accepts writes for the employee linked to this
 key, so never ask "for whom" — it is always the principal.
 
-**这个系统里没有「余额」这个字段。** 余额是按公司制度算出来的，每次都算。这是
-整个设计的核心，不是实现细节——公司改了休假制度，所有人的余额当场就对，不需要
-迁移任何数据。
+**There is no balance field in this system.** A balance is computed from the
+company's own policy, every time. That is the centre of the design rather than
+an implementation detail — when the company changes its leave policy, everyone's
+balance is correct immediately, with no data to migrate.
 
 {{include:_common/answer-the-question.md}}
 
@@ -26,11 +27,11 @@ key, so never ask "for whom" — it is always the principal.
 
 ## Trigger Examples
 
-- "我还有几天年假？"
-- "下周三请一天假" / "明天上午请半天"
-- "3 月 2 号到 6 号休年假"
-- "我今年病假休了多少天"
-- "上次那个请假单撤回吧，日期不对"
+- "How many days of annual leave do I have left?"
+- "Take next Wednesday off" / "Half a day tomorrow morning"
+- "Annual leave from 2 to 6 March"
+- "How much sick leave have I taken this year?"
+- "Withdraw that leave request — the dates are wrong"
 
 ## Required Inputs
 
@@ -39,22 +40,25 @@ oryh:
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
-  employee_id: "{{EMPLOYEE_ID}}"  # who 我 means; the only employee this key may file for
+  employee_id: "{{EMPLOYEE_ID}}"  # who "I" means; the only employee this key may file for
 ```
 
 ## Steps
 
 1. **Read the rules and the facts together** — the balance section above says
    which three calls, and they do not feed each other, so send them as one
-   batch. The tenant's 请假制度 shapes the whole conversation: how far ahead a
-   请假 must be filed, whether 病假 over N days needs a certificate, whether
+   batch. The tenant's leave policy shapes the whole conversation: how far
+   ahead a request must be filed, whether sick leave over N days needs a
+   certificate, whether
    half days are allowed at all.
 
 2. **Work out the length in days, and say how you got it.** The unit is days
    with halves — `0.5`, `1`, `3.5`. A calendar range is not the answer:
-   whether the Saturday inside 周五到周一 counts is the policy's call, and so
+   whether the Saturday inside a Friday-to-Monday span counts is the policy's
+   call, and so
    is whether a public holiday inside the range does. Compute it, then state
-   it: 「3 月 2 日到 3 月 6 日，扣掉周末 2 天，计 3 天」. The person confirms
+   it: "2 March to 6 March, less 2 weekend days, counted as 3 days". The person
+   confirms
    the number before it is filed.
 
 3. **Check the balance and say the arithmetic** — see above. If the request
@@ -72,8 +76,8 @@ POST /employee-leaves
   "from_date": "2026-03-02",
   "thru_date": "2026-03-06",
   "duration_days": 3,
-  "reason": "回老家",
-  "source_report_text": "3月2号到6号休年假，回老家"
+  "reason": "visiting family",
+  "source_report_text": "annual leave 2 to 6 March, visiting family"
 }
 ```
 
@@ -95,19 +99,19 @@ POST /employee-leaves
    then close your own rework todo. Once approved, the dates are settled — see
    below.
 
-## 撤销与销假
+## Cancelling, and recording leave as taken
 
-- **撤回一个还没批的**: `PATCH` status to `cancelled`. Nothing is refunded
+- **Withdrawing one that has not been approved**: `PATCH` status to `cancelled`. Nothing is refunded
   because nothing was ever deducted — the row simply stops counting toward
-  已批/在途 the moment it leaves those states. That is the quiet benefit of a
+  approved or in flight the moment it leaves those states. That is the quiet benefit of a
   computed balance.
-- **批了但没休**: also `cancelled`, and it needs the same honesty — an approver
+- **Approved but not taken**: also `cancelled`, and it needs the same honesty — an approver
   agreed to this, so say who is being told. Never delete it: what was approved
   is part of the record.
-- **改期一个已批准的**: cancel it and file a new one, referencing the original
+- **Rescheduling an approved one**: cancel it and file a new one, referencing the original
   in `reason`. Do not edit an approved request's dates — that would change what
   was agreed without leaving a trace that something else was agreed first.
-- **销假**: if the workspace records that leave was actually taken, that is the
+- **Recording it as taken**: if the workspace records that leave was actually taken, that is the
   `taken` state, and it is the flow side's write, not yours.
 
 ## What This Skill Never Does
@@ -119,7 +123,7 @@ POST /employee-leaves
 - File for anybody but the credential's own employee.
 - Invent an entitlement when no leave policy is published. Say it is unwritten.
 - Quote statutory minimums as if they were the company's rule.
-- Touch timesheets. 请假 and 工时 are separate records; a day off is not a
+- Touch timesheets. Leave and timesheets are separate records; a day off is not a
   timesheet row with zero hours.
 
 ## Reference

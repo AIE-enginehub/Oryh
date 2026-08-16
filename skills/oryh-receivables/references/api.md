@@ -8,7 +8,7 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 |---|---|
 | `GET /invoices?direction=sales&status=draft` | this workspace's sales invoices; `status` must be a state of the tenant's machine (422 names the real ones) |
 | `GET /invoices?direction=sales&customer_id={id}&outstanding=true` | one customer's open items |
-| `GET /invoices?direction=sales&outstanding=true&due_before=2026-08-02` | 逾期应收 |
+| `GET /invoices?direction=sales&outstanding=true&due_before=2026-08-02` | overdue receivables |
 | `GET /invoices?direction=sales&outstanding=true&without_open_todo=true` | open items nobody is chasing yet |
 | `GET /invoices?tax_invoice_number=24312000000098765432` | find by the tax document's own number |
 | `GET /invoices?sales_order_id={id}` | what has already been billed for an order |
@@ -18,7 +18,7 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 | `DELETE /invoices/{invoice_id}` | soft delete — refused while payments are applied |
 | `POST /invoices/{invoice_id}/restore` | undo that |
-| `POST /invoices/{invoice_id}/submit` | draft → submitted (开票申请) |
+| `POST /invoices/{invoice_id}/submit` | draft → submitted (an invoicing request) |
 
 `keyword=` also matches title, invoice_no, tax_invoice_number and the
 counterparty snapshot. Lists accept `page`/`size`.
@@ -31,7 +31,7 @@ POST /invoices
   "direction": "sales",
   "employee_id": "{{EMPLOYEE_ID}}",
   "customer_id": "customer-uuid",
-  "title": "2026年7月货款",
+  "title": "July 2026 goods",
   "invoice_date": "2026-07-31",
   "due_date": "2026-08-30",
   "currency": "CNY",
@@ -50,7 +50,7 @@ POST /invoices
   invoice back, so a validation error never leaves a half-raised document.
   The response reads the lines back under `items`.
 - **An invoice must bill something**: send `items`, or a `total_amount` when the
-  amount is agreed as one figure (汇总开票). Neither is a 422.
+  amount is agreed as one figure (a summary invoice). Neither is a 422.
 
 - `direction` and `customer_id` are the document. A `vendor_id` here is a 422.
 - `invoice_no` is server-allocated (`INV-`) unless you bring the workspace's
@@ -93,7 +93,7 @@ POST /invoice-items
 - `invoice_item_type` carries charges and allowances: `goods`, `service`,
   `shipping`, `discount` (negative amount), `tax`, `rounding`, `other` —
   `GET /type-options?family=invoice_item_type`.
-- Quantity and price are both optional: a 运费 line has only an `amount`.
+- Quantity and price are both optional: a freight line has only an `amount`.
 - `sales_order_item_id` may only point at a line of the order this invoice
   bills; pin the invoice with `sales_order_id` first or it is a 422.
 - Lines are writable only in the machine's editable states (409 otherwise).
@@ -127,7 +127,7 @@ POST /payments
 Exactly one counterparty (`customer_id` here); naming none or two is a 422.
 `payment_method` comes from `GET /type-options?family=payment_method`.
 
-## 核销
+## Settlement
 
 ```json
 POST /payments/{payment_id}/apply
@@ -135,7 +135,7 @@ POST /payments/{payment_id}/apply
   "lines": [
     {"applied_to_type": "invoice", "applied_to_id": "invoice-a", "amount_applied": 40000.0},
     {"applied_to_type": "invoice", "applied_to_id": "invoice-b", "amount_applied": 20000.0,
-     "note": "尾款"}
+     "note": "final payment"}
   ],
   "idempotency_key": "ar-2026-08-02-01"
 }
@@ -181,7 +181,7 @@ GET /object-type-definitions?entity_kind=builtin&object_type=invoice
 
 Shipped default: `draft → submitted → issued`, then `paid`, `written_off` or
 `void`; `cancelled` from draft/submitted/returned; `returned` sends a rejected
-开票申请 back. Tenants rename and rewire — read the machine rather than assuming.
+an invoicing request back. Tenants rename and rewire — read the machine rather than assuming.
 
 `paid` is a flow marker only. The truth is `outstanding_amount` on `/detail`.
 
@@ -191,7 +191,7 @@ Shipped default: `draft → submitted → issued`, then `paid`, `written_off` or
   workspace's own billing and collection policy, in its own words.
 - `POST /todos` with `entity_type: "invoice"` — a chase-up assignment.
 - `POST /approval-records` with `entity_type: "invoice"` — an approval fact on
-  an 开票申请.
+  an invoicing request.
 
 ## When the decision happened
 

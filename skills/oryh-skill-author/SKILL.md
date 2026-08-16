@@ -6,7 +6,7 @@ required_capability: skills.manage
 
 # Oryh Skill Author
 
-Turn the admin's plain-language process requirement into the right kind of tenant data. This skill is the compiler between "我们的报价要先解析客户发来的长短码，纠错过的必须人工确认" and a versioned, capability-gated customer workflow skill that every eligible employee's agent receives automatically.
+Turn the admin's plain-language process requirement into the right kind of tenant data. This skill is the compiler between "our quotes must first resolve the short and long codes the customer sends, and anything we corrected needs a human to confirm" and a versioned, capability-gated customer workflow skill that every eligible employee's agent receives automatically.
 
 The single most important thing you do is **classify before you write**. Tenant customization lives in three places, and putting content in the wrong one is the main failure mode:
 
@@ -16,16 +16,16 @@ The single most important thing you do is **classify before you write**. Tenant 
 | **Process contract** | Which API calls, in what order, iron rules, reply formats, hand-offs between roles — *how an agent executes* | Customer workflow skill in the `/skills` registry | Revise the skill; agents pick it up on next sync |
 | **Deterministic capability** | Pricing engines, code/OCR parsers, document templates, anything needing exactness or regression tests | A local tool the agent calls — **code, not prose** | Engineering work; a skill may *reference* the tool, never *be* it |
 
-A requirement usually decomposes across all three. "折扣超过10%要销售总监批" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "成交后必须建订单、生成SO号、追物流到签收" is a process contract — that is a skill. "按客户分级从价格矩阵取价、不得低于成本" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
+A requirement usually decomposes across all three. "a discount over 10% needs the sales director" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
 
 {{include:_common/answer-the-question.md}}
 
 ## Trigger Examples
 
-- "我想让所有销售的 agent 都按我们的规矩报价"
-- "把这个流程做成一个 skill 发给大家"
-- "帮我把成交后的跟单动作固化下来"
-- "改一下上次那个报价 skill，加一条规则"
+- "I want every salesperson's agent to quote by our rules"
+- "Turn this process into a skill and give it to everyone"
+- "Pin down the follow-up actions after a deal closes"
+- "Change that quoting skill from last time, add one rule"
 
 ## Required Inputs
 
@@ -86,7 +86,7 @@ Everything else comes from the conversation and from the tenant's own records.
      what limits it — the audience is.
    - **Eligibility is organizational, not object-shaped → that is the AUDIENCE,
      not a capability.** Gate on the verb the work actually needs, then name the
-     roles or people in step 9. Minting a capability to express "只给采购团队"
+     roles or people in step 9. Minting a capability to express "procurement only"
      leaves a skill gated on something nobody holds — you may not grant it
      (see *What This Skill Never Does*), so it reaches nobody. Mint a custom
      capability only when the tenant needs a genuinely new *permission* that no
@@ -120,7 +120,7 @@ document, not a diff.** Whatever you don't include is gone from the tenant's
 rules the moment this version goes active — even if the admin only asked for
 one small change.
 
-That gap between "the admin said 加一条" and "you must supply the whole
+That gap between "the admin said add one line" and "you must supply the whole
 document" is the single most common way this skill causes silent data loss:
 asked to add one clause, it is tempting to draft prose for just that clause
 and publish it — which deletes every other submission requirement and
@@ -139,7 +139,7 @@ routing rule the tenant had, with nothing in the response to say so.
 4. Publish that complete document as the new version.
 
 **Full rewrite is the exception**, only when the admin explicitly asks for
-one — "这份重新写"、"以前那些不要了"、"整个换掉" and the like. Even then,
+one — "rewrite this", "drop the old ones", "replace the whole thing" and the like. Even then,
 read the current text back to them before erasing someone else's policy.
 
 **The step-7 read-back must be a diff for policy edits, not just a preview.**
@@ -202,8 +202,8 @@ not a fallback to everyone — emptying an audience narrows.
 - **Never inline determinism.** If a step needs exact computation or exact parsing, the skill names the tool and its contract; prose that "explains the algorithm" to an LLM is a bug, not a feature.
 - **Never publish without the step-7 read-back.**
 - **Editing a product skill's FILES forks it to custom** (the catalog stops updating it) — warn the admin and prefer a separate customer skill that composes it. Metadata edits do NOT fork, and the gate and archival are the tenant's to keep: a changed `required_capability` and an archived `status` survive catalog syncs (content still updates underneath). The response's `catalog_required_capability` shows the shipped default — set the gate back to it to resume tracking the catalog. `description` rides the SKILL.md content, so it follows catalog updates.
-- One skill, one role's job. If the draft contains "提交人做A，审批人做B，流程管理做C", split it — that is the submit/approve/flow pattern the product skills model.
-- **The inverse holds too — don't over-split.** One role's multi-phase process (询价→报价→成交→物流 for the same salesperson) is ONE skill: SKILL.md as the trigger + phase router, `references/<phase>.md` for the detail agents load on demand. And a new object type is NEVER by itself a reason for a new skill — `$oryh-business-object` already covers any custom type by reading its definitions at use time; write a dedicated skill only when the process exceeds that (dirty-input gates, fixed customer-facing 话术, cross-object rituals). Every skill you publish is a permanent line in someone's bundle — make it earn the slot.
+- One skill, one role's job. If the draft says "the filer does A, the approver does B, the flow admin does C", split it — that is the submit/approve/flow pattern the product skills model.
+- **The inverse holds too — don't over-split.** One role's multi-phase process (enquiry → quote → win → logistics for the same salesperson) is ONE skill: SKILL.md as the trigger + phase router, `references/<phase>.md` for the detail agents load on demand. And a new object type is NEVER by itself a reason for a new skill — `$oryh-business-object` already covers any custom type by reading its definitions at use time; write a dedicated skill only when the process exceeds that (dirty-input gates, fixed customer-facing wording, cross-object rituals). Every skill you publish is a permanent line in someone's bundle — make it earn the slot.
 
 ## What This Skill Never Does
 

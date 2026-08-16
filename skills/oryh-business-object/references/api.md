@@ -41,7 +41,7 @@ POST /business-objects
     "customer": "City Hospital",
     "printer_serial_no": "SN-JC-2026-0422"
   },
-  "source_text": "服务商提交医院打印机保修卡申请。",
+  "source_text": "Vendor submitted a warranty-card application for the hospital printer.",
   "status": "in_review",
   "created_by": "agent-id"   // service keys only; user keys are attributed server-side
 }

@@ -49,7 +49,7 @@ Agents choose skills by name + description alone. The description must open with
 
 A customer workflow skill sits **on top of** the product skills:
 
-- Creating/submitting builtin objects → defer to `$oryh-quotation-submit`, `$oryh-purchase-submit`, … ("按 $oryh-quotation-submit 的契约创建并提交，本 skill 只规定桂式规则").
+- Creating/submitting builtin objects → defer to `$oryh-quotation-submit`, `$oryh-purchase-submit`, … ("create and submit per the $oryh-quotation-submit contract; this skill only states the house rules").
 - Custom objects → defer to `$oryh-business-object` for mechanics (full-payload PATCH, no status advancing) and state only your object's fields and rules.
 - Approval facts → `$oryh-approve` (one skill, every document type) / `approval.record` conventions; one fact + own todo, never status writes.
 - Check-in/queues → `$oryh-my-work`.
@@ -63,7 +63,7 @@ Re-explaining core API mechanics inside a customer skill is a defect: it drifts 
 | Skill drives a builtin family's own-record lifecycle | that family's system verb (`quotation.submit_own`) |
 | Skill writes one custom object type | scoped verb: `business_object.write:<type>` |
 | Skill records approval facts | `approval.record` |
-| Eligibility is organizational (外部服务商、内勤) | custom capability (create via `POST /capabilities`, grant via roles) |
+| Eligibility is organizational (outside vendors, back-office staff) | custom capability (create via `POST /capabilities`, grant via roles) |
 | Read-mostly, everyone | omit |
 
 The gate is also the **distribution rule**: holding the skill always implies permission to execute it. Check `GET /roles` to see who will actually receive it, and say so at read-back.
@@ -72,9 +72,9 @@ The gate is also the **distribution rule**: holding the skill always implies per
 
 Any number, threshold, named approver, or routing rule belongs in the workflow definition. The skill's job is to *point* at it:
 
-> **Wrong (in a skill):** "折扣低于八折需总经理加批"
-> **Right (in a skill):** "提交前读取 `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation`，把其提交要求应用到对话里"
-> **Right (in the workflow definition):** "折扣低于八折的，销售经理批准后需总经理加批"
+> **Wrong (in a skill):** "a discount below 80% needs the general manager to countersign"
+> **Right (in a skill):** "before submitting, read `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation` and apply its submission requirements to the conversation"
+> **Right (in the workflow definition):** "for a discount below 80%, the sales manager approves and the general manager countersigns"
 
 This is why tenants can retune the process without touching any skill.
 
@@ -82,7 +82,7 @@ This is why tenants can retune the process without touching any skill.
 
 If a step needs exact results — price lookups, model-code parsing with correction guarantees, document rendering — the skill declares a **tool contract** and stops there:
 
-> "调用本地定价工具 `price(customer, sku, qty)` 取含税单价与目录价；本 skill 不心算价格，工具不可用即中止并如实说明。"
+> "call the local pricing tool `price(customer, sku, qty)` for the tax-inclusive and list prices; this skill never works a price out in its head, and stops and says so plainly when the tool is unavailable."
 
 Signs you are inlining determinism (stop and extract a tool): tables of prices, regex-like format rules the agent must "apply carefully", multi-step arithmetic, anything with a regression test in its history.
 
@@ -96,8 +96,8 @@ The unit of a skill is **one role's coherent job**, not a phase and not an objec
   - **flow**: the service-credential loop — queue → trail → workflow definition → next todo or final status
 
   Small processes may only need submit (the flow agent's generic loop covers the rest).
-- **Merge within a role**: the same person's consecutive phases (询价解析 → 报价 → 成交 → 物流跟进) belong in ONE skill. Keep SKILL.md a trigger + phase-router (a "which reference do I load" table), and put each phase's detail in `references/<phase>.md` — agents hold one bundle line and load only the phase the conversation is in.
-- **Never one-skill-per-object-type**: `$oryh-business-object` already handles any custom type by reading the tenant's object-type definition and workflow definition at use time. Ten new object types should add zero new skills. A dedicated customer skill is earned only by process that exceeds those definitions — correction-confirm gates, fixed customer-facing 话术, cross-object rituals.
+- **Merge within a role**: the same person's consecutive phases (parsing an enquiry → quoting → winning → tracking logistics) belong in ONE skill. Keep SKILL.md a trigger + phase-router (a "which reference do I load" table), and put each phase's detail in `references/<phase>.md` — agents hold one bundle line and load only the phase the conversation is in.
+- **Never one-skill-per-object-type**: `$oryh-business-object` already handles any custom type by reading the tenant's object-type definition and workflow definition at use time. Ten new object types should add zero new skills. A dedicated customer skill is earned only by process that exceeds those definitions — correction-confirm gates, fixed customer-facing wording, cross-object rituals.
 
 Bundle-size sanity check before publishing: an ordinary member should end up holding **well under ten** skills. If your draft pushes past that, you are splitting by phase or by object — merge.
 
@@ -109,23 +109,23 @@ Bundle-size sanity check before publishing: an ordinary member should end up hol
 
 ## Worked example (condensed)
 
-Requirement (admin's words): "客户微信发来的型号经常抄错，agent 要先对照产品目录解析型号，纠错过的必须销售确认才能出报价；报出用标准报价流程。"
+Requirement (admin's words): "model numbers customers send over chat are often mistyped. The agent must resolve them against the product catalog first, and anything it corrected must be confirmed by the salesperson before a quotation goes out; quoting itself follows the standard flow."
 
-Classification: parsing exactness → **tool** (catalog matcher); 必须确认才能出单 → **process contract** (skill); 折扣权限 → already in the sales_quotation workflow definition → **policy, untouched**.
+Classification: parsing exactness → **tool** (catalog matcher); confirmation before a quotation goes out → **process contract** (skill); discount authority → already in the sales_quotation workflow definition → **policy, untouched**.
 
 Resulting skill (skeleton — note the granularity rule in action: this is the salesperson's ONE deal skill; intake is a reference, not its own skill, leaving room for follow-up phases later):
 
 ```markdown
 ---
 name: acme-quote
-description: Use when a salesperson's AI agent works a customer deal at any stage — 询价（微信粘贴/截图）、报价、跟进 — "帮XX报价", "这个型号多少钱". Resolves codes read-only with a correction-confirm gate, then quotes via oryh-quotation-submit. Requires quotation.submit_own.
+description: Use when a salesperson's AI agent works a customer deal at any stage — an enquiry pasted from chat or a screenshot, quoting, following up — 询价、报价、跟进, "帮XX报价", "这个型号多少钱". Resolves codes read-only with a correction-confirm gate, then quotes via oryh-quotation-submit. Requires quotation.submit_own.
 required_capability: quotation.submit_own
 ---
 # Acme Quote
 
-| 对话处在哪 | 读哪份细则 |
+| Where the conversation is | Which reference to load |
 |---|---|
-| 询价进来，要解析型号、出报价 | references/intake.md |
+| An enquiry arrives; codes need resolving and a quotation producing | references/intake.md |
 
 ## What This Skill Never Does
 - Quote a corrected line without confirmation; invent codes; touch prices by hand.
@@ -135,7 +135,7 @@ required_capability: quotation.submit_own
 
 ```markdown
 1. `GET /products?keyword=` / `GET /product-skus?...` — read-only resolve; uncertain → ask, never guess.
-2. Any line whose code needed correction → list 原文→纠正 side by side, wait for explicit confirmation. No confirmation, no quote.
+2. Any line whose code needed correction → list the original against the correction side by side, wait for explicit confirmation. No confirmation, no quote.
 3. Hand the clean lines to `$oryh-quotation-submit` (it owns pricing snapshots, read-back, submission).
 ```
 

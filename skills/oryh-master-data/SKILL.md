@@ -1,6 +1,6 @@
 ---
 name: oryh-master-data
-description: Use when a person's AI agent needs to load or maintain the company's master data in oryh — importing products, vendors, or customers from a spreadsheet ("把这个excel里的产品导进系统"), adding or correcting entries by hand, archiving obsolete ones, or auditing what the catalog already holds. Covers reading the file locally, working out which column means what and confirming it with the person, a dry-run preview before anything is written, upsert by the tenant's own code, and per-row reporting. Requires master-data management rights; ordinary submit/approve skills read this catalog but must never write it.
+description: Use when a person's AI agent needs to load or maintain the company's master data in oryh — importing products, vendors, or customers from a spreadsheet ("import the products in this Excel file"), adding or correcting entries by hand, archiving obsolete ones, or auditing what the catalog already holds. Covers reading the file locally, working out which column means what and confirming it with the person, a dry-run preview before anything is written, upsert by the tenant's own code, and per-row reporting. Requires master-data management rights; ordinary submit/approve skills read this catalog but must never write it.
 required_capability: master_data.manage
 ---
 
@@ -10,17 +10,17 @@ Own the catalog the rest of the company quotes and requisitions against:
 **products**, **vendors**, **customers**. All three behave identically here —
 same key, same upsert, same preview — so learn it once.
 
-Customers means both kinds. A 零售会员表 and a 经销商名单 go to the same
-`/customers` endpoint; what tells them apart is two optional fields on the row
+Customers means both kinds. A retail membership list and a dealer list go to
+the same `/customers` endpoint; what tells them apart is two optional fields on the row
 (`customer_kind`, `customer_type`), not a different table. See
 [references/api.md](references/api.md#retail-and-b2b-customers-customer_kind--customer_type).
 
-The common job is a spreadsheet: someone has 产品清单.xlsx and wants it in the
-system. That job is mostly not about the API. It is about reading a human
+The common job is a spreadsheet: someone has a product list in .xlsx and wants
+it in the system. That job is mostly not about the API. It is about reading a human
 artifact correctly, and the two failure modes are silent ones:
 
-- **Guessing a column wrong.** 单价 might be the list price or the last
-  purchase price. Guess, and every quote built on it is wrong, with nothing
+- **Guessing a column wrong.** A "unit price" column might be the list price or
+  the last purchase price. Guess, and every quote built on it is wrong, with nothing
   to show that anything went astray.
 - **Inventing a code.** The code is the identity. Make one up and the next
   import cannot match it, so it lands a second time as a new product.
@@ -43,7 +43,8 @@ bad row. Two things follow that you must not work around:
 
 - **A row without a code is an error, not a row to improvise.** Never
   synthesise one from the name, the line number, or a counter. Collect every
-  such row and take them back to the person: "这 3 行没有编码，你看一下补哪个值".
+  such row and take them back to the person: "these 3 rows have no code — which
+  value should fill it?"
 - **A code repeated inside one file is an error too.** Do not pick a winner —
   the person needs to know their sheet has two rows claiming one code.
 
@@ -52,11 +53,11 @@ rather than leaving a duplicate beside it.
 
 ## Trigger Examples
 
-- "把这个excel里的产品都导进系统"
-- "供应商名单更新了，重新导一遍"
-- "客户清单在这个csv里，帮我建档"
-- "P-1024 这个产品改个名字" (single edit — same endpoints, one row)
-- "这批产品停用了" (archive: `status: archived`)
+- "Import all the products in this Excel file"
+- "The vendor list has been updated, import it again"
+- "The customer list is in this CSV, please create the records"
+- "Rename product P-1024" (single edit — same endpoints, one row)
+- "These products are discontinued" (archive: `status: archived`)
 
 ## Required Inputs
 
@@ -81,66 +82,83 @@ decided to send.
 2. Work out the column mapping, then SHOW IT AND GET AGREEMENT before
    writing anything. Present it compactly:
 
-     编码  ← "物料号"          name  ← "品名"
-     规格  ← "规格型号"        单位  ← "单位"
-     单价  ← "含税单价"   → list_price?   ← ask, do not assume
+     code  ← "Material No."     name  ← "Product name"
+     spec  ← "Specification"   unit  ← "Unit"
+     price ← "Tax-inclusive unit price"  → list_price?  ← ask, do not assume
 
-   - The code column is rarely called "product_code". Expect 物料号, 料号,
-     编码, 编号, 产品编码, 存货编码, Item Code, SKU, Part No.
-   - Say which columns you are IGNORING too. A 库存数量 or 备注 column you
-     silently drop is a decision the person did not get to make.
+   - The code column is rarely called "product_code". Expect Material No.,
+     Part No., Code, Item No., Product Code, Stock Code, Item Code, SKU — and
+     their Chinese equivalents, which is what most real sheets carry.
+   - Say which columns you are IGNORING too. A stock-quantity or remarks column
+     you silently drop is a decision the person did not get to make.
    - Ambiguous or missing → ask. Especially any price column: list_price is
      the catalog reference price others quote against.
-   - 采购价/进价/批发价/促销价 now have real homes instead of being dropped:
+   - Purchase price, cost, wholesale and promotional prices now have real homes
+     instead of being dropped:
      a cost tied to a named supplier → that row's `suppliers` entry
      (`vendor_code` + `last_price`); a price of another kind → a `prices`
      entry with its `price_type` (wholesale/promo/cost/...). Supplier columns
-     (供应商货号、交期、起订量) ride the same `suppliers` entry. The vendor
+     (their part number, lead time, minimum order quantity) ride the same
+     `suppliers` entry. The vendor
      must already exist in master data — import vendors before products that
      reference them, in the same conversation if need be.
    - **A price column that fits NO existing type is a new type, not a
-     shoehorn.** 经销价/会员价/一级价 forced into `wholesale` makes every
-     later report lie about what that number is. Read the tenant's current
+     shoehorn.** A dealer, member or tier-one price forced into `wholesale`
+     makes every later report lie about what that number is. Read the tenant's current
      vocabulary first (`GET /type-options?family=product_price_type` — it
      may already hold exactly what this column means), and when nothing
      fits, say so and offer to define it:
-     "表里的「二级经销价」和现有类型都对不上，建议新建一个价格类型
-     dealer_tier2「二级经销价」，可以吗？" On yes:
+     "the sheet's tier-two dealer price matches none of the existing types.
+     Shall I define a new price type dealer_tier2 for it?" On yes:
      `POST /type-options {"family": "product_price_type", "name":
-     "dealer_tier2", "title": "二级经销价"}` — then import. A 403 means this
+     "dealer_tier2", "title": "Tier-2 dealer price"}` — then import. A 403 means this
      credential lacks `object_types.manage`: say which type is needed and
      ask an admin to add it; do NOT fall back to a wrong existing type.
-     The same applies to 报销类别 and 工时类型 in their own families.
-   - 客户表还有一个只属于它的问题：**这批人是谁**。一张 会员登记表 和一张
-     经销商名单 进的是同一个 `/customers`，但 `customer_kind`（person /
-     company）和 `customer_type`（零售/批发/经销/电商/政企，取自
-     `GET /type-options?family=customer_type`）要说清楚。表里有 客户类型/
-     客户分类/客户性质 这一列就照着映射，映射不上的词按新类型提（同价格类型
-     那套做法）。**发的是类型的 name，不是表里的中文**——name 只能是
-     `^[a-z][a-z0-9_]{0,49}$`，把"团购"原样塞进 `customer_type` 会整块 422，
-     一行都不落地，而且没有分行报告可以拿去跟人对。
-     **表里没有这一列就不要替人填**——留空是"没人说过"，猜成 company 是一句
-     假话，个体工商户尤其两头都不像。可以直接问：
-     "这批是零售会员还是企业客户？我按 person/retail 建档可以吗？"
-   - 零售表常常没有编码列，只有手机号。`customer_code` 仍然是必填的身份，
-     所以把用什么当编码问清楚并**一次说定**：老系统的会员号，或者手机号加个
-     前缀（`M-13800000000`）。定了就整批照办，下次再导才是更新而不是重建。
-   - 历史单据表（几万到几十万行的历史报价单/订单）不是这个 skill 的活：
-     交给 $oryh-data-migration，它负责单据的批量导入、分块、断点续传和问
-     题单据汇总。**但顺序由这里开始**——客户和产品主数据必须先导进去，否
-     则每一单都会因引用不到而被跳过。
-   - 盘点表（库存数量、仓库、批号、效期）走 `POST /inventory-items/bulk`。
-     库存是台账：数量差异会作为一条 `import_override` 明细入账（写明系统数
-     与导入数），不是把数值改掉——所以导入前把差异大的行念给人听：
-     "P-001 系统 120.5，你们盘到 97，差 23.5，确认按盘点数入账吗？"
+     The same applies to expense categories and work types in their own
+     families.
+   - Customer sheets carry one question of their own: **who are these people**.
+     A membership sign-up sheet and a dealer list both go to `/customers`, but
+     `customer_kind` (person / company) and `customer_type` (retail, wholesale,
+     dealer, e-commerce, government/enterprise — taken from
+     `GET /type-options?family=customer_type`) have to be stated. If the sheet
+     has a customer-type or customer-category column, map from it; propose a new
+     type for words that map to nothing, exactly as with price types. **Send the
+     type's `name`, not the sheet's own wording** — `name` must match
+     `^[a-z][a-z0-9_]{0,49}$`, and putting the raw label into `customer_type`
+     fails the WHOLE batch with a 422, landing not one row and leaving no
+     per-row report to go through with the person.
+     **If the sheet has no such column, do not fill it in for them** — leaving it
+     out says "nobody stated this", while guessing `company` is a false
+     statement, and a sole proprietor looks like neither. Just ask:
+     "are these retail members or business customers? Shall I file them as
+     person/retail?"
+   - Retail sheets often have no code column at all, only a mobile number.
+     `customer_code` is still the required identity, so settle **once** what
+     serves as the code: the membership number from the old system, or the
+     mobile number with a prefix (`M-13800000000`). Apply that decision to the
+     whole batch, so the next import updates rather than rebuilds.
+   - Historical document sheets (tens or hundreds of thousands of past
+     quotations and orders) are not this skill's job: hand them to
+     $oryh-data-migration, which owns bulk document import, chunking, resume
+     and problem-document summaries. **But the order starts here** — customer
+     and product master data must be imported first, or every document is
+     skipped for an unresolvable reference.
+   - Stock-count sheets (quantity, facility, lot, expiry) go to
+     `POST /inventory-items/bulk`. Inventory is a ledger: a quantity difference
+     is posted as an `import_override` detail row naming both the system figure
+     and the counted one, rather than overwriting the number — so read the
+     large differences out before importing:
+     "P-001 shows 120.5 in the system, you counted 97, a difference of 23.5.
+     Post the counted figure?"
    - Columns with no home in the schema can go into `metadata` rather than
      be thrown away — offer it, do not do it silently.
 
 3. Normalise each row:
    - trim whitespace everywhere (spreadsheet cells are full of it)
-   - prices: strip ￥/,/、 and blanks → number; a blank price is null, NOT 0
+   - prices: strip currency symbols, thousands separators and blanks → number;
+     a blank price is null, NOT 0
    - `status`: default "active"; only "archived" if the sheet says so
-   - keep the person's own text; do not "tidy" 品名 or 规格
+   - keep the person's own text; do not "tidy" a product name or specification
 
 4. DRY RUN first, always:
      POST /products/bulk  {"rows": [...], "dry_run": true}
@@ -149,10 +167,10 @@ decided to send.
      python3 scripts/bulk_import.py --kind products rows.json
    It dry-runs by default, chunks large files, keeps row indexes global to
    your file, and aggregates a changed-fields histogram. Either way, report
-   what the response says — 将新建 47 条、更新 12 条、3 条有问题 — and for the
-   updates, say WHICH fields move (the response names them). "12 条更新，都
-   只动了价格" is the sentence that lets a person catch a bad mapping before
-   it lands.
+   what the response says — 47 to create, 12 to update, 3 with problems — and
+   for the updates, say WHICH fields move (the response names them). "12
+   updates, all of them price-only" is the sentence that lets a person catch a
+   bad mapping before it lands.
 
 5. Get explicit confirmation, then re-send with dry_run false (script: add
    `--apply`).
@@ -208,8 +226,9 @@ with its counts.
 - Guess which column is the price when more than one could be.
 - Force a price column into a type that does not mean it. A missing type is
   something to propose (`POST /type-options`), never something to approximate.
-  The same holds for 客户分类 and `customer_type`.
-- Decide for the person whether a customer is 自然人 or 组织. If the sheet does
+  The same holds for customer categories and `customer_type`.
+- Decide for the person whether a customer is an individual or an organisation.
+  If the sheet does
   not say, leave `customer_kind` out and ask — an unstated kind is a gap, and
   a guessed one is a wrong fact that later reports will repeat.
 - Silently drop a column, or silently normalise someone's product names.
@@ -222,5 +241,5 @@ with its counts.
 - [references/api.md](references/api.md): endpoints, row shapes per family,
   and the full response contract.
 - [references/spreadsheets.md](references/spreadsheets.md): reading real
-  files — header detection, merged cells, Chinese column-name vocabulary,
-  number and price cleanup.
+  files — header detection, merged cells, the Chinese column-name vocabulary
+  real sheets use, number and price cleanup.

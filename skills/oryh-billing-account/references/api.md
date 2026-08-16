@@ -23,7 +23,7 @@ accept `page`/`size`.
 ```json
 POST /billing-accounts
 {
-  "name": "市一院预存款",
+  "name": "City First Hospital prepayment",
   "unit_type": "currency",
   "unit": "CNY",
   "customer_id": "customer-uuid",
@@ -59,7 +59,7 @@ movement, including payment settlement.
 POST /billing-accounts/{account_id}/entries
 {
   "lines": [
-    {"amount": 300.0, "reason": "earned", "description": "消费 3000 元",
+    {"amount": 300.0, "reason": "earned", "description": "3000 spent",
      "entity_type": "sales_order", "entity_id": "order-uuid",
      "expires_at": "2027-12-31T00:00:00Z"}
   ],
@@ -111,7 +111,7 @@ POST /payments/{payment_id}/apply
             "amount_applied": 100000.0}]}
 ```
 
-An inbound payment **increases** the balance (预存), an outbound one
+An inbound payment **increases** the balance (a prepayment), an outbound one
 **decreases** it (refund). The account's ledger records the movement in the same
 transaction, so the balance stays the entries' sum however the money arrived.
 

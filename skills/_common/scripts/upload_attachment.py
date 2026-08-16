@@ -7,7 +7,7 @@ skill asks you to watch for. Stdlib only.
 
 Usage (from this skill's directory):
 
-    python3 scripts/upload_attachment.py 发票1.pdf 高铁票.jpg
+    python3 scripts/upload_attachment.py invoice1.pdf train-ticket.jpg
 
 Connection: --base-url/--api-key flags win, then ORYH_BASE_URL/ORYH_API_KEY
 environment variables, then the values rendered into this bundle.

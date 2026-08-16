@@ -13,21 +13,21 @@ whom, at what price, and what has actually arrived.
 
 Two facts shape every step:
 
-- **The vendor is required.** A requisition may say "还没定找谁"; a PO cannot.
+- **The vendor is required.** A requisition may say the supplier is undecided; a PO cannot.
   If the supplier is not decided, the work still belongs upstream.
 - **One capability drives everything.** `purchase_order.manage` files, edits,
   advances, and receives — procurement is a function, not "my own documents",
   so there is no submit/approve split and no built-in second approval. Tenants
-  wanting PO审批 add it via workflow definitions and the flow agent.
+  wanting PO approval add it via workflow definitions and the flow agent.
 
 {{include:_common/answer-the-question.md}}
 
 ## Trigger Examples
 
-- "给戴尔下采购单" / "按上周批的采购申请下单"
-- "PO-2026-00012 到货了，入上海仓"
-- "显示器到了6台，剩下的直发客户了"
-- "把这张采购单关了" / "供应商没货，取消"
+- "Place a purchase order with Dell" / "Order against the requisition approved last week"
+- "PO-2026-00012 arrived — receive it into the Shanghai warehouse"
+- "6 monitors came in; the rest shipped direct to the customer"
+- "Close this purchase order" / "The supplier has no stock, cancel it"
 
 ## Required Inputs
 
@@ -66,11 +66,11 @@ arrived → `received`; invoiced/settled per tenant practice → `closed`).
    /purchase-orders`, one call and one transaction, a bad line rolls the order
    back), or afterwards with `POST /purchase-order-items`. Catalog lines carry
    `product_id`/`sku_id` (name and unit backfill; SKU-level granularity works as
-   everywhere); free-text lines carry `product_name_snapshot`. 按单采购: pin each line to the requisition
+   everywhere); free-text lines carry `product_name_snapshot`. When purchasing against an order, pin each line to the requisition
    line it fulfils with `purchase_request_item_id` — the chain then shows in
    both details, and through the requisition's own `sales_order_item_id` link
    it reaches the customer order that triggered the buy.
-5. **Adjustments** (运费/税/整单折扣) work exactly as on quotations and
+5. **Adjustments** (freight, tax, whole-document discounts) work exactly as on quotations and
    orders: signed amounts, header- or line-pinned, and the type must be an
    active `sales_adjustment_type` option (`GET /type-options?family=sales_adjustment_type`;
    tenants extend via `POST /type-options`).
@@ -82,10 +82,10 @@ arrived → `received`; invoiced/settled per tenant practice → `closed`).
    partial deliveries are many calls, each accumulating `received_quantity`:
    - a line with `facility` lands in the inventory ledger (position found or
      created; ledger reason `received`, pinned to the PO line);
-   - a line **without** `facility` is a 直发/零库存 receipt — recorded on the
+   - a line **without** `facility` is a drop-ship or zero-inventory receipt — recorded on the
      PO, never touching stock;
    - free-text lines (no product) can only be received without a facility.
-8. **Advance on facts.** All lines received (over-receipt 超收 is legal and
+8. **Advance on facts.** All lines received (over-receipt is legal and
    recorded as stated — flag it, don't block it) → `"received"`, then
    `"closed"` per tenant practice. If the order came from a requisition, tell
    the flow agent's queue by completing the ordering todo; the request's
@@ -106,7 +106,7 @@ arrived → `received`; invoiced/settled per tenant practice → `closed`).
 ## What This Skill Never Does
 
 - Order without a decided vendor, or invent vendors/products to make a line pass.
-- Approve its own purchase — tenants wanting PO审批 route it through workflow
+- Approve its own purchase — tenants wanting PO approval route it through workflow
   definitions and the flow agent before `submitted → confirmed`.
 - Move `received`/`closed` ahead of the recorded facts, or walk a status
   backwards to "fix" history.
@@ -118,4 +118,4 @@ arrived → `received`; invoiced/settled per tenant practice → `closed`).
 ## Reference
 
 - [references/api.md](references/api.md): all endpoints, the receive
-  contract, and the 按单采购 chain.
+  contract, and the purchase-against-order chain.

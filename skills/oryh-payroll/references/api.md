@@ -7,7 +7,7 @@ sees only the records of the employee it is linked to, and someone else's
 payslip is a **404, not a 403** — 403 would confirm the document exists, which
 is most of what the gate protects.
 
-## Pay records (薪资档案)
+## Pay records
 
 | Call | Purpose |
 |---|---|
@@ -15,12 +15,12 @@ is most of what the gate protects.
 | `GET /pay-histories?employee_id={id}` | one person's terms |
 | `GET /pay-histories?component=commission` | everyone on a commission arrangement |
 | `GET /pay-histories?in_force_on=2026-07-01` | what was in force on a date |
-| `POST /pay-histories` | 定薪/调薪 — closes the previous term and opens the new one |
+| `POST /pay-histories` | set or revise pay — closes the previous term and opens the new one |
 | `GET /pay-histories/{pay_history_id}` | one record |
 | `PATCH /pay-histories/{pay_history_id}` | correct a mistake — refused once a payslip cites it |
 | `GET /employees/{employee_id}/pay-history` | one person's whole history, newest first |
 
-### 定薪 / 调薪
+### Setting and revising pay
 
 ```json
 POST /pay-histories
@@ -31,7 +31,7 @@ POST /pay-histories
   "amount": 15000.0,
   "period_type": "month",
   "currency": "CNY",
-  "notes": "转正调薪",
+  "notes": "revision on confirmation of employment",
   "custom_fields": {"social_insurance_base": 12000, "housing_fund_base": 12000}
 }
 ```
@@ -43,7 +43,7 @@ POST /pay-histories
   "component": "commission",
   "effective_from": "2026-07-01",
   "rate": 0.03,
-  "basis": "本人负责合同的当月回款额"
+  "basis": "collections that month on contracts this person owns"
 }
 ```
 
@@ -67,7 +67,7 @@ POST /pay-histories
   leaving). A raise sets it for you.
 - `PATCH` refuses (409) once an `invoice_item` cites the record.
 
-## Payslips (工资条)
+## Payslips
 
 A payslip is an invoice with `direction: "payroll"`. Everything in
 `$oryh-receivables`'s invoice reference applies, plus what is below.
@@ -78,7 +78,7 @@ A payslip is an invoice with `direction: "payroll"`. Everything in
 | `GET /invoices?direction=payroll&payee_employee_id={id}` | one person's payslips |
 | `GET /invoices?direction=payroll&outstanding=true` | issued but not yet paid out |
 | `POST /invoices` | file one, with its lines |
-| `GET /invoices/{invoice_id}/detail` | the lines and `billed_total` (实发) |
+| `GET /invoices/{invoice_id}/detail` | the lines and `billed_total` (net pay) |
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 
 ```json
@@ -87,32 +87,32 @@ POST /invoices
   "direction": "payroll",
   "employee_id": "{{EMPLOYEE_ID}}",
   "payee_employee_id": "employee-uuid",
-  "title": "2026年7月工资",
+  "title": "July 2026 salary",
   "period_start": "2026-07-01",
   "period_end": "2026-07-31",
   "currency": "CNY",
   "items": [
-    {"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
+    {"invoice_item_type": "payroll_salary", "product_name_snapshot": "Base salary",
      "amount": 15000.0, "pay_history_id": "pay-history-uuid",
-     "notes": "月薪 15000.00（2026-07-01 起）"},
-    {"invoice_item_type": "payroll_commission", "product_name_snapshot": "销售提成",
+     "notes": "15000.00 a month (from 2026-07-01)"},
+    {"invoice_item_type": "payroll_commission", "product_name_snapshot": "Sales commission",
      "amount": 2400.0, "pay_history_id": "pay-history-uuid",
-     "notes": "回款 80000.00 × 3% = 2400.00"},
-    {"invoice_item_type": "payroll_allowance", "product_name_snapshot": "交通补贴",
-     "amount": 500.0, "notes": "岗位交通补贴 500.00/月"},
-    {"invoice_item_type": "payroll_pension_ee", "product_name_snapshot": "养老保险（个人）",
-     "amount": -960.0, "notes": "缴费基数 12000.00 × 8% = 960.00"},
-    {"invoice_item_type": "payroll_iit", "product_name_snapshot": "个人所得税",
-     "amount": -389.4, "notes": "累计预扣法：应纳税所得额 12989.00 × 3%"}
+     "notes": "collections 80000.00 × 3% = 2400.00"},
+    {"invoice_item_type": "payroll_allowance", "product_name_snapshot": "Travel allowance",
+     "amount": 500.0, "notes": "role travel allowance 500.00/month"},
+    {"invoice_item_type": "payroll_pension_ee", "product_name_snapshot": "Pension (employee)",
+     "amount": -960.0, "notes": "contribution base 12000.00 × 8% = 960.00"},
+    {"invoice_item_type": "payroll_iit", "product_name_snapshot": "Individual income tax",
+     "amount": -389.4, "notes": "cumulative withholding: taxable income 12989.00 × 3%"}
   ]
 }
 ```
 
 - `payee_employee_id`, `period_start` and `period_end` are all required for a
-  payroll invoice (422 otherwise). `employee_id` stays the HR 经办人.
+  payroll invoice (422 otherwise). `employee_id` stays the HR officer.
 - **One payslip per person per `period_start`** — a second is a 409. This is a
   database constraint, not a convention.
-- **No `total_amount`** — a 422. 实发工资 is the sum of the lines, reported as
+- **No `total_amount`** — a 422. Net pay is the sum of the lines, reported as
   `billed_total` on `/detail`.
 - A payslip names no customer, no vendor, and no order; all four are 422s.
 - `direction` is not correctable. A payslip filed against the wrong person is
@@ -143,7 +143,8 @@ its `sign`, and one without it is refused on use.
 
 - **Every line shows its working**: either `pay_history_id` (the record the
   number came from) or a non-empty `notes` stating the calculation. Neither is
-  a 422. The rates behind 五险一金 and 个税 are not stored anywhere in this
+  a 422. The rates behind social insurance, the housing fund and income tax are
+  not stored anywhere in this
   database, so the line is the only record of how the figure was reached.
 - `pay_history_id` may only cite a record belonging to `payee_employee_id`
   (422 otherwise).
@@ -183,7 +184,7 @@ POST /payments/{payment_id}/apply
 
 - One payment per person; the shared `reference_no` IS the batch. There is no
   batch object.
-- `payee_employee_id` names the person paid; `employee_id` stays the 经办人.
+- `payee_employee_id` names the person paid; `employee_id` stays the officer.
 - Over-applying is a 409 naming what is left on whichever side ran out.
 - A wrong match is reversed with a negative `amount_applied`, never deleted.
 - The payout and the payslip must share a currency (409 otherwise).

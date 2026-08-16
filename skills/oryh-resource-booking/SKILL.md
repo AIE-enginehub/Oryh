@@ -10,12 +10,12 @@ Use this skill when the task is to operate bookable enterprise resources in a ru
 
 This skill should trigger for user intents like:
 
-- "帮我订会议室"
-- "查一下明天下午有没有空的会议室"
-- "帮我借一台投影仪"
-- "帮我改一下这个会议室预订时间"
-- "取消这个设备预约"
-- "看看这个资源现在能不能订"
+- "Book me a meeting room"
+- "Is there a room free tomorrow afternoon?"
+- "Lend me a projector"
+- "Move this room booking to another time"
+- "Cancel this equipment booking"
+- "Is this resource free right now?"
 
 This skill is for API usage only. It does not do calendar sync, mail notifications, or approval orchestration by itself.
 
@@ -33,7 +33,7 @@ oryh:
   resource_request:
     resource_type: "meeting_room"
     search:
-      keyword: "8人"
+      keyword: "8-person"
       location: "Floor 8"
     booking:
       booked_by_employee_id: "employee-id"
@@ -41,7 +41,7 @@ oryh:
       start_at: "2026-04-03T09:00:00Z"
       end_at: "2026-04-03T10:00:00Z"
       quantity: 1
-      source_text: "帮我订明天上午 9 点到 10 点的 8 人会议室"
+      source_text: "book the 8-person meeting room tomorrow 9 to 10"
       notes: "Need a screen"
 ```
 

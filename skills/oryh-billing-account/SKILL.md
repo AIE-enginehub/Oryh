@@ -18,7 +18,7 @@ Four facts shape everything:
 - **The floor is `-credit_limit`.** A points account has a limit of 0, so it
   cannot be overdrawn. A credit account may go negative exactly as far as it
   was allowed, and the server refuses the entry that would go further.
-- **Money and points never convert.** "500 分抵 5 元" is TWO facts you record
+- **Money and points never convert.** "500 points off 5 yuan" is TWO facts you record
   separately, never one exchange the server performs. See below — this is the
   single most important line in this skill.
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
@@ -29,11 +29,11 @@ Four facts shape everything:
 
 ## Trigger Examples
 
-- "市一院预存了 10 万" / "他们还能赊多少"
-- "这单给客户加 300 积分"
-- "用积分抵一下这张单"
-- "跑一下积分过期" / "去年的积分该清了"
-- "把这个会员的账户冻结"
+- "City First Hospital prepaid 100,000" / "how much credit do they have left?"
+- "Add 300 points to the customer for this order"
+- "Redeem points against this invoice"
+- "Run the points expiry" / "last year's points should be cleared"
+- "Freeze this member's account"
 
 ## Required Inputs
 
@@ -46,7 +46,7 @@ oryh:
 ```
 
 `billing_account.post` may be scoped to one unit type — a workspace can hand
-`:points` to 会员运营 and `:currency` to 财务. Granting points is the
+`:points` to membership operations and `:currency` to finance. Granting points is the
 fraud-prone action, which is why it is separable from both opening accounts and
 moving money. If your key holds only one scope, do that half and say plainly
 who owns the other.
@@ -59,7 +59,7 @@ who owns the other.
 - money: `unit_type: "currency"`, `unit: "CNY"`
 - points: `unit_type: "points"`, `unit` from
   `GET /type-options?family=billing_account_unit` (the workspace extends it —
-  油卡额度, 观影券, whatever they actually call it)
+  a fuel-card allowance, cinema vouchers, whatever they actually call it)
 
 `credit_limit` is how far the balance may go **negative**. Leave it 0 for
 points and for prepaid money; set it only when the workspace really is
@@ -77,7 +77,7 @@ right one opened.
 ```json
 POST /billing-accounts/{account_id}/entries
 {
-  "lines": [{"amount": 300.0, "reason": "earned", "description": "消费 3000 元",
+  "lines": [{"amount": 300.0, "reason": "earned", "description": "3000 spent",
              "expires_at": "2027-12-31T00:00:00Z"}],
   "idempotency_key": "grant-so-2026-0031"
 }
@@ -95,7 +95,7 @@ POST /billing-accounts/{account_id}/entries
   order, the invoice, the entry being reversed). Do it: it is what makes the
   balance explainable a year later.
 
-## 预存 and 挂账 (money accounts)
+## Prepayments and charge accounts (money accounts)
 
 Two kinds of money meet on one account, and the table is worth keeping straight
 when you explain it to a person — it is the thing most easily said backwards:
@@ -118,9 +118,9 @@ POST /payments/{payment_id}/apply
 The payment's counterparty must BE the account's owner; a mismatch is a 409,
 not a warning.
 
-**Charging (挂账即占用).** A sales/purchase order or an invoice charged to the
+**Charging occupies credit.** A sales or purchase order, or an invoice, charged to the
 account (`billing_account_id` on the document) OCCUPIES its credit from that
-moment. "还能用多少" is the detail's `available_amount`:
+moment. "How much is still available" is the detail's `available_amount`:
 
 ```text
 available = balance + credit_limit − exposure_amount
@@ -131,7 +131,7 @@ available = balance + credit_limit − exposure_amount
 occupied amount. That list is your first read before charging anything new, and
 your sweep target for forgotten releases (see the flow skills).
 
-**核销划拨.** Settling a charged invoice from the account's own money is ONE
+**Settling by transfer.** Settling a charged invoice from the account's own money is ONE
 atomic call on the deposit payment — the negative line releases the account
 (ledger `reason: charge`), the positive line settles the invoice:
 
@@ -201,7 +201,7 @@ next pass sees that batch as handled instead of expiring it twice.
 `expiring_amount` is the sum of those batches, **not** the amount to expire.
 How much of a batch survived redemption depends on whether the workspace draws
 points FIFO, LIFO or from a pool; the server does not track which batch a
-redemption came from, and that口径 lives in the workflow definition. Say which
+redemption came from, and that basis lives in the workflow definition. Say which
 rule you applied when you report.
 
 ## Validate Before Writing
@@ -218,7 +218,7 @@ rule you applied when you report.
 ## What This Skill Never Does
 
 - Convert points into money, or money into points.
-- Decide earning rates, redemption rates, tiers or expiry 口径.
+- Decide earning rates, redemption rates, tiers or the expiry basis.
 - Set a balance directly, or edit/delete a ledger entry.
 - Apply a payment to a points account (409 — and rightly).
 - Change an account's unit, unit type or owner.

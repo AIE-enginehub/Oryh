@@ -42,8 +42,8 @@ Examples already in scope:
 - purchase requests (with optional vendor/product/price)
 - sales quotations (with customer/product snapshots, list-price facts, and revisions)
 - sales orders (fulfilment of won quotations: SO numbers, promised dates, logistics facts to sign-off)
-- invoices in both directions (销项/进项), with the tax document's own number and the order lines they bill
-- payments and the 核销 ledger that says which documents each one settled
+- invoices in both directions (output and input tax), with the tax document's own number and the order lines they bill
+- payments and the settlement ledger that says which documents each one settled
 - business objects
 - business object links
 - resource bookings

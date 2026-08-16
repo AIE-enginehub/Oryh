@@ -148,7 +148,7 @@ carries the company:
 |---|---|
 | install root | `oryh-skills-<slug>/` — one directory per employer, siblings, never merged |
 | skill name | `oryh-<slug>-timesheet-submit` — the company sits inside the skill's own name |
-| description | opens with `[晶诚医疗设备有限公司]` and says the copy is bound to that company |
+| description | opens with the company name in brackets and says the copy is bound to that company |
 | `manifest.json` | carries `tenant: {id, slug, name}`, `environment_id` (which deployment, never a company), `install_dir`, `site_base_url`, `api_base_url` (and `base_url`, the older alias of `site_base_url`) |
 
 The slug (`Tenant.slug`) is derived once from the tenant's email domain
@@ -158,8 +158,9 @@ the manifest's tenant block is what carries a rename out to installed copies,
 since the per-skill `files_hash` covers templates only and would not move.
 
 **How the agent picks the right company.** It doesn't infer, it reads. The name
-and description are all a local agent sees when it selects a skill, so "报一下
-晶诚这周的工时" matches `oryh-jc-medical-timesheet-submit` and no other. The key
+and description are all a local agent sees when it selects a skill, so a
+request to file this week's timesheet for that company matches
+`oryh-jc-medical-timesheet-submit` and no other. The key
 baked into that skill's files can only write to that company's oryh — there is
 no tenant parameter to get wrong, and no "switch company" edit that would make
 sense.
@@ -207,10 +208,10 @@ company, safe to put on a wiki or IM. Three paths:
    company-specific — so a device whose key was rotated or revoked already has
    the instructions to reconnect, and so does a person adding a second employer.
    skill-sync's 401 handling points at it.
-   Signed-in users also see a "连接新设备" shortcut to `/web/connect` on the
+   Signed-in users also see a "connect a new device" shortcut to `/web/connect` on the
    API Keys page for adding another machine.
 
-Trigger phrases the skill matches: "连接 oryh" / "登录 oryh", first use
+Trigger phrases the skill matches: "connect to oryh" / "sign in to oryh", first use
 on a new machine, or any oryh skill hitting `401 invalid API key`.
 
 ## After Connecting

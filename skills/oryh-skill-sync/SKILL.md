@@ -13,8 +13,8 @@ This copy serves **one employer**. Its key, its manifest and its directory all b
 
 ## Trigger Examples
 
-- "我的 oryh 技能是最新的吗？"
-- "更新一下 oryh 技能"
+- "Are my oryh skills up to date?"
+- "Update my oryh skills"
 - On session start, before running any other oryh skill (cheap: one GET when current).
 
 ## Required Inputs
@@ -61,7 +61,7 @@ If the person has more than one employer installed, sync the one this request is
      only what it is called on disk):
      - same names, same version + files_hash everywhere, and an unchanged tenant
        block → up to date. Say so in one line — UNLESS they named a skill they
-       expected to get, in which case "你已经是最新的" answers the wrong
+       expected to get, in which case "you are already up to date" answers the wrong
        question: go to `GET {api_base_url}/my/skills/reach` and tell them why
        that skill is not theirs (see "Why Don't You Have The X Skill?").
      - any version/files_hash differs, a skill appears/disappears (role changes
@@ -98,7 +98,7 @@ If the person has more than one employer installed, sync the one this request is
    and name the company you synced.
    - **A skill DISAPPEARED → call `GET {api_base_url}/my/skills/reach` before
      you report.**
-     "少了 X" on its own sounds like the skill was archived or re-aimed; far
+     "X is missing" on its own sounds like the skill was archived or re-aimed; far
      more often their permissions or their role changed. Name the reason, and
      say it is a change on the company's side rather than something they can
      re-sync their way out of.
@@ -115,8 +115,8 @@ change is live immediately, for everyone, with nothing to install.
 
 | The admin changed… | Does sync report a change? | When does it take effect? |
 |---|---|---|
-| a **workflow definition** (审批人、阈值、提交要求) | **No** — no skill file moved | already in effect; the next run reads it |
-| an **object type definition** (字段、状态机) | **No** — same reason | already in effect |
+| a **workflow definition** (approvers, thresholds, submission requirements) | **No** — no skill file moved | already in effect; the next run reads it |
+| an **object type definition** (fields, state machine) | **No** — same reason | already in effect |
 | a **tenant skill** in `/skills` (new, revised, archived) | Yes | after this sync |
 | **who a skill is aimed at** (audience / distribution mode) | Yes | after this sync |
 | the **shipped product catalog** (a deploy) | Yes | after this sync |
@@ -139,11 +139,11 @@ GET {api_base_url}/my/skills/reach
 
 **Call it in three situations, not only when asked outright:**
 
-1. The person names a skill they expect and sync reports no change. "你已经是
-   最新的" is then the literally correct answer and the single most misleading
+1. The person names a skill they expect and sync reports no change. "You are
+   already up to date" is then the literally correct answer and the single most misleading
    thing you can say — it reads as "sync is broken" when the real answer is
    "that skill was never sent to you". Answer the question they asked.
-2. **A skill disappeared during sync.** Reporting "少了 X" alone sounds like
+2. **A skill disappeared during sync.** Reporting "X is missing" alone sounds like
    the skill was archived or re-aimed; usually their permissions changed. Say
    which.
 3. They ask directly.
@@ -161,7 +161,7 @@ for half a fix; they wait, re-sync, still do not have it, and come back.
 
 `granted_by_roles` names the roles that hold the capability **today**. It is
 context, not an instruction: those roles are usually more privileged than
-the person asking, and "申请转成合伙人" to get a meeting-room skill back is an
+the person asking, and "ask to be made a partner" to get a meeting-room skill back is an
 escalation, not a fix. Ask for **the capability**, and name the roles only if
 the admin needs a precedent to copy.
 

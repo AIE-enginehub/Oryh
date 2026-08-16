@@ -10,7 +10,7 @@ GET /projects?keyword=&status=active                      → match a real proje
 GET /timesheet-headers?employee_id={me}&status=draft      → reuse before create
 GET /timesheet-headers/{header_id}/detail                 → header + entries + approval trail
 GET /approval-records?entity_type=timesheet_header&entity_id={header_id}   → progress
-GET /workflow-definitions?entity_kind=builtin&object_type=timesheet_header → tenant rules; apply its 提交要求 (step 2)
+GET /workflow-definitions?entity_kind=builtin&object_type=timesheet_header → tenant rules; apply its submission requirements (step 2)
 ```
 
 ## Create Header
@@ -21,10 +21,10 @@ POST /timesheet-headers
   "employee_id": "my-employee-id",
   "period_start": "2026-06-29",
   "period_end": "2026-07-05",
-  "source_report_text": "这周我主要在 ERP Upgrade 上做 API 设计，还处理了联调问题。",
+  "source_report_text": "Mostly API design on ERP Upgrade this week, plus some integration troubleshooting.",
   "entries": [
-    {"work_date": "2026-06-29", "hours": 8, "task": "API 设计"},
-    {"work_date": "2026-06-30", "hours": 6.5, "task": "联调排查"}
+    {"work_date": "2026-06-29", "hours": 8, "task": "API design"},
+    {"work_date": "2026-06-30", "hours": 6.5, "task": "integration troubleshooting"}
   ]
 }
 ```
@@ -57,11 +57,11 @@ POST /timesheet-entries
 
 `work_type` (default `regular`) is a tenant-owned vocabulary: the shipped
 catalog is regular | overtime | holiday | travel | other, and the tenant may
-have added their own (值班、培训…) or archived shipped ones. Read the current
+have added their own (on-call, training…) or archived shipped ones. Read the current
 list with `GET /type-options?family=work_type&status=active`; an unknown value
 is a 422 listing the active ones. Hours that genuinely are a kind of their own
 deserve a new type rather than being filed as `other` —
-`POST /type-options {"family": "work_type", "name": "on_call", "title": "值班"}`
+`POST /type-options {"family": "work_type", "name": "on_call", "title": "On call"}`
 (needs `object_types.manage`; on 403 name the missing type and ask an admin).
 
 `PATCH /timesheet-entries/{id}` / `DELETE` while the header is editable (409 otherwise). `work_date` is not a PATCH field — sending it (or any unknown field, on any endpoint) is a 422 naming the field; correct a wrong date by DELETE + re-POST. Omit `project_id` and keep the free-text fields when master data is uncertain.
@@ -105,7 +105,7 @@ POST /approval-records
 
 ```text
 PATCH /timesheet-headers/{header_id}
-{"period_start": "2026-07-06", "period_end": "2026-07-10", "remarks": "补充说明"}
+{"period_start": "2026-07-06", "period_end": "2026-07-10", "remarks": "additional notes"}
 ```
 
 Editable while the header is in an editable state (`draft`/`returned` by

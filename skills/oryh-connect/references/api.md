@@ -54,8 +54,8 @@ One of:
 {"data": {
   "status": "approved",
   "api_key": "calw_…",
-  "user": {"email": "wang@corp.com", "name": "小王", "role": "member", "employee_id": "…"},
-  "tenant": "Acme 咨询",
+  "user": {"email": "wang@corp.com", "name": "Wang", "role": "member", "employee_id": "…"},
+  "tenant": "Acme Consulting",
   "tenant_slug": "acme",
   "install_dir": "oryh-skills-acme"
 }, "meta": {}}

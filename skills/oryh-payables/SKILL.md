@@ -6,13 +6,14 @@ required_capability: invoice.manage:purchase
 
 # Oryh Payables
 
-应付会计的一条龙: 登记账单 → 三单匹配 → 付款申请 → 核销.
+The AP clerk's whole arc: book the bill → three-way match → payment request → settle.
 
 What makes this side different from receivables:
 
 - **The invoice is someone else's document.** You are recording what the
-  supplier sent, including its own 发票代码/号码. Getting that number in matters:
-  it is the workspace's only defence against the same 进项票 being reimbursed to
+  supplier sent, including its own tax-invoice code and number. Getting that
+  number in matters: it is the workspace's only defence against the same input
+  invoice being reimbursed to
   an employee *and* paid again to the supplier.
 - **Three-way match is facts, not a verdict.** The server reports ordered vs
   received vs billed per line. Whether a gap is acceptable is read from the
@@ -29,11 +30,11 @@ What makes this side different from receivables:
 
 ## Trigger Examples
 
-- "戴尔的发票到了，26000，对一下 PO-2026-00012"
-- "这张票比收货多了两台，怎么办"
-- "把这批供应商账单做成付款申请"
-- "款打出去了，核销掉"
-- "小李的报销批了，付款"
+- "Dell's invoice arrived, 26,000 — check it against PO-2026-00012"
+- "This invoice is two units more than we received, what now?"
+- "Turn this batch of supplier bills into a payment request"
+- "The money went out, settle it"
+- "Li's expense claim is approved — pay it"
 
 ## Required Inputs
 
@@ -42,7 +43,7 @@ oryh:
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   api_key: "{{ORYH_API_KEY}}"     # needs invoice.manage:purchase, payment.record, payment.apply
-  employee_id: "{{EMPLOYEE_ID}}"  # the 经办人 recorded on what you file
+  employee_id: "{{EMPLOYEE_ID}}"  # the officer recorded on what you file
 ```
 
 ## Booking a Supplier Invoice
@@ -51,12 +52,13 @@ oryh:
    by number. `GET /purchase-orders/{po_id}/detail` gives lines, the agreed
    total, and ordered-vs-received quantities.
 2. **Reuse before create.**
-   `GET /invoices?direction=purchase&purchase_order_id={id}` — 分批开票 is
+   `GET /invoices?direction=purchase&purchase_order_id={id}` — billing in
+   instalments is
    normal, so check what is already booked before adding another.
 3. **Book the bill WITH its lines, in one call.** `POST /invoices` takes an
    `items` array and files the whole thing in one transaction.
    `direction: "purchase"` with the required `vendor_id`. Record the supplier's
-   own `tax_invoice_number` and `tax_invoice_code`, and put the full 查验/OCR
+   own `tax_invoice_number` and `tax_invoice_code`, and put the full verification or OCR
    result in `extracted_fields` — the typed columns are only the queryable
    subset. Set `due_date` from the payment terms; that is what the payables
    queue reads. A bill must carry either `items` or a `total_amount` (422
@@ -70,7 +72,7 @@ oryh:
    flipped. Both are void-and-refile, not edits. A bill you have already paid
    against cannot be deleted either; reverse the applications first.
 
-## 三单匹配
+## Three-way match
 
 `GET /invoices/{invoice_id}/detail` returns `order_match` whenever the bill
 names its purchase order. Per order line it states:
@@ -91,7 +93,7 @@ Plus `ordered_total` / `billed_total` / `unbilled_total` for the document and
 GET /workflow-definitions?entity_kind=builtin&object_type=invoice
 ```
 
-Tolerances, who signs off on an over-bill, whether 运费 may exceed the order —
+Tolerances, who signs off on an over-bill, whether freight may exceed the order —
 all of that is the workspace's text, not yours. When the definition is silent
 and the numbers disagree, state the three figures plainly to the principal and
 ask; do not average them into a decision.
@@ -99,9 +101,10 @@ ask; do not average them into a decision.
 ## Paying
 
 1. **File the payment.** `POST /payments` with `direction: "outbound"` and the
-   `vendor_id` (or `payee_employee_id` for a 报销付款). Leave it at `draft`.
+   `vendor_id` (or `payee_employee_id` when paying an expense claim). Leave it at `draft`.
 2. **Record `counterparty_account`.** The account the money is about to go to.
-   This is the single most valuable field on the document: 改单诈骗 works by
+   This is the single most valuable field on the document: payment-diversion
+   fraud works by
    changing the account on an invoice, and an approver comparing this against
    the vendor's own master record is what catches it. Storing it also makes
    that check auditable afterwards instead of only conversational.
@@ -109,7 +112,7 @@ ask; do not average them into a decision.
    flow agent's job; do not advance the status yourself past `submitted`.
 4. **After the transfer**, whoever holds `payment.advance` moves it to `paid`.
 
-## 核销
+## Settlement
 
 ```json
 POST /payments/{payment_id}/apply
@@ -124,11 +127,11 @@ POST /payments/{payment_id}/apply
 - One payment settles several bills — one line each.
 - **Always pass an `idempotency_key`**: this writes money, and a retry without
   one applies twice. A repeat with the same key returns `replayed: true`.
-- 报销付款 works identically with
+- Paying an expense claim works identically with
   `"applied_to_type": "expense_claim"`. The claim's `paid` status remains the
   flow's marker; the money fact is this application. What may be settled is the
   sum of the claim's live items.
-- 预付款 in transit is an outbound payment whose `unapplied_amount` is still
+- A prepayment in transit is an outbound payment whose `unapplied_amount` is still
   positive: `GET /payments?direction=outbound&unapplied=true`. When the supplier
   keeps a **standing prepayment account** with you, apply the payment to it
   instead (`"applied_to_type": "billing_account"`) so the balance is a standing
@@ -149,12 +152,12 @@ POST /payments/{payment_id}/apply
   invoice are all 409s that name the reason. Read them; do not retry the same
   numbers.
 
-## 从供应商账户划拨 (settling from our account at the vendor)
+## Settling from our account at the vendor
 
 When their invoice is charged to our standing account there and our prepayment
 is already deposited, settle in one atomic call on the prepayment: negative
 line off the account, positive line onto their (purchase-direction) invoice —
-the mirror of receivables' 划拨, with our OUTBOUND payment as the deposit.
+the mirror of the receivables transfer, with our OUTBOUND payment as the deposit.
 `GET /billing-accounts/{id}/detail` lists the charged POs and invoices and what
 remains drawable. What the deposit does not cover is settled by a fresh
 outbound payment applied directly to the invoice.
@@ -167,7 +170,7 @@ outbound payment applied directly to the invoice.
 - Blank or alter a supplier's invoice number to get past the duplicate check.
 - Touch the purchase order's status or its receiving facts (that is
   `$oryh-purchase-order`).
-- Edit or delete a 核销 row.
+- Edit or delete a settlement row.
 - Import history — that is `$oryh-data-migration` (`POST /invoices/bulk`,
   `POST /payments/bulk`).
 

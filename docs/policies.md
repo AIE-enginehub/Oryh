@@ -1,4 +1,4 @@
-# 规章制度: a published rule of the house
+# Company rules: a published rule of the house
 
 One table. `policies` is the document — versioned, published by a named person,
 visible to whoever it says, and carrying its own figures.
@@ -17,8 +17,9 @@ What was left behind is the CMS around it: `decoratorContentId`,
 indirection that costs four joins to read one paragraph. `policies` keeps the
 shape and puts the body in a column.
 
-`isPublic` became three-valued. 员工手册 (everyone here), 薪酬管理办法
-(management only) and 服务承诺 (customers too) are three different answers, and
+`isPublic` became three-valued. An employee handbook (everyone here), a
+compensation policy (management only) and a service commitment (customers too)
+are three different answers, and
 a boolean holds two.
 
 ### The term table was built, then removed
@@ -30,19 +31,20 @@ independently of the agreement. That shape was implemented here as
 deleted before it shipped. The reason it went is worth more than the table was.
 
 **A term table exists because traditional software cannot read a policy.** It
-has to be told, in fields, that 一线城市住宿上限 is 600, because its consumer
+has to be told, in fields, that the tier-one city lodging cap is 600, because its consumer
 parses columns and not paragraphs. The consumer here is an agent that reads the
 paragraph. So the table bought nothing — and cost the one thing that actually
 matters: **a second source of truth for the same rule.** The body would say
-600 元, the row would say `travel.hotel.cap.tier1 = 600`, and nothing in the
+600, the row would say `travel.hotel.cap.tier1 = 600`, and nothing in the
 schema could notice when they stopped agreeing.
 
 Two smaller tells pointed the same way. The key had to carry the dimensions
 (`travel.hotel.cap.tier1`) with a rule that `scope_json` "documents but never
 disambiguates" — inventing a namespace to hold what prose holds for free. And
-the argument that a rule needs dating independent of the document (社保基数
-changes every July while 《薪酬管理办法》 does not) only bites if the government
-figure is crammed into 《薪酬管理办法》, which it should not be: it has its own
+the argument that a rule needs dating independent of the document (the
+contribution base changes every July while the compensation policy does not)
+only bites if the government figure is crammed into the compensation policy,
+which it should not be: it has its own
 `external_standard` policy row, and a new notice is a new version of that.
 
 So the figures ride the document, in **`rules_json`** — a free-shape object the
@@ -68,7 +70,8 @@ easy mistake. They are different axes:
 | read by | the flow agent | everyone, and every agent |
 | gated | no | visibility + capability |
 
-"谁审批超过 5 万的报销" is a workflow definition. "报销标准是多少" is a policy.
+"Who approves an expense over 50,000" is a workflow definition. "What is the
+expense standard" is a policy.
 They travel together and they are not the same thing.
 
 ## Status is a marker; the dates are the truth
@@ -105,10 +108,10 @@ directions at once:
   by being cautious would be as broken as one that leaked.
 - a **restricted** policy is readable only by holders of the capability the row
   names. It reuses the existing scopable `verb:scope` grammar rather than
-  inventing a second permission vocabulary, so 薪酬管理办法 can simply say
+  inventing a second permission vocabulary, so a compensation policy can simply say
   `payroll.read`.
 - a **draft** is readable only by its authors. This is the one that gets
-  forgotten: the draft 组织调整方案 says what is coming before anyone has
+  forgotten: a draft reorganisation plan says what is coming before anyone has
   decided, and it is more dangerous than the published version.
 - a **repealed** policy likewise leaves the handbook. Leaving it visible is how
   somebody follows a rule that no longer applies.
@@ -119,7 +122,7 @@ directions at once:
 | the row's `required_capability` | — | ✓ | ✓ | — |
 | any other credential | — | ✓ | — | — |
 
-Single fetches return **404, not 403**: that a 薪酬管理办法 exists at all is part
+Single fetches return **404, not 403**: that a compensation policy exists at all is part
 of what it hides.
 
 ## What publication freezes, and what it does not
@@ -137,7 +140,7 @@ choice a workspace should have to make about its own handbook.
 
 ```text
 POST /policies/{policy_id}/visibility
-{"visibility": "restricted", "required_capability": "payroll.read", "note": "误发全员"}
+{"visibility": "restricted", "required_capability": "payroll.read", "note": "published company-wide by mistake"}
 ```
 
 Any status, including `superseded` and `repealed` — and it matters most there,
@@ -165,14 +168,14 @@ from the DISTINCT capability strings actually in use — a handful of rows, test
 once, then an `IN` clause. Exact, and paginable.
 
 `rules_json` rides the policy row, so the figures need no gate of their own —
-and a restricted 薪酬管理办法 cannot be read one number at a time, which a
+and a restricted compensation policy cannot be read one number at a time, which a
 separate rule table would have offered as a side door.
 
 ## `rules_json`: the same rules, in a machine shape
 
 ```json
 {
-  "body": "依据沪人社规〔2026〕X号：上限 36921 元，下限 7384 元。",
+  "body": "Per Shanghai HR&SS circular 2026 No. X: ceiling 36921, floor 7384.",
   "rules_json": {"social_insurance": {"base": {"cap": 36921, "floor": 7384}}}
 }
 ```
@@ -193,7 +196,7 @@ Three properties come free from living on the policy row rather than in a table:
 |---|---|
 | versioned with the document | a figure change IS a document change; the version history says so |
 | frozen with the document | the published-policy guard covers it — no second freeze to forget |
-| gated with the document | no way to read a restricted 薪酬管理办法 one number at a time |
+| gated with the document | no way to read a restricted compensation policy one number at a time |
 
 Reading a figure is an ordinary policy read:
 `GET /policies?code=FIN-2026-03&in_force_on=2026-07-15`. `in_force_on` reads
@@ -205,10 +208,11 @@ governed March — figures included.
 The payroll simulation surfaced the gap this table closes. The agent had to
 print:
 
-> ⚠ 没把握的：社保缴费基数 7384 — 36921。这是 2024 年度的口径，而本次算的是
-> 2026 年 7 月工资。真实场景 agent 应当停下来问 HR。
+> ⚠ Not confident: social-insurance contribution base 7384 — 36921. That is the
+> 2024 basis, and this is July 2026 payroll. A real agent should stop and ask HR.
 
-and then write "待 HR 复核当年度文件" into every deduction line's `notes`.
+and then write "pending HR review against this year's circular" into every
+deduction line's `notes`.
 
 Now HR records the year's standard once, as an `external_standard` policy, and
 the agent calls:
@@ -218,8 +222,8 @@ GET /policies?category=external_standard&in_force_on=2026-07-15
 ```
 
 which returns the document, its version, its publisher and its figures. The
-payslip line's working becomes `缴费基数 36921 × 8% = 2953.68（依据 FIN-2026-03
-v1）` — a figure somebody can audit rather than one the agent remembered.
+payslip line's working becomes `contribution base 36921 × 8% = 2953.68 (per FIN-2026-03
+v1)` — a figure somebody can audit rather than one the agent remembered.
 
 **The server still computes nothing.** Storing a rule is not applying a rule.
 The agent reads, the agent computes, the agent records its working. What changed
@@ -231,7 +235,7 @@ That is the whole point of routing the figure through a published document.
 
 ## What the integrity audit asserts
 
-- one published version per 制度编号
+- one published version per policy code
 - a published policy names who published it and when
 - a restricted policy names the capability that may read it
 - no policy stops applying before it starts

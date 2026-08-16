@@ -1,4 +1,4 @@
-# 请假: the absence is the record, the balance is a question
+# Leave: the absence is the record, the balance is a question
 
 One table, `employee_leaves`, and one column added to `employees`. What is
 interesting about this design is what is **not** in it: there is no
@@ -9,7 +9,7 @@ not going to be one.
 
 "You have four days left" is not a fact anybody recorded. It is what the
 company's rules imply about this person today, and companies revise the rules.
-A workspace that changes 年假 in June, or backdates a 调休 ratio to January,
+A workspace that changes annual leave in June, or backdates a time-off-in-lieu ratio to January,
 changes every balance retroactively — and if those balances had been written
 down, they are now a pile of numbers that were true under text nobody follows,
 correctable only by reconciling entries against a document.
@@ -37,11 +37,12 @@ revise, and the arithmetic lives in a skill.
 ```text
 employee_leaves: employee, leave_type, from_date, thru_date, duration_days,
                  reason, status
-employees.hire_date: what 工龄 is measured from
+employees.hire_date: what length of service is measured from
 ```
 
-`duration_days` is days with halves — 上午请半天 is `0.5` — and it is **the
-agent's figure, not a date subtraction**. Whether the Saturday inside 周五到周一
+`duration_days` is days with halves — half a day off in the morning is `0.5` —
+and it is **the agent's figure, not a date subtraction**. Whether the Saturday
+inside a Friday-to-Monday span
 counts is the policy's call, so the server records what was agreed rather than
 recomputing it and quietly overruling the rule.
 
@@ -54,7 +55,7 @@ absence cost is settled.
 
 | OFBiz | Here | Why |
 |---|---|---|
-| `leaveTypeId` classification | `leave_type` type-option family | Right call: 陪产假 and 丧假 exist in some workspaces and not others |
+| `leaveTypeId` classification | `leave_type` type-option family | Right call: paternity and bereavement leave exist in some workspaces and not others |
 | type separate from reason | type is a vocabulary; reason is free text | The split is right, the second tree is not — nobody queries a taxonomy of "why" |
 | `approverPartyId` + `leaveStatus` on the row | `approval_records` + todos | Two columns give one approver and one state. The family plumbing gives levels, returns with reasons, and a trail |
 | key `(partyId, leaveTypeId, fromDate)` | an id | Changing the dates should write a record, not delete one. Under OFBiz's key a reschedule erases the history |
@@ -63,7 +64,7 @@ absence cost is settled.
 ## How a balance is computed
 
 ```text
-可用 = 应得(policy, 工龄, 期间) − 已批准 − 在途
+available = entitled(policy, length of service, period) − approved − in flight
 ```
 
 Three reads, none of them a balance endpoint:
@@ -75,11 +76,11 @@ GET /employee-leaves?employee_id={id}&overlapping_from=…&overlapping_thru=…
 ```
 
 `overlapping_from`/`overlapping_thru` matches any request whose range
-*intersects* the window, so a 请假 straddling New Year appears in both years and
+*intersects* the window, so a leave request straddling New Year appears in both years and
 the policy decides how to split it. Filtering on `from_date` alone would drop it
 from one side silently.
 
-**在途 is not optional.** There is no server-side hold on leave, so subtracting
+**In-flight leave is not optional.** There is no server-side hold on leave, so subtracting
 `submitted` rows is the entire protection against somebody spending the same
 three days twice by filing two requests before either is decided. The
 calibration step of the flow agent recomputes it at assignment time, and the
@@ -103,15 +104,15 @@ thing for a company to do and its policy usually says so.
 ## Cancellation refunds nothing
 
 Because nothing was deducted. A cancelled request stops matching the query that
-counts 已批/在途, and that is the whole of it — no reversing entry, no hold to
+counts approved and in-flight rows, and that is the whole of it — no reversing entry, no hold to
 release. The row itself survives: an approver said yes to it, and that is part
 of the record.
 
 ## What leave does not touch
 
-**Timesheets.** A day off is not a timesheet row with zero hours; 工时 says what
-was worked and 请假 says what was not. **Payroll.** Unpaid leave affects pay, and
+**Timesheets.** A day off is not a timesheet row with zero hours; a timesheet
+says what was worked and a leave record says what was not. **Payroll.** Unpaid leave affects pay, and
 the deduction is HR's arithmetic at payslip time — the agent reads approved
-leave and writes a line that shows its working, exactly as it does for 社保 and
-个税. Nothing deducts automatically, for the same reason nothing computes a tax
+leave and writes a line that shows its working, exactly as it does for social
+insurance and income tax. Nothing deducts automatically, for the same reason nothing computes a tax
 rate automatically.

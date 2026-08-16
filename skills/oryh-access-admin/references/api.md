@@ -2,29 +2,31 @@
 
 {{include:_common/api-auth-principal.md}}
 
-写操作需要 `users.manage`；补发技能包**额外**需要 `keys.manage`。
+Writes need `users.manage`; reissuing a skill bundle **also** needs
+`keys.manage`.
 
-## 读：先把现状看清
+## Reading: see the current state first
 
 ```text
 GET /capabilities        → {capabilities: [{name, kind, title, description, scopable}], object_types: [...]}
-                           kind=system 是服务端强制执行的固定词表；kind=custom 是租户自定义
-                           scopable=true 的能力才能写成 verb:scope；object_types 是合法作用域取值
+                           kind=system is the fixed vocabulary the server enforces; kind=custom is the tenant's own
+                           only scopable=true capabilities may be written verb:scope; object_types are the legal scope values
 GET /roles               → [{id, name, title, description, permissions, is_system, user_count}]
 GET /auth/users?size=200 → [{id, email, name, role, employee_id, status, invitation_pending}]
-GET /tenant/api-keys?status=active   → 谁持有哪些凭据（需 keys.manage）
+GET /tenant/api-keys?status=active   → who holds which credentials (needs keys.manage)
 ```
 
-`GET /roles` 与 `GET /capabilities` 只需登录即可读，写才需要 `users.manage`。
+`GET /roles` and `GET /capabilities` need only a signed-in caller; writing needs
+`users.manage`.
 
-## 角色
+## Roles
 
 ```json
 POST /roles
 {
   "name": "procurement",
-  "title": "采购经办",
-  "description": "下采购单与收货",
+  "title": "Procurement officer",
+  "description": "Places purchase orders and receives against them",
   "permissions": [
     "timesheet.submit_own", "expense.submit_own", "business_object.write:*",
     "todos.complete_own", "booking.own",
@@ -33,61 +35,73 @@ POST /roles
 }
 ```
 
-- `permissions` 是**全量覆盖**，不是增量：`PATCH` 传什么，角色就变成什么。要加一项，先 `GET /roles` 取现有数组，追加后整体发回。
-- `name` 租户内唯一（409）；每个能力名必须存在于 `GET /capabilities`（422 会指出是哪一个）。
+- `permissions` **replaces the whole array**, it is not additive: whatever the
+  `PATCH` carries is what the role becomes. To add one entry, `GET /roles` for
+  the current array, append, and send the whole thing back.
+- `name` is unique within the tenant (409); every capability name must exist in
+  `GET /capabilities` (a 422 says which one does not).
 
 ```json
 PATCH /roles/{role_ref}
-{"permissions": ["...现有的...", "purchase_order.manage"]}
+{"permissions": ["...the existing ones...", "purchase_order.manage"]}
 ```
 
-`role_ref` 可以是角色 id，也可以是角色名。`title`/`description` 可单独改，不动 `permissions`。
+`role_ref` accepts either the role id or the role name. `title` and
+`description` can be changed on their own, leaving `permissions` untouched.
 
 ```text
 DELETE /roles/{role_ref}
 ```
 
-- 系统角色 → 409 `system roles cannot be deleted`
-- 仍有用户挂着 → 409 `role is assigned to users`（先把人挪走）
+- system role → 409 `system roles cannot be deleted`
+- still assigned to users → 409 `role is assigned to users` (move them first)
 
-**锁死保护**（422，不要重试，向本人解释）：
+**Lockout protection** (422, do not retry, explain it to the principal):
 
 ```text
 the admin role must keep users.manage (lockout guard)
 tenant must keep at least one active user with users.manage (lockout guard)
 ```
 
-第二条在改角色权限、改用户角色、停用用户三处都会触发。
+The second fires on all three paths: editing role permissions, changing a user's
+role, and disabling a user.
 
-## 自定义能力
+## Custom capabilities
 
 ```json
 POST /capabilities
-{"name": "jc.warranty.approve", "title": "保修卡审批资格", "description": "谁可以批保修卡"}
+{"name": "jc.warranty.approve", "title": "May approve warranty cards", "description": "Who can approve a warranty card"}
 ```
 
-**自定义能力只在两处生效**：skill 分发的 `required_capability` 门控，以及流程定义里的路由判断。**服务端核心 API 从不检查它**——不要指望用它去拦某个接口。
+**A custom capability takes effect in exactly two places**: the
+`required_capability` gate on skill distribution, and routing decisions in a
+workflow definition. **The core server API never checks it** — do not expect it
+to gate an endpoint.
 
-- 名字与系统能力冲突 → 409
-- `DELETE /capabilities/{name}`：系统能力不可删（409）；被任何角色授予、或被任何 skill 用作门控时不可删（409）
+- name collides with a system capability → 409
+- `DELETE /capabilities/{name}`: system capabilities cannot be deleted (409);
+  neither can one that any role grants or any skill uses as its gate (409)
 
-## 用户
+## Users
 
 ```json
 POST /auth/invitations
 {
   "email": "zhangwei.taian@qq.com",
-  "name": "张伟",
+  "name": "Zhang Wei",
   "role": "vendor",
   "employee_id": "employee-id-if-the-record-exists"
 }
 ```
 
-邀请**故意不校验企业邮箱域名**——外部服务商用个人邮箱入驻走的就是这条路。角色必须已存在。邮箱全局唯一、员工档案最多绑一个用户（均 409）。
+Invitations **deliberately do not validate the company email domain** — an
+outside vendor joining with a personal address is exactly this path. The role
+must already exist. Email is globally unique and an employee record binds to at
+most one user (both 409).
 
 ```text
-POST /auth/users/{user_id}/resend-invitation      → 链接过期时重发
-POST /auth/users/{user_id}/password-reset-email   → 让本人自己重设，你不要代设
+POST /auth/users/{user_id}/resend-invitation      → when a link has expired
+POST /auth/users/{user_id}/password-reset-email   → let them reset it themselves; do not do it for them
 ```
 
 ```json
@@ -95,19 +109,22 @@ PATCH /auth/users/{user_id}
 {"role": "procurement", "status": "active", "employee_id": null}
 ```
 
-- `role` 是**覆盖**：他会失去原角色的全部能力。改之前先把原角色的 `permissions` 念给本人确认。
-- `status`: `active` | `disabled`。停用会一并清除未使用的邀请与重置令牌。
-- 未接受邀请的账号直接置 `active` → 422（他得先接受邀请）。
+- `role` **overwrites**: they lose everything the old role held. Read the old
+  role's `permissions` back to the principal for confirmation first.
+- `status`: `active` | `disabled`. Disabling also clears unused invitations and
+  reset tokens.
+- setting an account that has not accepted its invitation to `active` → 422
+  (they have to accept it first).
 
-## 排查："他为什么没有那个 skill"
+## Diagnosing "why does he not have that skill"
 
 ```text
-GET /users/{user_id}/skills     → 需 users.manage
-GET /roles/{role_ref}/skills    → 这个角色的人会收到什么（招人进来之前就能看）
+GET /users/{user_id}/skills     → needs users.manage
+GET /roles/{role_ref}/skills    → what someone in this role receives (answerable before hiring)
 ```
 
 ```json
-{"data": {"subject_label": "谢婷", "role": "member",
+{"data": {"subject_label": "Xie Ting", "role": "member",
   "received": [{"name": "oryh-my-work", "reasons": ["capability"]}],
   "withheld": [
     {"name": "oryh-purchase-submit", "reasons": ["missing_capability"],
@@ -117,37 +134,48 @@ GET /roles/{role_ref}/skills    → 这个角色的人会收到什么（招人�
   ]}}
 ```
 
-`received` 就是他下次同步会装上的东西，与 bundle 同一份判定，不会不一致。
+`received` is exactly what their next sync installs — the same decision the
+bundle makes, so the two cannot disagree.
 
-`granted_by_roles` 是"照着谁授权"的答案。一个能力已经有角色持有，就别再造
-一个新能力——那正是 skill 的能力清单越滚越长的来源。
+`granted_by_roles` answers "who do I copy the grant from". When a capability is
+already held by some role, do not invent a new one — that is where a skill's
+capability list starts growing without end.
 
-角色视图是按**角色本身**回答的：定向给某个恰好是这个角色的人的 skill，在这里
-显示为 `not_in_audience`，因为下一个进这个角色的人拿不到它。
+The role view answers about **the role itself**: a skill targeted at an
+individual who happens to hold this role shows as `not_in_audience` here,
+because the next person to enter the role will not receive it.
 
-## 技能包与凭据
+## Skill bundles and credentials
 
 ```text
-POST /users/{user_id}/skill-bundle    → 需 users.manage + keys.manage
+POST /users/{user_id}/skill-bundle    → needs users.manage + keys.manage
 ```
 
-**会轮换该用户的 key，他本地现有的技能包立刻失效、必须重装。** 角色调整后的常规做法**不是**这个，而是让他自己跑一次 `$oryh-skill-sync`——key 不变，其他设备不受影响，新 skill 自动到位。
+**This rotates that user's key, and every bundle they already have stops working
+immediately and must be reinstalled.** The normal move after a role change is
+**not** this — it is letting them run `$oryh-skill-sync` once, which leaves the
+key alone, affects no other device, and delivers the new skills.
 
-只有凭据泄露、或他确实拿不到 bundle 时才用这条，**且用前必须先告知他**。
+Use this only for a leaked credential or when they genuinely cannot fetch a
+bundle, **and tell them before you do**.
 
-## 审计
+## Audit
 
-角色的建立、修改、删除都会写审计（`role.created` / `role.updated` / `role.deleted`）。
-`role.updated` 的 detail 带四样：
+Creating, changing and deleting roles are all audited (`role.created` /
+`role.updated` / `role.deleted`). The detail on `role.updated` carries four
+things:
 
 ```json
 {"name": "member", "permissions": [...],
  "added": ["todos.assign"], "removed": ["booking.own"], "is_system": true}
 ```
 
-`removed` 是"这次拿走了什么"的唯一答案——`permissions` 是覆盖写，光看结果
-无法区分"刻意去掉"和"重建数组时漏了"。改完用 `GET /audit-logs?limit=20`
-读回来念给本人听，尤其是 `is_system: true` 的那几次。
+`removed` is the only answer to "what did this change take away" —
+`permissions` is a whole-array write, so the result alone cannot distinguish a
+deliberate removal from an entry dropped while rebuilding the array. Read it
+back with `GET /audit-logs?limit=20` afterwards, particularly for the changes
+where `is_system` is true.
 
-全量扫描需要 `users.manage`——你有。没有这项能力的人只能按记录或按自己查，
-拿不到别人的凭证事件。所以"他说他查不到日志"通常不是故障。
+A full scan needs `users.manage` — you have it. Someone without that capability
+can only query by record or by themselves, and cannot see other people's
+credential events. So "he says he cannot find the log" is usually not a fault.

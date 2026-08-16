@@ -17,12 +17,12 @@ Division of labor:
 
 This skill should trigger for user intents like:
 
-- "通知经理审批工时"
-- "通知 JC 审批人审批保修卡"
-- "发邮件提醒审批人"
-- "催一下这张业务申请的审批"
-- "把审批结果通知给提交人"
-- "通知下一位 approver"
+- "Tell the manager to approve the timesheet"
+- "Notify the JC approver about the warranty card"
+- "Email a reminder to the approver"
+- "Chase the approval on this application"
+- "Tell the filer the outcome"
+- "Notify the next approver"
 
 ## Required Inputs
 

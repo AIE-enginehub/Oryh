@@ -1,6 +1,6 @@
 ---
 name: oryh-access-admin
-description: Use when an administrator's AI agent needs to change who can do what in oryh — 给某人开某项权限（"让谢婷也能下采购单"）、新建或调整角色（"建一个采购经办角色"）、邀请同事或外部服务商入驻、换岗改角色、停用离职账号、补发技能包或访问凭证。Covers the capability catalog, roles as the unit of grant, user lifecycle, and what each change does to the person's installed skills. Requires users.manage. It never approves, never files documents, and never grants itself more than it already holds.
+description: Use when an administrator's AI agent needs to change who can do what in oryh — granting someone a capability ("let Xie Ting place purchase orders too"), creating or adjusting roles ("make a procurement-officer role"), inviting colleagues or outside vendors, moving someone to a new role, disabling a departed employee's account, or reissuing a skill bundle or access credential. Covers the capability catalog, roles as the unit of grant, user lifecycle, and what each change does to the person's installed skills. Requires users.manage. It never approves, never files documents, and never grants itself more than it already holds.
 required_capability: users.manage
 ---
 
@@ -9,22 +9,27 @@ required_capability: users.manage
 Who can do what is decided in exactly three places, and confusing them is the
 most common way this goes wrong:
 
-- **能力（capability）** — 一个动词，如 `purchase_order.manage`。系统能力由服务端强制执行；租户自定义能力**只在 skill 分发与流程路由处生效，服务端核心 API 从不检查它**。
-- **角色（role）** — 一组能力。**授权的唯一单位。**
-- **用户（user）** — 一个人，**只能挂一个角色**。
+- **Capability** — one verb, such as `purchase_order.manage`. System
+  capabilities are enforced by the server; a tenant's own custom capabilities
+  take effect **only in skill distribution and flow routing — the core server
+  API never checks them**.
+- **Role** — a set of capabilities. **The only unit of grant.**
+- **User** — a person, who **holds exactly one role**.
 
-所以"给谢婷加一个权限"这句话在系统里没有直接对应的动作。见下方"授权的三条路"——**选哪条是本 skill 最重要的判断**，不是机械操作。
+So "give Xie Ting one more permission" has no direct counterpart in the system.
+See "Three ways to grant" below — **choosing between them is the most important
+judgment this skill makes**, not a mechanical step.
 
 {{include:_common/answer-the-question.md}}
 
 ## Trigger Examples
 
-- "让谢婷也能下采购单和收货"
-- "建一个采购经办的角色"
-- "小李换到销售部了，权限改一下"
-- "邀请泰安的张伟进来，他只做保修卡"
-- "王工离职了，把账号停掉"
-- "谁能审批报销？把权限矩阵给我看看"
+- "Let Xie Ting place purchase orders and receive goods"
+- "Create a procurement-officer role"
+- "Li has moved to sales, change her permissions"
+- "Invite Zhang Wei from Tai'an — he only handles warranty cards"
+- "Wang has left, disable the account"
+- "Who can approve expenses? Show me the permission matrix"
 
 ## Required Inputs
 
@@ -32,148 +37,239 @@ most common way this goes wrong:
 oryh:
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
-  api_key: "{{ORYH_API_KEY}}"     # 管理员的用户绑定 key（需 users.manage）
+  api_key: "{{ORYH_API_KEY}}"     # the administrator's own user-bound key (needs users.manage)
 ```
 
-补发技能包（`POST /users/{id}/skill-bundle`）**额外需要 `keys.manage`**；没有就会 403，那是角色配置问题，不要重试。
+Reissuing a skill bundle (`POST /users/{id}/skill-bundle`) **also needs
+`keys.manage`**; without it you get a 403, which is role configuration rather
+than something to retry.
 
 ## Steps
 
-1. **先看清现状，再谈改法。** 三个只读调用：
-   `GET /capabilities`（系统 + 自定义能力，及可作用域的对象类型）、
-   `GET /roles`（每个角色持有哪些能力、是不是系统角色）、
-   `GET /auth/users`（谁挂着哪个角色）。
-   把"谁现在能做这件事"数出来告诉本人——常常一数就发现问题不是缺权限，而是权限过于集中。
+1. **See the current state before discussing a change.** Three read calls:
+   `GET /capabilities` (system and custom capabilities, and which are scopable),
+   `GET /roles` (which capabilities each role holds, and whether it is a system
+   role), `GET /auth/users` (who holds which role).
+   Count who can already do this thing and tell the principal — counting often
+   reveals that the problem is not a missing permission but a permission held
+   by too many people.
 
-2. **判断走哪条路**（下一节），**并把代价讲清楚再动手**。授权是影响面大的改动：先说清方案与影响，得到本人明确同意，再写。
+2. **Decide which of the three ways to take** (next section), **and state the
+   cost before acting**. Authorization changes reach far: describe the approach
+   and its consequences, get explicit agreement, then write.
 
-3. **执行**，一次只改一件事，改完读回确认。
+3. **Execute**, one change at a time, reading it back afterwards.
 
-4. **告诉本人后续会发生什么**：角色一改，那个人的 agent 在下次 `$oryh-skill-sync` 就会自动拿到新增的 skill——**不需要你补发技能包，也不该补发**（见"技能包与凭据"）。
+4. **Tell the principal what happens next**: once the role changes, that
+   person's agent picks up any newly available skills on its next
+   `$oryh-skill-sync` run — **you do not need to reissue a skill bundle, and
+   you should not** (see "Skill bundles and credentials").
 
-## 授权的三条路
+## Three ways to grant
 
-用户只能有一个角色，所以"让谢婷也能下采购单"有三种实现，代价各不相同：
+A user holds one role, so "let Xie Ting place purchase orders too" has three
+implementations with very different costs:
 
-| 路 | 做法 | 代价 | 什么时候选 |
+| Way | How | Cost | When to choose it |
 |---|---|---|---|
-| **A 拓宽她现有的角色** | `PATCH /roles/{role_ref}` 给她当前的角色加上该能力 | **现在和将来**每个挂这个角色的人都会得到它 | 这项权限确实属于这个岗位 |
-| **B 换到已有的另一个角色** | `PATCH /auth/users/{id}` 改 `role` | 她**失去**原角色的全部能力 | 是换岗，不是兼任 |
-| **C 新建一个角色** | `POST /roles` 后再把人挂过去 | 多一个角色要维护 | 这是一份新职责，且不该顺带给出别的东西 |
+| **A — widen her existing role** | `PATCH /roles/{role_ref}` adding the capability to her current role | **Everyone** holding that role gets it, now and in future | The capability genuinely belongs to that position |
+| **B — move her to another existing role** | `PATCH /auth/users/{id}` changing `role` | She **loses** everything her old role held | This is a transfer, not an additional duty |
+| **C — create a new role** | `POST /roles`, then move her into it | One more role to maintain | This is a new responsibility that should not carry anything else with it |
 
-**默认倾向 C**，除非这项权限本就属于那个岗位。理由：A 是会悄悄扩大的口子——今天只有一个人挂 `finance_reviewer`，明天新来的财务也自动获得了采购下单权。
+**Default to C**, unless the capability genuinely belongs to that position. The
+reason: A widens quietly — today one person holds `finance_reviewer`, tomorrow
+a new finance hire automatically gains purchase-ordering as well.
 
-**把 B 当成陷阱来防**：改 `role` 是覆盖不是追加。改之前先把她当前角色的能力读出来念给本人听，确认这些是可以丢的。
+**Treat B as a trap to guard against**: changing `role` overwrites, it does not
+add. Before changing it, read out the capabilities of her current role and
+confirm those are acceptable to lose.
 
-**但先算一次包含关系**：如果目标角色的能力**完全包含**她当前角色的（常见于 `member` → 某个"member 基线 + 一项"的角色），那 B 就是纯增量、零损失，此时**不要**为它新建一个几乎一样的角色——那只是多一个要维护的角色。两个角色的 `permissions` 做一次集合比较就能判断，把结果念给本人听。
+**But compute containment first**: if the target role's capabilities are a
+**superset** of her current role's — common for `member` → "member baseline
+plus one" — then B is purely additive with nothing lost, and you should **not**
+create a near-identical role for it. That would only be one more role to
+maintain. A set comparison of the two `permissions` arrays answers this; read
+the result out.
 
-**"兼任"在当前模型里做不到**——一人一角色。真要兼任，只能新建一个把两边能力并起来的角色（路 C）。这是模型限制，如实说，别假装能做到。
+**Holding two roles at once is not possible in this model** — one person, one
+role. Genuine dual duty requires a new role that unions both sets (way C). That
+is a model limitation: say so plainly rather than pretending otherwise.
 
-## 写之前必须说出口的三件事
+## Three things to say out loud before writing
 
-- **最小授权**：只给要办的事所需的那一项。要开采购下单，就只加 `purchase_order.manage`，不要顺手给 admin。
-- **不相容职责**：某些能力放在一起会让同一个人既做承诺又做确认。典型的是 `purchase_order.manage` ——它**同时**包含下单与收货，等于"自己订货、自己确认到货"。这是采购内控的经典缺口：**要指出来**，让本人决定是接受还是把收货分给别人（注意：当前该能力无法拆分，只能靠分派不同的人来缓解）。
-- **谁会因此获得权限**：走路 A 时，把现在挂着这个角色的人全部列出来。
-  `GET /roles` 的 `user_count` 直接给出人数——先说数字，再说名字。
+- **Least privilege**: grant only what the task needs. To enable purchase
+  ordering, add `purchase_order.manage` and nothing else — do not reach for
+  admin.
+- **Incompatible duties**: some capabilities together let one person both make
+  a commitment and confirm it. The classic case is `purchase_order.manage` — it
+  covers **both** placing an order and receiving against it, which is "order it
+  yourself, confirm its arrival yourself". This is the textbook procurement
+  control gap: **point it out**, and let the principal decide whether to accept
+  it or assign receiving to somebody else. (Note: this capability cannot
+  currently be split; separation of duties has to come from assigning different
+  people.)
+- **Who else gains it**: on way A, list everyone currently holding that role.
+  `GET /roles` returns `user_count` directly — say the number first, then the
+  names.
 
-## 收权：另外三件必须说出口的事
+## Revoking: three more things that must be said
 
-上面三条是授权形状的。**收权不是它们的镜像**，有自己的坑：
+The three above are shaped for granting. **Revoking is not their mirror image**
+and has pitfalls of its own:
 
-- **谁会因此失去权限**——`GET /roles` 的 `user_count` 就是人数，说出数字和角色名
-  （要点名到人再 `GET /auth/users?role=<name>`）。没有人会来报告"我悄悄少了一个
-  权限"；他们只会在下次要用的时候发现做不了。
-- **在途的活会不会断**：这项能力是不是正卡在某个人手上的半截流程里。
-  例如取消 `booking.own` 的同时，那些人也失去了**改期和取消**——`booking.own`
-  是"订/改/取消"打包的一项，拆不开。收权前先看有没有未来的预订、未完的待办。
-- **这一项是不是捆着别的**：能力不是都能按你想的粒度切。`booking.own` 不分资源
-  类型，收掉会议室就等于收掉全部可预订资源。**做不到的事如实说**，别让本人
-  以为拿到了一个更精细的结果。
+- **Who loses it** — `GET /roles` gives `user_count`; say the number and the
+  role name (name individuals with `GET /auth/users?role=<name>`). Nobody
+  reports "I quietly lost a permission"; they discover it the next time they
+  need it.
+- **Whether work in flight breaks**: is this capability holding up a half-done
+  process somewhere. Revoking `booking.own`, for example, also removes
+  **rescheduling and cancelling** — `booking.own` bundles book/change/cancel and
+  cannot be split. Check for future bookings and open todos first.
+- **Whether the capability carries others with it**: capabilities do not always
+  split along the line you want. `booking.own` does not distinguish resource
+  types, so revoking meeting rooms revokes every bookable resource. **Say what
+  cannot be done** rather than letting the principal believe they got something
+  finer-grained.
 
-**`PATCH /roles/{role_ref}` 是整体覆盖。** 先 `GET /roles` 读出 `permissions`，
-在它的基础上删掉那一项再写回去——凭记忆重建这个数组，漏掉的那一项和你刻意
-去掉的那一项在服务端和审计里长得一模一样。改完再读一次，确认只少了该少的。
+**`PATCH /roles/{role_ref}` replaces the whole array.** Read `permissions` with
+`GET /roles` first, remove the one entry, and write the result back —
+reconstructing that array from memory makes an accidentally omitted capability
+and a deliberately removed one look identical to the server and to the audit
+trail. Read it back afterwards and confirm only the intended entry is gone.
 
-**改系统角色（`is_system: true`，尤其是 `member`）要单独说一句。** 服务端不会拦
-你——它是管理员的正当操作——但 `member` 是绝大多数人的角色，也是**每一个未来
-新人**的默认角色。改它等于改公司的默认值。审计里 `role.updated` 的 detail 现在
-带 `added`/`removed`/`is_system`，改完读回去念给本人听。
+**Changing a system role (`is_system: true`, especially `member`) deserves its
+own sentence.** The server will not stop you — it is a legitimate administrator
+action — but `member` is most people's role and the default for **every future
+hire**. Changing it changes the company's default. The audit entry
+`role.updated` now carries `added`/`removed`/`is_system` in its detail; read it
+back to the principal.
 
-## 服务端会拦你的地方（先解释，别重试）
+## Where the server will stop you (explain, do not retry)
 
-- **锁死保护**：`admin` 角色不能移除 `users.manage`；任何改动都不能让租户失去最后一个持有 `users.manage` 的活跃用户（改角色权限、改用户角色、停用用户三条路都会撞上）→ **422**。这不是 bug，是防止把自己锁在门外；如实说明并给替代方案。
-- **系统角色不能删**（409）；**有人在用的角色不能删**（409）——先把人挪走。
-- **自定义能力**：被任何角色授予、或被任何 skill 用作 `required_capability` 时不能删（409）；名字与系统能力冲突时不能建（409）。
-- **能力名必须存在**：角色里写一个不存在的能力 → 422，报文会指出是哪一个。别猜名字，从 `GET /capabilities` 里取。
-- **作用域语法**：只有 `scopable: true` 的能力能写成 `verb:scope`（如 `business_object.write:warranty_card`）；给不可作用域的能力加冒号 → 422。作用域取值来自 `GET /capabilities` 返回的 `object_types`。
-- **用户激活**：未接受邀请的账号不能直接置为 `active`（422）——他得先接受邀请。
+- **Lockout protection**: the `admin` role cannot lose `users.manage`, and no
+  change may leave the tenant without a last active user holding `users.manage`
+  (all three paths hit this — editing role permissions, changing a user's role,
+  disabling a user) → **422**. This is not a bug, it prevents locking yourself
+  out; explain it and offer an alternative.
+- **System roles cannot be deleted** (409); **a role somebody holds cannot be
+  deleted** (409) — move people off it first.
+- **Custom capabilities**: cannot be deleted while any role grants them or any
+  skill names them as `required_capability` (409); cannot be created with a name
+  that collides with a system capability (409).
+- **Capability names must exist**: naming a capability that does not exist in a
+  role → 422, and the message says which one. Do not guess names; take them
+  from `GET /capabilities`.
+- **Scope syntax**: only capabilities with `scopable: true` may be written as
+  `verb:scope` (such as `business_object.write:warranty_card`); a colon on a
+  non-scopable capability → 422. Scope values come from the `object_types` in
+  the `GET /capabilities` response.
+- **User activation**: an account that has not accepted its invitation cannot be
+  set to `active` (422) — they have to accept it first.
 
-## 用户生命周期
+## User lifecycle
 
-- **邀请**：`POST /auth/invitations`（邮箱 + 角色，可选 `employee_id` 绑定员工档案）。**邀请故意不校验企业邮箱域名**——外部服务商用个人邮箱入驻走的就是这条路。链接过期了用 `POST /auth/users/{id}/resend-invitation`。
-- **换岗/停用**：`PATCH /auth/users/{id}`（`role` / `status` / `employee_id`）。停用会**同时清掉未使用的邀请与重置令牌**，避免账号日后重新启用时旧链接复活。
-- **忘记密码**：`POST /auth/users/{id}/password-reset-email`。**不要**替人设密码——这个 skill 不碰密码。
+- **Invite**: `POST /auth/invitations` (email plus role, optionally
+  `employee_id` to bind an employee record). **Invitations deliberately do not
+  validate the company email domain** — an outside vendor joining with a
+  personal address is exactly this path. Use
+  `POST /auth/users/{id}/resend-invitation` when a link has expired.
+- **Transfer or disable**: `PATCH /auth/users/{id}` (`role` / `status` /
+  `employee_id`). Disabling also **clears unused invitations and reset tokens**,
+  so an old link cannot come back to life if the account is re-enabled later.
+- **Forgotten password**: `POST /auth/users/{id}/password-reset-email`. **Do
+  not** set a password for someone; this skill does not touch passwords.
 
-## 留痕：哪些动作有审计，哪些没有
+## What leaves a trail, and what does not
 
-改完之后本人常会问"以后怎么查"。**如实回答，别含糊**：
+Afterwards the principal usually asks how to look this up later. **Answer
+accurately rather than vaguely**:
 
-| 动作 | 有审计吗 |
+| Action | Audited? |
 |---|---|
-| 建/改/删角色（含改 `description`） | **有** —— `role.created` / `role.updated` / `role.deleted`；`role.updated` 的 detail 带 `added` / `removed` / `is_system` |
-| **改某个人挂哪个角色**、改状态、改邮箱 | **有** —— `user.updated`，detail 里每个变化的字段都带 `{"from": …, "to": …}` |
-| 签发技能包 | **有** —— `skill_bundle.issued` |
-| 邀请 | **没有** —— `POST /auth/invitations` 目前不写审计 |
+| Create/change/delete a role (including its `description`) | **Yes** — `role.created` / `role.updated` / `role.deleted`; `role.updated` carries `added` / `removed` / `is_system` |
+| **Changing which role a person holds**, their status, or their email | **Yes** — `user.updated`, with `{"from": …, "to": …}` for every changed field |
+| Issuing a skill bundle | **Yes** — `skill_bundle.issued` |
+| Inviting somebody | **No** — `POST /auth/invitations` writes no audit entry today |
 
-所以"谁在什么时候把谁从 member 改成了 partner"是**查得到的**：
+So "who moved whom from member to partner, and when" **is** answerable:
 
 ```text
 GET /audit-logs?action=user.updated&entity_id={user_id}
 → detail: {"role": {"from": "member", "to": "partner"}, "email": "…"}
 ```
 
-**没有写审计的接口**——`GET /audit-logs` 是只读的，不要编造一个写入口。也**不要**把说明文字写进角色的 `description` 来"补留痕"：权限变更和角色变更本来就有审计，那么做只是往租户配置里塞进一段以后会被当成事实读的话，而且没人要求你写。
+**There is no endpoint that writes audit entries** — `GET /audit-logs` is
+read-only, so do not invent a write path. And **do not** put explanatory text
+into a role's `description` to "make up for" a missing trail: permission and
+role changes are already audited, and doing so only pushes a sentence into the
+tenant's configuration that somebody will later read as fact, which nobody
+asked for.
 
-## 技能包与凭据
+## Skill bundles and credentials
 
-角色一改，那个人**能拿到的 skill 集合**随即改变。但两条路的代价天差地别：
+Changing a role immediately changes **which skills that person can receive**.
+The two ways of delivering them cost wildly different amounts:
 
-- **让他自己同步**（默认，几乎总是对的）：他的 agent 跑一次 `$oryh-skill-sync`，新 skill 自动到位，**key 不变，其他设备不受影响**。
-- **管理员补发** `POST /users/{id}/skill-bundle`：**会轮换他的 key**，他本地现有的技能包**立刻失效、必须重装**。只在凭据泄露或他确实拿不到 bundle 时才用，**用之前必须先告诉他**。
+- **Let them sync** (the default, and almost always right): their agent runs
+  `$oryh-skill-sync` once and the new skills arrive. **Their key is unchanged
+  and their other devices are unaffected.**
+- **Reissue as administrator** with `POST /users/{id}/skill-bundle`: this
+  **rotates their key**, and every bundle they already have **stops working
+  immediately and must be reinstalled**. Use it only for a leaked credential or
+  when they genuinely cannot fetch a bundle, and **tell them before you do**.
 
-**能力不是唯一的一根轴**：skill 还可以被**定向**到指定的角色或个人（`distribution_mode: "targeted"`）。两者是 AND——定向只能在能力允许的范围内收窄，永远不能越权。所以"他有能力却收不到某个 skill"是**受众**问题不是权限问题，归 `$oryh-skill-author` 管；反过来"他在受众里却收不到"才是这里的问题：他缺那份 skill 要求的能力。
+**Capability is not the only axis**: a skill can also be **targeted** at named
+roles or individuals (`distribution_mode: "targeted"`). The two are ANDed —
+targeting can only narrow within what capability already allows, never exceed
+it. So "they have the capability but do not receive the skill" is an *audience*
+question, not a permission one, and belongs to `$oryh-skill-author`; the reverse
+— "they are in the audience but still do not receive it" — is this skill's
+problem: they lack the capability that skill requires.
 
-**别靠推理判断是哪一种，问服务端**：
+**Do not reason it out, ask the server**:
 
 ```text
-GET /users/{id}/skills     → received[] + withheld[]，每条都带 reason
+GET /users/{id}/skills     → received[] + withheld[], each with a reason
 ```
 
-`reasons` 会把**所有**拦住他的原因都列出来，不是只列第一个。两条轴同时挡住
-时两样都得改：只补能力，他再同步一次照样收不到。
+`reasons` lists **every** thing blocking them, not just the first. When both
+axes block, both have to change: granting the capability alone means another
+sync still delivers nothing.
 
-`missing_capability` 归你管，响应里的 `granted_by_roles` 是哪些角色**目前**
-持有这项能力——照着授权，别新造一个能力，也别把它当成"让他转成那个角色"，
-那通常是提权而不是修复。
+`missing_capability` is yours. The `granted_by_roles` in the response is which
+roles hold that capability **today** — use it as a reference for granting, not
+as a suggestion to move the person into one of those roles, which is usually a
+privilege escalation rather than a fix.
 
-**收权之后再读这个字段要格外小心**：你刚把某项能力收窄到两三个角色，
-`granted_by_roles` 就正好列出那两三个——它长得像"把人挪进去就好了"，
-而那恰恰是你这次改动要防的事。它回答的是"现在谁有"，不是"该让谁有"。`not_in_audience` 不归你管，改权限也解决不了，转给
-`$oryh-skill-author`。人肉推能力矩阵推错的代价是给人开了一项他本不需要的
-权限，而且没人会发现。
+**Read that field with particular care just after revoking**: you have narrowed
+a capability to two or three roles, and `granted_by_roles` now lists exactly
+those two or three — which looks like "just move them into one of these", and
+that is precisely what the change was meant to prevent. It answers "who has
+this now", not "who should". `not_in_audience` is not yours and no permission
+change fixes it; hand it to `$oryh-skill-author`. Deriving a capability matrix
+by hand and getting it wrong costs somebody a permission they did not need,
+and nobody notices.
 
-**收权同样要走这一步**：改完再读一次，确认你没有连带摘掉别的东西。
-`PATCH /roles/{role_ref}` 是整体覆盖，漏写一项和刻意去掉一项在服务端和审计里长得一模一样。
+**Revoking needs this step too**: read it back afterwards and confirm you did
+not remove something else along the way. `PATCH /roles/{role_ref}` replaces the
+whole array, and an omitted entry looks exactly like a deliberate removal to
+both the server and the audit trail.
 
 ## What This Skill Never Does
 
-- 给自己或自己的角色增加当前没有的能力。要提权，让另一个管理员来做。
-- 批准任何单据、代写审批事实、派工作待办——那些是各自角色的 agent 的事。
-- 删除系统角色，或把租户改成没有管理员。
-- 编造能力名或作用域取值：一律从 `GET /capabilities` 取。
-- 替人设置密码，或在未告知的情况下轮换别人的 key。
-- 在没讲清影响面、没得到明确同意之前动手改权限。
+- Give itself, or its own role, a capability it does not already hold. Privilege
+  escalation is for another administrator to perform.
+- Approve any document, write approval facts on someone's behalf, or assign work
+  todos — those belong to the agents of the roles that own them.
+- Delete a system role, or leave the tenant without an administrator.
+- Invent capability names or scope values: always take them from
+  `GET /capabilities`.
+- Set a password for somebody, or rotate another person's key without telling
+  them.
+- Change permissions before the blast radius has been stated and explicitly
+  agreed.
 
 ## Reference
 
-- [references/api.md](references/api.md): 能力目录、角色与用户的读写模板，以及每个拦截的报文。
+- [references/api.md](references/api.md): the capability catalog, read/write
+  templates for roles and users, and the message behind every refusal.

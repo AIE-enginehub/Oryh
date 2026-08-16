@@ -10,10 +10,10 @@ Record and submit the principal's own timesheet. The credential is the identity:
 
 ## Trigger Examples
 
-- "提交工时" / "帮我把这周工时报上去"
-- "补录今天的工时"
-- "修改这张工时单" / "被退回了，改完重新交"
-- "查询我的工时单"
+- "File my timesheet" / "Submit this week's hours"
+- "Add today's hours"
+- "Amend this timesheet" / "It came back — fix it and resubmit"
+- "Look up my timesheets"
 
 ## Required Inputs
 
@@ -37,7 +37,7 @@ Everything else comes from conversation: the period, the hours, the original des
 {{include:_common/leave-no-orphan-work.md}}
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=timesheet_header` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (任务粒度、每周总时数 and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No definition, or nothing in it about filling in a timesheet → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
+2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=timesheet_header` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (task granularity, weekly totals, and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No definition, or nothing in it about filling in a timesheet → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
 3. **Reuse before create**: `GET /timesheet-headers?employee_id={me}&status=draft` — one header per period; retries must not duplicate. A `returned` header is also reused: fix it, don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. After a successful resubmit, complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`; needs `todos.complete_own`, in the default member role) — while it stays open, the header is invisible to the flow admin's work queue.
 
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
@@ -82,17 +82,17 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 **Reasonableness (pause and ask before writing):**
 
-- A single day summing past 12h across entries → "6月30日合计14小时，是实际加班吗？"
+- A single day summing past 12h across entries → "30 June totals 14 hours — was that genuinely overtime?"
 - A `work_date` in the future → work not done yet; typo or intentional pre-fill?
 - Weekend or holiday dates → confirm it was really worked.
 - A full week totalling under 20h or over 60h → something missing, duplicated, or misread?
-- Vague task text ("工作", "处理事情") → ask what was actually done; approvers return vague lines, so one question now saves a rework round.
+- Vague task text ("work", "dealt with things") → ask what was actually done; approvers return vague lines, so one question now saves a rework round.
 - A near-duplicate line already on the header (same date, same task) → add on top, or replace the old line?
 - A project name that matches nothing in `/projects` → confirm capturing it as free text.
 
 **Tenant requirements (the workflow admin returns violations; catch them in conversation first):**
 
-- Whatever the step-2 definition requires of a submission, applied line by line. Typical shapes: 每条工时必须关联到具体的项目任务；一周按 5 个工作日每天 8 小时填满，总计恰好 40；加班需在 `notes` 说明事由. The definition's own wording always wins over these examples.
+- Whatever the step-2 definition requires of a submission, applied line by line. Typical shapes: every entry must be linked to a specific project or task; a week is five working days of eight hours, totalling exactly 40; overtime must state its reason in `notes`. The definition's own wording always wins over these examples.
 - These are the exact requirements the workflow admin's agent checks before assigning any approver, and its return note cites the ones violated — so a requirement skipped here is a guaranteed rework round. Ask for what is missing while the user is still talking, not after the return.
 - Fixing a returned header? Re-run step 2 first — the requirements may have changed since the original submission, and the current version is what the next calibration uses.
 

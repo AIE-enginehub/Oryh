@@ -15,12 +15,12 @@ three weeks later to notice.
   "round_no": 2, "sequence_no": 1,
   "action": "returned",
   "approver_role": "workflow-admin",
-  "comment": "为什么退回，用定义自己的措辞",
+  "comment": "why it is being returned, in the definition's own words",
   "document_status": "returned",
   "handoff": {
     "employee_id": "…",
     "title": "…",
-    "description": "把 comment 里的要求原样重复一遍",
+    "description": "repeat the requirements from the comment verbatim",
     "todo_type": "rework"
   }
 }

@@ -16,7 +16,7 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 | `DELETE /invoices/{invoice_id}` | soft delete — refused while payments are applied |
 | `POST /invoices/{invoice_id}/restore` | undo that |
-| `POST /invoices/{invoice_id}/submit` | draft → submitted (待核对) |
+| `POST /invoices/{invoice_id}/submit` | draft → submitted (awaiting check) |
 
 ```json
 POST /invoices
@@ -24,7 +24,7 @@ POST /invoices
   "direction": "purchase",
   "employee_id": "{{EMPLOYEE_ID}}",
   "vendor_id": "vendor-uuid",
-  "title": "服务器货款",
+  "title": "Server purchase",
   "invoice_date": "2026-07-28",
   "due_date": "2026-08-27",
   "total_amount": 26000.0,
@@ -33,7 +33,7 @@ POST /invoices
   "tax_invoice_code": "3100253130",
   "tax_invoice_number": "24312000000098765432",
   "purchase_order_id": "po-uuid",
-  "extracted_fields": {"销售方税号": "91310000MA1FL1234X", "价税合计": "26000.00"},
+  "extracted_fields": {"seller_tax_id": "91310000MA1FL1234X", "total_with_tax": "26000.00"},
   "items": [
     {"line_no": 1, "product_id": "product-uuid", "quantity": 10,
      "unit_price": 2600.0, "amount": 26000.0, "tax_rate": 13.0,
@@ -79,7 +79,7 @@ POST /invoice-items
 `purchase_order_item_id` may only point at a line of the order this invoice
 bills — pin the invoice with `purchase_order_id` first, or it is a 422.
 
-## 三单匹配
+## Three-way match
 
 `GET /invoices/{invoice_id}/detail` → `order_match`, present when the bill names
 its order:
@@ -94,7 +94,7 @@ its order:
     {
       "order_item_id": "po-line-uuid",
       "line_no": 1,
-      "product_name": "服务器",
+      "product_name": "Server",
       "ordered_quantity": 10.0,
       "ordered_amount": 26000.0,
       "received_quantity": 8.0,
@@ -112,11 +112,11 @@ its order:
 ```
 
 - `billed_*` sums **every** invoice pinned to that order line, not just this
-  one —分批开票 stays honest.
+  one — billing in instalments stays honest.
 - `receipt_variance` positive = billed more than arrived. That is the number an
   approver needs; the server states it and stops there.
 - `unmatched_line_count` counts this bill's lines that pin no order line (a
-  运费 line the order never carried, for example).
+  freight line the order never carried, for example).
 
 The sales side gets the same block from `sales_order_id`, without
 `received_quantity` — there is no receiving fact on that side.
@@ -126,7 +126,7 @@ The sales side gets the same block from `sales_order_id`, without
 | Call | Purpose |
 |---|---|
 | `GET /payments?direction=outbound&status=submitted` | awaiting approval |
-| `GET /payments?direction=outbound&unapplied=true` | paid but not matched (预付款) |
+| `GET /payments?direction=outbound&unapplied=true` | paid but not matched (a prepayment) |
 | `GET /payments?vendor_id={id}` | one supplier's payments |
 | `POST /payments` | file one |
 | `GET /payments/{payment_id}/detail` | its applications and what is left |
@@ -144,22 +144,22 @@ POST /payments
   "amount": 26000.0,
   "currency": "CNY",
   "payment_method": "bank_transfer",
-  "bank_account": "工行 ****1234",
+  "bank_account": "ICBC ****1234",
   "counterparty_account": "6222 0000 1111 2222",
-  "remarks": "PO-2026-00012 尾款"
+  "remarks": "PO-2026-00012 final payment"
 }
 ```
 
-Exactly one counterparty: `vendor_id`, or `payee_employee_id` for a 报销付款.
+Exactly one counterparty: `vendor_id`, or `payee_employee_id` when paying an expense claim.
 `counterparty_account` is what the approver compares against the vendor's
-master record — the standing check against 改单诈骗.
+master record — the standing check against payment-diversion fraud.
 
 Lifecycle: `draft → submitted → approved → paid`, with `rejected`/`returned`
 off `submitted` and `void` after `paid`.
 `GET /object-type-definitions?entity_kind=builtin&object_type=payment` for this
 workspace's names.
 
-## 核销
+## Settlement
 
 ```json
 POST /payments/{payment_id}/apply
@@ -208,7 +208,7 @@ Not guarded on purpose: the status of either document — which states mean
 - `GET /expense-claims/{claim_id}/detail` — what a claim actually totals before
   paying it.
 - `POST /approval-records` with `entity_type: "payment"` — the approval fact on
-  a 付款申请.
+  a payment request.
 
 ## When the decision happened
 

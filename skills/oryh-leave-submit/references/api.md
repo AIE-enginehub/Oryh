@@ -10,7 +10,7 @@ section in SKILL.md. The three reads below are what a balance is computed from.
 | Call | Gives |
 |---|---|
 | `GET /policies?category=hr&status=published&in_force_on=2026-06-15` | the rules that applied on that date — `body` in prose, `rules_json` if the workspace put the tiers in structure |
-| `GET /employees/{employee_id}` | `hire_date`, which 工龄 is measured from. Null means nobody recorded it — ask, do not assume |
+| `GET /employees/{employee_id}` | `hire_date`, which length of service is measured from. Null means nobody recorded it — ask, do not assume |
 | `GET /employee-leaves?employee_id={id}&leave_type=annual&overlapping_from=2026-01-01&overlapping_thru=2026-12-31` | every request touching the period, whatever its status |
 
 `overlapping_from` / `overlapping_thru` match any request whose range
@@ -37,7 +37,7 @@ POST /employee-leaves
   "from_date": "2026-03-02",
   "thru_date": "2026-03-06",
   "duration_days": 3,
-  "reason": "回老家",
+  "reason": "visiting family",
   "source_report_text": "<the person's own words>"
 }
 ```
@@ -57,8 +57,8 @@ anywhere before completion and `taken` after `approved`.
 
 | State | Means |
 |---|---|
-| `submitted` | awaiting a decision — **counts against the balance as 在途** |
-| `approved` | granted; counts as 已批 |
+| `submitted` | awaiting a decision — **counts against the balance as in flight** |
+| `approved` | granted; counts as approved |
 | `returned` | sent back to fix; a rework todo says why |
 | `cancelled` | withdrawn or not taken. Counts toward nothing — which is the whole refund, since nothing was deducted |
 | `taken` | the absence actually happened, where the workspace records it |

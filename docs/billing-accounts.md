@@ -20,12 +20,12 @@ So `unit_type` sits beside the money case:
 
 | | `unit_type: currency` | `unit_type: points` |
 |---|---|---|
-| `unit` | a currency code (`CNY`) | a tenant vocabulary entry (`point`, 油卡额度…) |
-| typical `credit_limit` | the credit line (挂账额度) | 0 — points cannot be overdrawn |
+| `unit` | a currency code (`CNY`) | a tenant vocabulary entry (`point`, a fuel-card allowance…) |
+| typical `credit_limit` | the credit line | 0 — points cannot be overdrawn |
 | settled by payments | yes | **never** |
 | `expires_at` on entries | refused | the point of the field |
 
-One party may hold several accounts, which is exactly what "各种积分或 credit"
+One party may hold several accounts, which is exactly what "assorted points or credit"
 means in practice: a customer with stored value, loyalty points and a coupon
 quota is three accounts, not three columns on `customers`.
 
@@ -99,24 +99,25 @@ derived at read and guard time — the account row is locked (`FOR UPDATE`) whil
 a charge is checked, so two agents cannot both pass the same remaining credit.
 
 **The occupation starts at the order** because the gap between order and
-invoice — an e-commerce wait, a walk-in customer's 缺货 two days, a toB
+invoice — an e-commerce wait, a walk-in customer's two-day stock-out, a B2B
 delivery months out — is exactly where the same balance must not back two
 orders. When the invoice is issued *carrying the same account*, the occupation
 transfers to it (the order's share shrinks by what the invoice bills); when the
 invoice settles, it ends. One rule, no customer-type branches:
 
-> 账户支付 → 挂订单;从挂账订单开票 → 带同一账户;核销 → 划拨或直付。
+> pay from the account → charge the order; invoice from a charged order → the
+> same account travels with it; settle → transfer or pay directly.
 
 An invoice issued **without** the account does not release the order's
 occupation — refusing too much is a re-read, releasing credit nothing guards is
 a leak. The only invoice charged directly is one that came from no order
-(header-only 汇总开票 and the like).
+(a header-only summary invoice and the like).
 
 ### Two shapes, one mechanism
 
-**预存 (prepaid)** — the deposit is already in the account; 核销 moves it onto
+**Prepaid** — the deposit is already in the account; settlement moves it onto
 the invoice as ONE atomic multi-line apply, the negative line releasing the
-account (ledger reason `charge`, 以账户余额支付单据), the positive line
+account (ledger reason `charge` — paying a document from the account balance), the positive line
 settling the invoice:
 
 ```json
@@ -131,9 +132,9 @@ Which deposit funds which invoice (FIFO or named) is the workspace's rule and
 the agent's call — the same stance batch-level points consumption already
 takes.
 
-**挂账 (credit)** — the charged invoice simply stays outstanding, occupying
+**On credit** — the charged invoice simply stays outstanding, occupying
 credit; the customer's later payment applies **directly to the invoice**
-(plain existing 核销), and available recovers as outstanding falls. The balance
+(ordinary settlement), and available recovers as outstanding falls. The balance
 never moved. A lump-sum remittance works through both shapes at once: deposit
 it, then transfer to the invoices it covers.
 
@@ -165,7 +166,7 @@ charge is never guarded: freeing credit is always safe.
 
 Our account at a vendor is the same object with the directions flipped: prepay
 (outbound, recorded as a deposit), charge the purchase order, the vendor's
-credit covers what the deposit does not, and 核销 transfers our deposit onto
+credit covers what the deposit does not, and settlement transfers our deposit onto
 their invoice. Same formula, same guards, same tests — `payroll` invoices are
 the one direction that refuses charging, because an employee-owned account
 takes deposits and refunds, not obligations.
@@ -188,7 +189,7 @@ the sign of the effect comes from the payment's direction instead.
 
 ## The server converts nothing
 
-"用 500 积分抵 5 元" is **two facts**, recorded separately:
+"500 points off 5 yuan" is **two facts**, recorded separately:
 
 1. a points entry — `-500`, `reason: redeemed`, pointing at the document;
 2. a `discount` line on that document for ¥5.
@@ -228,7 +229,7 @@ that the server reports the batches and the agent applies the workspace's rule.
 | `billing_account.post` | `:currency` / `:points` | writing movements |
 
 The split is not ceremony: granting points is the fraud-prone action in this
-family, and the scope lets 会员运营 hold `:points` while 财务 holds
+family, and the scope lets membership operations hold `:points` while finance holds
 `:currency` — neither of them able to open an account or change a credit line.
 `billing_account.post:*` is in the hosted flow agent's fixed grant set so it can
 run the expiry sweep. Neither capability is in the `member` default.
@@ -236,7 +237,7 @@ run the expiry sweep. Neither capability is in the `member` default.
 ## Deliberately out of scope
 
 - **Multi-party accounts.** OFBiz's `BillingAccountRole` lets several parties
-  share one account (集团授信). Collapsed to a single owner, as `payments` is.
+  share one account (a group credit line). Collapsed to a single owner, as `payments` is.
 - **`BillingAccountTerm`.** Payment terms live on the documents, not the account.
 - **Points-to-money conversion, in any direction.** See above.
 - **Batch-level consumption tracking.** See above.

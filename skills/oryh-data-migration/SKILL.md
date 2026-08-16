@@ -20,10 +20,10 @@ not mean starting over, and one departed customer must not stop the run.
 
 ## Trigger Examples
 
-- "把老系统的历史报价单导进来"
-- "这是我们 2021-2024 的销售订单，大概三十万条"
-- "历史数据迁移，先导哪个？"
-- "上次导到一半断了，怎么接着导？"
+- "Import the historical quotations from the old system"
+- "Here are our 2021-2024 sales orders, about three hundred thousand rows"
+- "Historical data migration — what goes first?"
+- "Last time it stopped halfway; how do I resume?"
 
 ## Required Inputs
 
@@ -39,22 +39,23 @@ Plus the workbook(s), on the person's machine — read them where they are.
 ## The Order Is Not Optional
 
 ```text
-1. 客户 (customers)   ← $oryh-master-data
-2. 产品 (products)     ← $oryh-master-data
-3. 供应商 (vendors)    ← $oryh-master-data; only if importing采购单
-4. 员工 (employees)    ← whoever owns HR data; every document names a salesperson
-5. 历史报价单          ← POST /sales-quotations/bulk
-6. 历史订单            ← POST /sales-orders/bulk      (can link back by quote number)
-7. 历史采购单          ← POST /purchase-orders/bulk   (needs purchase_order.manage; vendor REQUIRED per row)
-8. 期初应收应付         ← POST /invoices/bulk          (needs invoice.manage for each direction present)
-9. 历史收付款          ← POST /payments/bulk          (needs payment.record)
+1. customers            ← $oryh-master-data
+2. products             ← $oryh-master-data
+3. vendors              ← $oryh-master-data; only if importing purchase orders
+4. employees            ← whoever owns HR data; every document names a salesperson
+5. historical quotations ← POST /sales-quotations/bulk
+6. historical orders     ← POST /sales-orders/bulk      (can link back by quote number)
+7. historical purchase orders ← POST /purchase-orders/bulk (needs purchase_order.manage; vendor REQUIRED per row)
+8. opening AR/AP balances     ← POST /invoices/bulk      (needs invoice.manage for each direction present)
+9. historical receipts/payments ← POST /payments/bulk    (needs payment.record)
 ```
 
 Documents reference master data **by the tenant's own codes**. Import them in
 the wrong order and every single document fails the same way — unmatched
 `customer_code`, unmatched `product_code` — which looks like a broken import
-but is only a sequencing mistake. Say this out loud before starting: "先导客
-户和产品，再导单据，否则每一单都会因为找不到引用被跳过。"
+but is only a sequencing mistake. Say this out loud before starting: "customers
+and products first, documents after — otherwise every document is skipped for an
+unresolvable reference."
 
 ## Steps
 
@@ -63,7 +64,7 @@ but is only a sequencing mistake. Say this out loud before starting: "先导客
    distinct customers/products/salespeople. Numbers now prevent surprises at
    row 200,000.
 2. **Map the columns and get agreement**, exactly as $oryh-master-data does —
-   the same 单号/客户/金额 ambiguities apply. Say which columns you are
+   the same document-number, customer and amount ambiguities apply. Say which columns you are
    ignoring. A historical total that disagrees with the line sum is normal
    (that is what `total_amount` beside the lines is for); do not "fix" it.
 3. **Check the master data is in place**: sample 20-30 codes from the
@@ -85,7 +86,7 @@ but is only a sequencing mistake. Say this out loud before starting: "先导客
    `GET /sales-quotations/{id}/detail` — lines, adjustments, the total — and
    show one to the person.
 
-## 期初余额: Import the Facts, Then Match Them
+## Opening balances: import the facts, then match them
 
 Opening balances are the step that actually decides whether a company can
 switch, and they are two imports plus a matching pass — never one column.
@@ -111,7 +112,7 @@ the collection history are gone, and any later reconciliation against the old
 system will not tie out. Ask before choosing it.
 
 Reconcile before declaring done: the sum of `outstanding_amount` per customer
-should equal the old system's 应收账款明细. Report the comparison; a migration
+should equal the old system's AR ledger. Report the comparison; a migration
 that imported cleanly and still disagrees with the old trial balance has not
 succeeded.
 
@@ -122,12 +123,15 @@ succeeded.
 (`"snapshot"`) imports them anyway, keeping the historical text with no link
 to master data. Put it to them plainly:
 
-> "有 1,240 单的客户编码在系统里找不到（共 43 个客户，比如 C-0881）。两个
-> 选择：先把这 43 个客户补进主数据再导，单据就能关联上；或者按历史文本导
-> 进去，单子留着客户名但不关联客户档案。你选哪个？"
+> "1,240 documents reference customer codes that are not in the system (43
+> customers in all, such as C-0881). Two options: add those 43 to master data
+> first and the documents will link; or import them as historical text, keeping
+> the customer name on each document but with no link to a customer record.
+> Which would you like?"
 
 Never choose silently. A snapshot-imported document can never be found by
-"这个客户历年买过什么" — that is a real loss, and it is theirs to accept.
+"what has this customer bought over the years" — that is a real loss, and it is
+theirs to accept.
 
 **A departed salesperson** is always an error, in both modes: a document
 cannot exist without an owner. The fix is to create the employee record

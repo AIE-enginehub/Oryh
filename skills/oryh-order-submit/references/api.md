@@ -10,7 +10,7 @@ GET /workflow-definitions?entity_kind=builtin&object_type=sales_order → tenant
 GET /sales-quotations/{id}/detail                       → the won quotation's lines to mirror
 GET /sales-orders?quotation_id={id}                     → dedupe: one won quote, one order
 GET /sales-orders?employee_id={me}&status=draft         → reuse before create
-GET /sales-orders/{order_id}/detail                     → order + items (each with `purchase_items`: 按单采购 lines behind it, with request status) + adjustments + linked quotation + computed_total + adjustments_total + adjusted_total + trail
+GET /sales-orders/{order_id}/detail                     → order + items (each with `purchase_items`: purchase lines behind it, with request status) + adjustments + linked quotation + computed_total + adjustments_total + adjusted_total + trail
 ```
 
 ## Create
@@ -19,15 +19,15 @@ GET /sales-orders/{order_id}/detail                     → order + items (each 
 POST /sales-orders
 {
   "employee_id": "my-employee-id",
-  "title": "市一医院 JC-800 订单",
+  "title": "City First Hospital — JC-800 order",
   "quotation_id": "won-quotation-id",
   "customer_id": "customer-id",
-  "contact_name": "设备科 周敏",
-  "ship_to_address": "上海市黄浦区北京西路 100 号",
+  "contact_name": "Equipment dept, Zhou Min",
+  "ship_to_address": "100 West Beijing Road, Huangpu, Shanghai",
   "contract_no": "JC-HT-2026-018",
   "order_date": "2026-07-22",
   "promised_date": "2026-08-05",
-  "payment_terms": "到货验收后 30 天付款"
+  "payment_terms": "payment 30 days after delivery and acceptance"
 }
 ```
 
@@ -69,7 +69,7 @@ POST /sales-orders/{order_id}/submit
 `draft/returned → submitted`; idempotent; sets `submitted_at`. The flow agent
 confirms from there.
 
-## Historical Import (迁移专用)
+## Historical Import (migration only)
 
 A retired system's export, not today's filing. `POST /sales-orders/bulk`
 takes up to 500 documents per call, each carrying its own lines and
@@ -80,9 +80,9 @@ adjustments:
   "order_no": "SO-2023-000001",           // REQUIRED — history keeps its number
   "employee_code": "E-001",              // the salesperson; by code (or employee_id)
   "customer_code": "C-001",              // resolved against customer master data
-  "customer_name_snapshot": "华欣机械",   // what the document printed
+  "customer_name_snapshot": "Huaxin Machinery",   // what the document printed
   "source_quote_number": "QT-2023-000001",  // the won quotation, by number
-  "title": "2023年首批订单", "order_date": "2023-04-01", "contract_no": "HT-2023-088",
+  "title": "2023 first order", "order_date": "2023-04-01", "contract_no": "HT-2023-088",
   "status": "signed",                    // terminal states import AS-IS
   "total_amount": 1130.00,
   "items": [{"line_no": 1, "product_code": "P-001", "quantity": 10,
@@ -96,7 +96,7 @@ adjustments:
   twice reports `unchanged`, which is how a half-finished migration resumes —
   just run it again. Nothing is server-allocated, so the number allocator's
   per-tenant lock never throttles the import (~385 docs/sec measured).
-- **`status` accepts any state of the tenant's machine.** 已发货/已签收 documents
+- **`status` accepts any state of the tenant's machine.** Shipped and signed-for documents
   are recorded as they ended; they are NOT walked through the lifecycle.
 - **Master data is referenced by the tenant's own codes** (`employee_code`,
   `customer_code`, `product_code`, `sku_code`, `project_code`) — import the
@@ -119,7 +119,7 @@ adjustments:
 
 ```json
 PATCH /sales-orders/{order_id}
-{"logistics_company": "顺丰速运", "logistics_tracking_no": "SF3021188299"}
+{"logistics_company": "SF Express", "logistics_tracking_no": "SF3021188299"}
 ```
 
 The flow agent advances `confirmed → shipped → signed` from these facts;

@@ -20,10 +20,10 @@ employer and is named after it.
 
 ## Trigger Examples
 
-- "帮我连上公司的 oryh"
-- "我在另一家公司也要用 oryh" — a person can work for two companies; each gets
+- "Connect me to the company's oryh"
+- "I need oryh at my other company too" — a person can work for two companies; each gets
   its own bundle, side by side, and this skill installs both.
-- "oryh 说我的 key 失效了" (any oryh skill returning `401 invalid API key`)
+- "oryh says my key is invalid" (any oryh skill returning `401 invalid API key`)
 - First session on a new machine, before any other oryh skill can work.
 
 ## Required Inputs
@@ -68,7 +68,7 @@ named the company in step 5.
       "site_base_url",
       "api_base_url", "skills": [...]}
    Read them: that is the map from directory → company, and the only reliable
-   one, because the company name a person says out loud ("晶诚") appears
+   one, because the company name a person says out loud appears
    nowhere in a directory listing otherwise.
 
    Match ONLY that exact prefix. A directory carrying a different prefix
@@ -118,7 +118,7 @@ it needs no login at all.
    rendered into this file, used as-is. Do not ask for it or substitute one.
 
 4. Give the person the verification_uri_complete link AND the user_code, and
-   ask them to open it: "在浏览器打开 <link> 登录 oryh，确认代码 XXXX-XXXX".
+   ask them to open it: "open <link> in a browser, sign in to oryh, and confirm the code XXXX-XXXX".
    Printing the link is the robust path and the only one that works when you
    run on a different machine, over SSH, in WSL, or in a container — the
    browser must be on the PERSON's machine, not necessarily yours.
@@ -135,7 +135,7 @@ it needs no login at all.
    - approved → {api_key, user, tenant, tenant_slug, install_dir}: this is the
      answer to "which company" — the server derived it from the account that
      just signed in, which is why you never had to ask. Greet the person by name
-     AND by company ("已连上 晶诚医疗设备有限公司"), so a mistaken login is
+     AND by company ("connected to Jingcheng Medical Equipment Co."), so a mistaken login is
      caught here rather than after a timesheet lands in the wrong company. Match
      `install_dir` against the inventory to know whether this is a reconnect or
      a new employer, then continue.
@@ -184,7 +184,7 @@ different names, and no way for the agent to tell which company a request meant.
 
 Each connect mints a key for THIS device only (`label: device:<client_name>`);
 keys on the person's other machines keep working. The person or an admin can
-revoke any device individually under Access credentials (访问凭证) in the web console. An
+revoke any device individually under Access credentials in the web console. An
 admin-issued bundle (`POST <api_base_url>/users/{id}/skill-bundle`) still
 rotates ALL of the person's keys **for that company** — after that, every
 device reconnects through this skill. Other employers are unaffected; their

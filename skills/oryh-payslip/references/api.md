@@ -23,7 +23,7 @@ read", not as "missing".
 A **tenant service key bypasses the permission layer entirely** and reads all
 pay. Do not reach for one to answer a question a user-bound key was refused.
 
-## Payslips (工资条)
+## Payslips
 
 | Call | Purpose |
 |---|---|
@@ -32,8 +32,9 @@ pay. Do not reach for one to answer a question a user-bound key was refused.
 | `GET /invoices/{invoice_id}` | the header |
 | `GET /invoices/{invoice_id}/detail` | header + lines + `billed_total` / `outstanding_amount` |
 
-`billed_total` IS 实发工资: a payslip declares no total of its own, so the sum
-of its lines is the number. **增项为正、扣减为负** — 个税, 社保, 公积金 all come
+`billed_total` IS net pay: a payslip declares no total of its own, so the sum
+of its lines is the number. **Earnings positive, deductions negative** — income
+tax, social insurance and the housing fund all come
 back negative.
 
 Each line carries:
@@ -41,20 +42,21 @@ Each line carries:
 | Field | Meaning |
 |---|---|
 | `invoice_item_type` | `payroll_salary`, `payroll_commission`, `payroll_iit`, `payroll_pension_ee`, … |
-| `product_name_snapshot` | the label as issued (基本工资, 个人所得税) |
+| `product_name_snapshot` | the label as issued (base salary, income tax) |
 | `amount` | signed |
 | `pay_history_id` | the pay term this line came from, when it came from one |
-| `notes` | the working, in words — `缴费基数 12000.00 × 8% = 960.00` |
+| `notes` | the working, in words — `contribution base 12000.00 × 8% = 960.00` |
 
 A line states either `pay_history_id` or its working in `notes`; the write path
-refuses one that does neither. So "为什么这个月少了" is always answerable from
+refuses one that does neither. So "why is this month lower" is always answerable from
 the document itself.
 
-The employer's half of 社保/公积金 is never on a payslip — the shipped item
-types are all `_ee`, meaning withheld from the person. 用工总成本 cannot be read
+The employer's half of social insurance and the housing fund is never on a
+payslip — the shipped item types are all `_ee`, meaning withheld from the
+person. Total employment cost cannot be read
 off a payslip.
 
-## Pay records (薪资档案)
+## Pay records
 
 | Call | Purpose |
 |---|---|
@@ -82,7 +84,7 @@ independent: a salary change leaves the commission arrangement untouched.
 | Call | Purpose |
 |---|---|
 | `GET /payments?payee_employee_id={id}&direction=outbound` | this person's payouts |
-| `GET /payments?reference_no=PAYROLL-2026-07` | one bank batch — 发薪批次 is just a shared `reference_no` |
+| `GET /payments?reference_no=PAYROLL-2026-07` | one bank batch — a payroll batch is just a shared `reference_no` |
 | `GET /payments/{payment_id}/detail` | the payout plus what it has been applied to |
 
 `status: paid` means the workspace recorded the payout. Settlement is separate:
@@ -90,7 +92,7 @@ a payslip is settled when a payment has been applied to it, and
 `outstanding_amount` on the payslip's `/detail` is what remains. An unapplied
 payout is a bookkeeping state, not an unpaid wage.
 
-## 核对 before approving (reviewer with `payroll.read`)
+## Checking the figures before approving (reviewer with `payroll.read`)
 
 Reading a batch to check it, without any capability to change it:
 

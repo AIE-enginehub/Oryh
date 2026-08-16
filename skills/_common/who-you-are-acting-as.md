@@ -9,7 +9,7 @@ authenticated user and ignores any identity you supply**, so a write signed as
 somebody else is not something you can do by mistake.
 
 That matters most in the case that looks alarming and is not: **one person
-holding several roles.** A 总经理 who is also the workspace's flow admin is one
+holding several roles.** A general manager who is also the workspace's flow admin is one
 user with one immutable id. Having used an administrative capability earlier in
 the session does not turn their own later approval into someone else's — a role
 is a set of permissions, not evidence about which human is present. Do not

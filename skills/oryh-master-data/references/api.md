@@ -18,14 +18,14 @@ GET /products/{id} · /vendors/{id} · /customers/{id}
 ```
 
 `phone` is an exact match, and it is the lookup a retail counter actually
-needs ("这个手机号是不是老客户"), the way `tax_id` is the one an invoicing desk
+needs ("is this mobile number an existing customer"), the way `tax_id` is the one an invoicing desk
 needs. `keyword` searches the name only.
 
 ```text
-GET /type-options?family=customer_type       → the tenant's own 客户分类
+GET /type-options?family=customer_type       → the tenant's own customer categories
 ```
 
-Read before a big import when the person asks "会不会重复" — but you do not
+Read before a big import when the person asks whether it will duplicate anything — but you do not
 need to: the upsert answers it definitively, and a dry run reports it.
 
 ## Bulk Upsert
@@ -72,25 +72,25 @@ nullable fields (`spec`, `unit`, `list_price`, `tax_id`, `contact`, `email`,
 
 ```jsonc
 // products
-{"product_code": "P-001", "name": "内窥镜镜头", "spec": "4mm 30°", "unit": "个",
+{"product_code": "P-001", "name": "Endoscope lens", "spec": "4mm 30°", "unit": "each",
  "list_price": 1200.00, "currency": "CNY", "status": "active", "metadata": {}}
 
 // vendors
-{"vendor_code": "V-001", "name": "华东医疗器械", "tax_id": "91310000MA1K3XXXXX",
- "contact": "王经理", "email": "wang@example.com", "phone": "13800000000",
+{"vendor_code": "V-001", "name": "East China Medical Devices", "tax_id": "91310000MA1K3XXXXX",
+ "contact": "Manager Wang", "email": "wang@example.com", "phone": "13800000000",
  "status": "active", "metadata": {}}
 
 // customers — B2B
-{"customer_code": "C-001", "name": "市第一医院", "customer_kind": "company",
+{"customer_code": "C-001", "name": "City First Hospital", "customer_kind": "company",
  "customer_type": "institution", "tax_id": "12310000MB0K1XXXXX",
- "contact": "采购科 李老师", "email": "", "phone": "021-6000000",
- "address": "上海市黄浦区…", "status": "active", "metadata": {}}
+ "contact": "Procurement, Ms Li", "email": "", "phone": "021-6000000",
+ "address": "Huangpu District, Shanghai…", "status": "active", "metadata": {}}
 
-// customers — 零售会员. Same table, same endpoint, same upsert. A member has
-// no 税号 and often no address; the phone is what identifies them.
-{"customer_code": "M-13800000000", "name": "张女士", "customer_kind": "person",
+// customers — a retail member. Same table, same endpoint, same upsert. A member
+// has no tax id and often no address; the phone is what identifies them.
+{"customer_code": "M-13800000000", "name": "Ms Zhang", "customer_kind": "person",
  "customer_type": "retail", "phone": "13800000000", "status": "active",
- "metadata": {"会员等级": "金卡", "开卡门店": "南京西路店"}}
+ "metadata": {"membership_tier": "gold", "issuing_store": "Nanjing West Road"}}
 ```
 
 `status` is `active` or `archived`. `currency` is a 3-letter code, default
@@ -99,25 +99,27 @@ nullable fields (`spec`, `unit`, `list_price`, `tax_id`, `contact`, `email`,
 ### Retail and B2B customers (`customer_kind` / `customer_type`)
 
 Both live in `/customers`. There is no separate retail table, because nothing
-downstream differs: a member and a 集团客户 quote, order, get invoiced, pay and
+downstream differs: a member and a group account quote, order, get invoiced, pay and
 run a standing balance through identical machinery.
 
 What differs is the file, and two optional fields carry it:
 
-- `customer_kind` — `person` (自然人：零售、会员、个人客户) or `company`
-  (组织：企业、医院、学校、政府). A fixed pair; the server refuses anything else.
+- `customer_kind` — `person` (an individual: retail, member, private customer)
+  or `company` (an organisation: business, hospital, school, government). A
+  fixed pair; the server refuses anything else.
   **Omit it when you do not know.** Null means nobody has stated a kind, which
   is a true statement; `company` guessed onto a member is a false one, and
-  个体工商户 genuinely sits on the line — ask the person rather than deciding.
-- `customer_type` — the tenant's own 客户分类, from the `customer_type`
-  vocabulary: shipped values are `retail` 零售客户, `wholesale` 批发客户,
-  `distributor` 经销商, `enterprise` 企业客户, `institution` 政企机构,
-  `online` 电商客户, `affiliate` 关联方, `other` 其他. Read
+  A sole proprietor genuinely sits on the line — ask the person rather than
+  deciding.
+- `customer_type` — the tenant's own customer category, from the
+  `customer_type` vocabulary: shipped values are `retail`, `wholesale`,
+  `distributor`, `enterprise`, `institution` (government and public bodies),
+  `online`, `affiliate` and `other`. Read
   `GET /type-options?family=customer_type` first — the workspace may have
-  added its own (团购客户, 加盟商) or archived ones it never uses.
+  added its own (group buyers, franchisees) or archived ones it never uses.
 
   Send the vocabulary's **name**, never the sheet's word. Names are
-  `^[a-z][a-z0-9_]{0,49}$` and the Chinese sits in the title, so a 客户分类
+  `^[a-z][a-z0-9_]{0,49}$` and the display wording sits in the title, so a category
   column mapped straight through fails the request shape and takes the whole
   chunk with it — 422, nothing written, no per-row report to hand back. A
   well-formed name the tenant simply does not have is the gentler failure, and
@@ -129,11 +131,11 @@ What differs is the file, and two optional fields carry it:
 
   Propose the new type and re-run:
   `POST /type-options {"family": "customer_type", "name": "group_buy",
-  "title": "团购客户"}`. Never bend the sheet's word into the nearest shipped
-  value — 加盟商 filed as `distributor` makes every later report lie about who
+  "title": "Group buyer"}`. Never bend the sheet's word into the nearest shipped
+  value — a franchisee filed as `distributor` makes every later report lie about who
   those customers are.
 
-Neither field changes what the system will let anyone do. Pricing, 账期 and
+Neither field changes what the system will let anyone do. Pricing, payment terms and
 whether a member prepays are judgments for the selling and finance skills, not
 gates on the customer record.
 
@@ -190,7 +192,7 @@ A product row may carry a price book and supply sources; omitted lists leave
 existing rows alone, like every omitted field:
 
 ```jsonc
-{"product_code": "P-001", "name": "内窥镜镜头", "list_price": 1200.00,
+{"product_code": "P-001", "name": "Endoscope lens", "list_price": 1200.00,
  "prices": [
    {"price_type": "wholesale", "price": 980.00, "tax_percentage": 13},
    {"price_type": "cost", "price": 810.00, "tax_in_price": false}
@@ -203,14 +205,14 @@ existing rows alone, like every omitted field:
 
 - `price_type`: the shipped catalog is `list | default | promo | wholesale |
   competitive | minimum | maximum | cost`, but the tenant may have defined
-  their own (经销价、会员价…) or archived shipped ones — the current vocabulary
+  their own (dealer, member…) or archived shipped ones — the current vocabulary
   is `GET /type-options?family=product_price_type`, and an unknown value is a
   422 that lists the active options. A column that matches none of them wants
   a NEW type (`POST /type-options`, see below), not the closest fit. The product's own `list_price` column
   stays the quoting reference; the book holds the other kinds. `cost` is a
   standard cost with no named supplier — a supplier's own price belongs on
   their link's `last_price`.
-- `tax_in_price` (default true) and `tax_percentage` record 含税/税率 as the
+- `tax_in_price` (default true) and `tax_percentage` record tax inclusion and rate as the
   person stated them — never derive one from the other.
 - Price upsert key: (`price_type`, `currency`). An equal live price is
   unchanged; a different one ARCHIVES the old row and creates the new — that
@@ -224,7 +226,7 @@ existing rows alone, like every omitted field:
 - Row results report nested movement as `changed: ["prices"]` /
   `["suppliers"]`.
 
-## Type Vocabularies (租户可自定义)
+## Type Vocabularies (the tenant may extend these)
 
 `price_type`, `adjustment_type`, `category` and `work_type` are tenant-owned
 vocabularies, not fixed enums. Two calls, and both belong in the agent's
@@ -235,7 +237,7 @@ GET  /type-options?family={family}&status=active   → what this tenant accepts 
 POST /type-options                                 → define a new one (needs object_types.manage)
 PATCH /type-options/{type_option_id}               → retitle/describe an existing one (same gate);
                                                      a live E2E run watched an agent deny this exists
-     {"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"}
+     {"family": "product_price_type", "name": "dealer_tier2", "title": "Tier-2 dealer price"}
 ```
 
 Families: `product_price_type` · `sales_adjustment_type` (quotation AND order
@@ -269,7 +271,7 @@ DELETE /supplier-products/{supplier_product_id}            → archive; re-impor
 belong to the product (400 otherwise). Bulk rows write product-level prices
 only.
 
-## Inventory (盘点导入)
+## Inventory (stock-count import)
 
 Stock lives on a LEDGER. An inventory item's `quantity_on_hand` /
 `available_to_promise` are running sums of its detail rows — nothing edits
@@ -278,7 +280,7 @@ them directly, and the import obeys the same rule:
 ```text
 POST /inventory-items/bulk
 {"rows": [
-  {"product_code": "P-001", "facility": "总仓", "lot_id": "B2026-07",
+  {"product_code": "P-001", "facility": "Main warehouse", "lot_id": "B2026-07",
    "quantity": 120.5, "expire_date": "2027-06-30"}
  ], "dry_run": true, "on_error": "abort"}
 ```
@@ -291,8 +293,9 @@ POST /inventory-items/bulk
 - Counted `quantity` equals the system count → `unchanged`, no ledger noise.
 - Counted `quantity` DIFFERS → the item is NOT edited: a detail is appended
   with `quantity_on_hand_diff` = (counted − system), reason
-  `import_override`, its description naming both numbers（导入覆盖：系统数量
-  X → 导入数量 Y）. The row result reports `changed: ["quantity_on_hand"]`.
+  `import_override`, its description naming both numbers (import override:
+  system quantity X → imported quantity Y). The row result reports
+  `changed: ["quantity_on_hand"]`.
 - `product_code` (and `sku_code`) must already exist — unknown codes are
   per-row errors, never invented records.
 

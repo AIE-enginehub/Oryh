@@ -34,7 +34,7 @@ land in a person's bundle.** Two enforcement paths, one vocabulary.
    if the person's role covers that capability. This decides *what an agent is
    handed*, not *what it may do*.
 3. **Custom capability → skills/flow only.** Tenant-defined capabilities
-   (the "自定义能力" on the Roles page) are matched *only* in layer 2 and in
+   (the tenant's own custom capabilities on the Roles page) are matched *only* in layer 2 and in
    workflow-routing text. They never guard a core endpoint — inventing one
    adds a skill/flow label, never an API permission.
 
@@ -61,7 +61,7 @@ of their tuning knobs). Two consequences worth knowing:
   and not, say, `oryh-access-admin` — the invariant above holds for it too;
 - `attributed()` refuses to let it name anyone else, so every `*_by` field and
   audit row it writes reads `key:<id>`, which the display-name resolver renders
-  as `ORYH 托管流程代理` from a constant, never from the key's label.
+  from a platform constant ("ORYH hosted flow agent"), never from the key's label.
 
 The predicate that separates the two is `Actor.bypasses_permissions`
 (`app/api/deps.py`). `Actor.kind` still answers "is a person behind this
@@ -90,7 +90,7 @@ intentionally back no agent skill.)
 | `payment.record` | `POST`/`PATCH`/`DELETE`/`restore` `/payments*`, `POST /payments/bulk` | `oryh-receivables`, `oryh-payables`, `oryh-payroll` |
 | `payment.advance` | `PATCH /payments/{id}` (only when `status` changes) | `oryh-payment-approval-flow` |
 | `payment.apply` | `POST /payments/{id}/apply` | `oryh-receivables`, `oryh-payables`, `oryh-payroll` |
-| *(`payment.record` / `payment.apply` also **widen a read**)* | a payout naming another employee as payee is hidden from credentials holding neither — a 出纳 must see what they are paying, an ordinary employee has no such reason | — |
+| *(`payment.record` / `payment.apply` also **widen a read**)* | a payout naming another employee as payee is hidden from credentials holding neither — a cashier must see what they are paying, an ordinary employee has no such reason | — |
 | `billing_account.manage` | `POST`/`PATCH`/`DELETE`/`restore` `/billing-accounts*` | `oryh-billing-account` |
 | `billing_account.post` *(scopable `:currency` / `:points`)* | `POST /billing-accounts/{id}/entries` | `oryh-billing-account` |
 | `payroll.manage` | `POST`/`PATCH /pay-histories*` | `oryh-payroll` |
@@ -130,7 +130,7 @@ Three deliberate asymmetries worth noting:
 - A published `internal` policy is readable with **no capability at all**, and
   that is deliberate rather than an oversight: an employee handbook nobody may
   open is not a handbook. A policy that wants an audience names the capability
-  itself in `required_capability`, reusing this same catalog — 薪酬管理办法
+  itself in `required_capability`, reusing this same catalog — a compensation policy
   simply says `payroll.read`. See [policies.md](policies.md).
 - `payroll.read` is the only capability in this catalog that gates a **read**.
   Every other list here is tenant-scoped and nothing more, which is right for

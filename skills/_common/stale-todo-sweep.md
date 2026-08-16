@@ -13,7 +13,7 @@ Close a todo — `PATCH /todos/{id}` with `{"status": "cancelled"}` — when its
 target has stopped being actionable:
 
 - the document sits in a state the tenant's definition treats as **dead**
-  (作废 / 已取消 / 已废弃 / whatever this workspace calls it). Only you can judge
+  (voided, cancelled, abandoned — whatever this workspace calls it). Only you can judge
   this: the state names are the tenant's and the server has no opinion about
   what they mean.
 - the document reached a **terminal state** the todo's work belonged before —

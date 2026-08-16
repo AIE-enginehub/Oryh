@@ -2,14 +2,14 @@
 
 Paying your own people is the third settlement path in this codebase, and it is
 the one that reuses the most. It adds one new table and one new value on an
-existing column; everything else — 核销, 账龄, 审批, the integrity invariants —
+existing column; everything else — settlement, ageing, approval, the integrity invariants —
 is the machinery already there.
 
 ## The server computes nothing
 
 Say this before anything else, because the first person to use it will assume
 otherwise: **oryh calculates no part of a payslip.** Not the social-insurance
-contribution, not the housing fund, not the 累计预扣 income tax, not the
+contribution, not the housing fund, not cumulative-withholding income tax, not the
 special additional deductions, not the year-end bonus method.
 
 Those rates are national and municipal policy. They change on their own
@@ -29,7 +29,7 @@ arithmetic — nothing in this database could reconstruct why the pension
 deduction was 960.00 rather than 860.00. So every payslip line is required to
 show its working: it either cites the pay record its number came from
 (`pay_history_id`) or states the calculation in `notes`
-(`缴费基数 12000.00 × 8% = 960.00`). A line that does neither is a 422. This is
+(`contribution base 12000.00 × 8% = 960.00`). A line that does neither is a 422. This is
 a legality guard, not a style rule — a figure nobody can check is the one thing
 a payslip may not contain.
 
@@ -40,11 +40,11 @@ states **one component** of one person's pay over one range.
 
 | component | shape | example |
 |---|---|---|
-| `base_salary` | `amount` + `period_type` | 月薪 15000 |
-| `allowance` | `amount` | 交通补贴 500/月 |
-| `commission` | `rate` + `basis` | 回款额的 3% |
-| `bonus` | `formula` | 达标发 2 个月工资 |
-| `overtime_rate` | `amount` or `formula` | 平时 1.5 倍 |
+| `base_salary` | `amount` + `period_type` | 15000 a month |
+| `allowance` | `amount` | travel allowance 500/month |
+| `commission` | `rate` + `basis` | 3% of collections |
+| `bonus` | `formula` | two months' salary on target |
+| `overtime_rate` | `amount` or `formula` | 1.5× on ordinary days |
 
 Three shapes, because compensation terms genuinely come in three: a scalar, a
 proportion of something, and everything else. `formula` is free text and **the
@@ -63,14 +63,15 @@ credential in the workspace can list them. Somebody's commission rate is as
 confidential as their salary, and `pay_histories` already sits behind
 `payroll.read`. Putting the rate anywhere else would have quietly published it.
 
-What belongs here is a fact about THIS PERSON. Company-wide rules (奖金制度,
-提成办法) are policy and belong in a workflow definition. National policy
-belongs in neither — see above. The one borderline case is the 社保/公积金
-缴费基数: that IS a fact about the person and it changes on its own schedule, so
+What belongs here is a fact about THIS PERSON. Company-wide rules (a bonus
+scheme, a commission policy) are policy and belong in a workflow definition.
+National policy belongs in neither — see above. The one borderline case is the
+social-insurance and housing-fund contribution base: that IS a fact about the
+person and it changes on its own schedule, so
 it goes in this table's `custom_fields`, where it inherits the effective dating
 for free.
 
-### 调薪 is not editing a number
+### A pay revision is not editing a number
 
 `POST /pay-histories` from a new date closes the previous record for **that
 component** the day before and opens the new one, in a single transaction. As
@@ -88,7 +89,7 @@ issued document says without touching that document.
 ## The payslip
 
 A payslip is an `Invoice` with `direction = 'payroll'`, one `InvoiceItem` per
-earning or deduction, **增项为正、扣减为负**.
+earning or deduction, **earnings positive, deductions negative**.
 
 ### Why `direction` gained a third value
 
@@ -106,12 +107,12 @@ large migration bought for a wording preference.
 | refused | why |
 |---|---|
 | a second payslip for the same person and `period_start` | double payment is the most expensive mistake here and the least likely to be noticed — so it is a partial unique index, not an agent's care |
-| `total_amount` | 实发工资 IS the sum of the lines; a second opinion about what somebody earns can only be wrong |
+| `total_amount` | net pay IS the sum of the lines; a second opinion about what somebody earns can only be wrong |
 | a deduction written positive | `payroll_iit` as `+389.4` hands the person nearly twice what they are owed, and nothing downstream would object |
 | a line with neither `pay_history_id` nor `notes` | the rates are not stored here, so this line is the only record of the calculation |
 | a customer, a vendor, or either order link | a payslip bills nobody and fulfils no order |
 | a `pay_history_id` belonging to someone else | that is a different person's salary on this person's payslip |
-| a signed line of `0.00` | a line that moves nothing is not a movement — a month with no 个税 has no 个税 line, and the reason belongs in `remarks` |
+| a signed line of `0.00` | a line that moves nothing is not a movement — a month with no income tax has no tax line, and the reason belongs in `remarks` |
 
 ### The item vocabulary carries a sign
 
@@ -144,28 +145,30 @@ everything else. That is the same move billing accounts make when validating
 
 ## What the payslip does not carry
 
-Only the employee's half. Every shipped deduction type is `_ee`, so 单位承担的
-社保和公积金 appear nowhere on it, and 用工总成本 cannot be read off a payslip.
+Only the employee's half. Every shipped deduction type is `_ee`, so the
+employer's own social-insurance and housing-fund contributions appear nowhere on
+it, and total employment cost cannot be read off a payslip.
 
 That is not an omission to fix. A payslip states what one person was paid and
 what was withheld from them; the employer's contribution is a company expense
 that happens to be computed from the same base. It arrives as an ordinary
-**purchase** invoice against the collecting authority — 税务局 for 个税 and
-社保费, 公积金中心 for the fund — settled by an outbound payment through the
+**purchase** invoice against the collecting authority — the tax authority for
+income tax and social insurance, the housing fund centre for the fund — settled
+by an outbound payment through the
 same ledger as any other payable. Two payables, two payments, no new object.
 
 The identity worth checking at month end:
 
 ```
-现金流出 = 实发合计 + 缴税务局 + 缴公积金中心
-        = 应发合计 + 单位承担部分
-        = 用工总成本
+cash out = net pay total + remitted to the tax authority + remitted to the fund centre
+         = gross pay total + the employer's own contributions
+         = total employment cost
 ```
 
 ## Paying it out
 
 One outbound payment per person, all sharing a `reference_no` as the bank batch
-number. That is the whole of 发薪批次 — no `PaymentGroup` object, no new schema.
+number. That is the whole of a payroll batch — no `PaymentGroup` object, no new schema.
 Each payout is applied to that person's payslip through the ordinary settlement
 endpoint, so `outstanding_amount`, the reversal-by-counter-entry rule and the
 over-application guard all work unchanged.
@@ -201,12 +204,13 @@ Gating on the link was gating on the wrong thing; money that names another
 employee is that person's business from the moment it is recorded.
 
 Money handlers are exempt from that second clause, and the exemption is the job:
-a 出纳 processing 报销付款 and 工资代发 has to see what they are paying. What
+a cashier processing expense reimbursements and salary disbursement has to see
+what they are paying. What
 they still do not see is a payout already applied to a payslip — at that point
 its amount IS somebody's net pay, and the first clause holds for them too.
 
 "Money handler" is `payment.record`, `payment.apply` **or** `payment.advance`.
-The third was added after a workspace routed 工资发放 through payment approval
+The third was added after a workspace routed salary disbursement through payment approval
 and discovered the step was unreachable: approving a payout you cannot see is
 not a weaker version of the job, it is none of it, and the approver's queue came
 back empty for human and flow agent alike. The widening is real — whoever may

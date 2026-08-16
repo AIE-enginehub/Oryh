@@ -25,8 +25,8 @@ GET /roles                                     → who holds what (distribution 
 POST /skills
 {
   "name": "jc-quote",
-  "title": "晶诚报价",
-  "description": "Use when ...（完整触发契约，见 authoring-guide）",
+  "title": "Jingcheng quoting",
+  "description": "Use when ... (the full trigger contract — see authoring-guide)",
   "required_capability": "quotation.submit_own",
   "files": {
     "SKILL.md": "---\nname: jc-quote\n...",
@@ -113,7 +113,7 @@ POST /workflow-definitions        // policy — needs workflows.publish; publish
 {
   "entity_kind": "builtin",
   "object_type": "sales_quotation",
-  "definition_text": "## 提交要求\n报价必须注明有效期……\n[every existing clause from the step-3 GET, carried over verbatim]\n## 流转规则\n……\n[+ the admin's new/changed clause, woven in where it belongs]"
+  "definition_text": "## Submission requirements\nA quotation must state its validity period……\n[every existing clause from the step-3 GET, carried over verbatim]\n## Routing rules\n……\n[+ the admin's new/changed clause, woven in where it belongs]"
 }
 ```
 
@@ -125,14 +125,14 @@ before publishing one.
 
 ```json
 POST /capabilities                // custom gate — needs users.manage
-{"name": "acme.intake.submit", "title": "报价解析提交资格"}
+{"name": "acme.intake.submit", "title": "May submit parsed quotations"}
 // name: lowercase [a-z0-9_.] only — hyphens are rejected (422)
 
 POST /object-type-definitions     // new custom object — needs object_types.manage
-{"object_type": "sales_order", "title": "销售订单", "json_schema": {...}, "state_machine": {...}}
+{"object_type": "sales_order", "title": "Sales order", "json_schema": {...}, "state_machine": {...}}
 
 POST /type-options                // custom type vocabulary entry — needs object_types.manage
-{"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"}
+{"family": "product_price_type", "name": "dealer_tier2", "title": "Tier-2 dealer price"}
 // families: product_price_type / sales_adjustment_type / expense_category / work_type
 // name: lowercase [a-z0-9_], no hyphens; DELETE archives (history keeps its values)
 ```
