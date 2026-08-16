@@ -1,10 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate, Outlet, Route, Routes, useLocation, useOutletContext } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  Link,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+} from "react-router-dom";
 import "@fontsource-variable/manrope";
 
 import { ApiError, getBootstrap, type BootstrapData } from "./api/client";
 import { LanguageProvider, useI18n } from "./i18n";
 import { OryhLogo } from "./components/OryhLogo";
+import { onSignedOut, resolveSignedOut } from "./session/sessionController";
 import {
   AppShell,
   canManageAccess,
@@ -185,9 +196,39 @@ function CapabilityBoundary({ capability, title }: { capability: string; title: 
   return <Outlet context={context} />;
 }
 
+/**
+ * Acts on a 401 from anywhere, not just from the bootstrap query.
+ *
+ * A session that expires while somebody is working used to surface as a failed
+ * table or a failed save on whatever page they were on, because the only query
+ * that could report it had been answered half an hour earlier. The controller
+ * reports; this is what moves.
+ */
+function SignedOutRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(
+    () =>
+      onSignedOut(({ returnTo }) => {
+        // Already on the login page: nothing to move, and navigating would
+        // discard the `from` a previous transition recorded.
+        if (location.pathname === "/login") {
+          resolveSignedOut();
+          return;
+        }
+        navigate("/login", { replace: true, state: { from: returnTo } });
+      }),
+    [navigate, location.pathname],
+  );
+
+  return null;
+}
+
 export function App() {
   return (
     <LanguageProvider>
+      <SignedOutRedirect />
       <ConsoleRoutes />
     </LanguageProvider>
   );

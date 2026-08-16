@@ -131,3 +131,51 @@ def test_smtp_credentials_must_be_configured_as_a_pair(
                 body="Open the invitation.",
             )
         )
+
+
+def test_the_outbox_does_not_retain_bodies_for_smtp(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bodies are initial passwords, invite tokens and reset tokens. The
+    console backend already prints them, so retaining them there reveals
+    nothing; smtp is the production backend and had been accumulating them in
+    process memory forever, unbounded, read by nothing."""
+    monkeypatch.setattr(settings, "email_backend", "smtp")
+    monkeypatch.setattr(emails, "_send_smtp", lambda _message: None)
+    emails.outbox.clear()
+
+    emails.outbox.send(to="a@example.test", subject="Reset", body="token=SECRET-VALUE")
+
+    assert emails.outbox.messages[-1].to == "a@example.test"
+    assert emails.outbox.messages[-1].subject == "Reset"
+    assert emails.outbox.messages[-1].body == ""
+    assert "SECRET-VALUE" not in repr(emails.outbox.messages[-1])
+
+
+def test_the_body_reaches_smtp_even_though_it_is_not_retained(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The half that must not break: dropping the retained copy must not drop
+    the copy that is actually delivered."""
+    monkeypatch.setattr(settings, "email_backend", "smtp")
+    delivered: list = []
+    monkeypatch.setattr(emails, "_send_smtp", lambda message: delivered.append(message))
+    emails.outbox.clear()
+
+    emails.outbox.send(to="a@example.test", subject="Reset", body="token=SECRET-VALUE")
+
+    assert delivered[-1].body == "token=SECRET-VALUE"
+
+
+def test_the_outbox_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A process that runs for a month cannot hold one entry per email ever
+    sent."""
+    monkeypatch.setattr(settings, "email_backend", "smtp")
+    monkeypatch.setattr(emails, "_send_smtp", lambda _message: None)
+    emails.outbox.clear()
+
+    for n in range(emails.OUTBOX_LIMIT + 50):
+        emails.outbox.send(to=f"{n}@example.test", subject="s", body="b")
+
+    assert len(emails.outbox.messages) == emails.OUTBOX_LIMIT
+    # the ones kept are the most recent, which is what "did the last few go
+    # out" needs
+    assert emails.outbox.messages[-1].to == f"{emails.OUTBOX_LIMIT + 49}@example.test"

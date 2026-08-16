@@ -195,7 +195,7 @@ def test_an_operator_closed_historical_conflict_keeps_both_facts(tmp_path) -> No
         facts = list(db.scalars(select(ApprovalRecord).order_by(ApprovalRecord.acted_at)))
         assert [fact.action for fact in facts] == ["returned", "approved"]
         assert all(fact.historical_conflict_closed for fact in facts)
-        from app.api.routes import ensure_node_undecided
+        from app.api.objects import ensure_node_undecided
 
         with pytest.raises(HTTPException, match="closed historical approval conflict"):
             ensure_node_undecided(

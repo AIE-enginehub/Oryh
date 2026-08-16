@@ -101,6 +101,21 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 The request now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant request comes back as a rework todo without reaching any approver — then approvers are assigned per the tenant's workflow definition: amount tiers key on the estimated total, and definitions commonly send unpriced requests for sourcing first (a `returned` + rework round to fill in prices). Progress is visible any time via `GET /approval-records?entity_type=purchase_request&entity_id={id}` — the status stays `submitted` until the flow finishes, then `approved` and, once procurement places the order, `ordered` (tenant machines may differ). If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`).
 
+## 用供应商账户支付 (charging the PO)
+
+If we hold a standing account at this vendor (先打款、后下单), set
+`billing_account_id` on the purchase order — its owner must be this PO's
+vendor. The PO occupies OUR credit at that vendor from creation; what the
+prepaid balance does not cover, the vendor's credit line does, and the same
+formula answers both: available = balance + credit_limit − occupied.
+
+Multiple vendors mean multiple accounts. Pick the one whose owner is THIS PO's
+vendor (`GET /billing-accounts?vendor_id=…`); currency must match, and a wrong
+pick is a 409, not a silent misfile. On a credit refusal, report the three
+numbers and the options (prepay more / ask for a higher line / shrink the
+order). Cancelling a kept PO releases by clearing the field; removed lines and
+deletion release by themselves.
+
 ## What This Skill Never Does
 
 - Approve, decide routing, pick the winning vendor, or touch the request status (`/submit` is the only transition it makes).

@@ -15,10 +15,22 @@ So whenever you retire a record that had work outstanding on it:
 - **Deleting it is handled for you.** The server cancels the open todos that
   pointed at it, because a work item whose subject is gone cannot be done. You
   will see them come back `cancelled`, not `completed` — nobody did that work.
-- **Retiring it BY STATUS is not.** A document moved to a state your workspace
-  treats as dead — 作废, 已取消, 已废弃 — is still a live row, and the server has
-  no opinion about what your state names mean. Close your own todos on it
-  yourself: `PATCH /todos/{id}` with `{"status": "cancelled"}`.
+- **Retiring it BY STATUS is handled too, when the state is an ending.** The
+  server still has no opinion about what 作废 or 已完成 mean to you. It asks
+  your workspace's own state machine two questions instead: does any transition
+  leave this state, and is it editable? If the answer is no to both, nothing
+  can happen to the document, so the open todos on it are cancelled with it.
+  A state your machine can still move out of is not an ending, and work there
+  is left alone.
+- **A state you treat as dead but your machine can still leave is yours to
+  clean up.** That is the gap the two questions above cannot close: `PATCH
+  /todos/{id}` with `{"status": "cancelled"}`. If you meet this often, the
+  machine is describing a lifecycle your workspace no longer runs — fix the
+  definition rather than sweeping after it.
+- **Resubmitting closes the rework todo.** The server completes the open
+  `rework` todos on a document the moment it is submitted again — `completed`,
+  because the work was done. You do not send a second call for it, and a
+  resubmit that returns 200 has already cleared the queue entry.
 - **Say where the work went.** Put the replacement's number in the void reason
   and the original's number in the replacement's `remarks`. "Why were there ten
   payslips for June" is a question somebody will ask, and the two documents

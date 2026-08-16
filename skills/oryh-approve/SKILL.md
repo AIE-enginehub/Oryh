@@ -14,9 +14,9 @@ is the same for every document type — what changes between them is only
 This skill is deliberately small. Everything that moves a process forward —
 status transitions, assigning the next approver, rework todos, marking paid,
 clearing a rep to send — belongs to the flow skills
-(`$oryh-timesheet-approval-flow`, `$oryh-expense-approval-flow`,
-`$oryh-purchase-approval-flow`, `$oryh-quotation-approval-flow`,
-`$oryh-order-approval-flow`), executed by the workflow admin agent.
+(`the hosted workflow admin agent`, `the hosted workflow admin agent`,
+`the hosted workflow admin agent`, `the hosted workflow admin agent`,
+`the hosted workflow admin agent`), executed by the workflow admin agent.
 
 ## Trigger Examples
 
@@ -108,14 +108,16 @@ trail actually says, and stop. Revisiting a settled decision is a new round,
 which is the workflow admin's to open, not a second decision in this one.
 `commented` is outside this — an objection may sit beside a decision.
 
-4. **Complete the approver's own todo**: `PATCH /todos/{todo_id}` with
-   `{"status": "completed"}` — needs `todos.complete_own` (the default member
-   role has it); a 403 here is role configuration, not something to retry.
+**Your todo is closed for you.** Step 3 completes the approver's own approval
+todo in the same transaction as the decision, and a `returned` fact cancels the
+round's approval todos outright. There is no second call, and there used not to
+be a guarantee: `POST /approval-records` succeeding and `PATCH /todos/{id}` not
+is how a timesheet spent three weeks in a queue that read as active.
 
-That is all. The document stays `submitted`; once this todo is completed it
-re-enters the workflow admin's queue, which reads the new fact and decides
-what happens next — next approver, rework todo for the submitter on
-`returned`, or the final status.
+That is all. The document stays `submitted`; with the todo closed it re-enters
+the workflow admin's queue, which reads the new fact and decides what happens
+next — next approver, rework todo for the submitter on `returned`, or the final
+status.
 
 ## What Each Document Type Demands
 

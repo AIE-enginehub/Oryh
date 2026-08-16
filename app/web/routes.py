@@ -114,7 +114,7 @@ def login_submit(
     next: Annotated[str, Form()] = "",
 ):
     try:
-        data = auth_api.login(LoginRequest(email=email, password=password), db)["data"]
+        data = auth_api.login(LoginRequest(email=email, password=password), request, db)["data"]
     except (HTTPException, ValidationError) as exc:
         return render("login.html", request, error=error_text(exc), email=email, next=next)
     response = RedirectResponse(safe_next_url(next), status_code=status.HTTP_303_SEE_OTHER)

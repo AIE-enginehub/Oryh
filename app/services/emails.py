@@ -8,6 +8,15 @@ from app.core.request_context import resolved_base_url
 
 logger = logging.getLogger("oryh.emails")
 
+# Backends whose bodies are already visible to whoever can see the process:
+# `console` prints them, `memory` exists so tests can read them. For any other
+# backend the body is a credential the outbox has no reason to hold.
+BODY_VISIBLE_BACKENDS = frozenset({"console", "memory"})
+
+# Enough to answer "did the last few go out"; short enough that a month-old
+# process holds a bounded amount.
+OUTBOX_LIMIT = 200
+
 
 class EmailDeliveryError(RuntimeError):
     """An email could not be safely prepared or delivered.
@@ -62,17 +71,39 @@ def _send_smtp(message: OutboundEmail) -> None:
 
 @dataclass
 class EmailOutbox:
-    """In-process outbox. Every message is recorded (tests read `messages` to
-    capture links and passwords); the console backend additionally prints,
-    the smtp backend delivers via the configured mailbox."""
+    """In-process record of what was sent.
 
+    It used to keep every message forever, in every backend, body included —
+    and the bodies are initial passwords, invite tokens and password-reset
+    tokens. A long-lived production process therefore accumulated an unbounded
+    plaintext credential store in memory, which nothing read and nothing ever
+    trimmed. The 2026-08-16 architecture review's 5.3.
+
+    Two rules now:
+
+    * **Bodies are kept only for backends that already expose them.** `console`
+      prints the body to stdout and `memory` exists to be read by tests, so
+      retaining it there reveals nothing new. `smtp` — the production backend —
+      records that the message went, to whom, and when, and drops the text.
+    * **The record is bounded.** A ring buffer, so a process that runs for a
+      month cannot grow one entry per email ever sent.
+
+    A durable transactional outbox with async delivery is the right long-term
+    answer and is a schema change; this is the part that does not need one.
+    """
+
+    # A list, not a deque: `messages == []` and slicing are what the suite and
+    # the console read it with, and a container change that breaks those buys
+    # nothing the explicit trim below does not.
     messages: list[OutboundEmail] = field(default_factory=list)
 
     def send(self, *, to: str, subject: str, body: str) -> None:
-        message = OutboundEmail(to=to, subject=subject, body=body)
-        self.messages.append(message)
+        retained = body if settings.email_backend in BODY_VISIBLE_BACKENDS else ""
+        self.messages.append(OutboundEmail(to=to, subject=subject, body=retained))
+        if len(self.messages) > OUTBOX_LIMIT:
+            del self.messages[:-OUTBOX_LIMIT]
         if settings.email_backend == "smtp":
-            _send_smtp(message)
+            _send_smtp(OutboundEmail(to=to, subject=subject, body=body))
         elif settings.email_backend == "console":
             # print instead of logger: uvicorn's default logging config drops
             # INFO records from application loggers, and the dev workflow

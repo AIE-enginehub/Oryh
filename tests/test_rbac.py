@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.api.routes import enriched_api_key
+from app.api.workspace import enriched_api_key
 from app.models import ApiKey
 from app.services.emails import outbox
 

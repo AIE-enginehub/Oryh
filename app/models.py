@@ -1251,6 +1251,13 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     payment_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Charged to OUR standing account at this vendor: the order occupies the
+    # account's available credit from the moment it is charged, so the same
+    # prepayment cannot back two orders during the wait for delivery. The
+    # occupation math and its guards live in `app/api/common.py`.
+    billing_account_id: Mapped[str | None] = mapped_column(
+        ForeignKey("billing_accounts.id"), nullable=True, index=True
+    )
     # the agreed document total; the line sum plus adjustments should equal it
     total_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="draft")
@@ -1358,6 +1365,14 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     payment_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Charged to the customer's standing account: the order occupies the
+    # account's available credit from the moment it is charged — the window
+    # between order and invoice (an e-commerce wait, a toB delivery gap) is
+    # exactly where the same balance must not be spendable twice. The
+    # occupation math and its guards live in `app/api/common.py`.
+    billing_account_id: Mapped[str | None] = mapped_column(
+        ForeignKey("billing_accounts.id"), nullable=True, index=True
+    )
     # the agreed document total; null means the line sum is the total —
     # /detail reports both facts, agents judge the gap
     total_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
@@ -1969,7 +1984,7 @@ class PaymentApplication(IdMixin, TenantMixin, CreatedAtMixin, Base):
     # OFBiz's billingAccountId: money paid INTO a standing account (客户预存) or
     # refunded back out of one. Unlike the other targets this one has no ceiling
     # — a deposit is not a claim — so the settlement guard checks the account's
-    # balance floor instead. See SettlementTarget in app/api/routes.py.
+    # balance floor instead. See SettlementTarget in app/api/billing.py.
     billing_account_id: Mapped[str | None] = mapped_column(
         ForeignKey("billing_accounts.id"), nullable=True, index=True
     )

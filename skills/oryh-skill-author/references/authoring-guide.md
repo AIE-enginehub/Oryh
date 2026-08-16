@@ -51,7 +51,7 @@ A customer workflow skill sits **on top of** the product skills:
 
 - Creating/submitting builtin objects → defer to `$oryh-quotation-submit`, `$oryh-purchase-submit`, … ("按 $oryh-quotation-submit 的契约创建并提交，本 skill 只规定桂式规则").
 - Custom objects → defer to `$oryh-business-object` for mechanics (full-payload PATCH, no status advancing) and state only your object's fields and rules.
-- Approval facts → `$oryh-*-approve` / `approval.record` conventions; one fact + own todo, never status writes.
+- Approval facts → `$oryh-approve` (one skill, every document type) / `approval.record` conventions; one fact + own todo, never status writes.
 - Check-in/queues → `$oryh-my-work`.
 
 Re-explaining core API mechanics inside a customer skill is a defect: it drifts when the product updates.

@@ -362,6 +362,68 @@
         "title": "ApplyPaymentResult",
         "type": "object"
       },
+      "ApprovalHandoffRequest": {
+        "additionalProperties": false,
+        "description": "Who holds the document next, stated in the call that decides it.\n\nSame fields `POST /todos` takes, minus the two the approval fact already\nknows: what it points at. There is no `status` — a handoff opens work.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "employee_id": {
+            "title": "Employee Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          },
+          "todo_type": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todo Type"
+          }
+        },
+        "required": [
+          "employee_id",
+          "title"
+        ],
+        "title": "ApprovalHandoffRequest",
+        "type": "object"
+      },
       "ApprovalRecordRead": {
         "properties": {
           "acted_at": {
@@ -793,6 +855,22 @@
             "title": "Balance",
             "type": "number"
           },
+          "charged_invoices": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ChargedDocumentRead"
+            },
+            "title": "Charged Invoices",
+            "type": "array"
+          },
+          "charged_orders": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ChargedDocumentRead"
+            },
+            "title": "Charged Orders",
+            "type": "array"
+          },
           "credit_limit": {
             "title": "Credit Limit",
             "type": "number"
@@ -811,6 +889,11 @@
           "expiring_entry_count": {
             "title": "Expiring Entry Count",
             "type": "integer"
+          },
+          "exposure_amount": {
+            "default": 0.0,
+            "title": "Exposure Amount",
+            "type": "number"
           }
         },
         "required": [
@@ -4417,6 +4500,62 @@
         "title": "CapabilityRead",
         "type": "object"
       },
+      "ChargedDocumentRead": {
+        "description": "One document still drawing on an account's credit: a charged order not\nyet fully billed, or a charged invoice not yet settled. `occupied` is the\npart still counted against the account; `consumed` is what has already\nmoved on (billed by same-account invoices, or settled by payments).",
+        "properties": {
+          "consumed": {
+            "title": "Consumed",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "occupied": {
+            "title": "Occupied",
+            "type": "number"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "total",
+          "consumed",
+          "occupied"
+        ],
+        "title": "ChargedDocumentRead",
+        "type": "object"
+      },
       "CloseFlowRunRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4825,6 +4964,18 @@
             ],
             "title": "Comment"
           },
+          "document_status": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Status"
+          },
           "entity_id": {
             "title": "Entity Id",
             "type": "string"
@@ -4845,6 +4996,16 @@
             ],
             "title": "Entity Type",
             "type": "string"
+          },
+          "handoff": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalHandoffRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "metadata": {
             "additionalProperties": true,
@@ -6554,6 +6715,17 @@
             ],
             "title": "Attachment Id"
           },
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "counterparty_name_snapshot": {
             "anyOf": [
               {
@@ -7948,6 +8120,17 @@
       "CreatePurchaseOrderRequest": {
         "additionalProperties": false,
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contract_no": {
             "anyOf": [
               {
@@ -8863,6 +9046,17 @@
       "CreateSalesOrderRequest": {
         "additionalProperties": false,
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contact_name": {
             "anyOf": [
               {
@@ -13663,6 +13857,11 @@
             "title": "Email",
             "type": "string"
           },
+          "email_sent": {
+            "default": true,
+            "title": "Email Sent",
+            "type": "boolean"
+          },
           "email_verified_at": {
             "anyOf": [
               {
@@ -13818,6 +14017,17 @@
               }
             ],
             "title": "Attachment Id"
+          },
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
           },
           "counterparty_name_snapshot": {
             "anyOf": [
@@ -15001,6 +15211,17 @@
               }
             ],
             "title": "Attachment Id"
+          },
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
           },
           "counterparty_name_snapshot": {
             "anyOf": [
@@ -18229,6 +18450,17 @@
       "PurchaseOrderCreatedRead": {
         "description": "Reads back the lines that rode the create call.",
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contract_no": {
             "anyOf": [
               {
@@ -19071,6 +19303,17 @@
       },
       "PurchaseOrderRead": {
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contract_no": {
             "anyOf": [
               {
@@ -21582,6 +21825,17 @@
       },
       "SalesOrderRead": {
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contact_name": {
             "anyOf": [
               {
@@ -25790,6 +26044,17 @@
             ],
             "title": "Attachment Id"
           },
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "counterparty_name_snapshot": {
             "anyOf": [
               {
@@ -27178,6 +27443,17 @@
       "UpdatePurchaseOrderRequest": {
         "additionalProperties": false,
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contract_no": {
             "anyOf": [
               {
@@ -28137,6 +28413,17 @@
       "UpdateSalesOrderRequest": {
         "additionalProperties": false,
         "properties": {
+          "billing_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Account Id"
+          },
           "contact_name": {
             "anyOf": [
               {
@@ -30247,6 +30534,7 @@
     },
     "/api/v1/admin/login": {
       "post": {
+        "description": "The most privileged password in the product, and it had no backoff.\n\n`admin_web` calls this function directly rather than over HTTP and passes\nits own request through, so both surfaces throttle on the same counters.",
         "operationId": "admin_login_api_v1_admin_login_post",
         "requestBody": {
           "content": {
@@ -46074,6 +46362,22 @@
           },
           {
             "in": "query",
+            "name": "billing_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Billing Account Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "period_start",
             "required": false,
             "schema": {
@@ -55694,6 +55998,22 @@
           },
           {
             "in": "query",
+            "name": "billing_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Billing Account Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "employee_id",
             "required": false,
             "schema": {
@@ -61971,6 +62291,22 @@
                 }
               ],
               "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "billing_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Billing Account Id"
             }
           },
           {

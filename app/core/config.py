@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # variable exists for the case where a tree that HAS the layer must not
     # mount it (a cloud image run as a standalone instance).
     edition: str = ""
+    # What this deployment IS, stated rather than inferred. Every default in
+    # this file is chosen so a fresh clone runs unconfigured, which makes every
+    # one of them a laptop's default; `production` refuses to start on the ones
+    # that are unsafe outside a laptop. See core/deployment_profile.py.
+    deployment_profile: str = "development"
     database_url: str = "postgresql+psycopg://ofbiz:ofbiz@127.0.0.1:5432/oryh"
     # Owner/DDL connection for alembic and cross-tenant ops scripts (seed,
     # imports, platform bootstrap). Falls back to database_url when unset.

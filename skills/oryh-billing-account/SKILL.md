@@ -97,9 +97,17 @@ POST /billing-accounts/{account_id}/entries
 
 ## 预存 and 挂账 (money accounts)
 
-A customer's prepayment is a payment applied to the account, not an entry you
-write by hand — that way the payment is marked as used and the account's ledger
-records it in the same breath:
+Two kinds of money meet on one account, and the table is worth keeping straight
+when you explain it to a person — it is the thing most easily said backwards:
+
+| account owner | `balance` is | `credit_limit` is | deposits arrive as |
+|---|---|---|---|
+| a customer | THEIR money with US | credit WE extend THEM | their **inbound** payment |
+| a vendor | OUR money with THEM | credit THEY extend US | our **outbound** payment |
+
+A prepayment is a payment applied to the account, not an entry you write by
+hand — that way the payment is marked as used and the account's ledger records
+it in the same breath:
 
 ```json
 POST /payments/{payment_id}/apply
@@ -107,13 +115,48 @@ POST /payments/{payment_id}/apply
             "amount_applied": 100000.0}]}
 ```
 
-Drawing the account down for a document IS an entry (`reason: "charge"`,
-pointing at the invoice). Refunding money back out is an **outbound** payment
-applied to the account, which reduces the balance.
+The payment's counterparty must BE the account's owner; a mismatch is a 409,
+not a warning.
 
-"还能赊多少" is `available_amount` on the account — balance plus whatever credit
-remains. Accounts already past their line:
-`GET /billing-accounts?unit_type=currency&over_limit=true`.
+**Charging (挂账即占用).** A sales/purchase order or an invoice charged to the
+account (`billing_account_id` on the document) OCCUPIES its credit from that
+moment. "还能用多少" is the detail's `available_amount`:
+
+```text
+available = balance + credit_limit − exposure_amount
+```
+
+`GET /billing-accounts/{id}/detail` reports all three plus `charged_orders` and
+`charged_invoices` — every document still drawing on the account, with its
+occupied amount. That list is your first read before charging anything new, and
+your sweep target for forgotten releases (see the flow skills).
+
+**核销划拨.** Settling a charged invoice from the account's own money is ONE
+atomic call on the deposit payment — the negative line releases the account
+(ledger `reason: charge`), the positive line settles the invoice:
+
+```json
+POST /payments/{deposit_payment_id}/apply
+{"lines": [
+  {"applied_to_type": "billing_account", "applied_to_id": "account-id", "amount_applied": -100.0},
+  {"applied_to_type": "invoice", "applied_to_id": "invoice-id", "amount_applied": 100.0}
+]}
+```
+
+Which deposit funds which invoice (FIFO or named) is the workspace's rule —
+suggest FIFO when nobody states one, and say which payments you drew from.
+A credit-carried invoice needs no transfer at all: the customer's later payment
+applies directly to the invoice, and available recovers by itself.
+
+Refunding money back out of the relationship is a counter-direction payment
+applied to the account (ledger `reason: refund`) — a different fact from a
+transfer, and the statement reads differently because of it.
+
+**Release on cancellation.** Line removals, negative adjustments and document
+deletion hand credit back automatically. An order *cancelled but kept on file*
+does not: clear its `billing_account_id` — that PATCH is the release, it is
+never refused, and forgetting it is what the 30-day advisory in the integrity
+audit exists to catch.
 
 ## Points: earning, redeeming, expiring
 

@@ -3,7 +3,7 @@
 The authenticated tenant console: a React and TypeScript single-page
 application built with base `/console/` (`npm run build` → `dist`,
 `Dockerfile`). It ships as its own container and carries no marketing code —
-the public website is a separate project at [`../site`](../site).
+the public website is a separate project at `../site`.
 
 The Compose nginx gateway keeps browser traffic on one origin:
 
@@ -13,7 +13,7 @@ The Compose nginx gateway keeps browser traffic on one origin:
   retired tenant URLs; unsafe requests to those retired URLs return `410 Gone`.
 - `/admin/*` remains the separately scoped platform-operator console.
 - `/`, `/docs`, and the rest of the public surface are served by the **site**
-  container built from [`../site`](../site).
+  container built from `../site`.
 - `/redoc` and `/openapi.json` proxy the backend technical API reference.
 
 The browser session and CSRF cookies remain the authentication boundary. Do
@@ -88,7 +88,7 @@ Vite's hashed assets with immutable caching, keeps the entry document uncached
 for safe rollouts, and falls back to the SPA entry point for client-side
 routes. The top-level Compose nginx service owns the public port and routes
 `/console/*` here; the website container is documented in
-[`../site/README.md`](../site/README.md).
+`../site/README.md`.
 
 From the repository root:
 
@@ -100,4 +100,4 @@ Open <http://127.0.0.1:8080/console/> for the tenant console. The gateway and
 the internal static container both expose `/_health`; only the gateway is
 published to the host.
 Versioned image deployment, external verification, and forward-only rollback
-are documented in [docs/deployment.md](../docs/deployment.md).
+are documented in docs/deployment.md.

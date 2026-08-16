@@ -119,7 +119,7 @@ So when a read comes back 404 or an empty list:
 ## What This Skill Never Does
 
 - Set or change pay, issue a payslip, create or approve a payout — `$oryh-payroll`
-  for the first three, `$oryh-payment-approval-flow` for the last.
+  for the first three, `the hosted workflow admin agent` for the last.
 - Repeat one person's pay to another person, in any summary, total or aside.
   A reviewer holding `payroll.read` reads figures **to check them**, not to
   circulate them.

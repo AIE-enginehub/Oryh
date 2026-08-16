@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ApiError, browserLogin, requestOwnPasswordReset } from "../api/client";
 import { LanguageSwitcher, useI18n } from "../i18n";
 import { OryhLogo } from "../components/OryhLogo";
+import { adoptNewIdentity } from "../session/sessionController";
 
 type LoginLocationState = { from?: string };
 type AuthMode = "login" | "reset";
@@ -27,7 +28,11 @@ export function LoginPage() {
   const login = useMutation({
     mutationFn: browserLogin,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["console", "bootstrap"] });
+      // The whole cache, not the bootstrap key: everything in it was fetched
+      // by whoever was signed in before, and a member signing in after an
+      // admin would otherwise read the admin's customers until each query
+      // happened to refetch.
+      await adoptNewIdentity(queryClient);
       const state = location.state as LoginLocationState | null;
       navigate(state?.from || "/dashboard", { replace: true });
     },

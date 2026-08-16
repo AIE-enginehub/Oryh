@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from app.api.routes import DOCUMENT_FAMILIES
+from app.api.common import DOCUMENT_FAMILIES
 from app.core.entity_types import (
     APPROVAL_ENTITY_TYPES,
     DOCUMENT_ENTITY_TYPES,

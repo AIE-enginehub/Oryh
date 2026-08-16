@@ -227,7 +227,7 @@ without one applies twice. A repeat with the same key returns `replayed: true`
 and writes nothing.
 
 Whether the batch needs approval before the bank sees it is the workspace's
-decision, in its workflow definition — `$oryh-payment-approval-flow` runs it.
+decision, in its workflow definition — `the hosted workflow admin agent` runs it.
 Do not create the payout in a terminal state to skip a queue you were told
 about.
 
@@ -278,7 +278,7 @@ other.
 - Decide the raise, the bonus, or the write-off. Those are the principal's
   decisions; you record them.
 - Approve the payout, or move it to paid on your own reading — that is
-  `$oryh-payment-approval-flow`.
+  `the hosted workflow admin agent`.
 - Import history — that is `$oryh-data-migration`.
 - Answer "我这个月发了多少" — that is `$oryh-payslip`, which every employee
   holds and which needs no payroll capability to read one's own pay.

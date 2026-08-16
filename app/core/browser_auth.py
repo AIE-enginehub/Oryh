@@ -39,6 +39,23 @@ def require_same_origin(request: Request) -> None:
         )
 
 
+def require_same_origin_on_writes(request: Request) -> None:
+    """`require_same_origin`, as a router dependency for every unsafe method.
+
+    Written to be attached to a router rather than called by a handler. It was
+    per-handler on the operator console and three of sixteen handlers had it —
+    the thirteen without included minting tenant API keys, minting hosted
+    flow-agent keys and resetting passwords. A rule repeated at every call site
+    holds only where somebody remembered.
+
+    Safe methods are exempt: this defends against a cross-origin form POST, and
+    a GET that changes nothing is not one.
+    """
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    require_same_origin(request)
+
+
 def _secure_cookie() -> bool:
     return settings.base_url.lower().startswith("https://")
 

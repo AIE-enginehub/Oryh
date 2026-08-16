@@ -81,7 +81,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Admin Login */
+        /**
+         * Admin Login
+         * @description The most privileged password in the product, and it had no backoff.
+         *
+         *     `admin_web` calls this function directly rather than over HTTP and passes
+         *     its own request through, so both surfaces throttle on the same counters.
+         */
         post: operations["admin_login_api_v1_admin_login_post"];
         delete?: never;
         options?: never;
@@ -4417,6 +4423,29 @@ export interface components {
             /** Unapplied Amount */
             unapplied_amount: number;
         };
+        /**
+         * ApprovalHandoffRequest
+         * @description Who holds the document next, stated in the call that decides it.
+         *
+         *     Same fields `POST /todos` takes, minus the two the approval fact already
+         *     knows: what it points at. There is no `status` — a handoff opens work.
+         */
+        ApprovalHandoffRequest: {
+            /** Description */
+            description?: string | null;
+            /** Due At */
+            due_at?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Title */
+            title: string;
+            /** Todo Type */
+            todo_type?: string | null;
+        };
         /** ApprovalRecordRead */
         ApprovalRecordRead: {
             /**
@@ -4564,6 +4593,16 @@ export interface components {
             available_amount: number;
             /** Balance */
             balance: number;
+            /**
+             * Charged Invoices
+             * @default []
+             */
+            charged_invoices: components["schemas"]["ChargedDocumentRead"][];
+            /**
+             * Charged Orders
+             * @default []
+             */
+            charged_orders: components["schemas"]["ChargedDocumentRead"][];
             /** Credit Limit */
             credit_limit: number;
             /** Entries */
@@ -4572,6 +4611,11 @@ export interface components {
             expiring_amount: number;
             /** Expiring Entry Count */
             expiring_entry_count: number;
+            /**
+             * Exposure Amount
+             * @default 0
+             */
+            exposure_amount: number;
         };
         /**
          * BillingAccountEntryRead
@@ -5727,6 +5771,29 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /**
+         * ChargedDocumentRead
+         * @description One document still drawing on an account's credit: a charged order not
+         *     yet fully billed, or a charged invoice not yet settled. `occupied` is the
+         *     part still counted against the account; `consumed` is what has already
+         *     moved on (billed by same-account invoices, or settled by payments).
+         */
+        ChargedDocumentRead: {
+            /** Consumed */
+            consumed: number;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Number */
+            number?: string | null;
+            /** Occupied */
+            occupied: number;
+            /** Title */
+            title?: string | null;
+            /** Total */
+            total: number;
+        };
         /** CloseFlowRunRequest */
         CloseFlowRunRequest: {
             /** Detail */
@@ -5854,6 +5921,8 @@ export interface components {
             approver_role?: string | null;
             /** Comment */
             comment?: string | null;
+            /** Document Status */
+            document_status?: string | null;
             /** Entity Id */
             entity_id: string;
             /**
@@ -5861,6 +5930,7 @@ export interface components {
              * @enum {string}
              */
             entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -6368,6 +6438,8 @@ export interface components {
         CreateInvoiceRequest: {
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -6786,6 +6858,8 @@ export interface components {
         };
         /** CreatePurchaseOrderRequest */
         CreatePurchaseOrderRequest: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -7038,6 +7112,8 @@ export interface components {
         };
         /** CreateSalesOrderRequest */
         CreateSalesOrderRequest: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contact Name */
             contact_name?: string | null;
             /** Contact Phone */
@@ -8484,6 +8560,11 @@ export interface components {
             created_at: string;
             /** Email */
             email: string;
+            /**
+             * Email Sent
+             * @default true
+             */
+            email_sent: boolean;
             /** Email Verified At */
             email_verified_at?: string | null;
             /** Employee Id */
@@ -8532,6 +8613,8 @@ export interface components {
             applied_amount: number;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -8847,6 +8930,8 @@ export interface components {
             applied_amount: number;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -9907,6 +9992,8 @@ export interface components {
          * @description Reads back the lines that rode the create call.
          */
         PurchaseOrderCreatedRead: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -10125,6 +10212,8 @@ export interface components {
         };
         /** PurchaseOrderRead */
         PurchaseOrderRead: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -10882,6 +10971,8 @@ export interface components {
         };
         /** SalesOrderRead */
         SalesOrderRead: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contact Name */
             contact_name?: string | null;
             /** Contact Phone */
@@ -12020,6 +12111,8 @@ export interface components {
         UpdateInvoiceRequest: {
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /** Currency */
@@ -12323,6 +12416,8 @@ export interface components {
         };
         /** UpdatePurchaseOrderRequest */
         UpdatePurchaseOrderRequest: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /** Currency */
@@ -12521,6 +12616,8 @@ export interface components {
         };
         /** UpdateSalesOrderRequest */
         UpdateSalesOrderRequest: {
+            /** Billing Account Id */
+            billing_account_id?: string | null;
             /** Contact Name */
             contact_name?: string | null;
             /** Contact Phone */
@@ -18151,6 +18248,7 @@ export interface operations {
                 tax_invoice_number?: string | null;
                 sales_order_id?: string | null;
                 purchase_order_id?: string | null;
+                billing_account_id?: string | null;
                 period_start?: string | null;
                 status?: string | null;
                 outstanding?: boolean;
@@ -21051,6 +21149,7 @@ export interface operations {
         parameters: {
             query?: {
                 vendor_id?: string | null;
+                billing_account_id?: string | null;
                 employee_id?: string | null;
                 po_number?: string | null;
                 status?: string | null;
@@ -22964,6 +23063,7 @@ export interface operations {
             query?: {
                 employee_id?: string | null;
                 customer_id?: string | null;
+                billing_account_id?: string | null;
                 quotation_id?: string | null;
                 order_no?: string | null;
                 status?: string | null;

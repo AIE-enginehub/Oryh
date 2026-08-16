@@ -596,6 +596,45 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
                            where pa.payment_id = p.id and pa.amount_applied <> 0)
               and p.applied_amount <> 0""",
     ),
+    # Charging (billing_account_id on orders/invoices) is guarded at write
+    # time; these catch a bypass. An account charged past balance+limit is not
+    # a judgment call — the guard exists precisely so this count stays zero.
+    (
+        "charged sales orders belong to the account's customer",
+        """select count(*) from sales_orders o
+             join billing_accounts a on a.id = o.billing_account_id
+            where o.deleted_at is null
+              and (a.customer_id is null or a.customer_id <> o.customer_id)""",
+    ),
+    (
+        "charged purchase orders belong to the account's vendor",
+        """select count(*) from purchase_orders o
+             join billing_accounts a on a.id = o.billing_account_id
+            where o.deleted_at is null
+              and (a.vendor_id is null or a.vendor_id <> o.vendor_id)""",
+    ),
+    (
+        "charged invoices match their account's owner",
+        """select count(*) from invoices i
+             join billing_accounts a on a.id = i.billing_account_id
+            where i.deleted_at is null
+              and ((i.direction = 'sales' and (a.customer_id is null or a.customer_id <> i.customer_id))
+                or (i.direction = 'purchase' and (a.vendor_id is null or a.vendor_id <> i.vendor_id))
+                or i.direction = 'payroll')""",
+    ),
+    (
+        "charged documents are in the account's currency",
+        """select count(*) from (
+             select o.id from sales_orders o join billing_accounts a on a.id = o.billing_account_id
+              where o.deleted_at is null and (a.unit_type <> 'currency' or a.unit <> o.currency)
+             union all
+             select o.id from purchase_orders o join billing_accounts a on a.id = o.billing_account_id
+              where o.deleted_at is null and (a.unit_type <> 'currency' or a.unit <> o.currency)
+             union all
+             select i.id from invoices i join billing_accounts a on a.id = i.billing_account_id
+              where i.deleted_at is null and (a.unit_type <> 'currency' or a.unit <> i.currency)
+           ) as mismatched""",
+    ),
 )
 
 # Disagreements worth a human's attention that are NOT integrity violations —
@@ -627,6 +666,156 @@ ADVISORY_CHECKS: tuple[tuple[str, str], ...] = (
         """select count(*) from policies
             where status = 'draft' and deleted_at is null
               and created_at < current_date - 90""",
+    ),
+    # A charge guard bypass: the account is occupied past balance + limit.
+    # Structural in spirit; advisory in mechanics only because the exposure
+    # expression is long — a non-zero count here is a bug, not a judgment call.
+    (
+        "accounts occupied past balance plus credit limit",
+        """select count(*) from billing_accounts a
+            where a.deleted_at is null and a.unit_type = 'currency'
+              and (
+                coalesce((select sum(greatest(
+                    coalesce(o.total_amount, (
+                      select coalesce(sum(coalesce(it.amount, it.unit_price * it.quantity, 0)), 0)
+                        from sales_order_items it
+                       where it.order_id = o.id and it.deleted_at is null
+                    ) + (
+                      select coalesce(sum(adj.amount), 0) from sales_order_adjustments adj
+                       where adj.order_id = o.id and adj.deleted_at is null
+                    ))
+                    - (select coalesce(sum(coalesce(i.total_amount, (
+                          select coalesce(sum(coalesce(ii.amount, ii.unit_price * ii.quantity, 0)), 0)
+                            from invoice_items ii where ii.invoice_id = i.id and ii.deleted_at is null
+                       ))), 0)
+                        from invoices i
+                       where i.sales_order_id = o.id
+                         and i.billing_account_id = a.id and i.deleted_at is null)
+                  , 0)) from sales_orders o
+                   where o.billing_account_id = a.id and o.deleted_at is null), 0)
+                + coalesce((select sum(greatest(
+                    coalesce(o.total_amount, (
+                      select coalesce(sum(coalesce(it.amount, it.unit_price * it.quantity, 0)), 0)
+                        from purchase_order_items it
+                       where it.po_id = o.id and it.deleted_at is null
+                    ) + (
+                      select coalesce(sum(adj.amount), 0) from purchase_order_adjustments adj
+                       where adj.po_id = o.id and adj.deleted_at is null
+                    ))
+                    - (select coalesce(sum(coalesce(i.total_amount, (
+                          select coalesce(sum(coalesce(ii.amount, ii.unit_price * ii.quantity, 0)), 0)
+                            from invoice_items ii where ii.invoice_id = i.id and ii.deleted_at is null
+                       ))), 0)
+                        from invoices i
+                       where i.purchase_order_id = o.id
+                         and i.billing_account_id = a.id and i.deleted_at is null)
+                  , 0)) from purchase_orders o
+                   where o.billing_account_id = a.id and o.deleted_at is null), 0)
+                + coalesce((select sum(greatest(
+                    coalesce(i.total_amount, (
+                      select coalesce(sum(coalesce(ii.amount, ii.unit_price * ii.quantity, 0)), 0)
+                        from invoice_items ii where ii.invoice_id = i.id and ii.deleted_at is null
+                    )) - coalesce(i.applied_amount, 0), 0))
+                    from invoices i
+                   where i.billing_account_id = a.id and i.deleted_at is null), 0)
+              ) > coalesce(a.balance, 0) + coalesce(a.credit_limit, 0) + 0.005""",
+    ),
+    # 挂账超 30 天仍未开票的订单 — legitimate for as long as delivery takes,
+    # worth a look once it is old: the cancel-release is the agent's write and
+    # this is the detector for a forgotten one.
+    (
+        "orders charged to an account for over 30 days with no invoice",
+        """select count(*) from sales_orders o
+            where o.billing_account_id is not null and o.deleted_at is null
+              and o.created_at < current_date - 30
+              and not exists (select 1 from invoices i
+                               where i.sales_order_id = o.id
+                                 and i.billing_account_id = o.billing_account_id
+                                 and i.deleted_at is null)""",
+    ),
+    # HKG-015. A submitted document with nobody assigned is work the flow agent
+    # dropped: it advanced the round, or returned and resubmitted, and never
+    # raised the next todo. Advisory rather than structural because the gap is
+    # legitimate for as long as it takes the runner to poll — an hour is far
+    # past that and still short enough to catch the same day.
+    #
+    # This is the check that would have found HKG-015 without anybody opening
+    # the console: a timesheet sat in `submitted`, round 2, with zero todos of
+    # any round, while the console showed a superseded round-1 todo that read
+    # as an active queue.
+    (
+        "documents submitted over an hour ago with no open todo",
+        """select count(*) from (
+             select h.id from timesheet_headers h
+              where h.status = 'submitted' and h.deleted_at is null
+                and h.submitted_at < now() - interval '1 hour'
+                and not exists (select 1 from todos t
+                                 where t.entity_type = 'timesheet_header'
+                                   and t.entity_id = h.id and t.status = 'open')
+             union all
+             select c.id from expense_claims c
+              where c.status = 'submitted' and c.deleted_at is null
+                and c.submitted_at < now() - interval '1 hour'
+                and not exists (select 1 from todos t
+                                 where t.entity_type = 'expense_claim'
+                                   and t.entity_id = c.id and t.status = 'open')
+             union all
+             select l.id from employee_leaves l
+              where l.status = 'submitted' and l.deleted_at is null
+                and l.submitted_at < now() - interval '1 hour'
+                and not exists (select 1 from todos t
+                                 where t.entity_type = 'employee_leave'
+                                   and t.entity_id = l.id and t.status = 'open')
+           ) as stranded""",
+    ),
+    # The fact, not a verdict. Whether one actor may submit a round and then
+    # decide it is the tenant's workflow definition's business, and a
+    # one-person workshop filing and approving is legitimate — so this reports
+    # and never fails. It is here because in HKG-015 nobody could see it: the
+    # approver returned a timesheet, corrected it himself, resubmitted it under
+    # his own credential, and was then the only seat left to sign it off.
+    (
+        "rounds where the submitter also recorded the decision",
+        """select count(*) from approval_records submitted
+             join approval_records decided
+               on decided.tenant_id = submitted.tenant_id
+              and decided.entity_type = submitted.entity_type
+              and decided.entity_id = submitted.entity_id
+              and decided.round_no = submitted.round_no
+            where submitted.action = 'submitted'
+              and decided.action in ('approved', 'rejected')
+              and decided.approver_id = submitted.approver_id""",
+    ),
+    # The leftovers of a half-landed transition, from the days when a return
+    # was three calls. The server now commits the three together and closes the
+    # rework on resubmission, so a fresh one of these means a path that still
+    # writes them separately — a skill bundle predating the coupling, an
+    # operator working straight against the database, or a bug.
+    #
+    # Advisory, not structural, for one reason only: every row written before
+    # the coupling shipped is legitimately in this shape — no migration moved
+    # them, because none could — and a check that fires on history nobody can
+    # change is a check people learn to skip.
+    (
+        "open rework todos on documents that were resubmitted afterwards",
+        """select count(*) from todos td
+             join timesheet_headers h
+               on h.id = td.entity_id and h.tenant_id = td.tenant_id
+            where td.entity_type = 'timesheet_header'
+              and td.todo_type = 'rework'
+              and td.status = 'open'
+              and h.status = 'submitted'
+              and h.submitted_at > td.created_at""",
+    ),
+    (
+        "open todos on documents whose state their machine cannot leave",
+        """select count(*) from todos td
+             join timesheet_headers h
+               on h.id = td.entity_id and h.tenant_id = td.tenant_id
+            where td.entity_type = 'timesheet_header'
+              and td.status = 'open'
+              and h.status in ('approved', 'rejected')
+              and h.deleted_at is null""",
     ),
     # Not a violation — a payslip issued today is legitimately unpaid until
     # payday. Worth a look once it is an old one.

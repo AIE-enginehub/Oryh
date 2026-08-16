@@ -89,7 +89,7 @@ BUILTIN_QUEUE_PATHS: dict[str, str] = {
 # objection that does not settle the node can be recorded alongside a decision,
 # and more than one of them is ordinary.
 #
-# Lives here rather than in routes.py because three places need the same list
+# Lives here rather than in the API layer because three places need the list
 # and must not drift: the write path's refusal, the partial unique index on
 # `approval_records` that makes that refusal hold under concurrency, and the
 # migration that creates it.

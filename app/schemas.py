@@ -92,8 +92,8 @@ SourceType = Literal["web", "api", "ai", "system"]
 # What an approval fact or a todo may point at.
 #
 # Derived from the state-machine registry, not typed out. This list used to live
-# in four places — here, an if-chain in routes.py, a CHECK constraint in the
-# migrations, and DOCUMENT_FAMILIES — and all four had drifted: purchase orders
+# in four places — here, an if-chain in the API layer, a CHECK constraint in
+# the migrations, and DOCUMENT_FAMILIES — all four had drifted: purchase orders
 # were missing here, invoices and payments were missing from the constraint, and
 # the approval if-chain checked neither. The visible symptom was a 500 on
 # "create the approval todo for this payment".
@@ -1357,6 +1357,12 @@ class InvitationUserRead(UserRead):
     # delivered. SMTP responses omit it so one-time tokens are never exposed
     # by the production API.
     invitation_url: str | None = None
+    # The invitation is committed before delivery is attempted, so a mail
+    # outage used to surface as a 500 on a request that had in fact created the
+    # user and the token — the caller could not tell which half happened, and
+    # retrying created nothing. False means: this invitation exists and the
+    # person has not been told. Same contract `PasswordResetEmailRead` keeps.
+    email_sent: bool = True
 
 
 InvitationUserEnvelope = Envelope[InvitationUserRead]
@@ -2979,6 +2985,21 @@ class AttachmentRead(APIModel):
     created_at: datetime
 
 
+class ApprovalHandoffRequest(RequestModel):
+    """Who holds the document next, stated in the call that decides it.
+
+    Same fields `POST /todos` takes, minus the two the approval fact already
+    knows: what it points at. There is no `status` — a handoff opens work.
+    """
+
+    employee_id: str
+    title: str = Field(max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    todo_type: str | None = Field(default=None, max_length=50)
+    due_at: datetime | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class CreateApprovalRecordRequest(RequestModel):
     entity_type: ApprovalEntityType
     entity_id: str
@@ -2990,6 +3011,21 @@ class CreateApprovalRecordRequest(RequestModel):
     comment: str | None = Field(default=None, max_length=2000)
     source: SourceType | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    # The other two thirds of a round transition, optional and atomic.
+    #
+    # Recording a `returned` fact is one call; moving the document to
+    # `returned` is a second; opening the submitter's rework todo is a third.
+    # Every approval-flow skill spells all three out in order, and the first
+    # one landing without the others is a document whose trail says one thing
+    # and whose status says another, with nobody assigned to it — which is what
+    # HKG-015 looked like from the console.
+    #
+    # The server still decides nothing here. Which status, and whose queue the
+    # document lands in, are the flow agent's judgment exactly as before; this
+    # only lets it state them in the call that already carries the decision, so
+    # the three facts commit together or not at all.
+    document_status: str | None = Field(default=None, max_length=30)
+    handoff: ApprovalHandoffRequest | None = None
     # Omit it. The server stamps the moment of the call, which is what the
     # decision moment is for every approval made through this API.
     #
@@ -3577,6 +3613,7 @@ class PurchaseOrderBase(RequestModel):
 class CreatePurchaseOrderRequest(PurchaseOrderBase):
     # the counterparty is the point of the document — required
     vendor_id: str
+    billing_account_id: str | None = None
     employee_id: str
     # lines ride the create, as on every other document family: one call, one
     # transaction, and a bad row rolls the order back instead of leaving an
@@ -3586,6 +3623,7 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
 
 class UpdatePurchaseOrderRequest(RequestModel):
     vendor_id: str | None = None
+    billing_account_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
     title: str | None = Field(default=None, max_length=200)
     contract_no: str | None = Field(default=None, max_length=64)
@@ -3604,6 +3642,7 @@ class PurchaseOrderRead(APIModel):
     id: str
     po_number: str
     vendor_id: str
+    billing_account_id: str | None = None
     vendor_name_snapshot: str | None = None
     employee_id: str
     title: str | None = None
@@ -3829,6 +3868,8 @@ class InvoiceBase(RequestModel):
     invoice_type: InvoiceTypeOption | None = None
     employee_id: str | None = None
     customer_id: str | None = None
+    # charged to the counterparty's standing account — see billing-accounts.md
+    billing_account_id: str | None = None
     vendor_id: str | None = None
     # 工资条: the person being paid. `employee_id` above is whoever ran payroll.
     payee_employee_id: str | None = None
@@ -3879,6 +3920,7 @@ class CreateInvoiceRequest(InvoiceBase):
 class UpdateInvoiceRequest(RequestModel):
     invoice_type: InvoiceTypeOption | None = None
     customer_id: str | None = None
+    billing_account_id: str | None = None
     vendor_id: str | None = None
     payee_employee_id: str | None = None
     counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
@@ -3909,6 +3951,7 @@ class InvoiceRead(APIModel):
     invoice_type: str | None = None
     employee_id: str
     customer_id: str | None = None
+    billing_account_id: str | None = None
     vendor_id: str | None = None
     payee_employee_id: str | None = None
     counterparty_name_snapshot: str | None = None
@@ -4393,13 +4436,34 @@ class PostBillingAccountEntriesResult(BaseModel):
 PostBillingAccountEntriesEnvelope = Envelope[PostBillingAccountEntriesResult]
 
 
+class ChargedDocumentRead(BaseModel):
+    """One document still drawing on an account's credit: a charged order not
+    yet fully billed, or a charged invoice not yet settled. `occupied` is the
+    part still counted against the account; `consumed` is what has already
+    moved on (billed by same-account invoices, or settled by payments)."""
+
+    id: str
+    kind: str
+    number: str | None = None
+    title: str | None = None
+    total: float
+    consumed: float
+    occupied: float
+
+
 class BillingAccountDetailRead(BaseModel):
     account: BillingAccountRead
     # most recent movements first
     entries: list[BillingAccountEntryRead]
     balance: float
     credit_limit: float
+    # balance + credit_limit - exposure: what one more charge is measured
+    # against. Exposure was always zero before charging existed, so old
+    # readers keep seeing the number they always saw.
     available_amount: float
+    exposure_amount: float = 0.0
+    charged_orders: list[ChargedDocumentRead] = []
+    charged_invoices: list[ChargedDocumentRead] = []
     # positive entries past or nearing expiry that nothing has expired yet —
     # empty on a money account
     expiring_amount: float
@@ -4708,6 +4772,7 @@ class SalesOrderBase(RequestModel):
     quotation_id: str | None = None
     source_quote_number: str | None = Field(default=None, max_length=64)
     customer_id: str | None = None
+    billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
@@ -4739,6 +4804,7 @@ class UpdateSalesOrderRequest(RequestModel):
     quotation_id: str | None = None
     source_quote_number: str | None = Field(default=None, max_length=64)
     customer_id: str | None = None
+    billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
@@ -4781,6 +4847,7 @@ class SalesOrderRead(APIModel):
     source_quote_number: str | None = None
     employee_id: str
     customer_id: str | None = None
+    billing_account_id: str | None = None
     customer_name_snapshot: str | None = None
     contact_name: str | None = None
     contact_phone: str | None = None

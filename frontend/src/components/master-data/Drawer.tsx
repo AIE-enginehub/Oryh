@@ -1,5 +1,6 @@
 import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { useI18n } from "../../i18n";
+import { useFocusTrap } from "../useFocusTrap";
 
 type DrawerProps = {
   open: boolean;
@@ -32,6 +33,10 @@ export function Drawer({
   const busyRef = useRef(busy);
   closeRef.current = onClose;
   busyRef.current = busy;
+
+  // Tab stays inside, and the page behind goes inert — the half `aria-modal`
+  // was asserting without anything enforcing it.
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;

@@ -299,6 +299,38 @@ def test_cross_currency_settlement_is_refused_with_a_reason(client: TestClient) 
     assert "explicit rate" in body["detail"]
 
 
+def test_a_retry_with_the_same_key_but_a_corrected_amount_is_refused(client: TestClient) -> None:
+    """The other half of `test_a_retry_with_the_same_key_applies_once`.
+
+    A key that has already written rows used to answer for any later request
+    carrying it — so an agent retrying with a CORRECTED amount was told
+    `replayed: true`, 200, and its correction was silently dropped. The money
+    the caller believed it had settled sat unapplied.
+    """
+    person = employee(client)
+    buyer = customer(client)
+    invoice = sales_invoice(client, 10000.0, employee_id=person, customer_id=buyer["id"])
+    money = receipt(client, 10000.0, employee_id=person, customer_id=buyer["id"])
+
+    apply(client, money["id"], [{"applied_to_type": "invoice", "applied_to_id": invoice["id"],
+                                 "amount_applied": 4000.0}], idempotency_key="agent-run-43")
+    refused = client.post(
+        f"/api/v1/payments/{money['id']}/apply",
+        json={"lines": [{"applied_to_type": "invoice", "applied_to_id": invoice["id"],
+                         "amount_applied": 6000.0}],
+              "idempotency_key": "agent-run-43"},
+        headers=HEADERS,
+    )
+    assert refused.status_code == 409, refused.text
+    assert "different set of applications" in refused.json()["detail"]
+    assert outstanding(client, invoice["id"]) == 6000.0
+
+    # and the way forward the message names actually works
+    apply(client, money["id"], [{"applied_to_type": "invoice", "applied_to_id": invoice["id"],
+                                 "amount_applied": 6000.0}], idempotency_key="agent-run-44")
+    assert outstanding(client, invoice["id"]) == 0.0
+
+
 def test_a_retry_with_the_same_key_applies_once(client: TestClient) -> None:
     person = employee(client)
     buyer = customer(client)

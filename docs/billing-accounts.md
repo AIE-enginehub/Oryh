@@ -68,6 +68,108 @@ appends the account's ledger in one transaction. An invoice may be charged to an
 account (`invoices.billing_account_id`); drawing the account down is an explicit
 entry, not a side effect of issuing the invoice.
 
+**Deposit direction is the owner's, not a constant.** A customer's account
+holds *their* money with *us*, so their inbound payment fills it; our account
+at a vendor holds *our* money with *them*, so our outbound prepayment fills it.
+Before this was owner-aware, a prepayment to a vendor was recorded as a refund
+and drove the balance negative. A payment's counterparty must also *be* the
+account's owner — one customer's cheque must not fund another's account.
+
+## Charging: who carries a document, and what it occupies
+
+A document charged to an account says **who carries the obligation, never that
+it is paid**. Settlement stays exclusively the payment-applications ledger; the
+account's ledger stays exclusively real money. What charging changes is one
+derived number:
+
+```text
+available = balance + credit_limit − exposure
+```
+
+where exposure sums what charged documents still stand to draw:
+
+| charged document | occupies |
+|---|---|
+| an order (`sales_orders`/`purchase_orders.billing_account_id`) | its live total − what **same-account** invoices have billed of it |
+| an invoice | its billed total − its `applied_amount` |
+
+Nothing new is stored. `applied_amount` and `balance` are already materialized;
+a fourth running sum would have two directions to drift in, so exposure is
+derived at read and guard time — the account row is locked (`FOR UPDATE`) while
+a charge is checked, so two agents cannot both pass the same remaining credit.
+
+**The occupation starts at the order** because the gap between order and
+invoice — an e-commerce wait, a walk-in customer's 缺货 two days, a toB
+delivery months out — is exactly where the same balance must not back two
+orders. When the invoice is issued *carrying the same account*, the occupation
+transfers to it (the order's share shrinks by what the invoice bills); when the
+invoice settles, it ends. One rule, no customer-type branches:
+
+> 账户支付 → 挂订单;从挂账订单开票 → 带同一账户;核销 → 划拨或直付。
+
+An invoice issued **without** the account does not release the order's
+occupation — refusing too much is a re-read, releasing credit nothing guards is
+a leak. The only invoice charged directly is one that came from no order
+(header-only 汇总开票 and the like).
+
+### Two shapes, one mechanism
+
+**预存 (prepaid)** — the deposit is already in the account; 核销 moves it onto
+the invoice as ONE atomic multi-line apply, the negative line releasing the
+account (ledger reason `charge`, 以账户余额支付单据), the positive line
+settling the invoice:
+
+```json
+POST /payments/{deposit_payment_id}/apply
+{"lines": [
+  {"applied_to_type": "billing_account", "applied_to_id": "…", "amount_applied": -100},
+  {"applied_to_type": "invoice",         "applied_to_id": "…", "amount_applied": 100}
+]}
+```
+
+Which deposit funds which invoice (FIFO or named) is the workspace's rule and
+the agent's call — the same stance batch-level points consumption already
+takes.
+
+**挂账 (credit)** — the charged invoice simply stays outstanding, occupying
+credit; the customer's later payment applies **directly to the invoice**
+(plain existing 核销), and available recovers as outstanding falls. The balance
+never moved. A lump-sum remittance works through both shapes at once: deposit
+it, then transfer to the invoices it covers.
+
+### Release: the derivation read backwards
+
+Credit returns the moment the occupation expression shrinks — no status word is
+ever interpreted:
+
+| cancellation shape | recorded as | credit returns |
+|---|---|---|
+| partial: fewer/smaller lines | line edit / soft-deleted line | automatically |
+| partial: keep lines, reduce commitment | negative adjustment | automatically |
+| whole order voided | soft delete | automatically |
+| whole order cancelled but kept | **agent clears `billing_account_id`** | on the clear |
+
+The last row is deliberately the agent's write: `cancelled` and `completed`
+are both terminal states and mean opposite things for credit, so the release
+is irreducibly semantic — the server states the facts, the agent decides what
+the tenant's word means. What keeps that honest is not prose: the detail read
+lists every charged document with its occupied amount, and the integrity audit
+reports orders charged 30+ days with no invoice.
+
+Growth re-guards: adding lines, raising amounts, positive adjustments and
+**restores** re-run the occupation check — a delete released credit somebody
+may have spent since, so coming back has to fit what is left. Clearing the
+charge is never guarded: freeing credit is always safe.
+
+### The mirror
+
+Our account at a vendor is the same object with the directions flipped: prepay
+(outbound, recorded as a deposit), charge the purchase order, the vendor's
+credit covers what the deposit does not, and 核销 transfers our deposit onto
+their invoice. Same formula, same guards, same tests — `payroll` invoices are
+the one direction that refuses charging, because an employee-owned account
+takes deposits and refunds, not obligations.
+
 This is the one target that does not fit the settlement guard's original shape,
 which is why `SettlementTarget` carries a running column and two bounds:
 

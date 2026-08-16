@@ -482,3 +482,95 @@ def test_a_document_that_names_a_script_says_where_to_run_it() -> None:
         "these name a script without saying the path is relative to the skill "
         "directory:\n" + "\n".join(unanchored)
     )
+
+
+# --- cross references between skills ---------------------------------------
+#
+# `$oryh-approve` is how one skill hands work to another, and it is the only
+# navigation an agent has: nothing resolves it at runtime, so a name that does
+# not exist is a dead end the agent discovers mid-task, in front of a user.
+#
+# Four approval-flow skills deferred to `$oryh-timesheet-approve`,
+# `$oryh-expense-approve`, `$oryh-purchase-approve` and `$oryh-quotation-approve`
+# — a per-document-type approve family that has never existed. The authoring
+# guide taught the same shape as `$oryh-*-approve`. Five documents agreeing
+# with each other and none with the registry, found by the 2026-08-16
+# architecture review rather than by anything mechanical.
+#
+# The glob form is captured deliberately: `$oryh-*-approve` was one of the five
+# and reads as a real family. A pattern that names no skill is the same defect
+# spelled with a wildcard.
+SKILL_REFERENCE = re.compile(r"\$([a-z][a-z0-9*-]*[a-z0-9*])")
+
+# References that are prose, not navigation. Each one needs a reason.
+REFERENCE_EXEMPTIONS: dict[str, str] = {}
+
+
+def _known_skill_names() -> set[str]:
+    names = {path.name for path in PRODUCT_SKILLS_DIR.iterdir()
+             if path.is_dir() and path.name != "_common"}
+    if DEMO_SKILLS_DIR.is_dir():
+        names |= {path.name for path in DEMO_SKILLS_DIR.glob("*/*") if path.is_dir()}
+    return names
+
+
+def test_every_skill_cross_reference_names_a_skill_that_exists() -> None:
+    known = _known_skill_names()
+    assert len(known) > 20, "skill registry did not load; the check below would pass vacuously"
+
+    dangling: dict[str, list[str]] = {}
+    for path in _corpus():
+        for match in SKILL_REFERENCE.finditer(path.read_text(encoding="utf-8")):
+            name = match.group(1)
+            if name in known or name in REFERENCE_EXEMPTIONS:
+                continue
+            dangling.setdefault(name, []).append(str(path.relative_to(PRODUCT_SKILLS_DIR.parent)))
+
+    assert dangling == {}, (
+        f"{dangling} are handed to agents as skills to defer to, and no such skill exists. "
+        "Point them at the real one, or add an entry to REFERENCE_EXEMPTIONS saying why "
+        "this one is prose"
+    )
+
+
+def test_the_skills_that_get_referenced_the_most_are_real() -> None:
+    """A guard on the guard. If `_known_skill_names` ever returned an empty or
+    wrong-shaped set, the check above would pass with everything dangling —
+    so pin a few names the corpus leans on hardest."""
+    known = _known_skill_names()
+    for name in ("oryh-approve", "oryh-my-work", "oryh-business-object"):
+        assert name in known, f"{name} is referenced across the corpus but is not a skill directory"
+
+
+# --- the connection contract, product and demo alike ------------------------
+
+
+def test_every_skill_that_calls_the_api_states_where_the_api_is() -> None:
+    """A skill documenting `GET /todos` and never naming the API base is a skill
+    whose first call goes to the site root.
+
+    `test_bundles.py` already checked that a stated `api_base_url` is complete —
+    but it opens with `if "api_base_url:" not in rendered: continue`, so the
+    skill that never states one at all is the single case it cannot see. Two
+    product skills were in exactly that gap: `oryh-order-approval-flow`
+    documented six API paths with no Required Inputs section of any kind, and
+    `approval-notifier` had an inputs block about notification payloads and
+    nothing about oryh.
+
+    Product and demo skills are held to the one contract here, deliberately.
+    The demo tenants are how the product is shown to people, and a demo skill
+    on an older contract than the product teaches the older contract.
+    """
+    offenders = {}
+    for path in _corpus():
+        if path.name != "SKILL.md":
+            continue
+        text = path.read_text(encoding="utf-8")
+        calls = REQUEST_LINE.findall(text)
+        if calls and "api_base_url" not in text:
+            offenders[str(path.relative_to(PRODUCT_SKILLS_DIR.parent))] = len(calls)
+
+    assert offenders == {}, (
+        f"{offenders} document API paths without stating `api_base_url`, so an agent "
+        "following them verbatim sends its first request to the console"
+    )

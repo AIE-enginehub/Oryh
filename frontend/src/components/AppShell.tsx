@@ -5,6 +5,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { browserLogout, type BootstrapData } from "../api/client";
 import { LanguageSwitcher, type MessageKey, useI18n } from "../i18n";
 import { OryhLogo } from "./OryhLogo";
+import { useNarrowViewport } from "./useNarrowViewport";
 
 type AppShellProps = {
   bootstrap: BootstrapData;
@@ -118,6 +119,13 @@ const objectDetailPath = /^\/objects\/[^/]+\/[^/]+\/?$/;
 export function AppShell({ bootstrap, children }: AppShellProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Below 820px the sidebar is moved off-screen with `translateX(-102%)`, which
+  // hides it from sight and from nothing else: every nav link stayed in the tab
+  // order and in the accessibility tree, so a keyboard user tabbing across a
+  // "closed" mobile page walked through the whole navigation first, and a
+  // screen reader read it out. `inert` is what CSS transform cannot say.
+  const narrow = useNarrowViewport();
+  const navHidden = narrow && !menuOpen;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -149,7 +157,7 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
           onClick={() => setMenuOpen(false)}
         />
       )}
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+      <aside className={`sidebar ${menuOpen ? "open" : ""}`} inert={navHidden || undefined}>
         <div className="brand-block">
           <OryhLogo subtitle={bootstrap.tenant.name} />
         </div>

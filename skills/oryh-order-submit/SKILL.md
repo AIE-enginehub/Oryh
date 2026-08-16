@@ -49,6 +49,24 @@ oryh:
    - 交期变化：`promised_date`（整单）或行上的 `promised_date`
 8. **Read back**: `GET /sales-orders/{id}/detail` — items, adjustments, `adjusted_total` vs declared `total_amount`, the linked quotation, approval trail. 税/运费/整单折扣/抹零 record as adjustments (`POST /sales-order-adjustments`, same contract as the quotation side: signed amount, typed, optional `order_item_id`, editable only while the order is) — so the declared total is explained, not asserted.
 
+## 用账户支付 (charging the order)
+
+If the customer pays by their billing account, set `billing_account_id` on the
+order at creation. The order OCCUPIES the account's credit from that moment —
+that is the point: between order and invoice (缺货补发的两天,toB 的数月),
+the same balance must not back two orders. One rule, no branches:
+
+> 账户支付 → 挂订单;从挂账订单开票 → 带同一账户;不带账户的发票不释放占用。
+
+A 409 on the charge is the account refusing, with three numbers (balance +
+limit − occupied). Report them to the principal verbatim and offer the three
+ways out — deposit more, raise the limit, shrink or split the order. Never pick
+one yourself; never retry the same charge hoping.
+
+If the order is later cancelled *but kept on file*, clearing
+`billing_account_id` is the release — a plain PATCH, part of the cancellation,
+not optional. Line removals and deletion release by themselves.
+
 ## What This Skill Never Does
 
 - PATCH `status` (flow admin's write — no self-confirmation, no self-sign-off).

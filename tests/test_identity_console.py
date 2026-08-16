@@ -311,7 +311,11 @@ def test_console_invitation_urls_are_additive_and_smtp_hides_them(
 
     monkeypatch.setattr(settings, "email_backend", "smtp")
     monkeypatch.setattr(settings, "base_url", "https://app.oryh.test")
-    monkeypatch.setattr(emails, "_send_smtp", lambda _message: None)
+    # Captured from the delivery call rather than from `outbox.messages`: the
+    # outbox deliberately does not retain bodies for the smtp backend, because
+    # this one contains a live invitation token. What matters is what was SENT.
+    delivered: list = []
+    monkeypatch.setattr(emails, "_send_smtp", lambda message: delivered.append(message))
     smtp = invite(
         client,
         service,
@@ -321,7 +325,9 @@ def test_console_invitation_urls_are_additive_and_smtp_hides_them(
     )
     assert smtp.json()["data"]["id"]
     assert "invitation_url" not in smtp.json()["data"]
-    assert "https://app.oryh.test/web/invitations/accept?token=" in outbox.messages[-1].body
+    assert smtp.json()["data"]["email_sent"] is True
+    assert "https://app.oryh.test/web/invitations/accept?token=" in delivered[-1].body
+    assert outbox.messages[-1].body == "", "the token must not be retained in process memory"
 
 
 def test_tenant_password_reset_email_keeps_access_until_the_link_is_accepted(
@@ -809,3 +815,35 @@ def test_identity_openapi_contracts_are_typed(client: TestClient) -> None:
             "application/json"
         ]["schema"]
         assert response_schema == {"$ref": f"#/components/schemas/{model}"}
+
+
+def test_an_invitation_survives_a_mail_outage_and_says_so(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The invitation is committed before delivery is attempted. A mail outage
+    used to surface as a 500 on a request that had created the user and the
+    token — the caller could not tell which half happened, and retrying created
+    nothing. Now the business fact is reported and delivery is a field."""
+    ctx = provision_tenant(client, "mail-outage")
+    monkeypatch.setattr(settings, "email_backend", "smtp")
+    monkeypatch.setattr(settings, "base_url", "https://app.oryh.test")
+
+    def refuse(_message):
+        raise emails.EmailDeliveryError("smtp unreachable")
+
+    monkeypatch.setattr(emails, "_send_smtp", refuse)
+
+    response = client.post(
+        "/api/v1/auth/invitations",
+        json={"email": "unreachable@mail-outage.example", "role": "member"},
+        headers=ctx["service"],
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()["data"]
+    assert body["email_sent"] is False
+    assert body["id"], "the user was created and the caller can see it"
+
+    # and it is a real invitation, not a phantom: the user is listed
+    listed = client.get("/api/v1/auth/users", headers=ctx["service"]).json()["data"]
+    assert "unreachable@mail-outage.example" in [user["email"] for user in listed]

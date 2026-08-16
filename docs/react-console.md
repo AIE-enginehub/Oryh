@@ -40,7 +40,7 @@ gateway, and verify the complete Nginx entry point. Image rollback keeps Postgre
 starts the retained API image with startup maintenance disabled so its older
 Alembic package never interprets a newer revision. The retained runtime still
 must be schema-compatible under the expand/contract policy. See
-[deployment.md](deployment.md) for the exact commands and failure behavior.
+deployment.md for the exact commands and failure behavior.
 
 ## Browser authentication
 

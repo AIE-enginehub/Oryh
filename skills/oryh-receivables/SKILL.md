@@ -127,6 +127,26 @@ POST /payments/{payment_id}/apply
 - Over-applying is a 409 that names the remaining amount on whichever side ran
   out. Read it and re-plan; never retry the same numbers.
 
+**Settling a charged invoice from the account (划拨)**: when the invoice is
+carried on the customer's account and their money is already deposited there,
+move it in ONE call on the deposit payment — negative line off the account,
+positive line onto the invoice, atomic:
+
+```json
+POST /payments/{deposit_payment_id}/apply
+{"lines": [
+  {"applied_to_type": "billing_account", "applied_to_id": "...", "amount_applied": -100.0},
+  {"applied_to_type": "invoice", "applied_to_id": "...", "amount_applied": 100.0}
+]}
+```
+
+Read `GET /billing-accounts/{id}/detail` first: `charged_invoices` is your
+worklist, `entries` shows which deposits are drawable, and which deposit funds
+which invoice is the workspace's rule — suggest FIFO if nobody states one, and
+name the payments you drew from in your report. A credit-carried invoice with
+no deposit behind it needs no transfer: the customer's remittance applies
+directly to the invoice, and the account's available recovers by itself.
+
 **Reversing a wrong match**: the same endpoint with a negative
 `amount_applied` and a `note` saying why. Both rows stand in the ledger — that
 is the audit trail, and hiding the mistake is not an option the API offers.
@@ -181,8 +201,8 @@ policy decision: confirm with the principal, never take it on your own reading.
   `$oryh-payables`), or settle across currencies.
 - Decide 账期 or write-off policy on its own — those live in the workspace's
   workflow definition.
-- Approve anything. Routing and approval are `$oryh-invoice-approval-flow` for
-  the bill and `$oryh-payment-approval-flow` for the money.
+- Approve anything. Routing and approval are `the hosted workflow admin agent` for
+  the bill and `the hosted workflow admin agent` for the money.
 - Import history — that is `$oryh-data-migration` (`POST /invoices/bulk`).
 - Open, draw on, or grant points to a customer's standing account — that is
   `$oryh-billing-account`. Applying a receipt INTO one is yours; everything

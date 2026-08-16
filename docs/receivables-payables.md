@@ -224,7 +224,10 @@ months.
   saying why, rather than converted at a rate nobody agreed.
 - **Aging buckets.** A real need, but it belongs with the aggregation/reporting
   layer rather than beside the ledger. (Credit limits do now exist — they live
-  on the billing account, not on the customer.)
+  on the billing account, not on the customer, and orders/invoices charged to
+  an account occupy its credit from order time; the charging model, the
+  transfer-核销 pattern and the release paths are in
+  [billing-accounts.md](billing-accounts.md).)
 - **Credit notes as their own entity.** A refund is an outbound payment netted
   against the receipt (OFBiz's `toPaymentId`); a corrected invoice is a voided
   one and a new one.

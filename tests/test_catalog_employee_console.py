@@ -426,7 +426,7 @@ def test_sku_variant_identity_preserves_json_value_types(
 def test_sku_identity_writes_share_the_product_parent_lock(
     stack: tuple[TestClient, Engine], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.api import routes as routes_api
+    from app.api import master_data as master_data_api
 
     client, _ = stack
     ctx = provision_tenant(client, "sku-locks")
@@ -434,13 +434,13 @@ def test_sku_identity_writes_share_the_product_parent_lock(
     product = create_product(client, service, name="Locked Style", product_code="LOCK")
 
     calls: list[tuple[str, str]] = []
-    original = routes_api.get_locked_product_or_404
+    original = master_data_api.get_locked_product_or_404
 
     def track_lock(db: Session, tenant_id: str, product_id: str):
         calls.append((tenant_id, product_id))
         return original(db, tenant_id, product_id)
 
-    monkeypatch.setattr(routes_api, "get_locked_product_or_404", track_lock)
+    monkeypatch.setattr(master_data_api, "get_locked_product_or_404", track_lock)
 
     batch = client.post(
         f"/api/v1/products/{product['id']}/skus/batch",

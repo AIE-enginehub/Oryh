@@ -323,6 +323,26 @@ def validate_transition(machine: dict, current: str, new: str, *, subject: str) 
         )
 
 
+def is_terminal_state(machine: dict, state: str) -> bool:
+    """True when the machine allows nothing to follow this state.
+
+    The server is not allowed an opinion about what a workspace's state NAMES
+    mean — 作废, 已取消, 已废弃 and 已完成 are the tenant's vocabulary, and
+    `leave-no-orphan-work.md` says so in as many words. It does not need one.
+    A state with no outgoing transitions is a statement the tenant's own
+    machine makes: nothing further happens to a document here. That is enough
+    to know the open work items pointing at it cannot be done.
+
+    A state the machine has never heard of is NOT terminal — `validate_transition`
+    deliberately lets such a document move anywhere so it never gets stuck, and
+    a state that can still move is not an ending.
+    """
+    transitions = machine.get("transitions", {})
+    if state not in transitions:
+        return False
+    return not transitions[state]
+
+
 def validate_business_object_status(
     db: Session, tenant_id: str, object_type: str, *, current: str | None, new: str
 ) -> None:

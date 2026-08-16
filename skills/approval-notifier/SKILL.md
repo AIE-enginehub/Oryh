@@ -24,6 +24,15 @@ This skill should trigger for user intents like:
 - "把审批结果通知给提交人"
 - "通知下一位 approver"
 
+## Required Inputs
+
+```yaml
+oryh:
+  api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+  base_url: "{{ORYH_BASE_URL}}"          # the console address, the links in the message point here
+  api_key: "{{ORYH_API_KEY}}"        # tenant service key; the notifier reads queues for the tenant
+```
+
 ## Required inputs
 
 The caller should provide a parameter block like this:
@@ -208,7 +217,10 @@ Typical sequence for a generic business object approval:
 2. Write a `submitted` approval record for the current approver
 3. Create the approver todo explicitly with `POST /todos`
 4. Use `approval-notifier` to notify the current approver
-5. When the approver acts, record the approval event, then explicitly complete the approver todo with `PATCH /todos/{todo_id}`
+5. When the approver acts, record the approval event. The approver's own todo is
+   completed by that same call — the server closes it in the transaction that
+   records the decision, so there is no second call and nothing to notify about
+   a todo that was left open.
 
 ## References
 

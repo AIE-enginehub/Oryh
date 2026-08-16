@@ -273,12 +273,19 @@ def test_audit_trail_records_actions(client: TestClient) -> None:
     )
     client.patch(f"/api/v1/timesheet-headers/{header_id}", json={"status": "approved"}, headers=HEADERS)
 
-    # newest first; every business change left a trail entry
+    # newest first; every business change left a trail entry. `todo.cancelled`
+    # is there because `approved` is terminal in the timesheet machine and not
+    # editable: nothing further can happen to this document, so the open work
+    # item on it is retired in the same transaction rather than left in
+    # somebody's queue. It leads the list because it is written after the
+    # status fact, inside the same request.
     response = client.get("/api/v1/audit-logs", headers=HEADERS)
     assert response.status_code == 200
     body = response.json()
     actions = [e["action"] for e in body["data"]]
-    assert actions == ["timesheet.status_changed", "todo.created", "timesheet.submitted"]
+    assert actions == [
+        "todo.cancelled", "timesheet.status_changed", "todo.created", "timesheet.submitted",
+    ]
     submitted = body["data"][-1]
     assert submitted["detail"]["employee_id"] == employee_id
     assert submitted["actor"].startswith("key:")
@@ -292,7 +299,7 @@ def test_audit_trail_records_actions(client: TestClient) -> None:
     assert response.json()["meta"]["total"] == 1
     newest_id = body["data"][0]["id"]
     response = client.get(f"/api/v1/audit-logs?before={newest_id}", headers=HEADERS)
-    assert response.json()["meta"]["total"] == 2
+    assert response.json()["meta"]["total"] == 3
 
     # tenant isolation
     response = client.get("/api/v1/audit-logs", headers=OTHER_HEADERS)
@@ -735,3 +742,60 @@ def test_a_capability_that_reaches_nobody_is_reported() -> None:
                     headers=root)
         with client.session_factory() as db:
             assert "leave.submit_own" not in unheld_shipped_capabilities(db, tenant_id)
+
+
+def test_a_line_change_shows_up_on_the_document_it_belongs_to(client: TestClient) -> None:
+    """HKG-015: a timesheet was approved twice, six entries were moved to
+    another project, and it was resubmitted — and the audit carried the three
+    status transitions and NOTHING about the edit. The change survived only
+    because `updated_at` happened to be there.
+
+    The row is written against the header, not the entry, on purpose: whoever
+    asks later what happened to a document reads one trail. Auditing under the
+    entry's id would mean already knowing which entries to ask about, which is
+    exactly what the question does not know.
+    """
+    employee_id = create_employee(client)
+    header_id = create_header(client, employee_id)
+    created = client.post(
+        "/api/v1/timesheet-entries",
+        json={
+            "header_id": header_id,
+            "employee_id": employee_id,
+            "work_date": "2026-06-01",
+            "hours": 4,
+            "project_name_snapshot": "素然AIE",
+        },
+        headers=HEADERS,
+    )
+    assert created.status_code == 201, created.text
+    entry_id = created.json()["data"]["id"]
+
+    moved = client.patch(
+        f"/api/v1/timesheet-entries/{entry_id}",
+        json={"project_name_snapshot": "销售工作"},
+        headers=HEADERS,
+    )
+    assert moved.status_code == 200, moved.text
+
+    trail = client.get(
+        f"/api/v1/audit-logs?entity_type=timesheet_header&entity_id={header_id}",
+        headers=HEADERS,
+    ).json()["data"]
+    actions = [row["action"] for row in trail]
+    assert "timesheet.line_added" in actions, actions
+    assert "timesheet.line_changed" in actions, actions
+
+    changed = next(row for row in trail if row["action"] == "timesheet.line_changed")
+    assert changed["detail"]["line_id"] == entry_id
+    # the fields, not their values: a trail, not a second copy of the record
+    assert changed["detail"]["fields"] == ["project_name_snapshot"]
+    assert changed["detail"]["employee_id"] == employee_id
+
+    removed = client.delete(f"/api/v1/timesheet-entries/{entry_id}", headers=HEADERS)
+    assert removed.status_code == 204, removed.text
+    trail = client.get(
+        f"/api/v1/audit-logs?entity_type=timesheet_header&entity_id={header_id}",
+        headers=HEADERS,
+    ).json()["data"]
+    assert "timesheet.line_removed" in [row["action"] for row in trail]

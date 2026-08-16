@@ -149,6 +149,16 @@ POST /payments/{payment_id}/apply
   invoice are all 409s that name the reason. Read them; do not retry the same
   numbers.
 
+## 从供应商账户划拨 (settling from our account at the vendor)
+
+When their invoice is charged to our standing account there and our prepayment
+is already deposited, settle in one atomic call on the prepayment: negative
+line off the account, positive line onto their (purchase-direction) invoice —
+the mirror of receivables' 划拨, with our OUTBOUND payment as the deposit.
+`GET /billing-accounts/{id}/detail` lists the charged POs and invoices and what
+remains drawable. What the deposit does not cover is settled by a fresh
+outbound payment applied directly to the invoice.
+
 ## What This Skill Never Does
 
 - Decide that a three-way-match gap is acceptable. It reports the facts and

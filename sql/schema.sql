@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260813_0054
+-- Alembic revision: 20260816_0055
 --
 
 --
@@ -1021,7 +1021,8 @@ CREATE TABLE oryh.purchase_orders (
     custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    deleted_at timestamp with time zone
+    deleted_at timestamp with time zone,
+    billing_account_id uuid
 );
 
 
@@ -1246,6 +1247,7 @@ CREATE TABLE oryh.sales_orders (
     deleted_at timestamp with time zone,
     deleted_by text,
     delete_reason text,
+    billing_account_id uuid,
     CONSTRAINT sales_orders_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -2813,6 +2815,20 @@ CREATE INDEX invoices_vendor_idx ON oryh.invoices USING btree (vendor_id);
 
 
 --
+-- Name: ix_purchase_orders_billing_account_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_purchase_orders_billing_account_id ON oryh.purchase_orders USING btree (billing_account_id);
+
+
+--
+-- Name: ix_sales_orders_billing_account_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_sales_orders_billing_account_id ON oryh.sales_orders USING btree (billing_account_id);
+
+
+--
 -- Name: object_type_definitions_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4012,6 +4028,14 @@ ALTER TABLE ONLY oryh.purchase_order_items
 
 
 --
+-- Name: purchase_orders purchase_orders_billing_account_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.purchase_orders
+    ADD CONSTRAINT purchase_orders_billing_account_id_fkey FOREIGN KEY (billing_account_id) REFERENCES oryh.billing_accounts(id);
+
+
+--
 -- Name: purchase_orders purchase_orders_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4145,6 +4169,14 @@ ALTER TABLE ONLY oryh.sales_order_items
 
 ALTER TABLE ONLY oryh.sales_order_items
     ADD CONSTRAINT sales_order_items_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
+
+
+--
+-- Name: sales_orders sales_orders_billing_account_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_orders
+    ADD CONSTRAINT sales_orders_billing_account_id_fkey FOREIGN KEY (billing_account_id) REFERENCES oryh.billing_accounts(id);
 
 
 --

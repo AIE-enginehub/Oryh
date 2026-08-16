@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -18,6 +19,7 @@ from app.core.browser_auth import (
 from app.core.config import settings
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
 from app.core.request_context import resolved_base_url
+from app.core.login_throttle import login_keys, throttle
 from app.core.security import generate_token, hash_password, hash_token, verify_password
 from app.db.session import bind_tenant_context, get_db
 from app.models import (
@@ -44,6 +46,8 @@ from app.schemas import (
 )
 from app.services.access_guards import lock_tenant_identity, tenant_has_active_user_manager
 from app.services.audit import record_audit
+
+logger = logging.getLogger("oryh.auth")
 
 router = APIRouter(prefix="/auth")
 
@@ -90,10 +94,20 @@ def paginated_envelope(data, *, total: int, page: int, page_size: int) -> dict:
     }
 
 
-def invitation_user_data(user: User, token: str) -> dict:
+def invitation_user_data(user: User, token: str, *, email_sent: bool = True) -> dict:
     """Keep the historical flat User response and add the one-time URL only
-    for the non-delivering console backend."""
+    for the non-delivering console backend.
+
+    `email_sent` is the same contract `password_reset_email_data` already
+    keeps. The invitation was committed before delivery was attempted, so an
+    SMTP outage used to surface as a 500 on a request that had in fact created
+    the user and the token — the caller could not tell whether to retry, and
+    retrying created nothing. Now the business fact is reported and delivery is
+    a field: a caller that sees `email_sent: false` knows the invitation exists
+    and the person did not hear about it.
+    """
     data = UserRead.model_validate(user).model_dump()
+    data["email_sent"] = email_sent
     if settings.email_backend == "console":
         data["invitation_url"] = f"{resolved_base_url()}/web/invitations/accept?token={token}"
     return data
@@ -130,7 +144,22 @@ def start_session(db: Session, user: User) -> tuple[str, UserSession]:
     return token, session
 
 
-def authenticate_user(db: Session, payload: LoginRequest) -> User:
+def authenticate_user(db: Session, payload: LoginRequest, request: Request | None = None) -> User:
+    """One password attempt, rate-limited per account and per source address.
+
+    Neither login surface had any backoff: a password could be guessed as fast
+    as the process would answer. `request` is optional so every existing caller
+    keeps working, but a caller that omits it throttles by account only — the
+    address half needs the request.
+    """
+    keys = login_keys(payload.email, request.client.host if request and request.client else None)
+    wait = throttle.retry_after(keys)
+    if wait > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="too many failed sign-in attempts; try again shortly",
+            headers={"Retry-After": str(max(1, int(wait + 0.999)))},
+        )
     user = db.scalar(select(User).where(User.email == payload.email))
     if (
         user is None
@@ -138,7 +167,9 @@ def authenticate_user(db: Session, payload: LoginRequest) -> User:
         or user.password_hash is None
         or not verify_password(payload.password, user.password_hash)
     ):
+        throttle.record_failure(keys)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid email or password")
+    throttle.record_success(keys)
     return user
 
 
@@ -166,9 +197,10 @@ def get_current_user(
 @router.post("/login")
 def login(
     payload: LoginRequest,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
 ):
-    user = authenticate_user(db, payload)
+    user = authenticate_user(db, payload, request)
     session_token, session = start_session(db, user)
     db.commit()
     db.refresh(session)
@@ -269,7 +301,7 @@ def browser_login(
     db: Annotated[Session, Depends(get_db)],
 ):
     require_same_origin(request)
-    user = authenticate_user(db, payload)
+    user = authenticate_user(db, payload, request)
     session_token, session = start_session(db, user)
     csrf_token = generate_token()
     db.commit()
@@ -353,7 +385,7 @@ def invite_user(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    from app.services.emails import send_invitation_email
+    from app.services.emails import EmailDeliveryError, send_invitation_email
 
     require_permission(actor, "users.manage")
     ensure_role_exists(db, actor.tenant_id, payload.role)
@@ -400,8 +432,15 @@ def invite_user(
     )
     db.commit()
     db.refresh(user)
-    send_invitation_email(to=payload.email, tenant_name=tenant.name, token=token)
-    return envelope(invitation_user_data(user, token))
+    try:
+        send_invitation_email(to=payload.email, tenant_name=tenant.name, token=token)
+        email_sent = True
+    except EmailDeliveryError:
+        # The user and the token are committed. Reporting a 500 would tell the
+        # caller nothing about which half happened.
+        logger.warning("invitation email not delivered to=%s", payload.email)
+        email_sent = False
+    return envelope(invitation_user_data(user, token, email_sent=email_sent))
 
 
 @router.post("/invitations/accept")
@@ -662,7 +701,7 @@ def resend_invitation(
     returns to ``invited`` so a revoked or expired invitation can be recovered
     without ever activating a passwordless account.
     """
-    from app.services.emails import send_invitation_email
+    from app.services.emails import EmailDeliveryError, send_invitation_email
 
     require_permission(actor, "users.manage")
     user = db.scalar(
@@ -695,5 +734,12 @@ def resend_invitation(
     db.commit()
     db.refresh(user)
     tenant = db.get(Tenant, actor.tenant_id)
-    send_invitation_email(to=user.email, tenant_name=tenant.name, token=token)
-    return envelope(invitation_user_data(user, token))
+    try:
+        send_invitation_email(to=user.email, tenant_name=tenant.name, token=token)
+        email_sent = True
+    except EmailDeliveryError:
+        # The user and the token are committed. Reporting a 500 would tell the
+        # caller nothing about which half happened.
+        logger.warning("invitation email not delivered to=%s", user.email)
+        email_sent = False
+    return envelope(invitation_user_data(user, token, email_sent=email_sent))
