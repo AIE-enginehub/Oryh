@@ -55,7 +55,6 @@ describe("tenant console shell", () => {
     expect(screen.getByRole("heading", { name: "Sign in to your workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open console" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download agent connector skill" })).toHaveAttribute("href", "/api/v1/connect-skill");
-    expect(screen.getByRole("link", { name: "Back to website" })).toHaveAttribute("href", "/home");
     expect(document.documentElement.lang).toBe("en");
     expect(window.localStorage.getItem("oryh.console.language")).toBe("en");
   });

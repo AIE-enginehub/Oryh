@@ -39,7 +39,11 @@ TEMPLATES = ROOT / "app" / "web" / "templates"
 CONSOLE = ROOT / "frontend" / "src"
 EXPORT_SCRIPT = ROOT / "scripts" / "export_open_core.py"
 
-HREF = re.compile(r'href="(/[^"#?]*)')
+# Two spellings, because a link is asserted in a different shape than it is
+# written: `href="/home"` in the page, `toHaveAttribute("href", "/home")` in the
+# test that pins it. Matching only the first published a frontend suite that
+# still failed on an assertion for a link no longer there.
+HREF = re.compile(r'href="(/[^"#?]*)|"href",\s*"(/[^"#?]*)')
 # Branches a standalone assembly never renders, so links inside them are not
 # reachable and must not be reported: an explicit `edition == "cloud"` guard,
 # and the `platform_admin` block, whose variable only the hosted layer supplies
@@ -113,6 +117,22 @@ def _withheld_from_the_export() -> set[str]:
     end = source.index("\n}\n", start) + 3
     exec(compile(source[start:end], str(EXPORT_SCRIPT), "exec"), namespace)
     return set(namespace["EXCLUDE_WITHIN"])
+
+
+def _console_router_paths() -> set[str]:
+    """The console's own routes, which are relative to its `/console` basename.
+
+    A `<Link to="/users">` renders `/console/users` in the app and a bare
+    `/users` under a test's router, so the assertion that pins it looks like a
+    link to a path nothing serves. These are not dead — they are relative — and
+    reading `<Route path=…>` is what tells the two apart. Not simply allowing
+    everything under `/console`: the SPA fallback answers there for any path, so
+    that would let a genuinely wrong console link through as well.
+    """
+    app_tsx = CONSOLE / "App.tsx"
+    if not app_tsx.exists():
+        return set()
+    return set(re.findall(r'<Route\s+path="(/[^"*]*)"', app_tsx.read_text(encoding="utf-8")))
 
 
 def _standalone_paths() -> set[str]:
@@ -202,16 +222,17 @@ def _links() -> list[tuple[str, str]]:
         if relative in withheld:
             continue
         text = HOSTED_ONLY_BLOCK.sub("", as_published(relative, template.read_text(encoding="utf-8")))
-        for href in HREF.findall(text):
+        for written, asserted in HREF.findall(text):
             # `/admin/tenants/{{ t.id }}` is one link with a value in it; the
             # prefix is what decides whether the page exists.
+            href = written or asserted
             found.append((template.name, href.split("{{")[0].rstrip("/") or "/"))
     if CONSOLE.is_dir():
         for source in sorted(CONSOLE.rglob("*.tsx")):
             relative = source.relative_to(ROOT).as_posix()
             text = as_published(relative, source.read_text(encoding="utf-8"))
-            for href in HREF.findall(text):
-                found.append((relative, href))
+            for written, asserted in HREF.findall(text):
+                found.append((relative, written or asserted))
     return found
 
 
@@ -238,7 +259,10 @@ def test_no_dead_links_in_the_standalone_build() -> None:
     )
     paths = _standalone_paths()
     gateway = _gateway_locations()
+    router = _console_router_paths()
     dead = [
-        f"{where} → {href}" for where, href in _links() if not _served(href, paths, gateway)
+        f"{where} → {href}"
+        for where, href in _links()
+        if href not in router and not _served(href, paths, gateway)
     ]
     assert not dead, f"links to paths a standalone build does not serve: {dead}"
