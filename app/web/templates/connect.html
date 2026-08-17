@@ -13,7 +13,14 @@
   </a>
 
   <h2>Install</h2>
+  {# The user guide lives on the marketing site, which a standalone deployment
+     does not serve — linking to it there sends a first-time self-hoster to a
+     404 on the one page whose whole job is getting them connected. #}
+  {% if edition == "cloud" %}
   <p class="muted">Follow the <a href="/docs#install">ORYH user guide</a> for the Skill location and current validation status of each agent runtime. After installation, ask the agent “帮我连上公司的 ORYH” or “connect this device to ORYH.” You sign in and approve only on the oryh website; a compatible local runtime then downloads and installs the personal bundle in its persistent Skill directory.</p>
+  {% else %}
+  <p class="muted">Unzip this where your agent looks for skills — <code>~/.claude/skills</code> for Claude Code, <code>~/.agents/skills</code> for Codex and Copilot CLI, <code>~/.hermes/skills</code> for Hermes; see your deployment's README for the full table. After installation, ask the agent “帮我连上公司的 ORYH” or “connect this device to ORYH.” You sign in and approve here; the runtime then downloads and installs the personal bundle in its persistent Skill directory.</p>
+  {% endif %}
 
   {% if actor %}
   <p class="muted">Already have an agent connected? Each device gets its own key — running this again on a new machine won't disturb your existing ones. Manage or revoke individual devices under <a href="/console/api-keys">Access credentials</a>.</p>

@@ -135,8 +135,6 @@ describe("tenant console shell", () => {
     expect(connectorDownload).toHaveAttribute("href", "/api/v1/connect-skill");
     expect(connectorDownload).toHaveAttribute("download");
     expect(screen.queryByText(/PostgreSQL/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "返回网站首页" })).toHaveAttribute("href", "/home");
-    expect(screen.getByRole("link", { name: "注册新公司" })).toHaveAttribute("href", "/web/register");
     expect(screen.getByRole("button", { name: "忘记密码？" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "使用旧版登录" })).not.toBeInTheDocument();
   });

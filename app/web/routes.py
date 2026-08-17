@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.api import auth as auth_api
 from app.api.deps import Actor, _resolve_session_actor
 from app.core.browser_auth import SESSION_COOKIE, clear_browser_auth_cookies, set_session_cookie
+from app.core.config import settings
 from app.core.legacy_usage import legacy_tenant_successor
 from app.core.security import hash_token
 from app.db.session import get_db
@@ -69,8 +70,14 @@ def render(
             user = db.get(User, actor.user_id)
             if user is not None:
                 nav["nav_name"] = user.name or user.email
+    # Which assembly is serving this page. The marketing site — /docs, /home,
+    # the registration flow — belongs to the hosted service and is not part of
+    # the open core, so a standalone deployment must not link to pages it does
+    # not serve. A template that links off to the site guards on this.
     return templates.TemplateResponse(
-        request, template, {"actor": actor, **nav, **context}
+        request,
+        template,
+        {"actor": actor, "edition": settings.resolved_edition, **nav, **context},
     )
 
 

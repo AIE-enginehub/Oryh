@@ -22,14 +22,53 @@ service — nothing to install.
 git clone https://github.com/AIE-enginehub/oryh.git
 cd oryh
 docker compose up -d --build
-docker compose logs api        # the credentials, printed once
+docker compose logs api | grep -A6 "standalone workspace created"
 ```
 
-Then open <http://127.0.0.1:8080/>.
+The first build takes a few minutes; migrations then run on start. When
+`docker compose ps` shows four healthy services, open
+<http://127.0.0.1:8080/>.
 
-First boot creates one workspace, its administrator and a service key for
-agents, and prints them **once** to the `api` log. Change the password after
-signing in.
+That `grep` is the whole point of the second command: first boot creates one
+workspace, its administrator and a service key for agents, and prints them
+**once** — after a hundred lines of migration output. Store both before you
+move on. Change the password after signing in.
+
+The workspace starts **empty**: no employees, no customers, no documents. It is
+your company's records, waiting for your company's records. Which is why the
+next step is not clicking around the console — it is connecting an agent.
+
+## Connect your agent
+
+`oryh-connect` is a bootstrap skill that carries **no credential** — only this
+deployment's address. The agent installs it, opens the approval page, you sign
+in and approve, and only then does the agent receive its own key and personal
+skill bundle. Nothing is copied and pasted between the two.
+
+```bash
+curl -O http://127.0.0.1:8080/api/v1/connect-skill   # oryh-connect.zip
+```
+
+<http://127.0.0.1:8080/web/connect> serves the same download in the browser.
+Unzip it where your agent looks for skills:
+
+| Agent runtime | Skill directory |
+|---|---|
+| Claude Code | `~/.claude/skills` |
+| Codex (app, CLI, IDE) | `~/.agents/skills` |
+| Copilot CLI | `~/.agents/skills` |
+| Hermes | `~/.hermes/skills` |
+| OpenClaw | `openclaw skills install ./oryh-connect --global` |
+
+Then ask the agent to connect — `/oryh-connect` in the runtimes that take slash
+commands, or plain words in the ones that don't. It opens a page in your
+browser; you approve there. See [device flow](docs/device-flow.md) for what the
+approval actually establishes, and [capabilities and
+skills](docs/capabilities-skills-api.md) for how a bundle is scoped to what its
+principal holds.
+
+Because the bundle carries this deployment's address, a copy downloaded from
+one environment should not be reused against another.
 
 ## What you get
 

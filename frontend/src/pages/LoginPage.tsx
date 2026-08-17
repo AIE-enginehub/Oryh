@@ -166,11 +166,6 @@ export function LoginPage() {
               <a className="connector-download" href="/api/v1/connect-skill" download>
                 {t("downloadConnectorSkill")} <span aria-hidden="true">↓</span>
               </a>
-
-              <div className="login-links">
-                <a href="/home">{t("returnWebsite")}</a>
-                <a href="/web/register">{t("registerCompany")}</a>
-              </div>
             </>
           )}
           <p className="security-note">{t("securityNote")}</p>
