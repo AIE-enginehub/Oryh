@@ -13,7 +13,6 @@ COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./
 COPY scripts ./scripts
-COPY demo ./demo
 COPY skills ./skills
 
 # The Yunxiao release pipeline injects an ACR-hosted dependency image which

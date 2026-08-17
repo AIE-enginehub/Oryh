@@ -13,6 +13,9 @@ which is a reconnect storm aimed at a database that is already struggling.
 
 from __future__ import annotations
 
+import pathlib
+
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -53,3 +56,35 @@ def test_readyz_is_503_when_the_database_is_gone(client: TestClient, monkeypatch
     assert response.status_code == 503
     assert response.json()["status"] == "not ready"
     assert "unreachable" in response.json()["checks"]["database"]
+
+
+# Whichever gateway configs this tree carries. The private tree has two; the
+# open-core export renames `nginx.standalone.conf` to `nginx.conf` and ships
+# one — so naming both by hand made this test fail in the export, which is the
+# very defect it was written next to. Glob, and assert the list is not empty.
+NGINX_CONFIGS = sorted(
+    (pathlib.Path(__file__).resolve().parent.parent / "nginx").glob("nginx*.conf")
+)
+
+
+def test_there_is_a_gateway_config_to_check() -> None:
+    assert NGINX_CONFIGS, "no nginx config found — the check below would pass vacuously"
+
+
+@pytest.mark.parametrize("config", NGINX_CONFIGS, ids=lambda p: p.name)
+def test_the_gateway_proxies_the_health_endpoints(config: pathlib.Path) -> None:
+    """An endpoint the gateway does not route is an endpoint nobody outside the
+    container can ask.
+
+    `/livez` and `/readyz` were added to the app and the Kubernetes probes were
+    repointed at them, but the nginx configs allowlist locations explicitly and
+    listed only `healthz` — so a compose operator asking the entrypoint for
+    readiness got nginx's own 404, which reads exactly like the app being
+    broken. Found by starting a bare clone and asking it.
+
+    Kubernetes was unaffected: those probes reach the pod directly. That is
+    precisely why nothing noticed.
+    """
+    text = config.read_text(encoding="utf-8")
+    for endpoint in ("healthz", "livez", "readyz"):
+        assert endpoint in text, f"{config.name} does not route /{endpoint}"
