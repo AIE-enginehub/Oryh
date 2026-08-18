@@ -30,3 +30,22 @@ Rules, in order of importance:
 
 `tests/test_skill_docs.py` fails on unexpanded or malformed markers and keeps
 fragment API references honest against the live routes.
+
+## Fragments no skill here includes
+
+Four of these are included only by the approval-flow skills, which the hosted
+service maintains and this repository does not carry:
+`rounds-start-over.md`, `one-call-round-transition.md`, `stale-todo-sweep.md`,
+`money-flow-model.md`.
+
+They ship anyway, on purpose. Driving an approval flow correctly is the part
+that is easy to get subtly wrong, and each of these is a rule bought with a
+production incident — a return that landed one write of three and left a
+document nobody was assigned to; a new round that resumed mid-chain and would
+have approved a document its first approver never re-read; todos left open on
+work that had moved on. Anyone writing their own flow skill against this API
+needs those rules, and there is no version of "nothing is held back" that
+withholds them.
+
+Read them as documentation of how the approval API expects to be driven, not
+as includes waiting for a skill.
