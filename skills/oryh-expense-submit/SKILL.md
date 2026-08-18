@@ -38,6 +38,8 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 
 {{include:_common/leave-no-orphan-work.md}}
 
+{{include:_common/stay-current.md}}
+
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (how old a receipt may be, whose name must be on it, per-category limits, and the like) and let it shape the conversation from the first receipt — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a claim → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
 3. **Reuse before create**: `GET /expense-claims?employee_id={me}&status=draft` — reuse an open draft for the same trip/purpose; retries must not duplicate. A `returned` claim is also reused: fix it, don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. After a successful resubmit, complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`; needs `todos.complete_own`, in the default member role) — while it stays open, the claim is invisible to the flow admin's work queue.

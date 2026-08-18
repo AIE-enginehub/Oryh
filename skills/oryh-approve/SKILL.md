@@ -62,6 +62,8 @@ next free one in the round.
 
 {{include:_common/who-you-are-acting-as.md}}
 
+{{include:_common/stay-current.md}}
+
 1. **Read context** — the document's own `/detail`, which returns the lines,
    the totals, and the prior approval trail in one call:
 

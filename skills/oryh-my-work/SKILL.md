@@ -29,12 +29,20 @@ oryh:
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/stay-current.md}}
+
 Three waves, not eleven. Everything inside a wave is independent — send it
 together. Only wave 2 needs wave 1's answer, and only because it looks up ids
 wave 1 returned.
 
 ```text
 WAVE 1 — one batch. Your employee id is {{EMPLOYEE_ID}}; no call for it.
+
+   GET /my/skills/manifest
+     → are my installed skills current? Compare with the installed
+       manifest.json (name/version/files_hash). Differences are reported to
+       the person, never fixed silently — see above. This rides along in the
+       batch; it costs no extra round trip.
 
    GET /todos?employee_id={me}&status=open&include=target
      → my inbox WITH its context: each todo carries a `target` summary —

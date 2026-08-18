@@ -25,6 +25,8 @@ balance is correct immediately, with no data to migrate.
 
 {{include:_common/leave-no-orphan-work.md}}
 
+{{include:_common/stay-current.md}}
+
 ## Trigger Examples
 
 - "How many days of annual leave do I have left?"
