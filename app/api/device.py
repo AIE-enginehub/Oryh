@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.request_context import resolved_base_url
 from app.core.security import generate_token, hash_token
 from app.db.session import bind_tenant_context, get_db
-from app.models import DeviceAuthorization, Tenant, User
+from app.models import ApiKey, DeviceAuthorization, Tenant, User
 from app.schemas import DeviceStartRequest, DeviceTokenRequest
 from app.services.audit import record_audit
 from app.services.bundles import install_dir, tenant_slug
@@ -123,12 +123,15 @@ def poll_device_authorization(
             detail="device code already used; start a new authorization",
         )
 
-    # approved: hand over the key and burn the row
+    # approved: hand over the key pair and burn the row
     plaintext = row.api_key_plaintext
+    refresh_plaintext = row.refresh_token_plaintext
+    api_key = db.get(ApiKey, row.api_key_id) if row.api_key_id else None
     user = db.get(User, row.user_id)
     tenant = db.get(Tenant, row.tenant_id)
     row.status = "consumed"
     row.api_key_plaintext = None
+    row.refresh_token_plaintext = None
     row.consumed_at = utc_now()
     bind_tenant_context(db, row.tenant_id)
     record_audit(
@@ -145,6 +148,12 @@ def poll_device_authorization(
         "data": {
             "status": "approved",
             "api_key": plaintext,
+            # The key expires; this pair is what keeps the device connected
+            # without another browser round-trip. The refresh token must live
+            # OUTSIDE any skills directory — the whole point is that the
+            # synced, backed-up markdown no longer holds a durable credential.
+            "refresh_token": refresh_plaintext,
+            "expires_at": api_key.expires_at.isoformat() if api_key and api_key.expires_at else None,
             "user": {
                 "email": user.email if user else None,
                 "name": user.name if user else None,

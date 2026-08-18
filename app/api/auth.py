@@ -22,14 +22,18 @@ from app.core.request_context import resolved_base_url
 from app.core.login_throttle import login_keys, throttle
 from app.core.security import generate_token, hash_password, hash_token, verify_password
 from app.db.session import bind_tenant_context, get_db
+from app.services import interactive_keys
 from app.models import (
+    ApiKey,
     Employee,
     Role,
     Tenant,
     User,
     UserSession,
+    hash_api_key,
 )
 from app.schemas import (
+    TokenRefreshRequest,
     AcceptInvitationRequest,
     InvitationUserEnvelope,
     InviteUserRequest,
@@ -192,6 +196,74 @@ def get_current_user(
             detail="this endpoint requires a user credential, not a service key",
         )
     return db.get(User, actor.user_id)
+
+
+@router.post("/token/refresh")
+def refresh_api_key(
+    payload: TokenRefreshRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Exchange a refresh token for a fresh interactive key pair.
+
+    Unauthenticated by design — the caller's key has usually just expired; the
+    refresh token IS the credential here, matched by exact hash against a
+    256-bit space, which is why no throttle is needed. Rotation is in place:
+    the old key stops working the moment this returns, and any bundle rendered
+    with it goes stale until the agent re-syncs.
+    """
+    presented = hash_api_key(payload.refresh_token)
+    api_key = db.scalar(
+        select(ApiKey).where(ApiKey.refresh_token_hash == presented, ApiKey.is_active.is_(True))
+    )
+    if api_key is None:
+        api_key = db.scalar(
+            select(ApiKey).where(
+                ApiKey.prior_refresh_token_hash == presented, ApiKey.is_active.is_(True)
+            )
+        )
+        if api_key is not None and not interactive_keys.within_retry_grace(api_key):
+            # A spent token outside the retry window means a second party holds
+            # a copy. Revoke rather than guess which one is legitimate; the
+            # real device reconnects through the browser, in front of a person.
+            bind_tenant_context(db, api_key.tenant_id)
+            db.info["audit_actor"] = f"key:{api_key.id}"
+            api_key.is_active = False
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=(
+                    "refresh token already used — this device's key has been "
+                    "revoked as a precaution; reconnect with the oryh-connect skill"
+                ),
+            )
+        if api_key is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid refresh token"
+            )
+        # Within the grace window: a lost-response retry. Rotate again — the
+        # pair from the response that never arrived dies with this rotation.
+
+    tenant = db.get(Tenant, api_key.tenant_id)
+    if tenant is None or tenant.status != "active":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="tenant is suspended")
+    if api_key.user_id is not None:
+        user = db.get(User, api_key.user_id)
+        if user is None or user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="API key owner is not active"
+            )
+
+    bind_tenant_context(db, api_key.tenant_id)
+    db.info["audit_actor"] = f"key:{api_key.id}"
+    key_plain, refresh_plain = interactive_keys.rotate(api_key)
+    db.commit()
+    return envelope(
+        {
+            "api_key": key_plain,
+            "refresh_token": refresh_plain,
+            "expires_at": api_key.expires_at,
+        }
+    )
 
 
 @router.post("/login")

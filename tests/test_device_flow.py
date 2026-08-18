@@ -92,6 +92,11 @@ def test_device_flow_happy_path(client: TestClient) -> None:
     assert result["tenant_slug"] == "device-co"
     assert result["install_dir"] == "oryh-skills-device-co"
     key = result["api_key"]
+    # The handover is a PAIR now: the key expires, the refresh token renews it
+    # without another browser round-trip. Prefixes differ on purpose, so one
+    # pasted where the other belongs fails loudly.
+    assert result["refresh_token"].startswith("calwr_")
+    assert result["expires_at"] is not None
 
     # the key is user-bound and pulls the personal bundle
     me = client.get("/api/v1/auth/me", headers={"X-API-Key": key}).json()["data"]

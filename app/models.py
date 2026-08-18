@@ -32,6 +32,12 @@ def generate_api_key() -> str:
     return f"calw_{secrets.token_urlsafe(24)}"
 
 
+def generate_refresh_token() -> str:
+    """Distinct prefix on purpose: a refresh token pasted where an API key
+    belongs fails loudly as a 401, instead of quietly authenticating."""
+    return f"calwr_{secrets.token_urlsafe(32)}"
+
+
 def hash_api_key(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -150,6 +156,25 @@ class ApiKey(IdMixin, TimestampMixin, Base):
         String(30), default=PRINCIPAL_TENANT_SERVICE, server_default=PRINCIPAL_TENANT_SERVICE
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Interactive personal keys — the ones rendered into skill bundles on
+    # personal machines — expire and carry a refresh token. NULL means never
+    # expires: every tenant service key, every hosted flow-agent key, and every
+    # key minted before this column existed. An unattended workload's durable
+    # secret cannot be eliminated, only housed properly (K8s Secret); a
+    # laptop's markdown can at least stop holding a credential that outlives
+    # the laptop. See docs/mcp-adoption-plan-2026-08.md §3 阶段 1.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_token_hash: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
+    # The immediately superseded refresh token, kept for one purpose: telling a
+    # lost-response retry (client refreshed, answer never arrived, retries with
+    # the token it still holds) apart from replay of a stolen copy. Within the
+    # grace window the retry rotates again; outside it the key is revoked.
+    prior_refresh_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    refresh_rotated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     tenant: Mapped[Tenant] = relationship(back_populates="api_keys")
 
@@ -212,6 +237,9 @@ class DeviceAuthorization(IdMixin, CreatedAtMixin, Base):
     user_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
     api_key_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
     api_key_plaintext: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Held under the same contract as the key: only between approval and the
+    # agent's next poll, cleared on handover.
+    refresh_token_plaintext: Mapped[str | None] = mapped_column(String(200), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

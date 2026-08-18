@@ -132,7 +132,8 @@ it needs no login at all.
 5. Poll POST `<api_base_url>/auth/device/token` with
    {"device_code": ...} every `interval` seconds until the status leaves
    "pending":
-   - approved → {api_key, user, tenant, tenant_slug, install_dir}: this is the
+   - approved → {api_key, refresh_token, expires_at, user, tenant, tenant_slug,
+     install_dir}: this is the
      answer to "which company" — the server derived it from the account that
      just signed in, which is why you never had to ask. Greet the person by name
      AND by company ("connected to Jingcheng Medical Equipment Co."), so a mistaken login is
@@ -141,6 +142,14 @@ it needs no login at all.
      a new employer, then continue.
    - denied   → the person rejected it; stop, do not retry.
    - expired  → codes live ~15 minutes; offer to start over from step 3.
+
+   **Save the refresh token now, OUTSIDE every skills directory** — e.g.
+   `~/.oryh/<tenant_slug>.refresh-token`, permissions 600, one file per
+   employer. The api_key expires (`expires_at` says when) and is renewed
+   from that file without a browser round-trip; the skill files themselves
+   must never hold it — they are synced and backed up, which is exactly how
+   the old never-expiring keys leaked. Never print either value into the
+   conversation; confirm where you saved it instead.
 
 6. GET `<api_base_url>/my/skill-bundle` with the new key
    (Accept: application/zip)
@@ -159,8 +168,12 @@ it needs no login at all.
    - Report which skills arrived AND which company they serve.
 ```
 
-The device key delivered in step 5 is consumed exactly once — if the poll
+The device key pair delivered in step 5 is consumed exactly once — if the poll
 response is lost, start over from step 3 rather than retrying the token call.
+Later, when any oryh skill reports its key **expired** (the 401 says so), renew
+without a browser: `POST <api_base_url>/auth/token/refresh` with the saved
+refresh token; save the NEW refresh token it returns over the old one. Only
+when refresh itself is refused does anyone need this connect flow again.
 
 ## A Legacy Unprefixed `oryh-skills/` Directory
 

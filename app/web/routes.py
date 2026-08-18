@@ -214,6 +214,7 @@ def device_approve(request: Request, actor: WebActor, db: Db, code: Annotated[st
     from app.api import device as device_api
     from app.models import ApiKey, generate_api_key, hash_api_key
     from app.services.audit import record_audit
+    from app.services import interactive_keys
 
     if actor is None:
         return device_login_redirect(code)
@@ -234,6 +235,9 @@ def device_approve(request: Request, actor: WebActor, db: Db, code: Annotated[st
         role=user.role,
         is_active=True,
     )
+    # An interactive personal key: expires, refreshable. The refresh token
+    # rides the same one-shot handover as the key itself.
+    refresh_plaintext = interactive_keys.make_interactive(api_key)
     db.add(api_key)
     db.flush()
     auth.status = "approved"
@@ -241,6 +245,7 @@ def device_approve(request: Request, actor: WebActor, db: Db, code: Annotated[st
     auth.user_id = user.id
     auth.api_key_id = api_key.id
     auth.api_key_plaintext = plaintext
+    auth.refresh_token_plaintext = refresh_plaintext
     auth.approved_at = datetime.now(timezone.utc)
     record_audit(
         db,

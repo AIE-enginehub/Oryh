@@ -10,6 +10,7 @@ from app.api.deps import Actor, get_actor, get_api_key_actor, get_user_key_actor
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import ApiKey, Role, Tenant, User, generate_api_key, hash_api_key
+from app.services import interactive_keys
 from app.services.audit import record_audit
 from app.api.roles import get_role_or_404
 from app.schemas import SkillReachEntry, SkillReachEnvelope, SkillReachRead
@@ -318,6 +319,12 @@ def generate_skill_bundle(
         role=user.role,
         is_active=True,
     )
+    # Interactive personal key: it lands rendered in markdown on somebody's
+    # machine, so it expires and refreshes. The refresh token travels in a
+    # response header, never inside the zip — everything in the zip gets
+    # unpacked into a skills directory, which is exactly where a durable
+    # credential must not live.
+    refresh_plaintext = interactive_keys.make_interactive(new_key)
     db.add(new_key)
     db.flush()
 
@@ -347,5 +354,7 @@ def generate_skill_bundle(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
             "Pragma": "no-cache",
+            "X-Oryh-Refresh-Token": refresh_plaintext,
+            "X-Oryh-Key-Expires-At": new_key.expires_at.isoformat(),
         },
     )

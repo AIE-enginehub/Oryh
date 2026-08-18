@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     # stays approvable, and how often the agent should poll for the result.
     device_code_ttl_minutes: int = 15
     device_poll_interval_seconds: int = 5
+    # Lifetime of an interactive personal key (device flow, skill bundles).
+    # Service and hosted keys never expire — see ApiKey.expires_at.
+    interactive_key_ttl_hours: int = 24
+    # A refresh whose response was lost may be retried with the token it just
+    # spent, within this window. Outside it, presenting a spent token reads as
+    # replay of a stolen copy and revokes the key.
+    refresh_retry_grace_seconds: int = 60
     # Brand prefix stamped onto OUTBOUND skill bundles only: installed skill
     # names ({brand}-{slug}-…), the install directory ({brand}-skills-{slug}),
     # and the bootstrap connect skill ({brand}-connect). The registry always

@@ -1290,6 +1290,10 @@ class DeviceTokenRequest(RequestModel):
     device_code: str = Field(max_length=200)
 
 
+class TokenRefreshRequest(RequestModel):
+    refresh_token: str = Field(max_length=200)
+
+
 class UserRead(APIModel):
     id: str
     tenant_id: str

@@ -775,6 +775,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/token/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Api Key
+         * @description Exchange a refresh token for a fresh interactive key pair.
+         *
+         *     Unauthenticated by design — the caller's key has usually just expired; the
+         *     refresh token IS the credential here, matched by exact hash against a
+         *     256-bit space, which is why no throttle is needed. Rotation is in place:
+         *     the old key stops working the moment this returns, and any bundle rendered
+         *     with it goes stale until the agent re-syncs.
+         */
+        post: operations["refresh_api_key_api_v1_auth_token_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/users": {
         parameters: {
             query?: never;
@@ -11790,6 +11816,11 @@ export interface components {
             /** Unit */
             unit?: string | null;
         };
+        /** TokenRefreshRequest */
+        TokenRefreshRequest: {
+            /** Refresh Token */
+            refresh_token: string;
+        };
         /** TypeOptionRead */
         TypeOptionRead: {
             /**
@@ -14782,6 +14813,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_api_key_api_v1_auth_token_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

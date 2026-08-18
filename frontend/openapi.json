@@ -24624,6 +24624,21 @@
         "title": "TodoTargetSummary",
         "type": "object"
       },
+      "TokenRefreshRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "refresh_token": {
+            "maxLength": 200,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "TokenRefreshRequest",
+        "type": "object"
+      },
       "TypeOptionRead": {
         "properties": {
           "created_at": {
@@ -34498,6 +34513,43 @@
           }
         },
         "summary": "Register"
+      }
+    },
+    "/api/v1/auth/token/refresh": {
+      "post": {
+        "description": "Exchange a refresh token for a fresh interactive key pair.\n\nUnauthenticated by design — the caller's key has usually just expired; the\nrefresh token IS the credential here, matched by exact hash against a\n256-bit space, which is why no throttle is needed. Rotation is in place:\nthe old key stops working the moment this returns, and any bundle rendered\nwith it goes stale until the agent re-syncs.",
+        "operationId": "refresh_api_key_api_v1_auth_token_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh Api Key"
       }
     },
     "/api/v1/auth/users": {

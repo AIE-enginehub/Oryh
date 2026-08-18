@@ -39,6 +39,12 @@ UNAUDITED: dict[str, str] = {
     "auth.py POST /password-reset-email": "sends mail; the reset itself is audited",
     "auth.py POST /users/{user_id}/password-reset-email": "sends mail; the reset is audited",
     "device.py POST /start": "issues a device code, not a business record",
+    "auth.py POST /token/refresh": (
+        "the rotation IS audited — by the ORM trail, as api_key.updated with both"
+        " hashes redacted, and the replay-revocation branch as is_active"
+        " true→false. A record_audit here would claim (api_key, id) and suppress"
+        " that richer delta entry; test_token_refresh pins the trail instead."
+    ),
     "people.py POST /directory/display-names/resolve": "a read shaped as POST",
 
     # Document creation. The row's own created_at/created_by carries it, and a

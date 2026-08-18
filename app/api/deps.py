@@ -20,6 +20,7 @@ from app.core.permissions import (
 from app.core.security import hash_token
 from app.db.session import bind_tenant_context, get_db
 from app.models import ApiKey, FlowSubscription, Role, Tenant, User, UserSession, hash_api_key
+from app.services.interactive_keys import is_expired
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,17 @@ def _resolve_api_key_actor(db: Session, api_key_value: str) -> Actor:
     )
     if api_key is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid API key")
+    if is_expired(api_key):
+        # Distinguishable from "invalid" on purpose: the agent holding this key
+        # is one refresh away from working, and its skills say what to do with
+        # exactly this wording.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "API key expired — POST /auth/token/refresh with your refresh "
+                "token, or reconnect with the oryh-connect skill"
+            ),
+        )
     _ensure_tenant_active(db, api_key.tenant_id)
     bind_tenant_context(db, api_key.tenant_id)
     if api_key.user_id is None:

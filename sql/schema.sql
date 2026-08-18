@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260816_0055
+-- Alembic revision: 20260818_0056
 --
 
 --
@@ -61,7 +61,11 @@ CREATE TABLE oryh.api_keys (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     user_id uuid,
     role text DEFAULT 'service'::text NOT NULL,
-    principal_kind character varying(30) DEFAULT 'tenant_service'::character varying NOT NULL
+    principal_kind character varying(30) DEFAULT 'tenant_service'::character varying NOT NULL,
+    expires_at timestamp with time zone,
+    refresh_token_hash character varying(64),
+    prior_refresh_token_hash character varying(64),
+    refresh_rotated_at timestamp with time zone
 );
 
 
@@ -313,6 +317,7 @@ CREATE TABLE oryh.device_authorizations (
     approved_at timestamp with time zone,
     consumed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    refresh_token_plaintext character varying(200),
     CONSTRAINT device_authorizations_status_chk CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'denied'::text, 'consumed'::text])))
 );
 
@@ -2336,6 +2341,13 @@ ALTER TABLE ONLY oryh.workflow_definitions
 --
 
 CREATE UNIQUE INDEX api_keys_key_hash_uk ON oryh.api_keys USING btree (key_hash);
+
+
+--
+-- Name: api_keys_refresh_token_hash_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX api_keys_refresh_token_hash_idx ON oryh.api_keys USING btree (refresh_token_hash);
 
 
 --
