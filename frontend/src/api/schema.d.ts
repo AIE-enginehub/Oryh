@@ -2172,6 +2172,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Notification
+         * @description Email one employee about one work event.
+         *
+         *     202, not 201: nothing is stored, and SMTP acceptance is not delivery. The
+         *     response says what was attempted and to whom, so a flow agent can report
+         *     "told 张三" or "李四 has no address on file" rather than guessing.
+         */
+        post: operations["send_notification_api_v1_notifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/object-directory": {
         parameters: {
             query?: never;
@@ -11284,6 +11308,32 @@ export interface components {
             /** Valid Until */
             valid_until?: string | null;
         };
+        /**
+         * SendNotificationRequest
+         * @description One work event, to one employee.
+         *
+         *     No recipient address and no message body: the server resolves the first
+         *     from the employee record and assembles the second. See
+         *     app/api/notifications.py for why both are withheld from the caller.
+         */
+        SendNotificationRequest: {
+            /** Actor Name */
+            actor_name?: string | null;
+            /** Detail */
+            detail?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Event */
+            event: string;
+            /** Title */
+            title: string;
+            /** Todo Id */
+            todo_id?: string | null;
+        };
         /** SendSalesQuotationRequest */
         SendSalesQuotationRequest: {
             /** Sent By */
@@ -18752,6 +18802,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_SkillReachRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_notification_api_v1_notifications_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

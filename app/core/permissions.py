@@ -111,6 +111,13 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "写入流程推进代理的运行台账（开始/结束/推进结果）——代理为自己的工作留痕，不推进任何单据",
     ),
     ("todos.assign", False, "为他人创建待办", "创建指派给任何员工的待办"),
+    (
+        "notification.send",
+        False,
+        "发送工作通知",
+        "就待办分配、退回、审批结果向当事员工发送邮件通知——收件地址由服务器"
+        "从员工档案解析，调用方不能指定；不能发送任意内容给任意地址",
+    ),
     ("todos.complete_own", False, "完成自己的待办", "完成指派给自己的待办"),
     ("booking.own", False, "预订资源", "以自己名义创建/修改/取消资源预订"),
     (
@@ -202,6 +209,11 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
     "business_object.advance:*",
     "approval.record",
     "todos.assign",
+    # The flow agent is the side that assigns work, so it is the side that
+    # tells people work arrived. Its own runtime has no mail transport — the
+    # pi child's environment is a six-variable whitelist on purpose — so the
+    # server sends on its behalf. See app/api/notifications.py.
+    "notification.send",
     "flow_run.record",
 )
 

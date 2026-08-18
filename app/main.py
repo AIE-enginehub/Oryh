@@ -12,6 +12,7 @@ from app.api.device import router as device_router
 from app.api.flow_runner_bootstrap import router as flow_runner_bootstrap_router
 from app.api.flows import router as flows_router
 from app.api.master_data import router as master_data_router
+from app.api.notifications import router as notifications_router
 from app.api.objects import router as objects_router
 from app.api.people import router as people_router
 from app.api.policies import router as policies_router
@@ -53,6 +54,7 @@ app.include_router(sales_router, prefix=API_PREFIX)
 app.include_router(purchasing_router, prefix=API_PREFIX)
 app.include_router(billing_router, prefix=API_PREFIX)
 app.include_router(claims_router, prefix=API_PREFIX)
+app.include_router(notifications_router, prefix=API_PREFIX)
 app.include_router(objects_router, prefix=API_PREFIX)
 app.include_router(master_data_router, prefix=API_PREFIX)
 app.include_router(people_router, prefix=API_PREFIX)

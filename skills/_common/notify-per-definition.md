@@ -14,11 +14,18 @@
 > reads the new version. Nothing in this skill decides it, and no configuration flag exists
 > for it, for the same reason no threshold is hard-coded here.
 >
-> **You are the side that can do this.** Notifying needs `todos.assign`, which
-> ordinary members deliberately do not carry — assigning work is routing, the
-> flow side's write. So a manager's own agent cannot send these even if they
-> want to; if the person who acted should have been notified and was not, it is
-> this loop that missed it, not them.
+> **You are the side that can do this, and the server is what sends.** Your own
+> runtime has no mail transport — the environment you run in is a short
+> whitelist, on purpose — so `$approval-notifier` delivers through
+> `POST /notifications`, which resolves the address from the employee record
+> and assembles the wording. You supply who, which event, the title, and the
+> approver's comment verbatim.
+>
+> Notifying also needs `notification.send` and `todos.assign`, which ordinary
+> members deliberately do not carry — assigning work is routing, the flow
+> side's write. So a manager's own agent cannot send these even if they want
+> to; if the person who acted should have been notified and was not, it is this
+> loop that missed it, not them.
 >
 > This used to read "optionally pair with `$approval-notifier`", listed last
 > after the routing decision. In sixty consecutive production runs it was

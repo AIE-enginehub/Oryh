@@ -304,3 +304,57 @@ def send_invitation_email(*, to: str, tenant_name: str, token: str) -> None:
             "If you did not expect this, ignore this email."
         ),
     )
+
+
+# Work notifications: an assignment landed, a document came back, an approval
+# finished. Sent by the server on the flow agent's behalf, because the agent's
+# own runtime has no mail transport and deliberately never will — the pi
+# child's environment is a six-variable whitelist, and widening it to carry
+# SMTP credentials would hand a model process the mail server.
+#
+# The recipient is resolved from the employee record by the caller's API layer,
+# never passed in. That turns "never guess an address" from a rule an agent has
+# to remember into something it cannot do.
+
+NOTIFICATION_SUBJECTS = {
+    "assigned": "有一项工作需要你处理：{title}",
+    "returned": "你的单据被退回，请修改后重新提交：{title}",
+    "approved": "你的单据已通过：{title}",
+    "rejected": "你的单据已被驳回：{title}",
+}
+
+
+def send_work_notification(
+    *,
+    to: str,
+    recipient_name: str,
+    event: str,
+    title: str,
+    detail: str | None,
+    actor_name: str | None,
+    link: str,
+) -> None:
+    """One work event, to the person it concerns.
+
+    `detail` is carried verbatim — for a return it is the approver's own
+    comment, which is the instruction for what to fix. Summarising it would
+    make it a different instruction, so nothing here reformats it.
+    """
+    subject = NOTIFICATION_SUBJECTS.get(event, "工作通知：{title}").format(title=title)
+    lines = [f"{recipient_name}：", ""]
+    if event == "assigned":
+        lines.append(f"有一项工作分配给你：{title}")
+    elif event == "returned":
+        lines.append(f"你提交的《{title}》被退回，需要修改后重新提交。")
+    elif event == "approved":
+        lines.append(f"你提交的《{title}》已通过审批。")
+    elif event == "rejected":
+        lines.append(f"你提交的《{title}》已被驳回。")
+    else:
+        lines.append(title)
+    if actor_name:
+        lines.append(f"处理人：{actor_name}")
+    if detail:
+        lines += ["", "说明（原文）：", detail]
+    lines += ["", f"处理入口：{link}", "", "本邮件由 oryh 自动发送，请勿直接回复。"]
+    outbox.send(to=to, subject=subject, body="\n".join(lines))

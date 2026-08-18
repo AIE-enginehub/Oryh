@@ -1290,6 +1290,29 @@ class DeviceTokenRequest(RequestModel):
     device_code: str = Field(max_length=200)
 
 
+class SendNotificationRequest(RequestModel):
+    """One work event, to one employee.
+
+    No recipient address and no message body: the server resolves the first
+    from the employee record and assembles the second. See
+    app/api/notifications.py for why both are withheld from the caller.
+    """
+
+    employee_id: str
+    event: str = Field(max_length=20)
+    title: str = Field(max_length=200)
+    # The approver's own words, carried verbatim. Optional because an approval
+    # rarely needs one and a return always does.
+    detail: str | None = Field(default=None, max_length=4000)
+    actor_name: str | None = Field(default=None, max_length=200)
+    # What the message is about, for the audit trail's sake.
+    entity_type: str | None = Field(default=None, max_length=50)
+    entity_id: str | None = None
+    # Checked to belong to this employee when given, so a link never points at
+    # somebody else's queue item.
+    todo_id: str | None = None
+
+
 class TokenRefreshRequest(RequestModel):
     refresh_token: str = Field(max_length=200)
 

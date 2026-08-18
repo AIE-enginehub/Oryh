@@ -97,12 +97,45 @@ Agent memory should hold:
 
 Do not hardcode recipient contact data inside the skill itself.
 
+## Sending: the server does it
+
+```json
+POST /notifications
+{
+  "employee_id": "the person this concerns",
+  "event": "assigned | returned | approved | rejected",
+  "title": "Rework: timesheet 08/03-08/07",
+  "detail": "<the approver's comment, verbatim — required for a return>",
+  "actor_name": "the approver's display name",
+  "entity_type": "timesheet_header",
+  "entity_id": "…",
+  "todo_id": "…"
+}
+→ 202 {"delivered": true,  "employee_id", "employee_name"}
+   202 {"delivered": false, "reason": "no email address on the employee record", …}
+```
+
+**You do not pass an address and you do not write the body.** The server
+resolves the recipient from the employee record and assembles the wording. That
+is deliberate: an agent that cannot choose an address cannot send to a guessed
+one, and an endpoint that accepted arbitrary text to arbitrary recipients would
+be an open mail relay wearing a business API's clothes.
+
+`delivered: false` is not a failure to retry — it means that employee has no
+address on file. Report **who** went untold, by name, so somebody can fix the
+record. Retrying will produce the same answer.
+
+If you are running somewhere that has its own mail or messaging tool, you may
+use that instead for channels this endpoint does not cover. The flow agent has
+no such tool — its runtime environment is a six-variable whitelist — so inside
+an approval flow, this endpoint is the only way a message actually leaves.
+
 ## What this skill is responsible for
 
 1. Turn approval context into a clean notification
 2. Choose the right recipients from the passed input
 3. Apply simple dedupe and reminder rules from the provided policy
-4. Produce or send a message through the available mail or messaging tool
+4. Send through `POST /notifications`, or a channel tool where one exists
 5. Return a structured result the agent can store or use for follow-up
 
 ## What this skill is not responsible for
