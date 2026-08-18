@@ -200,6 +200,29 @@ For outcome notifications, clearly state:
 - who acted
 - any approver comment if supplied
 
+### Returns, specifically
+
+A return is the one outcome whose message has a job beyond informing: the
+person has to act on it. Three rules, learned from a customer who wrote their
+own return-notification skill because this one was not reaching them:
+
+- **Quote the approver's `comment` verbatim.** Do not summarise it, tidy its
+  grammar, or drop the parts that look redundant. It is the instruction for
+  what to fix, written by the person who will judge the fix; a paraphrase is a
+  different instruction. If it is empty, say that it is empty rather than
+  inventing a reason.
+- **Only notify while it still needs doing.** Check the document's current
+  status first — a return that has already been reworked and resubmitted, or
+  one on a document since approved, is history. Notifying about it sends
+  someone to look at a queue where nothing is waiting.
+- **Never guess an address.** No email on the employee record means say so and
+  name the person, so somebody can fix the record. A message sent to a guessed
+  address is worse than one not sent: it looks delivered.
+
+Point the person at their queue (`{base_url}/console/todos`) rather than
+describing what to do — the rework todo the flow agent opened is already there,
+and it carries the same text.
+
 ## Pairing With Oryh Record Skills
 
 Typical sequence for a timesheet approval:
