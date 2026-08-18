@@ -257,6 +257,14 @@ def test_approval_record_idempotency(client: TestClient) -> None:
 # audit trail
 # ---------------------------------------------------------------------------
 
+def e_is_semantic(entries: list[dict], action: str) -> bool:
+    """Written by a `record_audit` call rather than by the ORM listener."""
+    return any(
+        entry["action"] == action and entry["detail"].get("source") != "orm"
+        for entry in entries
+    )
+
+
 def test_audit_trail_records_actions(client: TestClient) -> None:
     employee_id = create_employee(client)
     header_id = create_header(client, employee_id)
@@ -283,10 +291,29 @@ def test_audit_trail_records_actions(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     actions = [e["action"] for e in body["data"]]
-    assert actions == [
+
+    # The hand-written layer, unchanged and still in this order.
+    semantic = [action for action in actions if e_is_semantic(body["data"], action)]
+    assert semantic == [
         "todo.cancelled", "timesheet.status_changed", "todo.created", "timesheet.submitted",
     ]
-    submitted = body["data"][-1]
+
+    # Beneath it, the ORM layer now records the CONTENT changes that used to
+    # leave no trace at all — creating the employee among them, which is the
+    # defect this was reported for. It steps aside wherever the semantic layer
+    # already named the same entity, so `todo.cancelled` is not doubled.
+    mechanical = {
+        entry["action"] for entry in body["data"] if entry["detail"].get("source") == "orm"
+    }
+    assert {"employee.created", "timesheet_header.created"} <= mechanical, mechanical
+    assert "todo.cancelled" not in mechanical
+    # By action rather than by position: the mechanical layer now writes entries
+    # either side of this one, and "the oldest row" was never what this meant.
+    submitted = next(
+        entry
+        for entry in body["data"]
+        if entry["action"] == "timesheet.submitted" and entry["detail"].get("source") != "orm"
+    )
     assert submitted["detail"]["employee_id"] == employee_id
     assert submitted["actor"].startswith("key:")
 
@@ -294,16 +321,23 @@ def test_audit_trail_records_actions(client: TestClient) -> None:
     response = client.get(
         f"/api/v1/audit-logs?entity_type=timesheet_header&entity_id={header_id}", headers=HEADERS
     )
-    assert response.json()["meta"]["total"] == 2
+    # Three, not the two this used to see: `submitted` and `status_changed` from
+    # the semantic layer, and now `timesheet_header.created` — the creation
+    # itself, which left no trace at all before the ORM layer existed.
+    assert response.json()["meta"]["total"] == 3
     response = client.get("/api/v1/audit-logs?action=todo.created", headers=HEADERS)
     assert response.json()["meta"]["total"] == 1
     newest_id = body["data"][0]["id"]
-    response = client.get(f"/api/v1/audit-logs?before={newest_id}", headers=HEADERS)
-    assert response.json()["meta"]["total"] == 3
+    older = client.get(f"/api/v1/audit-logs?before={newest_id}", headers=HEADERS)
+    assert older.json()["meta"]["total"] == body["meta"]["total"] - 1
 
-    # tenant isolation
-    response = client.get("/api/v1/audit-logs", headers=OTHER_HEADERS)
-    assert response.json()["meta"]["total"] == 0
+    # tenant isolation. Not "the other tenant has no entries" any more — the ORM
+    # layer records its seeded api key, which is a real row somebody created.
+    # What isolation means is that none of THIS tenant's records appear there.
+    other = client.get("/api/v1/audit-logs", headers=OTHER_HEADERS).json()["data"]
+    mine = {entry["entity_id"] for entry in body["data"]}
+    assert not [entry for entry in other if entry["entity_id"] in mine]
+    assert all(entry["action"].startswith("api_key.") for entry in other), other
 
 
 def test_todo_work_queue_and_due_dates(client: TestClient) -> None:

@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES
 from app.core.permissions import HOSTED_FLOW_AGENT_PERMISSIONS, PRINCIPAL_HOSTED_FLOW_AGENT
 from app.models import ApiKey, FlowSubscription, TenantSkill
+from app.services.audit_trail import catalogue_write
 from app.services.state_machines import editable_states, get_builtin_machine
 
 DEFAULT_CADENCE_SECONDS = 300
@@ -146,6 +147,7 @@ def active_hosted_key_id(db: Session, tenant_id: str) -> str | None:
     return key.id if key is not None else None
 
 
+@catalogue_write
 def provision_flow_subscriptions(db: Session, tenant_id: str) -> int:
     """Give the tenant a subscription row for every drivable builtin family.
 

@@ -2270,3 +2270,14 @@ class FlowRun(TenantRecord, Base):
 # from this metadata, so a constraint absent here is absent from every test
 # database, and the suite then passes over values the real database refuses.
 _attached_constraints = apply_table_constraints(Base.metadata)
+
+# The ORM audit trail listens for INSERT/UPDATE/DELETE on these models and
+# appends its own row in the same flush. Installed HERE, at the bottom of the
+# module that defines them: `app/db/session.py` cannot do it (this module
+# imports Base from it, so importing back would cycle), and `app/main.py` would
+# cover the API process while leaving ops scripts and tests writing silently.
+# Importing the models is the precondition for any auditable write, so this is
+# the one place that cannot be bypassed.
+from app.services.audit_trail import install as _install_audit_trail  # noqa: E402
+
+_install_audit_trail()

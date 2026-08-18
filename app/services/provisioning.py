@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.services.audit_trail import catalogue_write
+
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, SYSTEM_CAPABILITIES
 from app.core.type_options import SYSTEM_TYPE_OPTIONS, system_type_sign
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
@@ -114,6 +116,7 @@ def insert_unless_raced(db: Session, instance, lookup) -> bool:
     return True
 
 
+@catalogue_write
 def provision_product_skills(db: Session, tenant_id: str) -> int:
     """Upsert the shipped product skill catalog into a tenant's registry.
     Idempotent; file changes bump the skill version. Returns changed count."""
@@ -280,6 +283,7 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
 )
 
 
+@catalogue_write
 def provision_builtin_definitions(db: Session, tenant_id: str) -> int:
     """Ensure the tenant has editable definition rows for builtin entities.
     Existing rows are respected — tenants own their customizations."""
@@ -315,6 +319,7 @@ def provision_builtin_definitions(db: Session, tenant_id: str) -> int:
     return created
 
 
+@catalogue_write
 def provision_system_capabilities(db: Session, tenant_id: str) -> int:
     """Mirror the product capability catalog into the tenant's capabilities
     table (kind=system). Metadata refreshes on deploy; tenant custom rows are
@@ -346,6 +351,7 @@ def provision_system_capabilities(db: Session, tenant_id: str) -> int:
     return changed
 
 
+@catalogue_write
 def provision_system_type_options(db: Session, tenant_id: str) -> int:
     """Mirror the shipped type vocabularies into the tenant's type_options
     table (kind=system). Titles/descriptions refresh on deploy; status is the
@@ -384,6 +390,7 @@ def provision_system_type_options(db: Session, tenant_id: str) -> int:
     return changed
 
 
+@catalogue_write
 def provision_system_roles(db: Session, tenant_id: str) -> tuple[int, int]:
     """Seed admin/member roles with behavior-preserving defaults, and keep the
     system `admin` role holding every system capability.

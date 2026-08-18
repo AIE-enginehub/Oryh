@@ -159,6 +159,26 @@ def get_actor(
     csrf_cookie: Annotated[str | None, Cookie(alias=CSRF_COOKIE)] = None,
     csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
 ) -> Actor:
+    actor = _authenticate(
+        request, db, x_api_key, authorization, session_token, csrf_cookie, csrf_header
+    )
+    # The ORM audit listener reads this off the session it is flushing. Stamped
+    # here because this is the one place every authenticated request passes
+    # through, and stamped from the credential rather than from anything the
+    # caller said about itself.
+    db.info["audit_actor"] = actor.label
+    return actor
+
+
+def _authenticate(
+    request: Request,
+    db: Session,
+    x_api_key: str | None,
+    authorization: str | None,
+    session_token: str | None,
+    csrf_cookie: str | None,
+    csrf_header: str | None,
+) -> Actor:
     if authorization and authorization.lower().startswith("bearer "):
         return _resolve_session_actor(db, authorization[7:].strip())
     if x_api_key:
