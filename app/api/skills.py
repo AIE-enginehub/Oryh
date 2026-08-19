@@ -272,6 +272,19 @@ def update_skill(
                 skill.kind = "custom"
                 skill.catalog_required_capability = None
         skill.files_jsonb = files
+    if "calibration" in updates:
+        # Deliberately NOT a fork. Calibration is the tenant's, files are the
+        # catalog's, and a workspace that wants "只列标题" should not thereby
+        # stop receiving every correction shipped afterwards — which is exactly
+        # what editing `files` for that costs.
+        #
+        # Still a version bump: installed copies carry the rendered section, so
+        # a changed calibration is a changed bundle. `files_hash` folds it in
+        # too, which is what makes the session-entry staleness check notice.
+        calibration = (updates.pop("calibration") or "").strip() or None
+        if calibration != skill.calibration:
+            skill.version += 1
+        skill.calibration = calibration
     for field, value in updates.items():
         setattr(skill, field, value)
     db.commit()

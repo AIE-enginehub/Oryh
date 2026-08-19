@@ -170,6 +170,13 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
             # same reason: "this product skill is only for our procurement
             # team" is a distribution decision that touches no content, so it
             # survives every sync and never forks the skill to custom.
+            #
+            # calibration is the tenant's too, and for the strongest version of
+            # that reason: it is the workspace's own refinement of a shipped
+            # skill, and it is worth having ONLY because it is not a fork. If a
+            # sync ever overwrote it, a tenant would lose text they wrote on a
+            # deploy that changed something else entirely. Assign the four
+            # columns below and nothing more.
             dirty = False
             if files != skill.files_jsonb:
                 skill.version += 1

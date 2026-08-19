@@ -232,3 +232,33 @@ def test_idempotent_when_nothing_changed(db: Session, catalog: Path) -> None:
     assert provisioning.provision_product_skills(db, TENANT) == 0
     skill = get_skill(db, "oryh-thing-submit")
     assert skill.version == 1
+
+
+def test_calibration_survives_every_content_update(db: Session, catalog: Path) -> None:
+    """The durability promise the whole feature rests on.
+
+    Calibration is worth having only because it is NOT a fork: the workspace
+    keeps receiving catalog corrections while its own refinement stays. Today
+    that holds because the sync writes four named columns and calibration is
+    not among them — true by construction, which is exactly the kind of
+    property a later "copy the catalog row over" refactor erases silently. The
+    tenant would lose text they wrote, on a deploy that changed something
+    unrelated, with nothing reporting it.
+    """
+    write_skill(catalog, "oryh-thing-submit", capability="thing.submit_own")
+    provisioning.provision_product_skills(db, TENANT)
+    db.commit()
+
+    skill = get_skill(db, "oryh-thing-submit")
+    skill.calibration = "List titles only; never expand the linked record."
+    db.commit()
+
+    for body in ("better steps", "better steps again", "and once more"):
+        write_skill(catalog, "oryh-thing-submit", capability="thing.submit_own", body=body)
+        provisioning.provision_product_skills(db, TENANT)
+        db.commit()
+
+    skill = get_skill(db, "oryh-thing-submit")
+    assert skill.calibration == "List titles only; never expand the linked record."
+    assert skill.kind == "product"                      # still tracking
+    assert "and once more" in skill.files_jsonb["SKILL.md"]  # still receiving

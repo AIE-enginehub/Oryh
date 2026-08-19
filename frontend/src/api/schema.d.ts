@@ -11602,6 +11602,8 @@ export interface components {
         /** TenantSkillRead */
         TenantSkillRead: {
             audience?: components["schemas"]["SkillAudienceSummary"] | null;
+            /** Calibration */
+            calibration?: string | null;
             /** Catalog Required Capability */
             catalog_required_capability?: string | null;
             /**
@@ -12875,6 +12877,8 @@ export interface components {
         };
         /** UpdateTenantSkillRequest */
         UpdateTenantSkillRequest: {
+            /** Calibration */
+            calibration?: string | null;
             /** Description */
             description?: string | null;
             /** Distribution Mode */

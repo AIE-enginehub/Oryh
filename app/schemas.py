@@ -2127,6 +2127,11 @@ class UpdateTenantSkillRequest(TenantSkillBase):
     files: dict[str, str] | None = None
     required_capability: str | None = Field(default=None, max_length=100)
     distribution_mode: DistributionMode | None = None
+    # The workspace's refinement of a skill it did not write. Unlike `files`,
+    # setting this does NOT fork a product skill — that is the whole point:
+    # a preference should not cost every future catalog update. Empty string
+    # clears it.
+    calibration: str | None = Field(default=None, max_length=4000)
     status: Literal["active", "archived"] | None = None
 
 
@@ -2138,6 +2143,7 @@ class TenantSkillRead(APIModel):
     title: str | None = None
     description: str | None = None
     required_capability: str | None = None
+    calibration: str | None = None
     # the shipped catalog's gate for a product skill (null on custom) — what
     # required_capability returns to if the tenant resets it to resume
     # tracking the catalog

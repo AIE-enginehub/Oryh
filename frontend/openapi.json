@@ -23894,6 +23894,17 @@
               }
             ]
           },
+          "calibration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration"
+          },
           "catalog_required_capability": {
             "anyOf": [
               {
@@ -29465,6 +29476,18 @@
       "UpdateTenantSkillRequest": {
         "additionalProperties": false,
         "properties": {
+          "calibration": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration"
+          },
           "description": {
             "anyOf": [
               {

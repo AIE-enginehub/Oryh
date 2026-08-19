@@ -746,6 +746,21 @@ class TenantSkill(TenantRecord, Base):
     # audience means nobody. Explicit rather than inferred from row count, so
     # emptying the audience narrows rather than silently re-broadcasting.
     distribution_mode: Mapped[str] = mapped_column(String(20), default="capability")
+    # The workspace's own refinement of a skill it did not write: "只报简要内容",
+    # "报销单也带上项目名". Appended as a section when the bundle renders, and
+    # NEVER touched by the catalog sync — the third knob a tenant owns outright,
+    # beside required_capability and distribution_mode.
+    #
+    # It exists so a preference does not cost a fork. Editing `files_jsonb` on a
+    # product skill turns it `custom`, which stops catalog updates forever; a
+    # tenant who wanted one sentence changed would stop receiving every
+    # correction shipped afterwards. Calibration refines, the catalog keeps
+    # improving underneath.
+    #
+    # It cannot widen what the skill may do: the rendered section says so, and
+    # the skill's own "What This Skill Never Does" wins on contradiction. A
+    # tenant cannot calibrate an agent past an approval boundary.
+    calibration: Mapped[str | None] = mapped_column(Text, nullable=True)
     # {relative_path: content}; must contain "SKILL.md"
     files_jsonb: Mapped[dict] = mapped_column("files_jsonb", JsonType, default=dict)
     version: Mapped[int] = mapped_column(Integer, default=1)

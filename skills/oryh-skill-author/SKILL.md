@@ -15,8 +15,9 @@ The single most important thing you do is **classify before you write**. Tenant 
 | **Policy** | Thresholds, routing, submission requirements, approval tiers — *rules agents interpret at use time* | Workflow definition (natural language, versioned) | Publish a new version; zero skill edits; effective immediately |
 | **Process contract** | Which API calls, in what order, iron rules, reply formats, hand-offs between roles — *how an agent executes* | Customer workflow skill in the `/skills` registry | Revise the skill; agents pick it up on next sync |
 | **Deterministic capability** | Pricing engines, code/OCR parsers, document templates, anything needing exactness or regression tests | A local tool the agent calls — **code, not prose** | Engineering work; a skill may *reference* the tool, never *be* it |
+| **Calibration** | How a SHIPPED skill should behave here — how much detail to report, which shortcuts to prefer, what this workspace always wants mentioned | `calibration` on the product skill itself | `PATCH /skills/{ref}` with `calibration`; **does not fork it**, so catalog updates keep arriving |
 
-A requirement usually decomposes across all three. "a discount over 10% needs the sales director" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
+A requirement usually decomposes across several of these. "a discount over 10% needs the sales director" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
 
 {{include:_common/answer-the-question.md}}
 
@@ -64,6 +65,30 @@ Everything else comes from the conversation and from the tenant's own records.
    - Process contract → continue to step 5.
    - Deterministic capability → name it explicitly as a tool the company needs built, and design the skill to call it. Never inline it as prose.
 5. **Draft the SKILL.md** following [references/authoring-guide.md](references/authoring-guide.md) exactly: frontmatter contract, naming, section order, iron-rule style, and the base-skill rule — a customer workflow skill *composes* the product skills (`$oryh-quotation-submit`, `$oryh-business-object`, …) and the tenant's objects; it never re-documents core API mechanics the product skills already own.
+5a. **A preference is calibration, not a rewrite.** When the admin wants a
+   shipped skill to behave differently *here* — "keep the todo list brief",
+   "expense notifications should name the project" — set `calibration` on that
+   product skill and stop.
+   Do NOT copy its files and edit them: editing `files` on a product skill
+   FORKS it to `custom`, and from that moment it stops receiving every
+   correction the catalog ships. One workspace paid three improvements for one
+   sentence of preference.
+
+   ```json
+   PATCH /skills/{skill_ref}          // e.g. skill_ref = oryh-my-work
+   {"calibration": "List todos as title, due date and status only. Do not expand the linked record's detail."}
+   ```
+
+   It is appended as a "Workspace calibration" section when each bundle
+   renders, and it **cannot widen** what the skill may do — the rendered text
+   says the skill's own rules win on contradiction, so calibration can never
+   authorise a write the skill forbids. If what the admin wants genuinely
+   contradicts a skill's rules, that is a different skill, not a calibration.
+
+   Send `""` to clear it. Changing it bumps the version and moves the skill's
+   `files_hash`, so every installed copy is reported stale on its holder's next
+   session and picks the new wording up on sync.
+
 5b. **Never define a custom object for something ORYH already ships.** A
    process about products, customers, invoices, employees or projects is a
    process about the BUILT-IN ones. `GET /builtin-object-types` lists every
