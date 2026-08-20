@@ -11,7 +11,7 @@ scopes it was deliberately granted — and 403 on the one route the new
 payables instructions send it to first. Nothing announces a scope; the failure
 surfaces as an agent stuck mid-task.
 
-Found by running the deployment e2e against the release: the seeded
+Found by running the Zhangjiakou e2e against the release: the seeded
 `finance_reviewer` could bill a supplier and could not bill a colleague.
 
 The grant is narrow on purpose. It goes to roles that already hold

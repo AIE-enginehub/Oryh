@@ -206,7 +206,7 @@ export type Invoice = {
   invoice_no: string;
   // `payroll` is a payslip: the counterparty is the employee it pays, and
   // reading it needs `payroll.read` — see docs/payroll.md
-  direction: "sales" | "purchase" | "payroll";
+  direction: "sales" | "purchase" | "payroll" | "reimbursement";
   invoice_type: string | null;
   employee_id: string;
   customer_id: string | null;

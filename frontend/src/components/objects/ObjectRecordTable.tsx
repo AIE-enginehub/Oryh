@@ -3,6 +3,29 @@ import { Link } from "react-router-dom";
 import type { ObjectDisplayNames, ObjectListRecord } from "../../api/objects";
 import { useI18n } from "../../i18n";
 
+export // A lookup, not a ternary chain. The chain fell through to "工资条" for
+// anything it did not name, so `reimbursement` — added on the server — showed
+// as a payslip in the console: a payable to an employee mislabelled as their
+// pay. A fifth direction is one line here, and an unknown one shows its own
+// key rather than borrowing someone else's meaning.
+function invoiceDirectionLabel(
+  direction: string,
+  text: (zh: string, en: string) => string,
+): string {
+  switch (direction) {
+    case "sales":
+      return text("销项", "Sales");
+    case "purchase":
+      return text("进项", "Purchase");
+    case "payroll":
+      return text("工资条", "Payslip");
+    case "reimbursement":
+      return text("报销", "Reimbursement");
+    default:
+      return direction;
+  }
+}
+
 export function ObjectStatus({ status, translate = true }: { status: string; translate?: boolean }) {
   const { text } = useI18n();
   const token = status.toLocaleLowerCase().replace(/[^a-z0-9_-]/g, "-");
@@ -206,7 +229,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
             const record = item.record;
             return <tr key={record.id}>
               <td><strong className="mono-cell">{record.invoice_no}</strong>{record.tax_invoice_number && <small className="mono-cell">{record.tax_invoice_number}</small>}</td>
-              <td>{record.direction === "sales" ? text("销项", "Sales") : record.direction === "purchase" ? text("进项", "Purchase") : text("工资条", "Payslip")}</td>
+              <td>{invoiceDirectionLabel(record.direction, text)}</td>
               <td>{record.counterparty_name_snapshot || "—"}</td>
               {/* a payslip declares no total of its own — 实发 is the sum of its
                   lines, so the header has nothing to show here */}

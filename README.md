@@ -85,6 +85,48 @@ one environment should not be reused against another.
   client library to keep in step.
 - **An audit trail with server-side attribution**: who did what is decided by
   the credential, never by what the caller says about itself.
+- **Behaviour you change by writing a sentence** — skills, approval routing
+  and lifecycle vocabulary are all prose this workspace owns, so "we do it
+  differently here" is a message to an agent rather than a customisation
+  project. See below.
+
+## Customising it is a conversation, not a project
+
+Most of what a business calls "our process" lives in this system as **prose**.
+The skills an agent works from are markdown; a workspace's approval routing is
+a natural-language document the flow agent reads at decision time; lifecycle
+state names are the workspace's own words. None of it is compiled, and none of
+it needs a release.
+
+So changing how the system behaves here is usually a sentence to an agent:
+
+> "When you report my todos, list titles and due dates only — do not expand
+> the linked record."
+
+> "Pay approved expense claims directly. We do not raise reimbursement
+> invoices."
+
+> "Call the post-approval invoice state `approved`, not `issued`."
+
+Each of those lands on a different knob — a skill's `calibration`, the
+workspace's workflow definition, the lifecycle machine — and the admin's agent
+knows which. All three take effect immediately, for everyone, with no fork, no
+configuration screen and no deploy. Agents pick the change up on their next
+session, and are told what changed rather than silently re-instructed.
+
+**What that is worth is mostly what it removes.** In a traditional ERP the
+same three changes are a customisation request, a developer, a test
+environment and a release window — and the second one is often "not
+supported", because the vendor decided that expenses become invoices and the
+schema encodes that decision. Here the decision is text, so a workspace that
+disagrees writes a different sentence.
+
+**Where prose stops.** Calibration cannot widen what a skill may do: the
+rendered text says the skill's own rules win on contradiction, and the server
+enforces permissions, state transitions, settlement arithmetic and attribution
+regardless of what any instruction says. Natural language decides how work is
+done; it never decides what is allowed. That boundary is what makes editing
+the prose safe enough to do casually.
 
 ## What this is not
 
