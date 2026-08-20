@@ -16,11 +16,20 @@ GET /sales-orders/{order_id}/detail             → lines, the linked quotation 
 
 GET /approval-records?entity_type={type}&entity_id={id}   → the trail on its own
 GET /todos?employee_id={me}&status=open&entity_type={type}&entity_id={id}   → your open todo
-GET /attachments/{attachment_id}/content        → a receipt or quote file
+GET /expense-claims/{claim_id}/attachments/{attachment_id}/content       → a receipt
+GET /purchase-requests/{request_id}/attachments/{attachment_id}/content  → a quote file
 ```
 
 `entity_type` is one of `timesheet_header`, `expense_claim`,
 `purchase_request`, `sales_quotation`, `sales_order`.
+
+An attachment is reached through the document that carries it, never by its id
+alone: the server answers "may this person see this document" first, and only
+then serves the bytes. `GET /attachments/{id}/content` still exists and is the
+workspace administrator's route — an approver calling it gets 403, which is
+not a missing capability to request but the wrong URL. Quotations and orders
+follow the same shape
+(`GET /sales-orders/{order_id}/attachments/{attachment_id}/content`).
 
 ## Record One Approval Fact
 

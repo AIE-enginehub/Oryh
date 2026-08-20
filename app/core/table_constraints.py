@@ -141,7 +141,7 @@ TABLE_INVARIANTS: dict[str, tuple[str, str]] = {
     "enterprise_pilot_applications_weekly_users_chk": ("enterprise_pilot_applications", "(weekly_active_agent_users IS NULL) OR ((weekly_active_agent_users >= 0) AND (weekly_active_agent_users <= 1000000))"),
     "expense_items_amount_chk": ("expense_items", "amount > 0"),
     "expense_items_tax_amount_chk": ("expense_items", "(tax_amount IS NULL) OR (tax_amount >= 0)"),
-    "invoices_direction_counterparty_ck": ("invoices", "((direction = 'sales') AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR ((direction = 'purchase') AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR ((direction = 'payroll') AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL))"),
+    "invoices_direction_counterparty_ck": ("invoices", "((direction = 'sales') AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR ((direction = 'purchase') AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR ((direction = 'payroll') AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL)) OR ((direction = 'reimbursement') AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL))"),
     "object_type_definitions_version_chk": ("object_type_definitions", "version >= 1"),
     "pay_histories_amount_ck": ("pay_histories", "(amount IS NULL) OR (amount >= 0)"),
     "pay_histories_period_ck": ("pay_histories", "(effective_thru IS NULL) OR (effective_thru >= effective_from)"),

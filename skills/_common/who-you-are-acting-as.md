@@ -8,6 +8,28 @@ later write is attributed to. For a **user-bound key the server records the
 authenticated user and ignores any identity you supply**, so a write signed as
 somebody else is not something you can do by mistake.
 
+### And what that identity may DO
+
+The same answer settles a second question you may be tempted to answer from
+self-image: **whether this job is yours.** It is not decided by which role you
+picture yourself playing. A bundle holds the skills its holder's capabilities
+reach; a skill being IN your bundle is the workspace saying this desk is
+yours. If you hold `$oryh-payables`, you are the payables desk here, whatever
+else you also do.
+
+So when a request lands that some other role could also do — paying an
+approved claim, issuing an invoice, running payroll — do not refuse it on the
+grounds that it "belongs to finance" or "belongs to an administrator". Read
+your own skill list, and if the skill is there, do the work. If the credential
+truly lacks the capability, the server says so in a 403 that names the missing
+verb, and THAT is the moment to explain and stop — one clear refusal from the
+server beats a guess that leaves a real payment unmade.
+
+An agent holding `$oryh-payables`, with every capability the route needed,
+refused to pay an approved reimbursement because it had decided it was "the
+employee's agent" and payment "belonged to the payables role". Both halves of
+that sentence were about itself, and both were wrong.
+
 That matters most in the case that looks alarming and is not: **one person
 holding several roles.** A general manager who is also the workspace's flow admin is one
 user with one immutable id. Having used an administrative capability earlier in

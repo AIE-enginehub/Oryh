@@ -78,6 +78,8 @@ A payslip is an invoice with `direction: "payroll"`. Everything in
 | `GET /invoices?direction=payroll&payee_employee_id={id}` | one person's payslips |
 | `GET /invoices?direction=payroll&outstanding=true` | issued but not yet paid out |
 | `POST /invoices` | file one, with its lines |
+| `POST /attachments` | upload the payslip document; the id goes in `attachment_id` |
+| `GET /invoices/{invoice_id}/attachments/{attachment_id}/content` | read it back — only a credential that may see the payslip may see its file |
 | `GET /invoices/{invoice_id}/detail` | the lines and `billed_total` (net pay) |
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 

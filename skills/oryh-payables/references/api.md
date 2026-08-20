@@ -16,6 +16,10 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 | `DELETE /invoices/{invoice_id}` | soft delete — refused while payments are applied |
 | `POST /invoices/{invoice_id}/restore` | undo that |
+| `POST /expense-claims/{claim_id}/invoice` | raise the reimbursement invoice for an approved claim (201 raised / 200 already existed) |
+| `POST /attachments` | upload the supplier's file; the id goes in `attachment_id` |
+| `GET /invoices/{invoice_id}/attachments/{attachment_id}/content` | read that file back |
+| `GET /payments/{payment_id}/attachments/{attachment_id}/content` | the bank receipt on a payout |
 | `POST /invoices/{invoice_id}/submit` | draft → submitted (awaiting check) |
 
 ```json
@@ -166,11 +170,18 @@ POST /payments/{payment_id}/apply
 {
   "lines": [
     {"applied_to_type": "invoice", "applied_to_id": "bill-a", "amount_applied": 26000.0},
-    {"applied_to_type": "expense_claim", "applied_to_id": "claim-b", "amount_applied": 800.0}
+    {"applied_to_type": "invoice", "applied_to_id": "reimbursement-b", "amount_applied": 800.0}
   ],
   "idempotency_key": "ap-2026-08-02-01"
 }
 ```
+
+An expense claim is settled by ONE of two routes, and the workspace chooses:
+apply to the reimbursement invoice raised from it (as above), or apply to the
+claim itself with `"applied_to_type": "expense_claim"`. Not both — a 409 names
+whichever already covers it, because the claim and its invoice keep separate
+running totals and paying both pays the employee twice while each document
+reports itself correctly settled.
 
 Returns the written rows, the payment's `applied_amount` / `unapplied_amount`,
 and a `targets` entry per document with `settleable_total`, `applied_amount`

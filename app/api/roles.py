@@ -87,6 +87,11 @@ def list_roles(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    """Every role, its full grant set and its headcount — the workspace's
+    access topology. That is what `users.manage` manages; a member's agent has
+    no read that needs it (the console asks only when the holder can act on
+    the answer, and gates that on the same capability)."""
+    require_permission(actor, "users.manage")
     roles = db.scalars(
         select(Role).where(Role.tenant_id == actor.tenant_id).order_by(Role.is_system.desc(), Role.name.asc())
     ).all()

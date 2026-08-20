@@ -71,11 +71,13 @@ from app.api.common import (
     page_only_pagination,
     recheck_charged_document,
     record_line_audit,
+    register_attachment_source,
     require_live_line,
     require_machine_state,
     resolve_chargeable_account,
     resolve_item_refs,
     restore_document,
+    serve_document_attachment,
     submit_document,
     visible_payroll_filter,
 )
@@ -160,7 +162,12 @@ from app.schemas import (
 from app.services.audit import record_audit
 from app.core.type_options import SIGNED_TYPE_FAMILIES
 from app.services.type_options import require_type_option, type_option_sign
-from app.services.state_machines import editable_states, get_builtin_machine, validate_status_filter
+from app.services.state_machines import (
+    editable_states,
+    get_builtin_machine,
+    state_for_role,
+    validate_status_filter,
+)
 
 router = APIRouter()
 
@@ -357,6 +364,9 @@ COUNTERPARTY_FIELD_BY_DIRECTION = {
     "sales": "customer_id",
     "purchase": "vendor_id",
     "payroll": "payee_employee_id",
+    # an employee who paid for something on the company's behalf; the merchant
+    # who issued the receipt was paid by them, not by us
+    "reimbursement": "payee_employee_id",
 }
 
 
@@ -364,6 +374,7 @@ COUNTERPARTY_MODEL_BY_DIRECTION = {
     "sales": Customer,
     "purchase": Vendor,
     "payroll": Employee,
+    "reimbursement": Employee,
 }
 
 
@@ -379,6 +390,8 @@ ORDER_LINK_BY_DIRECTION = {
     "sales": "sales_order_id",
     "purchase": "purchase_order_id",
     "payroll": None,
+    # a reimbursement bills no order either; its chain runs back to the claim
+    "reimbursement": None,
 }
 
 
@@ -398,6 +411,10 @@ ITEM_TYPE_FAMILY_BY_DIRECTION = {
     "sales": "invoice_item_type",
     "purchase": "invoice_item_type",
     "payroll": "payroll_item_type",
+    # a reimbursement line IS an expense line, so it counts in the vocabulary
+    # the claim already used — which is also what a ledger needs to reach the
+    # right expense account
+    "reimbursement": "expense_category",
 }
 
 
@@ -599,6 +616,9 @@ def list_invoices(
     tax_invoice_number: str | None = None,
     sales_order_id: str | None = None,
     purchase_order_id: str | None = None,
+    # every reimbursement invoice raised from one claim — the other half of
+    # the two-way link, so the chain is followable from either end
+    expense_claim_id: str | None = None,
     billing_account_id: str | None = None,
     period_start: date | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
@@ -658,6 +678,7 @@ def list_invoices(
             Invoice.tax_invoice_number: tax_invoice_number,
             Invoice.sales_order_id: sales_order_id,
             Invoice.purchase_order_id: purchase_order_id,
+            Invoice.expense_claim_id: expense_claim_id,
             Invoice.billing_account_id: billing_account_id,
             Invoice.period_start: period_start,
             Invoice.status: status_filter,
@@ -740,7 +761,7 @@ def create_invoice(
                 "`total_amount` when the amount is agreed as one figure (汇总开票)"
             ),
         )
-    require_machine_state(db, tenant_id, Invoice, payload.status)
+    initial_status = require_machine_state(db, tenant_id, Invoice, payload.status)
     invoice_no = payload.invoice_no or allocate_number(db, Invoice, tenant_id)
     invoice = Invoice(
         tenant_id=tenant_id,
@@ -766,7 +787,7 @@ def create_invoice(
         sales_order_id=payload.sales_order_id,
         purchase_order_id=payload.purchase_order_id,
         project_id=payload.project_id,
-        status=payload.status,
+        status=initial_status,
         remarks=payload.remarks,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
@@ -892,8 +913,10 @@ def update_invoice(
             direction=invoice.direction, exclude_invoice_id=invoice.id,
         )
     if "status" in updates and updates["status"] != invoice.status:
-        apply_status_change(db, actor, invoice, updates["status"])
-        if updates["status"] == "issued" and invoice.issued_at is None:
+        machine = apply_status_change(db, actor, invoice, updates["status"])
+        # issued_at follows the ROLE, not the name — a workspace that calls
+        # this state `approved` still gets the timestamp
+        if updates["status"] == state_for_role(machine, "invoice", "issued") and invoice.issued_at is None:
             invoice.issued_at = datetime.now(timezone.utc)
     if "extracted_fields" in updates:
         invoice.extracted_fields_jsonb = updates.pop("extracted_fields")
@@ -2127,6 +2150,31 @@ class SettlementTarget:
     # how a positive application moves the running column: +1 everywhere except
     # an account, where an outbound payment REDUCES the balance
     effect_sign: object = None
+    # (target attribute, payment attribute) pairs that must name the same
+    # party. Money moves between two parties, and an application says the money
+    # that moved is the money this document was waiting for — which is a lie
+    # unless the same party is on both sides.
+    #
+    # Only the account had this check, with the comment "without this, one
+    # customer's cheque could quietly fund another's account". The identical
+    # hole was open on invoices: a payment to an employee settled a vendor's
+    # bill and cleared a payable to a supplier nobody paid. Declaring the pairs
+    # here rather than branching inside the guard is what makes the next
+    # settlement target unable to ship without one.
+    counterparty_fields: tuple[tuple[str, str], ...] = ()
+    # (db, tenant_id, row) -> a refusal reason, or None to allow. For a
+    # target that is settleable only in some states of the world.
+    #
+    # It exists because a tenant chooses how much ceremony a reimbursement
+    # gets: raise an invoice and settle that (an AP sub-ledger, aging, a
+    # ledger posting per document), or pay the claim directly (fewer
+    # documents, same money), or keep ORYH for the approval alone and pay
+    # elsewhere. All three are legitimate, and the server has no business
+    # picking. What it must prevent is one claim taking BOTH routes, because
+    # the claim and its invoice share no running total: pay 1300 against each
+    # and the employee has 2600, with both documents reporting themselves
+    # correctly settled.
+    settlement_precondition: object = None
 
 
 def _expense_claim_total(db: Session, claim: ExpenseClaim) -> float:
@@ -2144,6 +2192,32 @@ def _expense_claim_total(db: Session, claim: ExpenseClaim) -> float:
     )
 
 
+def _claim_already_billed(db: Session, tenant_id: str, claim: ExpenseClaim) -> str | None:
+    """A claim that has a reimbursement invoice is paid through it, not twice.
+
+    Which of the two routes a workspace takes is the workspace's decision —
+    stated in its workflow definition and in the calibration on its payables
+    skill — and the server enforces only that a single claim does not take
+    both. The exclusion is decided by whichever route is used first.
+    """
+    raised = db.scalars(
+        select(Invoice).where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.expense_claim_id == claim.id,
+            Invoice.deleted_at.is_(None),
+        )
+    ).all()
+    if not raised:
+        return None
+    return (
+        "this claim is billed by "
+        + ", ".join(invoice.invoice_no for invoice in raised)
+        + " — apply the payment to that invoice instead. A claim and its invoice keep "
+        "separate running totals, so paying both pays the employee twice while each "
+        "document reports itself correctly settled"
+    )
+
+
 SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
     "invoice": SettlementTarget(
         Invoice,
@@ -2157,6 +2231,12 @@ SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
             0.0,
             invoice_billed_total(row, live_invoice_items(db, row.tenant_id, row.id)),
         ),
+        # an invoice names exactly one counterparty, and so does a payment
+        counterparty_fields=(
+            ("customer_id", "customer_id"),
+            ("vendor_id", "vendor_id"),
+            ("payee_employee_id", "payee_employee_id"),
+        ),
     ),
     "expense_claim": SettlementTarget(
         ExpenseClaim,
@@ -2167,6 +2247,13 @@ SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
         lambda row: "outbound",
         lambda row: row.title,
         bounds=lambda db, row: (0.0, _expense_claim_total(db, row)),
+        # the claim's own employee is who gets reimbursed; a payout to anyone
+        # else settles nothing of theirs
+        counterparty_fields=(("employee_id", "payee_employee_id"),),
+        # Payable directly — the lighter of the two routes a workspace may
+        # take — UNLESS this claim has already been billed. Then the money
+        # belongs to the invoice, and taking both routes would pay twice.
+        settlement_precondition=lambda db, tenant_id, row: _claim_already_billed(db, tenant_id, row),
     ),
     "billing_account": SettlementTarget(
         BillingAccount,
@@ -2190,6 +2277,13 @@ SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
             if payment.direction == ("outbound" if row.vendor_id is not None else "inbound")
             else -1.0
         ),
+        # an account may have no owner at all, which the shared guard allows by
+        # skipping a null; the pairs themselves are what its inline loop used
+        counterparty_fields=(
+            ("customer_id", "customer_id"),
+            ("vendor_id", "vendor_id"),
+            ("employee_id", "payee_employee_id"),
+        ),
     ),
     "payment": SettlementTarget(
         Payment,
@@ -2200,6 +2294,12 @@ SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
         lambda row: "outbound" if row.direction == "inbound" else "inbound",
         lambda row: f"{row.payment_no} {row.counterparty_name_snapshot or ''}".strip(),
         bounds=lambda db, row: (0.0, float(row.amount)),
+        # a refund goes back to whoever overpaid, never to a third party
+        counterparty_fields=(
+            ("customer_id", "customer_id"),
+            ("vendor_id", "vendor_id"),
+            ("payee_employee_id", "payee_employee_id"),
+        ),
     ),
 }
 
@@ -2426,7 +2526,7 @@ def create_payment(
         require_type_option(db, tenant_id, "payment_method", payload.payment_method)
     if payload.attachment_id:
         get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
-    require_machine_state(db, tenant_id, Payment, payload.status)
+    initial_status = require_machine_state(db, tenant_id, Payment, payload.status)
     payment_no = payload.payment_no or allocate_number(db, Payment, tenant_id)
     payment = Payment(
         tenant_id=tenant_id,
@@ -2442,7 +2542,7 @@ def create_payment(
         counterparty_account=payload.counterparty_account,
         reference_no=payload.reference_no,
         attachment_id=payload.attachment_id,
-        status=payload.status,
+        status=initial_status,
         remarks=payload.remarks,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
@@ -2522,8 +2622,8 @@ def update_payment(
                 ),
             )
     if "status" in updates and updates["status"] != payment.status:
-        apply_status_change(db, actor, payment, updates["status"])
-        if updates["status"] == "paid" and payment.paid_at is None:
+        machine = apply_status_change(db, actor, payment, updates["status"])
+        if updates["status"] == state_for_role(machine, "payment", "paid") and payment.paid_at is None:
             payment.paid_at = datetime.now(timezone.utc)
     if "custom_fields" in updates:
         payment.custom_fields_jsonb = updates.pop("custom_fields")
@@ -2709,6 +2809,10 @@ def apply_payment(
             row = resolve_settlement_target(db, tenant_id, line.applied_to_type, line.applied_to_id)
             target_rows[key] = row
         spec = SETTLEMENT_TARGETS[line.applied_to_type]
+        if spec.settlement_precondition is not None:
+            refusal = spec.settlement_precondition(db, tenant_id, row)
+            if refusal:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=refusal)
         wanted = spec.settling_direction(row)
         # None = both directions are legal (an account takes deposits and gives
         # refunds); every other target is settled from exactly one side
@@ -2720,6 +2824,28 @@ def apply_payment(
                     f"it is settled by an {wanted!r} payment"
                 ),
             )
+        # Money moves between two parties. An application says the money that
+        # moved is the money this document was waiting for, and that is a lie
+        # unless the same party is on both sides. Only the account checked this
+        # — "without this, one customer's cheque could quietly fund another's
+        # account" — while an invoice took a payment to anyone at all: a payout
+        # to an employee cleared a supplier's bill, and the supplier's ledger
+        # showed a payable settled by money they never received.
+        #
+        # A null on the target's side is no claim about the party (an account
+        # need not have an owner), so it is skipped rather than required.
+        for target_field, payment_field in spec.counterparty_fields:
+            owner = getattr(row, target_field)
+            if owner is not None and getattr(payment, payment_field) != owner:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"this {spec.label} names a different party than the payment does — "
+                        f"{spec.describe(row)} is not settled by money paid to someone else. "
+                        "Money owed to one party is not discharged by paying another"
+                    ),
+                )
+
         if line.applied_to_type == "billing_account":
             # money must never land in a points balance. This is the whole
             # reason unit_type is a constrained column rather than a vocabulary
@@ -2738,22 +2864,6 @@ def apply_payment(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"account {row.account_code} is {row.status} and takes no movement",
                 )
-            # the payment's counterparty must be the account's owner — without
-            # this, one customer's cheque could quietly fund another's account
-            for account_field, payment_field in (
-                ("customer_id", "customer_id"),
-                ("vendor_id", "vendor_id"),
-                ("employee_id", "payee_employee_id"),
-            ):
-                owner = getattr(row, account_field)
-                if owner is not None and getattr(payment, payment_field) != owner:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=(
-                            f"account {row.account_code} belongs to a different party "
-                            "than this payment's counterparty"
-                        ),
-                    )
         target_currency = row.unit if line.applied_to_type == "billing_account" else row.currency
         if target_currency != payment.currency:
             raise HTTPException(
@@ -3025,3 +3135,239 @@ def list_payment_applications(
         pagination=page_only_pagination(page, size),
         read_model=PaymentApplicationRead,
     )
+
+
+# --- the original document, reached through the record that carries it ------
+#
+# Authorisation is the DOCUMENT's, never the attachment id's. See
+# `serve_document_attachment` in common.py for why the standalone
+# `/attachments/{id}/content` could not answer this question safely.
+
+
+register_attachment_source(Invoice)
+
+
+@router.get("/invoices/{invoice_id}/attachments/{attachment_id}/content")
+def get_invoice_attachment(
+    invoice_id: str,
+    attachment_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """The 发票原件 — a customer's PDF, a 增值税发票扫描件.
+
+    Payroll is why this must not be reachable by id alone: a payslip is an
+    invoice, and its attachment is the payslip."""
+    document = get_scoped_or_404(db, Invoice, actor.tenant_id, invoice_id)
+    ensure_invoice_visible(actor, document)
+    return serve_document_attachment(db, actor.tenant_id, document, attachment_id)
+
+
+register_attachment_source(Payment)
+
+
+@router.get("/payments/{payment_id}/attachments/{attachment_id}/content")
+def get_payment_attachment(
+    payment_id: str,
+    attachment_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A remittance advice or receipt, reached through the payment."""
+    document = get_scoped_or_404(db, Payment, actor.tenant_id, payment_id)
+    ensure_payment_visible(db, actor, document)
+    return serve_document_attachment(db, actor.tenant_id, document, attachment_id)
+
+
+# --- an approved claim becomes a payable ------------------------------------
+
+# "Issued" here is a ROLE — the machine state meaning "this claim on us is
+# live and settleable, past any approval". The shipped machine calls it
+# `issued`; a workspace may call it `approved` or anything else, and
+# `state_for_role` finds their word. `submitted` (the role) would mean
+# "awaiting invoice approval", the second approval round this route exists
+# to avoid.
+
+
+@router.post(
+    "/expense-claims/{claim_id}/invoice",
+    response_model=InvoiceEnvelope,
+    response_model_exclude_unset=True,
+    status_code=status.HTTP_201_CREATED,
+)
+def raise_reimbursement_invoice(
+    claim_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Raise the reimbursement invoice for an approved expense claim.
+
+    The company owes the EMPLOYEE. It never owed the merchant who issued the
+    receipt — the employee already paid them, out of their own money, at the
+    hotel desk — so this is not a purchase invoice against a vendor, and the
+    counterparty guard on settlement refuses that shape outright.
+
+    An explicit call rather than a side effect of approval, because nothing in
+    this API invents a document when a status changes: the act has an actor, a
+    capability and an audit line, and a flow agent moving a claim to `approved`
+    does not silently file a payable it holds no capability to file.
+
+    Bills the claim's UNBILLED lines, so a claim can be billed in instalments
+    the way a purchase order is — some lines now, the disputed ones once they
+    are settled, a second currency on its own document. Call it again and it
+    bills whatever is outstanding; call it when nothing is, and it refuses,
+    naming the invoices that already cover the claim.
+
+    What is unique is one level down: `invoice_items_expense_item_uk` bills an
+    expense line exactly once. That is the rule worth a database constraint,
+    because breaking it reimburses the employee twice for one taxi, and the
+    thing that would break it is a retry arriving after a timeout.
+    """
+    tenant_id = actor.tenant_id
+    require_permission(actor, "invoice.manage", "reimbursement")
+    claim = get_active_document_or_404(db, ExpenseClaim, tenant_id, claim_id)
+
+    # The other half of the exclusion. A workspace that pays claims directly
+    # has already moved money against this one; billing it now would create a
+    # second payable for a debt that is part or wholly discharged, and nothing
+    # links the two totals. Whichever route a claim takes first is the route it
+    # keeps.
+    paid_directly = float(claim.applied_amount or 0)
+    if abs(paid_directly) > CENT:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{paid_directly:.2f} has already been paid against this claim directly — "
+                "it is settled without an invoice in this workspace. Reverse those "
+                "applications first if this claim should be billed instead"
+            ),
+        )
+
+    # A claim still in an editable state is a moving target: its lines are what
+    # the invoice bills, and billing a document somebody is still editing is
+    # how the two come to disagree. The states are the tenant's, not ours.
+    machine = get_builtin_machine(db, tenant_id, "expense_claim")
+    editable = editable_states(machine, "expense_claim")
+    if claim.status in editable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"this claim is {claim.status!r} and still editable — its lines are what the "
+                "invoice bills, so raise the invoice once the claim has been approved"
+            ),
+        )
+
+    # Only the lines nobody has billed yet. A claim is billed the way a
+    # purchase order is — some lines now, the disputed ones once they are
+    # settled — so this call bills what is outstanding rather than the whole
+    # claim, and calling it again after everything is billed bills nothing.
+    already = (
+        select(InvoiceItem.expense_item_id)
+        .where(
+            InvoiceItem.tenant_id == tenant_id,
+            InvoiceItem.expense_item_id.is_not(None),
+            InvoiceItem.deleted_at.is_(None),
+        )
+    )
+    items = db.scalars(
+        select(ExpenseItem)
+        .where(
+            ExpenseItem.tenant_id == tenant_id,
+            ExpenseItem.claim_id == claim_id,
+            ExpenseItem.deleted_at.is_(None),
+            ExpenseItem.id.not_in(already),
+        )
+        .order_by(ExpenseItem.expense_date.asc(), ExpenseItem.created_at.asc())
+    ).all()
+    if not items:
+        raised = db.scalars(
+            select(Invoice)
+            .where(
+                Invoice.tenant_id == tenant_id,
+                Invoice.expense_claim_id == claim_id,
+                Invoice.deleted_at.is_(None),
+            )
+            .order_by(Invoice.created_at.asc())
+        ).all()
+        # A retry lands here, and so does a second attempt at a fully billed
+        # claim. Naming the invoices is what tells the two apart without
+        # another call — and it is the safe outcome either way, because the
+        # alternative to refusing is reimbursing the same taxi twice.
+        detail = (
+            "every line on this claim is already billed by "
+            + ", ".join(inv.invoice_no for inv in raised)
+            if raised
+            else "this claim has no live items — there is nothing to reimburse"
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+    employee = get_scoped_or_404(db, Employee, tenant_id, claim.employee_id)
+    # resolved against the TENANT's machine: a workspace that renamed the
+    # state gets its own name here, and one whose machine cannot answer gets
+    # told the exact `roles` entry to add
+    issued = state_for_role(
+        get_builtin_machine(db, tenant_id, "invoice"), "invoice", "issued"
+    )
+    invoice = Invoice(
+        tenant_id=tenant_id,
+        invoice_no=allocate_number(db, Invoice, tenant_id),
+        direction="reimbursement",
+        employee_id=claim.employee_id,
+        payee_employee_id=claim.employee_id,
+        counterparty_name_snapshot=employee.name,
+        title=claim.title,
+        invoice_date=claim.claim_date,
+        currency=claim.currency,
+        expense_claim_id=claim.id,
+        project_id=next((item.project_id for item in items if item.project_id), None),
+        # Live on arrival, not a draft awaiting its own approval round. The
+        # decision this invoice records was already made — on the claim, by the
+        # people the tenant's workflow named — and putting it through invoice
+        # approval would be approving the same spending twice, with the second
+        # approver holding none of the evidence the first one read.
+        #
+        # Same reasoning the payment family already uses: "an inbound receipt
+        # has nothing to approve — the money already arrived — and is simply
+        # created in the terminal state". A draft is a document nobody has
+        # asserted yet, and a draft that can be settled is the looser problem
+        # underneath: settlement has no status gate, so `draft` would have let
+        # money move against a payable no one had stood behind.
+        status=issued,
+        issued_at=datetime.now(timezone.utc),
+        # the claim keeps the narrative; the invoice carries the money
+        source_report_text=claim.source_report_text,
+    )
+    db.add(invoice)
+    db.flush()
+    for line_no, item in enumerate(items, 1):
+        db.add(
+            InvoiceItem(
+                tenant_id=tenant_id,
+                invoice_id=invoice.id,
+                line_no=line_no,
+                # the claim's own vocabulary, so a ledger reaches the expense
+                # account without a second mapping table
+                invoice_item_type=item.category,
+                expense_item_id=item.id,
+                product_name_snapshot=item.merchant or item.category,
+                amount=item.amount,
+                tax_amount=item.tax_amount,
+                notes=item.notes,
+            )
+        )
+    record_audit(
+        db,
+        tenant_id=tenant_id,
+        action="invoice.raised_from_claim",
+        entity_type="invoice",
+        entity_id=invoice.id,
+        actor=actor.label,
+        detail={
+            "expense_claim_id": claim.id,
+            "payee_employee_id": claim.employee_id,
+            "line_count": len(items),
+        },
+    )
+    db.commit()
+    db.refresh(invoice)
+    return envelope(InvoiceRead.model_validate(invoice).model_dump(by_alias=True))

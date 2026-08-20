@@ -314,6 +314,10 @@ def bulk_import_documents(
     family: str,
     rows: list[Any],
     machine_states: set[str],
+    # the tenant machine's own initial — a row that states no status starts
+    # here, because "draft" is the shipped machine's word, not necessarily
+    # this workspace's
+    initial_state: str,
     dry_run: bool = False,
     on_error: str = "skip",
     on_missing_reference: str = "error",
@@ -350,6 +354,8 @@ def bulk_import_documents(
                 "error": f"duplicate {number_field} in this batch (also row {seen[number]})",
             })
             continue
+        if row.status is None:
+            row.status = initial_state
         if row.status not in machine_states:
             results.append({
                 "index": index, "number": number, "outcome": "error",

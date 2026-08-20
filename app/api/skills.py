@@ -125,7 +125,7 @@ def get_skill_or_404(db: Session, tenant_id: str, skill_ref: str) -> TenantSkill
     response_model_exclude_unset=True,
 )
 def list_skills(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
     status_filter: Annotated[
         Literal["active", "archived", "all"] | None, Query(alias="status")
@@ -135,8 +135,13 @@ def list_skills(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, le=200)] = None,
 ):
-    """Skill index for agents: name + description are the trigger contract;
-    fetch the full skill by name when it matches. status=all lists everything."""
+    """The registry, whole: every skill's text, gate and audience — the skill
+    MANAGER's view, not an agent's. An agent's own surface is /my/skill-bundle
+    and /my/skills/* — rendered for that holder, and only theirs. This listing
+    used to be open to any credential in the workspace, which handed a
+    zero-capability member every role's instructions and every calibration."""
+    require_permission(actor, "skills.manage")
+    tenant_id = actor.tenant_id
     stmt = select(TenantSkill).where(TenantSkill.tenant_id == tenant_id)
     if status_filter and status_filter != "all":
         stmt = stmt.where(TenantSkill.status == status_filter)
@@ -221,9 +226,11 @@ def create_skill(
 )
 def get_skill(
     skill_ref: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    require_permission(actor, "skills.manage")
+    tenant_id = actor.tenant_id
     skill = get_skill_or_404(db, tenant_id, skill_ref)
     data = TenantSkillRead.model_validate(skill)
     data.audience = audience_summaries(db, tenant_id, [skill.id]).get(skill.id)
@@ -234,9 +241,11 @@ def get_skill(
 def get_skill_file(
     skill_ref: str,
     file_path: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    require_permission(actor, "skills.manage")
+    tenant_id = actor.tenant_id
     skill = get_skill_or_404(db, tenant_id, skill_ref)
     content = skill.files_jsonb.get(file_path)
     if content is None:
@@ -430,10 +439,12 @@ def assignment_read(
 )
 def list_skill_assignments(
     skill_ref: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
     """The audience, plus what it would do — read this before changing it."""
+    require_permission(actor, "skills.manage")
+    tenant_id = actor.tenant_id
     skill = get_skill_or_404(db, tenant_id, skill_ref)
     rows = skill_assignments(db, tenant_id, skill.id)
     data = SkillAudienceRead(

@@ -227,10 +227,60 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "invoice": DEFAULT_INVOICE_MACHINE,
     "payment": DEFAULT_PAYMENT_MACHINE,
 }
-BUILTIN_ANCHORS: dict[str, dict] = {
-    object_type: {"initial": "draft", "required_states": {"draft", "submitted"}}
-    for object_type in BUILTIN_MACHINES
+# What the SERVER needs from a machine, named by ROLE rather than by state
+# name. State names are the tenant's vocabulary — a workspace may call the
+# post-approval invoice state `approved` instead of `issued`, start claims at
+# `open` instead of `draft` — and the server has no business freezing their
+# words. What it does need is to find its own anchor points inside whatever
+# vocabulary the tenant chose:
+#
+#   submitted — where POST /{family}/submit lands a document (every family)
+#   issued    — an invoice that is live and settleable, past any approval:
+#               issued_at stamps on entering it, reimbursement invoices
+#               arrive in it
+#   paid      — a payment that has actually moved: paid_at stamps on it
+#
+# A machine says nothing → each role resolves to its own name (the shipped
+# machines all use role names as state names, so every existing tenant
+# machine keeps working untouched). A machine that renames a state carries a
+# `roles` map pointing the role at the new name:
+#
+#   {"states": ["draft", "submitted", "approved", ...],
+#    "roles": {"issued": "approved"}, ...}
+#
+# The previous anchor ({"required_states": {"draft", "submitted"}, initial ==
+# "draft"}) enforced the NAMES, which made renaming impossible by validation
+# — and left `issued` unanchored, so renaming IT passed validation and then
+# broke the reimbursement route at runtime.
+STATE_ROLES: dict[str, tuple[str, ...]] = {
+    object_type: ("submitted",) for object_type in BUILTIN_MACHINES
 }
+STATE_ROLES["invoice"] = ("submitted", "issued")
+# revising a quotation steps the source aside, and /send marks it delivered —
+# the server writes both states
+STATE_ROLES["sales_quotation"] = ("submitted", "superseded", "sent")
+STATE_ROLES["payment"] = ("submitted", "paid")
+
+
+def state_for_role(machine: dict, object_type: str, role: str) -> str:
+    """The tenant's name for one of the server's anchor states.
+
+    Raises with the exact fix when the machine cannot answer, because the
+    caller is mid-request and "the machine is wrong" without saying HOW is a
+    dead end for the admin reading the error.
+    """
+    name = (machine.get("roles") or {}).get(role, role)
+    if name not in set(machine.get("states", ())):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"this workspace's {object_type} machine has no state for the "
+                f"{role!r} role: neither a state named {role!r} nor a "
+                f'`"roles": {{"{role}": "<your name for it>"}}` entry. '
+                "Add the role mapping to the machine to use your own state name"
+            ),
+        )
+    return name
 
 
 def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: str) -> None:
@@ -260,15 +310,33 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
     editable = machine.get("editable_states", [])
     if not isinstance(editable, list) or not all(e in state_set for e in editable):
         fail("editable_states must be a list of declared states")
+    roles = machine.get("roles", {})
+    if not isinstance(roles, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in roles.items()
+    ):
+        fail("roles must map role names to state names")
+    for role, target in roles.items():
+        if target not in state_set:
+            fail(f"roles[{role!r}] names {target!r}, which is not a declared state")
     if entity_kind == "builtin":
-        anchors = BUILTIN_ANCHORS.get(object_type)
-        if anchors is None:
+        required = STATE_ROLES.get(object_type)
+        if required is None:
             fail(f"unknown builtin entity {object_type!r}")
-        missing = anchors["required_states"] - state_set
-        if missing:
-            fail(f"builtin {object_type} machine must keep anchor states {sorted(missing)}")
-        if initial != anchors["initial"]:
-            fail(f"builtin {object_type} machine must start at {anchors['initial']!r}")
+        unknown = set(roles) - set(required)
+        if unknown:
+            fail(
+                f"builtin {object_type} has no {sorted(unknown)} role — "
+                f"it anchors {sorted(required)}"
+            )
+        # every role must RESOLVE — to its own name or through the map. This
+        # is what replaced requiring the names themselves: rename freely, but
+        # tell the server where its anchors went.
+        for role in required:
+            if roles.get(role, role) not in state_set:
+                fail(
+                    f"the {role!r} role resolves to no state: rename it with "
+                    f'`"roles": {{"{role}": "<state>"}}` or keep a state named {role!r}'
+                )
 
 
 def get_definition(

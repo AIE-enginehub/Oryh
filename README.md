@@ -19,7 +19,7 @@ skills your workspace owns.
 service — nothing to install.
 
 ```bash
-git clone https://github.com/AIE-enginehub/oryh.git
+git clone https://github.com/AIE-enginehub/Oryh.git
 cd oryh
 docker compose up -d --build
 docker compose logs api | grep -A6 "standalone workspace created"

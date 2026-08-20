@@ -403,7 +403,7 @@ def create_employee_leave(
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
     require_type_option(db, tenant_id, "leave_type", payload.leave_type)
-    require_machine_state(db, tenant_id, EmployeeLeave, payload.status)
+    initial_status = require_machine_state(db, tenant_id, EmployeeLeave, payload.status)
     if payload.thru_date < payload.from_date:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -417,7 +417,7 @@ def create_employee_leave(
         thru_date=payload.thru_date,
         duration_days=payload.duration_days,
         reason=payload.reason,
-        status=payload.status,
+        status=initial_status,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
     )

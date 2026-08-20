@@ -498,7 +498,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Attachment */
+        /**
+         * Get Attachment
+         * @description Metadata by bare id — the administrator's route, exactly like /content.
+         *
+         *     A filename is content in miniature ("2026-07-payslip-li.pdf"), and the
+         *     sha256 answers "does this workspace hold these exact bytes" — neither is a
+         *     thing holding an id entitles you to. Everyone else reads attachment
+         *     metadata where it already rides: on the document's own /detail.
+         */
         get: operations["get_attachment_api_v1_attachments__attachment_id__get"];
         put?: never;
         post?: never;
@@ -515,7 +523,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Attachment Content */
+        /**
+         * Get Attachment Content
+         * @description The bytes by id alone — the workspace administrator's route only.
+         *
+         *     Everyone else reaches an attachment through the document that carries it:
+         *     `GET /invoices/{id}/attachments/{attachment_id}/content` and its eight
+         *     siblings, where the document's own visibility answers the question first.
+         *     An attachment is never a thing you are entitled to because you hold its id.
+         *
+         *     This route used to be tenant-scoped and nothing else, so any credential in
+         *     the workspace could read a payslip's PDF — 工资条 is an invoice, and its
+         *     attachment is the payslip. `tests/test_payroll_visibility.py` calls payroll
+         *     "the first read in this API that belonging to the workspace does not
+         *     entitle you to", and warns that a gate is only worth its least covered
+         *     path. This was that path.
+         *
+         *     It stays open to `users.manage` because an administrator already reads the
+         *     whole audit trail and manages every credential — the id-based route buys
+         *     them nothing they lack, and taking it away would leave no way to inspect an
+         *     attachment whose referencing document was deleted.
+         */
         get: operations["get_attachment_content_api_v1_attachments__attachment_id__content_get"];
         put?: never;
         post?: never;
@@ -1618,6 +1646,26 @@ export interface paths {
         patch: operations["update_expense_claim_api_v1_expense_claims__claim_id__patch"];
         trace?: never;
     };
+    "/api/v1/expense-claims/{claim_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Expense Claim Attachment
+         * @description A receipt, reached through the claim that carries it.
+         */
+        get: operations["get_expense_claim_attachment_api_v1_expense_claims__claim_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-claims/{claim_id}/detail": {
         parameters: {
             query?: never;
@@ -1629,6 +1677,47 @@ export interface paths {
         get: operations["get_expense_claim_detail_api_v1_expense_claims__claim_id__detail_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/expense-claims/{claim_id}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Raise Reimbursement Invoice
+         * @description Raise the reimbursement invoice for an approved expense claim.
+         *
+         *     The company owes the EMPLOYEE. It never owed the merchant who issued the
+         *     receipt — the employee already paid them, out of their own money, at the
+         *     hotel desk — so this is not a purchase invoice against a vendor, and the
+         *     counterparty guard on settlement refuses that shape outright.
+         *
+         *     An explicit call rather than a side effect of approval, because nothing in
+         *     this API invents a document when a status changes: the act has an actor, a
+         *     capability and an audit line, and a flow agent moving a claim to `approved`
+         *     does not silently file a payable it holds no capability to file.
+         *
+         *     Bills the claim's UNBILLED lines, so a claim can be billed in instalments
+         *     the way a purchase order is — some lines now, the disputed ones once they
+         *     are settled, a second currency on its own document. Call it again and it
+         *     bills whatever is outstanding; call it when nothing is, and it refuses,
+         *     naming the invoices that already cover the claim.
+         *
+         *     What is unique is one level down: `invoice_items_expense_item_uk` bills an
+         *     expense line exactly once. That is the rule worth a database constraint,
+         *     because breaking it reimburses the employee twice for one taxi, and the
+         *     thing that would break it is a retry arriving after a timeout.
+         */
+        post: operations["raise_reimbursement_invoice_api_v1_expense_claims__claim_id__invoice_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1716,6 +1805,9 @@ export interface paths {
         /**
          * List Flow Runs
          * @description Newest first: the last run is the question people actually ask.
+         *
+         *     A run row carries the runner's own working — errors, retries, what it
+         *     decided — which is operator telemetry, not workspace business data.
          */
         get: operations["list_flow_runs_api_v1_flow_runs_get"];
         put?: never;
@@ -1760,7 +1852,8 @@ export interface paths {
          * List Flow Subscriptions
          * @description What the platform drives in this workspace — the tenant's own answer to
          *     "where has our routing been handed over", and the runner's answer to "what
-         *     am I responsible for here".
+         *     am I responsible for here". Operator plumbing on both readings — a member's
+         *     agent routes by todos and never needs the machinery list.
          */
         get: operations["list_flow_subscriptions_api_v1_flow_subscriptions_get"];
         put?: never;
@@ -2030,6 +2123,29 @@ export interface paths {
          *     round is voided and refiled rather than flipped.
          */
         patch: operations["update_invoice_api_v1_invoices__invoice_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/invoices/{invoice_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Invoice Attachment
+         * @description The 发票原件 — a customer's PDF, a 增值税发票扫描件.
+         *
+         *     Payroll is why this must not be reachable by id alone: a payslip is an
+         *     invoice, and its attachment is the payslip.
+         */
+        get: operations["get_invoice_attachment_api_v1_invoices__invoice_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/invoices/{invoice_id}/detail": {
@@ -2443,6 +2559,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments/{payment_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Payment Attachment
+         * @description A remittance advice or receipt, reached through the payment.
+         */
+        get: operations["get_payment_attachment_api_v1_payments__payment_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments/{payment_id}/detail": {
         parameters: {
             query?: never;
@@ -2542,6 +2678,27 @@ export interface paths {
         head?: never;
         /** Update Policy */
         patch: operations["update_policy_api_v1_policies__policy_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/policies/{policy_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Policy Attachment
+         * @description The policy document itself. Drafts and repealed policies are
+         *     visible only to `policy.manage`, and so are their files.
+         */
+        get: operations["get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/policies/{policy_id}/publish": {
@@ -2967,6 +3124,26 @@ export interface paths {
         patch: operations["update_purchase_order_api_v1_purchase_orders__po_id__patch"];
         trace?: never;
     };
+    "/api/v1/purchase-orders/{po_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Purchase Order Attachment
+         * @description A line's supporting file, reached through the order.
+         */
+        get: operations["get_purchase_order_attachment_api_v1_purchase_orders__po_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/purchase-orders/{po_id}/detail": {
         parameters: {
             query?: never;
@@ -3106,6 +3283,26 @@ export interface paths {
         head?: never;
         /** Update Purchase Request */
         patch: operations["update_purchase_request_api_v1_purchase_requests__request_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/purchase-requests/{request_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Purchase Request Attachment
+         * @description A quote file, reached through the request that carries it.
+         */
+        get: operations["get_purchase_request_attachment_api_v1_purchase_requests__request_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/purchase-requests/{request_id}/detail": {
@@ -3257,7 +3454,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Roles */
+        /**
+         * List Roles
+         * @description Every role, its full grant set and its headcount — the workspace's
+         *     access topology. That is what `users.manage` manages; a member's agent has
+         *     no read that needs it (the console asks only when the holder can act on
+         *     the answer, and gates that on the same capability).
+         */
         get: operations["list_roles_api_v1_roles_get"];
         put?: never;
         /** Create Role */
@@ -3440,6 +3643,26 @@ export interface paths {
         head?: never;
         /** Update Sales Order */
         patch: operations["update_sales_order_api_v1_sales_orders__order_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/sales-orders/{order_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sales Order Attachment
+         * @description An order line's file, reached through the order.
+         */
+        get: operations["get_sales_order_attachment_api_v1_sales_orders__order_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/sales-orders/{order_id}/detail": {
@@ -3625,6 +3848,26 @@ export interface paths {
         patch: operations["update_sales_quotation_api_v1_sales_quotations__quotation_id__patch"];
         trace?: never;
     };
+    "/api/v1/sales-quotations/{quotation_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sales Quotation Attachment
+         * @description A quotation's attached file, reached through the quotation.
+         */
+        get: operations["get_sales_quotation_attachment_api_v1_sales_quotations__quotation_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales-quotations/{quotation_id}/close": {
         parameters: {
             query?: never;
@@ -3752,8 +3995,11 @@ export interface paths {
         };
         /**
          * List Skills
-         * @description Skill index for agents: name + description are the trigger contract;
-         *     fetch the full skill by name when it matches. status=all lists everything.
+         * @description The registry, whole: every skill's text, gate and audience — the skill
+         *     MANAGER's view, not an agent's. An agent's own surface is /my/skill-bundle
+         *     and /my/skills/* — rendered for that holder, and only theirs. This listing
+         *     used to be open to any credential in the workspace, which handed a
+         *     zero-capability member every role's instructions and every calibration.
          */
         get: operations["list_skills_api_v1_skills_get"];
         put?: never;
@@ -5099,7 +5345,7 @@ export interface components {
              * Direction
              * @enum {string}
              */
-            direction: "sales" | "purchase" | "payroll";
+            direction: "sales" | "purchase" | "payroll" | "reimbursement";
             /** Due Date */
             due_date?: string | null;
             /** Employee Code */
@@ -5118,11 +5364,8 @@ export interface components {
             project_code?: string | null;
             /** Remarks */
             remarks?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Tax Amount */
             tax_amount?: number | null;
             /** Tax Invoice Code */
@@ -5215,11 +5458,8 @@ export interface components {
             reference_no?: string | null;
             /** Remarks */
             remarks?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Vendor Code */
             vendor_code?: string | null;
             /** Vendor Id */
@@ -5358,11 +5598,8 @@ export interface components {
             promised_date?: string | null;
             /** Remarks */
             remarks?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title?: string | null;
             /** Total Amount */
@@ -5467,11 +5704,8 @@ export interface components {
             ship_to_address?: string | null;
             /** Source Quote Number */
             source_quote_number?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title?: string | null;
             /** Total Amount */
@@ -5544,11 +5778,8 @@ export interface components {
             quote_number: string;
             /** Remarks */
             remarks?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title?: string | null;
             /** Total Amount */
@@ -5843,6 +6074,26 @@ export interface components {
             title?: string | null;
             /** Total */
             total: number;
+        };
+        /**
+         * ClaimInvoiceRead
+         * @description One reimbursement invoice raised from this claim. The claim carries no
+         *     stored list — a stored list drifts the moment an invoice is voided — so
+         *     this is read from the invoices themselves each time.
+         */
+        ClaimInvoiceRead: {
+            /** Applied Amount */
+            applied_amount: number;
+            /** Billed Total */
+            billed_total: number;
+            /** Id */
+            id: string;
+            /** Invoice No */
+            invoice_no: string;
+            /** Outstanding Amount */
+            outstanding_amount: number;
+            /** Status */
+            status: string;
         };
         /** CloseFlowRunRequest */
         CloseFlowRunRequest: {
@@ -6186,11 +6437,8 @@ export interface components {
             reason?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /**
              * Thru Date
              * Format: date
@@ -6291,11 +6539,8 @@ export interface components {
             items?: components["schemas"]["ExpenseItemBase"][];
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title: string;
         };
@@ -6507,7 +6752,7 @@ export interface components {
              * Direction
              * @enum {string}
              */
-            direction: "sales" | "purchase" | "payroll";
+            direction: "sales" | "purchase" | "payroll" | "reimbursement";
             /** Due Date */
             due_date?: string | null;
             /** Employee Id */
@@ -6540,11 +6785,8 @@ export interface components {
             sales_order_id?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Tax Amount */
             tax_amount?: number | null;
             /** Tax Invoice Code */
@@ -6682,11 +6924,8 @@ export interface components {
             remarks?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Vendor Id */
             vendor_id?: string | null;
         };
@@ -6939,11 +7178,8 @@ export interface components {
             remarks?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title?: string | null;
             /** Total Amount */
@@ -7005,11 +7241,8 @@ export interface components {
             request_date?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title: string;
             /** Vendor Id */
@@ -7213,11 +7446,8 @@ export interface components {
             source_quote_number?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title: string;
             /** Total Amount */
@@ -7323,11 +7553,8 @@ export interface components {
             remarks?: string | null;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
             /** Title */
             title: string;
             /** Total Amount */
@@ -7491,11 +7718,8 @@ export interface components {
             period_start: string;
             /** Source Report Text */
             source_report_text?: string | null;
-            /**
-             * Status
-             * @default draft
-             */
-            status: string;
+            /** Status */
+            status?: string | null;
         };
         /** CreateTodoRequest */
         CreateTodoRequest: {
@@ -8261,12 +8485,18 @@ export interface components {
             /** Attachments */
             attachments: components["schemas"]["AttachmentRead"][];
             claim: components["schemas"]["ExpenseClaimRead"];
+            /** Invoiced Amount */
+            invoiced_amount: number;
+            /** Invoices */
+            invoices: components["schemas"]["ClaimInvoiceRead"][];
             /** Items */
             items: components["schemas"]["ExpenseItemDetailRead"][];
             /** Total Amount */
             total_amount: number;
             /** Total Tax Amount */
             total_tax_amount: number;
+            /** Uninvoiced Amount */
+            uninvoiced_amount: number;
         };
         /** ExpenseClaimRead */
         ExpenseClaimRead: {
@@ -8684,11 +8914,13 @@ export interface components {
              * Direction
              * @enum {string}
              */
-            direction: "sales" | "purchase" | "payroll";
+            direction: "sales" | "purchase" | "payroll" | "reimbursement";
             /** Due Date */
             due_date?: string | null;
             /** Employee Id */
             employee_id: string;
+            /** Expense Claim Id */
+            expense_claim_id?: string | null;
             /** Extracted Fields */
             extracted_fields: {
                 [key: string]: unknown;
@@ -9001,11 +9233,13 @@ export interface components {
              * Direction
              * @enum {string}
              */
-            direction: "sales" | "purchase" | "payroll";
+            direction: "sales" | "purchase" | "payroll" | "reimbursement";
             /** Due Date */
             due_date?: string | null;
             /** Employee Id */
             employee_id: string;
+            /** Expense Claim Id */
+            expense_claim_id?: string | null;
             /** Extracted Fields */
             extracted_fields: {
                 [key: string]: unknown;
@@ -17261,6 +17495,45 @@ export interface operations {
             };
         };
     };
+    get_expense_claim_attachment_api_v1_expense_claims__claim_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                claim_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_expense_claim_detail_api_v1_expense_claims__claim_id__detail_get: {
         parameters: {
             query?: {
@@ -17288,6 +17561,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ExpenseClaimDetailRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    raise_reimbursement_invoice_api_v1_expense_claims__claim_id__invoice_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_InvoiceRead_"];
                 };
             };
             /** @description Validation Error */
@@ -18366,6 +18677,7 @@ export interface operations {
                 tax_invoice_number?: string | null;
                 sales_order_id?: string | null;
                 purchase_order_id?: string | null;
+                expense_claim_id?: string | null;
                 billing_account_id?: string | null;
                 period_start?: string | null;
                 status?: string | null;
@@ -18597,6 +18909,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_InvoiceRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_invoice_attachment_api_v1_invoices__invoice_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                invoice_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -19592,6 +19943,45 @@ export interface operations {
             };
         };
     };
+    get_payment_attachment_api_v1_payments__payment_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                payment_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_payment_detail_api_v1_payments__payment_id__detail_get: {
         parameters: {
             query?: {
@@ -19899,6 +20289,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PolicyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                policy_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -21544,6 +21973,45 @@ export interface operations {
             };
         };
     };
+    get_purchase_order_attachment_api_v1_purchase_orders__po_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                po_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_purchase_order_detail_api_v1_purchase_orders__po_id__detail_get: {
         parameters: {
             query?: never;
@@ -22044,6 +22512,45 @@ export interface operations {
                 "application/json": components["schemas"]["UpdatePurchaseRequestRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_purchase_request_attachment_api_v1_purchase_requests__request_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                request_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -23466,6 +23973,45 @@ export interface operations {
             };
         };
     };
+    get_sales_order_attachment_api_v1_sales_orders__order_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                order_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_sales_order_detail_api_v1_sales_orders__order_id__detail_get: {
         parameters: {
             query?: {
@@ -24209,6 +24755,45 @@ export interface operations {
                 "application/json": components["schemas"]["UpdateSalesQuotationRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sales_quotation_attachment_api_v1_sales_quotations__quotation_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                quotation_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

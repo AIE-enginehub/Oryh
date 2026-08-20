@@ -56,12 +56,14 @@ from app.api.common import (
     load_item_catalog_context,
     order_billed_on_account,
     recheck_charged_document,
+    register_attachment_source,
     requested_pagination,
     require_machine_state,
     resolve_chargeable_account,
     resolve_item_refs,
     restore_document,
     retire_open_work_if_finished,
+    serve_document_attachment,
     sku_pending_flag,
     submit_document,
     update_adjustment,
@@ -136,6 +138,7 @@ from app.services.audit import record_audit
 from app.services.state_machines import (
     editable_states,
     get_builtin_machine,
+    state_for_role,
     validate_status_filter,
     validate_transition,
 )
@@ -341,7 +344,7 @@ def create_sales_quotation(
     require_permission(actor, "quotation.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    require_machine_state(db, tenant_id, SalesQuotation, payload.status)
+    initial_status = require_machine_state(db, tenant_id, SalesQuotation, payload.status)
     customer_id, customer_name_snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
@@ -366,7 +369,7 @@ def create_sales_quotation(
         payment_terms=payload.payment_terms,
         delivery_terms=payload.delivery_terms,
         total_amount=payload.total_amount,
-        status=payload.status,
+        status=initial_status,
         remarks=payload.remarks,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
@@ -515,7 +518,8 @@ def send_sales_quotation(
         # idempotent resend
         return envelope(SalesQuotationRead.model_validate(quotation).model_dump(by_alias=True))
     machine = get_builtin_machine(db, actor.tenant_id, "sales_quotation")
-    validate_transition(machine, quotation.status, "sent", subject="sales_quotation")
+    sent = state_for_role(machine, "sales_quotation", "sent")
+    validate_transition(machine, quotation.status, sent, subject="sales_quotation")
     record_audit(
         db,
         tenant_id=actor.tenant_id,
@@ -531,7 +535,7 @@ def send_sales_quotation(
             "from": quotation.status,
         },
     )
-    quotation.status = "sent"
+    quotation.status = sent
     quotation.sent_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(quotation)
@@ -602,13 +606,14 @@ def revise_sales_quotation(
     source = get_active_document_or_404(db, SalesQuotation, tenant_id, quotation_id)
     require_permission(actor, "quotation.submit_own")
     enforce_member_employee(actor, source.employee_id)
-    if source.status == "superseded":
+    machine = get_builtin_machine(db, tenant_id, "sales_quotation")
+    superseded = state_for_role(machine, "sales_quotation", "superseded")
+    if source.status == superseded:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="quotation is already superseded; revise the live revision instead",
         )
-    machine = get_builtin_machine(db, tenant_id, "sales_quotation")
-    validate_transition(machine, source.status, "superseded", subject="sales_quotation")
+    validate_transition(machine, source.status, superseded, subject="sales_quotation")
     next_revision = (
         db.scalar(
             select(func.max(SalesQuotation.revision_no)).where(
@@ -637,7 +642,9 @@ def revise_sales_quotation(
         payment_terms=source.payment_terms,
         delivery_terms=source.delivery_terms,
         total_amount=source.total_amount,
-        status="draft",
+        # the machine's own initial — "draft" is the shipped machine's word,
+        # not necessarily this workspace's
+        status=machine["initial"],
         remarks=source.remarks,
         custom_fields_jsonb=dict(source.custom_fields_jsonb or {}),
     )
@@ -731,10 +738,10 @@ def revise_sales_quotation(
     # the superseded one is outstanding on nothing.
     retire_open_work_if_finished(
         db, actor, machine, "sales_quotation", source.id,
-        current=source.status, new_status="superseded",
+        current=source.status, new_status=superseded,
         editable=editable_states(machine, "sales_quotation"),
     )
-    source.status = "superseded"
+    source.status = superseded
     try:
         db.commit()
     except IntegrityError:
@@ -1012,7 +1019,7 @@ def create_sales_order(
     require_permission(actor, "order.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    require_machine_state(db, tenant_id, SalesOrder, payload.status)
+    initial_status = require_machine_state(db, tenant_id, SalesOrder, payload.status)
     quotation_id, source_quote_number = normalize_order_quotation_context(
         db, tenant_id, payload.quotation_id, payload.source_quote_number
     )
@@ -1053,7 +1060,7 @@ def create_sales_order(
         payment_terms=payload.payment_terms,
         delivery_terms=payload.delivery_terms,
         total_amount=payload.total_amount,
-        status=payload.status,
+        status=initial_status,
         logistics_company=payload.logistics_company,
         logistics_tracking_no=payload.logistics_tracking_no,
         remarks=payload.remarks,
@@ -1425,3 +1432,40 @@ def delete_sales_order_adjustment(
     db: Annotated[Session, Depends(get_db)],
 ):
     return delete_adjustment(db, actor, SalesOrderAdjustment, adjustment_id)
+
+
+# --- the original document, reached through the record that carries it ------
+#
+# Authorisation is the DOCUMENT's, never the attachment id's. See
+# `serve_document_attachment` in common.py for why the standalone
+# `/attachments/{id}/content` could not answer this question safely.
+
+
+register_attachment_source(SalesQuotation, SalesQuotationItem, "quotation_id")
+
+
+@router.get("/sales-quotations/{quotation_id}/attachments/{attachment_id}/content")
+def get_sales_quotation_attachment(
+    quotation_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A quotation's attached file, reached through the quotation."""
+    document = get_scoped_or_404(db, SalesQuotation, tenant_id, quotation_id)
+    return serve_document_attachment(db, tenant_id, document, attachment_id)
+
+
+register_attachment_source(SalesOrder, SalesOrderItem, "order_id")
+
+
+@router.get("/sales-orders/{order_id}/attachments/{attachment_id}/content")
+def get_sales_order_attachment(
+    order_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """An order line's file, reached through the order."""
+    document = get_scoped_or_404(db, SalesOrder, tenant_id, order_id)
+    return serve_document_attachment(db, tenant_id, document, attachment_id)

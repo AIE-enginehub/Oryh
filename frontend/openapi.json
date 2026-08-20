@@ -2201,7 +2201,8 @@
             "enum": [
               "sales",
               "purchase",
-              "payroll"
+              "payroll",
+              "reimbursement"
             ],
             "title": "Direction",
             "type": "string"
@@ -2304,10 +2305,16 @@
             "title": "Remarks"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "tax_amount": {
             "anyOf": [
@@ -2634,10 +2641,16 @@
             "title": "Remarks"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "vendor_code": {
             "anyOf": [
@@ -3024,10 +3037,16 @@
             "title": "Remarks"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "anyOf": [
@@ -3431,10 +3450,16 @@
             "title": "Source Quote Number"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "anyOf": [
@@ -3714,10 +3739,16 @@
             "title": "Remarks"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "anyOf": [
@@ -4554,6 +4585,45 @@
           "occupied"
         ],
         "title": "ChargedDocumentRead",
+        "type": "object"
+      },
+      "ClaimInvoiceRead": {
+        "description": "One reimbursement invoice raised from this claim. The claim carries no\nstored list — a stored list drifts the moment an invoice is voided — so\nthis is read from the invoices themselves each time.",
+        "properties": {
+          "applied_amount": {
+            "title": "Applied Amount",
+            "type": "number"
+          },
+          "billed_total": {
+            "title": "Billed Total",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invoice_no": {
+            "title": "Invoice No",
+            "type": "string"
+          },
+          "outstanding_amount": {
+            "title": "Outstanding Amount",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "invoice_no",
+          "status",
+          "billed_total",
+          "applied_amount",
+          "outstanding_amount"
+        ],
+        "title": "ClaimInvoiceRead",
         "type": "object"
       },
       "CloseFlowRunRequest": {
@@ -5655,9 +5725,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "thru_date": {
             "format": "date",
@@ -5991,9 +6067,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "maxLength": 200,
@@ -6765,7 +6847,8 @@
             "enum": [
               "sales",
               "purchase",
-              "payroll"
+              "payroll",
+              "reimbursement"
             ],
             "title": "Direction",
             "type": "string"
@@ -6928,10 +7011,16 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "tax_amount": {
             "anyOf": [
@@ -7379,10 +7468,16 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "vendor_id": {
             "anyOf": [
@@ -8252,10 +8347,16 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "maxLength": 30,
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "anyOf": [
@@ -8514,9 +8615,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "maxLength": 200,
@@ -9295,9 +9402,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "maxLength": 200,
@@ -9751,9 +9864,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           },
           "title": {
             "maxLength": 200,
@@ -10256,9 +10375,15 @@
             "title": "Source Report Text"
           },
           "status": {
-            "default": "draft",
-            "title": "Status",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
           }
         },
         "required": [
@@ -12753,6 +12878,17 @@
           "claim": {
             "$ref": "#/components/schemas/ExpenseClaimRead"
           },
+          "invoiced_amount": {
+            "title": "Invoiced Amount",
+            "type": "number"
+          },
+          "invoices": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimInvoiceRead"
+            },
+            "title": "Invoices",
+            "type": "array"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ExpenseItemDetailRead"
@@ -12767,6 +12903,10 @@
           "total_tax_amount": {
             "title": "Total Tax Amount",
             "type": "number"
+          },
+          "uninvoiced_amount": {
+            "title": "Uninvoiced Amount",
+            "type": "number"
           }
         },
         "required": [
@@ -12775,7 +12915,10 @@
           "approval_records",
           "attachments",
           "total_amount",
-          "total_tax_amount"
+          "total_tax_amount",
+          "invoices",
+          "invoiced_amount",
+          "uninvoiced_amount"
         ],
         "title": "ExpenseClaimDetailRead",
         "type": "object"
@@ -14069,7 +14212,8 @@
             "enum": [
               "sales",
               "purchase",
-              "payroll"
+              "payroll",
+              "reimbursement"
             ],
             "title": "Direction",
             "type": "string"
@@ -14089,6 +14233,17 @@
           "employee_id": {
             "title": "Employee Id",
             "type": "string"
+          },
+          "expense_claim_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Claim Id"
           },
           "extracted_fields": {
             "additionalProperties": true,
@@ -15263,7 +15418,8 @@
             "enum": [
               "sales",
               "purchase",
-              "payroll"
+              "payroll",
+              "reimbursement"
             ],
             "title": "Direction",
             "type": "string"
@@ -15283,6 +15439,17 @@
           "employee_id": {
             "title": "Employee Id",
             "type": "string"
+          },
+          "expense_claim_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Claim Id"
           },
           "extracted_fields": {
             "additionalProperties": true,
@@ -33388,6 +33555,7 @@
     },
     "/api/v1/attachments/{attachment_id}": {
       "get": {
+        "description": "Metadata by bare id — the administrator's route, exactly like /content.\n\nA filename is content in miniature (\"2026-07-payslip-li.pdf\"), and the\nsha256 answers \"does this workspace hold these exact bytes\" — neither is a\nthing holding an id entitles you to. Everyone else reads attachment\nmetadata where it already rides: on the document's own /detail.",
         "operationId": "get_attachment_api_v1_attachments__attachment_id__get",
         "parameters": [
           {
@@ -33505,6 +33673,7 @@
     },
     "/api/v1/attachments/{attachment_id}/content": {
       "get": {
+        "description": "The bytes by id alone — the workspace administrator's route only.\n\nEveryone else reaches an attachment through the document that carries it:\n`GET /invoices/{id}/attachments/{attachment_id}/content` and its eight\nsiblings, where the document's own visibility answers the question first.\nAn attachment is never a thing you are entitled to because you hold its id.\n\nThis route used to be tenant-scoped and nothing else, so any credential in\nthe workspace could read a payslip's PDF — 工资条 is an invoice, and its\nattachment is the payslip. `tests/test_payroll_visibility.py` calls payroll\n\"the first read in this API that belonging to the workspace does not\nentitle you to\", and warns that a gate is only worth its least covered\npath. This was that path.\n\nIt stays open to `users.manage` because an administrator already reads the\nwhole audit trail and manages every credential — the id-based route buys\nthem nothing they lack, and taking it away would leave no way to inspect an\nattachment whose referencing document was deleted.",
         "operationId": "get_attachment_content_api_v1_attachments__attachment_id__content_get",
         "parameters": [
           {
@@ -42632,6 +42801,133 @@
         "summary": "Update Expense Claim"
       }
     },
+    "/api/v1/expense-claims/{claim_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "A receipt, reached through the claim that carries it.",
+        "operationId": "get_expense_claim_attachment_api_v1_expense_claims__claim_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Expense Claim Attachment"
+      }
+    },
     "/api/v1/expense-claims/{claim_id}/detail": {
       "get": {
         "operationId": "get_expense_claim_detail_api_v1_expense_claims__claim_id__detail_get",
@@ -42759,6 +43055,126 @@
           }
         },
         "summary": "Get Expense Claim Detail"
+      }
+    },
+    "/api/v1/expense-claims/{claim_id}/invoice": {
+      "post": {
+        "description": "Raise the reimbursement invoice for an approved expense claim.\n\nThe company owes the EMPLOYEE. It never owed the merchant who issued the\nreceipt — the employee already paid them, out of their own money, at the\nhotel desk — so this is not a purchase invoice against a vendor, and the\ncounterparty guard on settlement refuses that shape outright.\n\nAn explicit call rather than a side effect of approval, because nothing in\nthis API invents a document when a status changes: the act has an actor, a\ncapability and an audit line, and a flow agent moving a claim to `approved`\ndoes not silently file a payable it holds no capability to file.\n\nBills the claim's UNBILLED lines, so a claim can be billed in instalments\nthe way a purchase order is — some lines now, the disputed ones once they\nare settled, a second currency on its own document. Call it again and it\nbills whatever is outstanding; call it when nothing is, and it refuses,\nnaming the invoices that already cover the claim.\n\nWhat is unique is one level down: `invoice_items_expense_item_uk` bills an\nexpense line exactly once. That is the rule worth a database constraint,\nbecause breaking it reimburses the employee twice for one taxi, and the\nthing that would break it is a retry arriving after a timeout.",
+        "operationId": "raise_reimbursement_invoice_api_v1_expense_claims__claim_id__invoice_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "claim_id",
+            "required": true,
+            "schema": {
+              "title": "Claim Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_InvoiceRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Raise Reimbursement Invoice"
       }
     },
     "/api/v1/expense-claims/{claim_id}/restore": {
@@ -43707,7 +44123,7 @@
     },
     "/api/v1/flow-runs": {
       "get": {
-        "description": "Newest first: the last run is the question people actually ask.",
+        "description": "Newest first: the last run is the question people actually ask.\n\nA run row carries the runner's own working — errors, retries, what it\ndecided — which is operator telemetry, not workspace business data.",
         "operationId": "list_flow_runs_api_v1_flow_runs_get",
         "parameters": [
           {
@@ -44149,7 +44565,7 @@
     },
     "/api/v1/flow-subscriptions": {
       "get": {
-        "description": "What the platform drives in this workspace — the tenant's own answer to\n\"where has our routing been handed over\", and the runner's answer to \"what\nam I responsible for here\".",
+        "description": "What the platform drives in this workspace — the tenant's own answer to\n\"where has our routing been handed over\", and the runner's answer to \"what\nam I responsible for here\". Operator plumbing on both readings — a member's\nagent routes by todos and never needs the machinery list.",
         "operationId": "list_flow_subscriptions_api_v1_flow_subscriptions_get",
         "parameters": [
           {
@@ -46522,6 +46938,22 @@
           },
           {
             "in": "query",
+            "name": "expense_claim_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expense Claim Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "billing_account_id",
             "required": false,
             "schema": {
@@ -47379,6 +47811,133 @@
           }
         },
         "summary": "Update Invoice"
+      }
+    },
+    "/api/v1/invoices/{invoice_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "The 发票原件 — a customer's PDF, a 增值税发票扫描件.\n\nPayroll is why this must not be reachable by id alone: a payslip is an\ninvoice, and its attachment is the payslip.",
+        "operationId": "get_invoice_attachment_api_v1_invoices__invoice_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "title": "Invoice Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Invoice Attachment"
       }
     },
     "/api/v1/invoices/{invoice_id}/detail": {
@@ -50615,6 +51174,133 @@
         "summary": "Apply Payment"
       }
     },
+    "/api/v1/payments/{payment_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "A remittance advice or receipt, reached through the payment.",
+        "operationId": "get_payment_attachment_api_v1_payments__payment_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "title": "Payment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Payment Attachment"
+      }
+    },
     "/api/v1/payments/{payment_id}/detail": {
       "get": {
         "operationId": "get_payment_detail_api_v1_payments__payment_id__detail_get",
@@ -51720,6 +52406,133 @@
           }
         },
         "summary": "Update Policy"
+      }
+    },
+    "/api/v1/policies/{policy_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "The policy document itself. Drafts and repealed policies are\nvisible only to `policy.manage`, and so are their files.",
+        "operationId": "get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "title": "Policy Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Policy Attachment"
       }
     },
     "/api/v1/policies/{policy_id}/publish": {
@@ -57086,6 +57899,133 @@
         "summary": "Update Purchase Order"
       }
     },
+    "/api/v1/purchase-orders/{po_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "A line's supporting file, reached through the order.",
+        "operationId": "get_purchase_order_attachment_api_v1_purchase_orders__po_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "po_id",
+            "required": true,
+            "schema": {
+              "title": "Po Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Purchase Order Attachment"
+      }
+    },
     "/api/v1/purchase-orders/{po_id}/detail": {
       "get": {
         "operationId": "get_purchase_order_detail_api_v1_purchase_orders__po_id__detail_get",
@@ -58800,6 +59740,133 @@
           }
         },
         "summary": "Update Purchase Request"
+      }
+    },
+    "/api/v1/purchase-requests/{request_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "A quote file, reached through the request that carries it.",
+        "operationId": "get_purchase_request_attachment_api_v1_purchase_requests__request_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Purchase Request Attachment"
       }
     },
     "/api/v1/purchase-requests/{request_id}/detail": {
@@ -60695,6 +61762,7 @@
     },
     "/api/v1/roles": {
       "get": {
+        "description": "Every role, its full grant set and its headcount — the workspace's\naccess topology. That is what `users.manage` manages; a member's agent has\nno read that needs it (the console asks only when the holder can act on\nthe answer, and gates that on the same capability).",
         "operationId": "list_roles_api_v1_roles_get",
         "parameters": [
           {
@@ -63429,6 +64497,133 @@
         "summary": "Update Sales Order"
       }
     },
+    "/api/v1/sales-orders/{order_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "An order line's file, reached through the order.",
+        "operationId": "get_sales_order_attachment_api_v1_sales_orders__order_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sales Order Attachment"
+      }
+    },
     "/api/v1/sales-orders/{order_id}/detail": {
       "get": {
         "operationId": "get_sales_order_detail_api_v1_sales_orders__order_id__detail_get",
@@ -65929,6 +67124,133 @@
         "summary": "Update Sales Quotation"
       }
     },
+    "/api/v1/sales-quotations/{quotation_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "A quotation's attached file, reached through the quotation.",
+        "operationId": "get_sales_quotation_attachment_api_v1_sales_quotations__quotation_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sales Quotation Attachment"
+      }
+    },
     "/api/v1/sales-quotations/{quotation_id}/close": {
       "post": {
         "description": "Customer outcome registration (accepted / declined / expired) by the\nowning rep. The flow admin can reach the same states via status PATCH\n(e.g. the expired sweep).",
@@ -66698,7 +68020,7 @@
     },
     "/api/v1/skills": {
       "get": {
-        "description": "Skill index for agents: name + description are the trigger contract;\nfetch the full skill by name when it matches. status=all lists everything.",
+        "description": "The registry, whole: every skill's text, gate and audience — the skill\nMANAGER's view, not an agent's. An agent's own surface is /my/skill-bundle\nand /my/skills/* — rendered for that holder, and only theirs. This listing\nused to be open to any credential in the workspace, which handed a\nzero-capability member every role's instructions and every calibration.",
         "operationId": "list_skills_api_v1_skills_get",
         "parameters": [
           {

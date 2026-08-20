@@ -574,3 +574,53 @@ def test_every_skill_that_calls_the_api_states_where_the_api_is() -> None:
         f"{offenders} document API paths without stating `api_base_url`, so an agent "
         "following them verbatim sends its first request to the console"
     )
+
+
+def test_the_attachment_fragment_ships_with_the_script_it_names() -> None:
+    """The fragment tells the agent to prefer `scripts/upload_attachment.py`
+    "in this skill's own directory". A skill that includes the fragment and
+    does not carry the stub sends the agent looking for a file that is not
+    there — and the fallback is hand-rolled base64 with no 10 MB pre-check,
+    which fails at upload time on exactly the large scans that matter.
+
+    The stub is one `{{include:_common/scripts/upload_attachment.py}}` line, so
+    the cost of remembering is a line and the cost of forgetting is a broken
+    instruction inside otherwise-correct prose.
+    """
+    fragment = "_common/attachment-evidence.md"
+    including = [
+        d for d in sorted(PRODUCT_SKILLS_DIR.iterdir())
+        if (d / "SKILL.md").is_file() and fragment in (d / "SKILL.md").read_text(encoding="utf-8")
+    ]
+    assert including, "nothing includes the attachment fragment — has it been renamed?"
+    missing = [d.name for d in including if not (d / "scripts" / "upload_attachment.py").is_file()]
+    assert not missing, (
+        f"these include {fragment} but ship no scripts/upload_attachment.py: {missing}"
+    )
+
+
+def test_every_money_skill_says_who_its_holder_is() -> None:
+    """A real agent refused to pay an approved reimbursement because it had
+    decided it was "the employee's agent" and payment "belonged to the payables
+    role" — while holding `$oryh-payables` and every capability the route
+    needed. Both halves of that sentence were about itself.
+
+    `_common/who-you-are-acting-as.md` answers exactly that, and reached only
+    the approval-flow skills: the desks that MOVE money had no copy. A skill
+    that writes or settles money must carry it, because that is where a wrong
+    self-image stops a real payment.
+    """
+    fragment = "_common/who-you-are-acting-as.md"
+    MOVES_MONEY = (
+        "oryh-payables", "oryh-receivables", "oryh-payroll",
+        "oryh-billing-account", "oryh-approve",
+    )
+    missing = [
+        name for name in MOVES_MONEY
+        if (PRODUCT_SKILLS_DIR / name / "SKILL.md").is_file()
+        and fragment not in (PRODUCT_SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+    ]
+    assert not missing, (
+        f"these move money and never say whose desk they are: {missing} — "
+        f"include {{{{include:{fragment}}}}}"
+    )

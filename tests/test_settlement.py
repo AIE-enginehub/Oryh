@@ -383,9 +383,29 @@ def test_a_multi_line_call_may_carry_an_idempotency_key(client: TestClient) -> N
     assert len(ledger) == 2
 
 
+
+def reimbursement_invoice(client: TestClient, claim_id: str) -> dict:
+    """Approve the claim and raise its reimbursement invoice — the route money
+    takes now that the claim itself takes none."""
+    client.post(f"/api/v1/expense-claims/{claim_id}/submit", json={}, headers=HEADERS)
+    client.post("/api/v1/approval-records", headers=HEADERS, json={
+        "entity_type": "expense_claim", "entity_id": claim_id, "action": "approved",
+        "approver_id": "mgr", "approver_role": "manager", "source": "ai", "sequence_no": 2})
+    moved = client.patch(f"/api/v1/expense-claims/{claim_id}",
+                         json={"status": "approved"}, headers=HEADERS)
+    assert moved.status_code == 200, moved.text
+    raised = client.post(f"/api/v1/expense-claims/{claim_id}/invoice", headers=HEADERS)
+    assert raised.status_code == 201, raised.text
+    return raised.json()["data"]
+
+
 def test_a_payment_settles_an_expense_claim(client: TestClient) -> None:
-    """报销付款: the claim's `paid` state is the flow's marker, but the money
-    fact is the payment applied to it."""
+    """报销付款, paid straight against the claim.
+
+    The lighter of the two routes a workspace may take: no invoice, fewer
+    documents, same money. `tests/test_reimbursement_modes.py` covers the
+    other route and the rule that a single claim may not take both.
+    """
     person = employee(client, "出差的小李")
     cashier = employee(client, "出纳")
     claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": "7月差旅"})
@@ -1050,7 +1070,8 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
     )
     apply(
         client, payout["id"],
-        [{"applied_to_type": "expense_claim", "applied_to_id": claim["id"], "amount_applied": 800.0}],
+        [{"applied_to_type": "invoice", "applied_to_id": reimbursement_invoice(client, claim["id"])["id"],
+          "amount_applied": 800.0}],
     )
     # a prepaid account, drawn down and partly refunded, plus a points account
     # with an expired batch — so the account invariants meet real rows too
@@ -1304,6 +1325,11 @@ def test_a_settled_invoice_cannot_be_deleted(client: TestClient) -> None:
 
 
 def test_a_paid_out_expense_claim_cannot_be_deleted(client: TestClient) -> None:
+    """`ensure_nothing_applied` reads the claim's OWN applied_amount, which
+    stays zero forever now that money reaches it through the reimbursement
+    invoice. That check became decorative the moment settlement moved: a fully
+    paid claim would have deleted cleanly and left a payable whose origin was
+    gone. The invoice's existence is what blocks it, settled or not."""
     person = employee(client)
     cashier = employee(client, "出纳")
     claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": "差旅"})
@@ -1311,6 +1337,13 @@ def test_a_paid_out_expense_claim_cannot_be_deleted(client: TestClient) -> None:
         client, "/api/v1/expense-items",
         {"claim_id": claim["id"], "employee_id": person, "expense_date": "2026-07-11", "amount": 800.0},
     )
+    invoice = reimbursement_invoice(client, claim["id"])
+
+    # blocked already, before a single cent has moved
+    blocked = client.delete(f"/api/v1/expense-claims/{claim['id']}", headers=HEADERS)
+    assert blocked.status_code == 409
+    assert invoice["invoice_no"] in blocked.json()["detail"]
+
     payout = post(
         client, "/api/v1/payments",
         {
@@ -1320,12 +1353,14 @@ def test_a_paid_out_expense_claim_cannot_be_deleted(client: TestClient) -> None:
     )
     apply(
         client, payout["id"],
-        [{"applied_to_type": "expense_claim", "applied_to_id": claim["id"], "amount_applied": 800.0}],
+        [{"applied_to_type": "invoice", "applied_to_id": invoice["id"], "amount_applied": 800.0}],
     )
+    assert client.delete(f"/api/v1/expense-claims/{claim['id']}",
+                         headers=HEADERS).status_code == 409
 
-    blocked = client.delete(f"/api/v1/expense-claims/{claim['id']}", headers=HEADERS)
-    assert blocked.status_code == 409
-    assert "reverse those applications" in blocked.json()["detail"]
+    # …and the claim's own applied_amount never moved, which is the point
+    fresh = client.get(f"/api/v1/expense-claims/{claim['id']}", headers=HEADERS).json()["data"]
+    assert float(fresh.get("applied_amount") or 0) == 0.0
 
 
 def test_recording_and_applying_are_separable_duties(client: TestClient) -> None:

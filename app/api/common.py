@@ -12,6 +12,8 @@ import uuid as uuid_module
 from types import SimpleNamespace
 from typing import Annotated
 
+from urllib.parse import quote
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import Uuid, func, or_, select
 from sqlalchemy.orm import Session
@@ -84,6 +86,7 @@ from app.services.state_machines import (
     editable_states,
     get_builtin_machine,
     is_terminal_state,
+    state_for_role,
     validate_transition,
 )
 from app.services.type_options import (
@@ -447,17 +450,24 @@ def _document_read(family: DocumentFamily, document) -> dict:
     return family.read_model.model_validate(document).model_dump(by_alias=True)
 
 
-def require_machine_state(db: Session, tenant_id: str, model, status_value: str) -> dict:
-    """Create-time gate: a new document may start in ANY state of the
-    tenant's machine (history imports mid-flow), but never outside it."""
+def require_machine_state(db: Session, tenant_id: str, model, status_value: str | None) -> str:
+    """Create-time gate, returning the state the document starts in.
+
+    A new document may start in ANY state of the tenant's machine (history
+    imports arrive mid-flow), but never outside it. `None` — the schema
+    default — means the machine's own `initial`: state names are the tenant's
+    vocabulary, so the server cannot write `"draft"` into the contract and
+    survive a workspace that calls that state something else."""
     family = DOCUMENT_FAMILIES[model]
     machine = get_builtin_machine(db, tenant_id, family.object_type)
+    if status_value is None:
+        return machine["initial"]
     if status_value not in set(machine.get("states", ())):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"status {status_value!r} is not a state of the tenant's {family.state_noun} state machine",
         )
-    return machine
+    return status_value
 
 
 def require_hosted_write_scope(
@@ -501,7 +511,7 @@ def require_hosted_write_scope(
             )
 
 
-def apply_status_change(db: Session, actor: Actor, document, new_status: str) -> None:
+def apply_status_change(db: Session, actor: Actor, document, new_status: str) -> dict:
     """Machine-guarded, audited status move — the PATCH half of every
     lifecycle. Validates the transition and records the audit fact; the
     caller's setattr loop performs the actual write.
@@ -547,6 +557,7 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
         current=document.status, new_status=new_status,
         editable=editable_states(machine, family.object_type),
     )
+    return machine
 
 
 def record_submission_fact(
@@ -621,11 +632,14 @@ def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
     require_hosted_write_scope(actor, family.object_type, document)
     if family.owner_checked:
         enforce_member_employee(actor, document.employee_id)
-    if document.status == "submitted":
+    machine = get_builtin_machine(db, actor.tenant_id, family.object_type)
+    # "submitted" is a ROLE — the tenant may call the state itself something
+    # else, and /submit lands wherever their machine says the role lives
+    submitted = state_for_role(machine, family.object_type, "submitted")
+    if document.status == submitted:
         # idempotent resubmit
         return envelope(_document_read(family, document))
-    machine = get_builtin_machine(db, actor.tenant_id, family.object_type)
-    validate_transition(machine, document.status, "submitted", subject=family.object_type)
+    validate_transition(machine, document.status, submitted, subject=family.object_type)
     record_audit(
         db,
         tenant_id=actor.tenant_id,
@@ -635,7 +649,7 @@ def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
         actor=actor.label,
         detail={**family.audit_identity(document), "from": document.status},
     )
-    document.status = "submitted"
+    document.status = submitted
     document.submitted_at = datetime.now(timezone.utc)
     record_submission_fact(
         db, actor, family.object_type, document.id, document.submitted_at
@@ -1345,6 +1359,71 @@ def attachments_for_items(db: Session, tenant_id: str, items) -> list:
     ).all()
 
 
+# --- reaching an attachment's bytes ----------------------------------------
+#
+# Holding an attachment's id is not authorisation to read it. Attachments are
+# standalone blobs by design — `Attachment` carries no back-link, because
+# linking is the referencing object's job — and `GET /attachments/{id}/content`
+# honoured that literally: tenant scope and nothing else. A credential with no
+# payroll capability could read a payslip's PDF, which is the one read
+# `tests/test_payroll_visibility.py` opens by calling "the first read in this
+# API that belonging to the workspace does not entitle you to".
+#
+# So the bytes are reached THROUGH the document that carries them. The document
+# already knows who may see it — `ensure_invoice_visible`, `ensure_policy_visible`
+# and the rest were written for exactly that question — and the caller has to
+# name it, which makes the authorisation explicit at every call site instead of
+# implicit in an id nobody can trace.
+#
+# `attachment_id` on the model that actually holds it: header for the three
+# single-document families, line items for the five with lines.
+ATTACHMENT_SOURCES: dict[type, tuple[type | None, str | None]] = {}
+
+
+def register_attachment_source(document_model: type, item_model=None, parent_field: str | None = None) -> None:
+    """Where this family keeps the attachment ids reachable from one document.
+
+    Declared by each family's own module, so a new family that forgets to
+    register is a family whose attachments are unreachable — visibly, on the
+    first read — rather than one whose attachments are reachable by anyone.
+    """
+    ATTACHMENT_SOURCES[document_model] = (item_model, parent_field)
+
+
+def document_attachment_ids(db: Session, tenant_id: str, document) -> set[str]:
+    """Every attachment this one document carries, header and lines."""
+    item_model, parent_field = ATTACHMENT_SOURCES[type(document)]
+    if item_model is None:
+        return {document.attachment_id} - {None}
+    rows = db.scalars(
+        select(item_model.attachment_id).where(
+            item_model.tenant_id == tenant_id,
+            getattr(item_model, parent_field) == document.id,
+            item_model.attachment_id.is_not(None),
+        )
+    ).all()
+    return set(rows)
+
+
+def serve_document_attachment(db: Session, tenant_id: str, document, attachment_id: str) -> Response:
+    """The bytes, once the caller has proved they may read the document.
+
+    Callers MUST apply the family's own visibility check before calling this —
+    it verifies only that the attachment belongs to the document named, which
+    is the other half. 404 for an attachment the document does not carry: an
+    id that is real but unrelated must not read differently from one that is
+    not real, or the endpoint becomes an oracle for what exists.
+    """
+    if attachment_id not in document_attachment_ids(db, tenant_id, document):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+    attachment = get_scoped_or_404(db, Attachment, tenant_id, attachment_id)
+    return Response(
+        content=attachment.content,
+        media_type=attachment.content_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(attachment.filename)}"},
+    )
+
+
 def load_item_catalog_context(db: Session, tenant_id: str, items) -> tuple[dict, dict, set]:
     """(skus_by_id, products_by_id, products_with_skus) for a set of lines —
     the three maps every /detail needs to label its lines, in three reads
@@ -1632,6 +1711,7 @@ def _run_document_import(*, db: Session, actor: Actor, family: str, payload) -> 
         family=family,
         rows=payload.rows,
         machine_states=set(machine.get("states", ())),
+        initial_state=machine["initial"],
         dry_run=payload.dry_run,
         on_error=payload.on_error,
         on_missing_reference=payload.on_missing_reference,

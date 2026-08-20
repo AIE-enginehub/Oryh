@@ -277,4 +277,8 @@ def test_a_strangers_cheque_cannot_fund_this_account(shop) -> None:
                    "amount_applied": 30.0}],
     }, headers=key)
     assert refused.status_code == 409, refused.text
-    assert "belongs to a different party" in refused.json()["detail"]
+    # discriminating against the other 409s this endpoint gives (currency,
+    # account status, over-application), not pinning prose for its own sake.
+    # The check moved onto SettlementTarget so invoices and claims get it too,
+    # and the wording generalised with it.
+    assert "names a different party" in refused.json()["detail"]

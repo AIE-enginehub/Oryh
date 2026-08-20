@@ -18,6 +18,9 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `PATCH /invoices/{invoice_id}` | correct the header, or move the status |
 | `DELETE /invoices/{invoice_id}` | soft delete — refused while payments are applied |
 | `POST /invoices/{invoice_id}/restore` | undo that |
+| `POST /attachments` | upload the issued tax document; the id goes in `attachment_id` |
+| `GET /invoices/{invoice_id}/attachments/{attachment_id}/content` | read that file back |
+| `GET /payments/{payment_id}/attachments/{attachment_id}/content` | the bank slip on a receipt of funds |
 | `POST /invoices/{invoice_id}/submit` | draft → submitted (an invoicing request) |
 
 `keyword=` also matches title, invoice_no, tax_invoice_number and the

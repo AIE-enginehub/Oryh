@@ -129,15 +129,16 @@ period should hold.
 
 **Expense claim (`expense_claim`) — the evidence.** Every line should trace to a
 receipt: fetch every item's `attachment_id` **in one batch** —
-`GET /attachments/{id}/content` per receipt, all sent together, not one claim
-line at a time — and read them. Verify amount, date, and merchant against the item; note items
+`GET /expense-claims/{claim_id}/attachments/{attachment_id}/content` per
+receipt, all sent together, not one claim line at a time — and read them. Verify amount, date, and merchant against the item; note items
 with no receipt at all. Discrepancies belong in the `comment` and usually mean
 `returned`, not `approved`. **Never approve without having looked at the
 receipts.**
 
 **Purchase request (`purchase_request`) — the unpriced lines.** Check quantities and
 prices against the stated purpose; open quote files via
-`GET /attachments/{id}/content` when present; compare priced lines against the
+`GET /purchase-requests/{request_id}/attachments/{attachment_id}/content`
+when present; compare priced lines against the
 catalog `list_price` (`GET /products/{product_id}`, or the variant's own via
 `GET /product-skus/{sku_id}`) when the line is cataloged. The quote files and
 the catalog lookups are independent of each other — **send them as one

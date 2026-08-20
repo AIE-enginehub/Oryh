@@ -43,11 +43,17 @@ from app.api.common import (
     list_rows,
     normalize_vendor_context,
     record_line_audit,
+    register_attachment_source,
     requested_pagination,
     require_machine_state,
     restore_document,
+    serve_document_attachment,
     submit_document,
 )
+# billing.py reads only `common`, so claims -> billing is acyclic. These two
+# are the invoice family's own arithmetic (a declared header total wins over
+# the line sum); re-deriving it here would be a second answer to one question.
+from app.api.billing import invoice_billed_total, live_invoice_items
 from app.api.deps import Actor, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -55,6 +61,8 @@ from app.models import (
     Employee,
     ExpenseClaim,
     ExpenseItem,
+    Invoice,
+    InvoiceItem,
     Project,
     TimesheetEntry,
     TimesheetHeader,
@@ -62,6 +70,7 @@ from app.models import (
 )
 from app.schemas import (
     ApprovalRecordRead,
+    ClaimInvoiceRead,
     AttachmentRead,
     CreateExpenseClaimRequest,
     CreateExpenseItemRequest,
@@ -173,13 +182,13 @@ def create_timesheet_header(
     require_permission(actor, "timesheet.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    require_machine_state(db, tenant_id, TimesheetHeader, payload.status)
+    initial_status = require_machine_state(db, tenant_id, TimesheetHeader, payload.status)
     header = TimesheetHeader(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
         period_start=payload.period_start,
         period_end=payload.period_end,
-        status=payload.status,
+        status=initial_status,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
     )
@@ -568,14 +577,14 @@ def create_expense_claim(
     require_permission(actor, "expense.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    require_machine_state(db, tenant_id, ExpenseClaim, payload.status)
+    initial_status = require_machine_state(db, tenant_id, ExpenseClaim, payload.status)
     claim = ExpenseClaim(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
         title=payload.title,
         claim_date=payload.claim_date,
         currency=payload.currency,
-        status=payload.status,
+        status=initial_status,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
     )
@@ -644,6 +653,27 @@ def delete_expense_claim(
     claim = get_scoped_or_404(db, ExpenseClaim, actor.tenant_id, claim_id)
     if claim.deleted_at is None:
         ensure_nothing_applied(db, claim, label="expense claim")
+        # …and since money now reaches a claim through the reimbursement
+        # invoice raised from it, the claim's OWN applied_amount stays zero
+        # however much has been paid. Without this the check above became
+        # decorative the moment settlement moved: a fully paid claim would
+        # delete cleanly and leave a payable whose origin was gone.
+        raised = db.scalar(
+            select(Invoice).where(
+                Invoice.tenant_id == actor.tenant_id,
+                Invoice.expense_claim_id == claim_id,
+                Invoice.deleted_at.is_(None),
+            )
+        )
+        if raised is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"reimbursement invoice {raised.invoice_no} was raised from this claim — "
+                    "delete or void that invoice first, or the payable outlives the document "
+                    "it came from"
+                ),
+            )
     return delete_document(db, actor, ExpenseClaim, claim_id, payload)
 
 
@@ -711,6 +741,45 @@ def get_expense_claim_detail(
         )
         for item in items
     ]
+    # The reimbursement invoices raised from this claim, and what they cover.
+    # Read, never stored: a stored list drifts the moment an invoice is voided,
+    # and a stored total drifts the moment a line is added. The claim's own
+    # `applied_amount` stays zero forever — money reaches it through the
+    # invoices — so these are the numbers to route on, never the status.
+    raised = db.scalars(
+        select(Invoice)
+        .where(
+            Invoice.tenant_id == tenant_id,
+            Invoice.expense_claim_id == claim_id,
+            Invoice.deleted_at.is_(None),
+        )
+        .order_by(Invoice.created_at.asc())
+    ).all()
+    billed_ids = set(
+        db.scalars(
+            select(InvoiceItem.expense_item_id).where(
+                InvoiceItem.tenant_id == tenant_id,
+                InvoiceItem.expense_item_id.in_([item.id for item in items] or [""]),
+                InvoiceItem.deleted_at.is_(None),
+            )
+        ).all()
+    )
+    invoiced = float(sum(item.amount for item in items if item.id in billed_ids))
+    claim_invoices = []
+    for invoice in raised:
+        lines = live_invoice_items(db, tenant_id, invoice.id)
+        billed_total = invoice_billed_total(invoice, lines)
+        applied = float(invoice.applied_amount or 0)
+        claim_invoices.append(
+            ClaimInvoiceRead(
+                id=invoice.id,
+                invoice_no=invoice.invoice_no,
+                status=invoice.status,
+                billed_total=billed_total,
+                applied_amount=applied,
+                outstanding_amount=round(billed_total - applied, 2),
+            )
+        )
     detail = ExpenseClaimDetailRead(
         claim=ExpenseClaimRead.model_validate(claim),
         items=detail_items,
@@ -718,6 +787,9 @@ def get_expense_claim_detail(
         attachments=[AttachmentRead.model_validate(attachment) for attachment in attachments],
         total_amount=float(sum(item.amount for item in items)),
         total_tax_amount=float(sum(item.tax_amount or 0 for item in items)),
+        invoices=claim_invoices,
+        invoiced_amount=invoiced,
+        uninvoiced_amount=round(float(sum(item.amount for item in items)) - invoiced, 2),
     )
     return envelope(detail.model_dump(by_alias=True))
 
@@ -929,3 +1001,25 @@ def delete_expense_item(
     )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- the original document, reached through the record that carries it ------
+#
+# Authorisation is the DOCUMENT's, never the attachment id's. See
+# `serve_document_attachment` in common.py for why the standalone
+# `/attachments/{id}/content` could not answer this question safely.
+
+
+register_attachment_source(ExpenseClaim, ExpenseItem, "claim_id")
+
+
+@router.get("/expense-claims/{claim_id}/attachments/{attachment_id}/content")
+def get_expense_claim_attachment(
+    claim_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A receipt, reached through the claim that carries it."""
+    document = get_scoped_or_404(db, ExpenseClaim, tenant_id, claim_id)
+    return serve_document_attachment(db, tenant_id, document, attachment_id)

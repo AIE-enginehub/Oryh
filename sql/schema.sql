@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260819_0057
+-- Alembic revision: 20260820_0059
 --
 
 --
@@ -577,7 +577,8 @@ CREATE TABLE oryh.invoice_items (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    pay_history_id uuid
+    pay_history_id uuid,
+    expense_item_id uuid
 );
 
 
@@ -624,7 +625,8 @@ CREATE TABLE oryh.invoices (
     payee_employee_id uuid,
     period_start date,
     period_end date,
-    CONSTRAINT invoices_direction_counterparty_ck CHECK (((((direction)::text = 'sales'::text) AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'purchase'::text) AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'payroll'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL))))
+    expense_claim_id uuid,
+    CONSTRAINT invoices_direction_counterparty_ck CHECK (((((direction)::text = 'sales'::text) AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'purchase'::text) AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'payroll'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL)) OR (((direction)::text = 'reimbursement'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL))))
 );
 
 
@@ -2709,6 +2711,13 @@ CREATE INDEX inventory_items_tenant_idx ON oryh.inventory_items USING btree (ten
 
 
 --
+-- Name: invoice_items_expense_item_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX invoice_items_expense_item_uk ON oryh.invoice_items USING btree (tenant_id, expense_item_id) WHERE ((expense_item_id IS NOT NULL) AND (deleted_at IS NULL));
+
+
+--
 -- Name: invoice_items_invoice_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -2825,6 +2834,20 @@ CREATE INDEX invoices_tenant_idx ON oryh.invoices USING btree (tenant_id);
 --
 
 CREATE INDEX invoices_vendor_idx ON oryh.invoices USING btree (vendor_id);
+
+
+--
+-- Name: ix_invoice_items_expense_item_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_invoice_items_expense_item_id ON oryh.invoice_items USING btree (expense_item_id);
+
+
+--
+-- Name: ix_invoices_expense_claim_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_invoices_expense_claim_id ON oryh.invoices USING btree (expense_claim_id);
 
 
 --
@@ -3697,6 +3720,14 @@ ALTER TABLE ONLY oryh.inventory_items
 
 
 --
+-- Name: invoice_items invoice_items_expense_item_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoice_items
+    ADD CONSTRAINT invoice_items_expense_item_id_fkey FOREIGN KEY (expense_item_id) REFERENCES oryh.expense_items(id);
+
+
+--
 -- Name: invoice_items invoice_items_invoice_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3774,6 +3805,14 @@ ALTER TABLE ONLY oryh.invoices
 
 ALTER TABLE ONLY oryh.invoices
     ADD CONSTRAINT invoices_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: invoices invoices_expense_claim_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoices
+    ADD CONSTRAINT invoices_expense_claim_id_fkey FOREIGN KEY (expense_claim_id) REFERENCES oryh.expense_claims(id);
 
 
 --

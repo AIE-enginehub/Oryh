@@ -142,21 +142,28 @@ def test_tenant_custom_timesheet_machine(client: TestClient) -> None:
 
 
 def test_builtin_machine_requires_anchors(client: TestClient) -> None:
-    response = client.post(
-        "/api/v1/object-type-definitions",
-        json={
-            "entity_kind": "builtin",
-            "object_type": "timesheet_header",
-            "state_machine": {
-                "initial": "open",
-                "states": ["open", "done"],
-                "transitions": {"open": ["done"], "done": []},
-            },
+    """The anchor is a ROLE now, not a name. A machine may call every state
+    whatever the workspace calls it — what it cannot do is leave the server
+    unable to find where /submit lands. Refusing must teach the fix, because
+    the admin's agent reads this message mid-edit."""
+    body = {
+        "entity_kind": "builtin",
+        "object_type": "timesheet_header",
+        "state_machine": {
+            "initial": "open",
+            "states": ["open", "filed", "done"],
+            "transitions": {"open": ["filed"], "filed": ["done"], "done": []},
         },
-        headers=HEADERS,
-    )
+    }
+    response = client.post("/api/v1/object-type-definitions", json=body, headers=HEADERS)
     assert response.status_code == 422
-    assert "anchor" in response.json()["detail"] or "must start" in response.json()["detail"]
+    assert '"roles"' in response.json()["detail"], response.json()["detail"]
+    assert "submitted" in response.json()["detail"]
+
+    # …and the taught fix works: same machine, roles declared, fully renamed
+    body["state_machine"]["roles"] = {"submitted": "filed"}
+    accepted = client.post("/api/v1/object-type-definitions", json=body, headers=HEADERS)
+    assert accepted.status_code == 201, accepted.text
 
     # builtin definitions must carry a machine
     response = client.post(

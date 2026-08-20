@@ -77,9 +77,9 @@ intentionally back no agent skill.)
 |---|---|---|
 | `timesheet.submit_own` | `POST /timesheet-headers`, `POST /timesheet-headers/{id}/submit`, `POST /timesheet-entries`, `PATCH`/`DELETE /timesheet-entries/{id}` | `oryh-timesheet-submit` |
 | `timesheet.advance` | `PATCH /timesheet-headers/{id}` (only when `status` changes) | `oryh-timesheet-approval-flow` |
-| `expense.submit_own` | `POST /expense-claims`, `POST /expense-claims/{id}/submit`, `POST /expense-items`, `PATCH`/`DELETE /expense-items/{id}`, `POST /attachments` | `oryh-expense-submit` |
+| `expense.submit_own` | `POST /expense-claims`, `POST /expense-claims/{id}/submit`, `POST /expense-items`, `PATCH`/`DELETE /expense-items/{id}` | `oryh-expense-submit` |
 | `expense.advance` | `PATCH /expense-claims/{id}` (only when `status` changes) | `oryh-expense-approval-flow` |
-| `purchase.submit_own` | `POST /purchase-requests`, `POST /purchase-requests/{id}/submit`, `POST /purchase-request-items`, `PATCH`/`DELETE /purchase-request-items/{id}`, `POST /attachments` | `oryh-purchase-submit` |
+| `purchase.submit_own` | `POST /purchase-requests`, `POST /purchase-requests/{id}/submit`, `POST /purchase-request-items`, `PATCH`/`DELETE /purchase-request-items/{id}` | `oryh-purchase-submit` |
 | `purchase.advance` | `PATCH /purchase-requests/{id}` (only when `status` changes) | `oryh-purchase-approval-flow` |
 | `quotation.submit_own` | `POST /sales-quotations`, `POST /sales-quotations/{id}/submit`+`/send`+`/close`+`/revise`, `POST /sales-quotation-items`, `PATCH`/`DELETE /sales-quotation-items/{id}` | `oryh-quotation-submit` |
 | `quotation.advance` | `PATCH /sales-quotations/{id}` (only when `status` changes — approval finalization and the expiry sweep) | `oryh-quotation-approval-flow` |
@@ -96,6 +96,8 @@ intentionally back no agent skill.)
 | `payroll.manage` | `POST`/`PATCH /pay-histories*` | `oryh-payroll` |
 | `policy.manage` | `POST`/`PATCH`/`DELETE /policies*` (drafts only); also **widens reads** — drafts and repealed policies are visible only to holders | `oryh-policy` |
 | `policy.publish` | `POST /policies/{id}/publish`, `POST /policies/{id}/repeal` | `oryh-policy` |
+| *(`users.manage` also **reads the machinery**)* | `GET /roles` (the access topology), `GET /attachments/{id}` and its `/content` (by bare id; everyone else reads attachments through the owning document) — pinned by `tests/test_member_api_surface.py` | — |
+| *(**`POST /attachments`** is granted by ANY of these eight)* | `expense.submit_own`, `purchase.submit_own`, `purchase_order.manage`, `quotation.submit_own`, `order.submit_own`, `invoice.manage` (any scope), `payment.record`, `policy.manage` — one per model carrying `attachment_id`, because whoever files the record must be able to attach its evidence. Pinned to the code by `tests/test_attachment_upload_gate.py`. **Reading** the bytes is a different question: `GET /attachments/{id}/content` needs `users.manage`, and everyone else goes through the document — `GET /invoices/{id}/attachments/{attachment_id}/content` and its seven siblings, where the document's own visibility answers first (`tests/test_attachment_reach.py`) | — |
 | `payroll.read` | **a read gate, not a write gate** — filters `GET /invoices*`, `GET /payments*`, `GET /payment-applications`, `GET /object-directory`, and gates `GET /pay-histories*`, `GET /employees/{id}/pay-history` | `oryh-payroll` |
 | `business_object.write` *(scopable `:type`)* | `POST`/`PATCH /business-objects`, `POST`/`PATCH /approval-targets` | `oryh-business-object` (bare); a tenant skill may gate on `business_object.write:daily_report` etc. |
 | `business_object.advance` *(scopable)* | same `PATCH` endpoints, only on `status` change | *(none shipped — flow-admin/service credential)* |
@@ -108,10 +110,10 @@ intentionally back no agent skill.)
 | `master_data.manage` | `POST`/`PATCH`/`DELETE /projects`, `/vendors`, `/customers`, `/products`, `/product-skus`, `/resources`, plus `POST /products/bulk`, `/vendors/bulk`, `/customers/bulk` | `oryh-master-data` |
 | `employees.manage` | `POST`/`PATCH /employees` | *(console only)* |
 | `users.manage` | `POST /auth/invitations`, `GET`/`PATCH /auth/users*`, `POST`/`PATCH`/`DELETE /roles`, `POST`/`DELETE /capabilities`, `POST /users/{id}/skill-bundle` | `oryh-access-admin` |
-| `keys.manage` | `GET`/`POST`/`PATCH /tenant/api-keys*`, `POST /users/{id}/skill-bundle` | *(console only)* |
+| `keys.manage` | `GET`/`POST`/`PATCH /tenant/api-keys*`, `POST /users/{id}/skill-bundle`; also reads flow machinery — `GET /flow-runs`, `GET /flow-subscriptions` (or `flow_run.record`) | *(console only)* |
 | `object_types.manage` | `POST`/`PATCH`/`DELETE /object-type-definitions*` | *(console only)* |
 | `workflows.publish` | `POST /workflow-definitions` | *(console only)* |
-| `skills.manage` | `POST`/`PATCH`/`DELETE /skills*` | *(console only)* |
+| `skills.manage` | `GET`/`POST`/`PATCH`/`DELETE /skills*` — the registry, reads included: every skill's text, files, audience and calibration. A member's own surface is `GET /my/skill-bundle` + `/my/skills/*` | *(console only)* |
 | `tenant.act_for_any_employee` | not a standalone gate — the bypass in `enforce_member_employee` that lets a role act on any employee's timesheets/bookings/todos | *(none)* |
 
 `users.manage` is also accepted temporarily at master-data write endpoints so

@@ -154,7 +154,17 @@ function variantSummary(attributes: Record<string, unknown>): string {
     .join(" · ");
 }
 
-function AttachmentTable({ attachments }: { attachments: Attachment[] }) {
+function AttachmentDownload(
+  { detail, attachmentId }: { detail: ObjectDetail; attachmentId: string | null | undefined },
+) {
+  const { text } = useI18n();
+  if (!attachmentId) return <>—</>;
+  const href = attachmentContentUrl(detail.entityType, detail.subject.record.id, attachmentId);
+  if (!href) return <>—</>;
+  return <a className="text-action" href={href}>{text("下载", "Download")}</a>;
+}
+
+function AttachmentTable({ detail, attachments }: { detail: ObjectDetail; attachments: Attachment[] }) {
   const { language, text } = useI18n();
   if (attachments.length === 0) return <EmptySection>{text("没有关联附件。", "No related attachments.")}</EmptySection>;
   return (
@@ -166,7 +176,7 @@ function AttachmentTable({ attachments }: { attachments: Attachment[] }) {
         <td>{(attachment.size_bytes / 1024).toFixed(1)} KB</td>
         <td className="mono-cell">{attachment.sha256.slice(0, 12)}…</td>
         <td>{formatDateTime(attachment.created_at, language)}</td>
-        <td className="row-actions"><a className="text-action" href={attachmentContentUrl(attachment.id)}>{text("下载", "Download")}</a></td>
+        <td className="row-actions"><AttachmentDownload detail={detail} attachmentId={attachment.id} /></td>
       </tr>)}</tbody>
     </table></div>
   );
@@ -203,13 +213,13 @@ function ExpenseLines({ detail }: { detail: ObjectDetail }) {
             <td>{item.vendor_name || item.vendor_id || "—"}</td>
             <td><strong>{formatMoney(item.amount, currency, language)}</strong></td><td>{formatMoney(item.tax_amount, currency, language)}</td>
             <td className="mono-cell">{item.invoice_number || "—"}</td><td>{item.project_name_snapshot || item.project_id || "—"}</td>
-            <td>{item.attachment_id ? <a className="text-action" href={attachmentContentUrl(item.attachment_id)}>{text("下载", "Download")}</a> : "—"}</td>
+            <td>{item.attachment_id ? <AttachmentDownload detail={detail} attachmentId={item.attachment_id} /> : "—"}</td>
             <td>{item.notes || "—"}</td>
           </tr>)}</tbody>
           {detail.expenseTotals && <tfoot><tr><td colSpan={4}>{text("合计", "Total")}</td><td><strong>{formatMoney(detail.expenseTotals.totalAmount, currency, language)}</strong></td><td>{formatMoney(detail.expenseTotals.totalTaxAmount, currency, language)}</td><td colSpan={4} /></tr></tfoot>}
         </table></div>}
     </Section>
-    <Section title={text("票据附件", "Receipt attachments")} count={detail.attachments.length}><AttachmentTable attachments={detail.attachments} /></Section>
+    <Section title={text("票据附件", "Receipt attachments")} count={detail.attachments.length}><AttachmentTable detail={detail} attachments={detail.attachments} /></Section>
   </>;
 }
 
@@ -229,14 +239,14 @@ function PurchaseLines({ detail }: { detail: ObjectDetail }) {
               <td><strong>{item.product?.name || item.product_name_snapshot || "—"}</strong>{item.product?.product_code && <small>{item.product.product_code}</small>}{item.product_id && <small className="object-inline-id">{item.product_id}</small>}</td>
               <td>{item.sku ? <><strong className="mono-cell">{item.sku.sku_code || item.sku.id}</strong>{Object.keys(item.sku.variant_attrs).length > 0 && <small className="object-variant-list">{variantSummary(item.sku.variant_attrs)}</small>}</> : !item.sku_id && item.sku_pending ? <span className="object-pending-sku">{text("SKU 待定", "SKU pending")}</span> : item.sku_id ? <><span className="mono-cell">{item.sku_id}</span><small>{text("SKU 目录信息不可用", "SKU catalog information unavailable")}</small></> : "—"}</td><td>{item.spec || item.product?.spec || "—"}</td><td>{item.quantity}</td><td>{item.unit || item.product?.unit || "—"}</td>
               <td>{formatMoney(item.unit_price, currency, language)}</td><td><strong>{formatMoney(estimated, currency, language)}</strong></td>
-              <td>{item.attachment_id ? <a className="text-action" href={attachmentContentUrl(item.attachment_id)}>{text("下载", "Download")}</a> : "—"}</td>
+              <td>{item.attachment_id ? <AttachmentDownload detail={detail} attachmentId={item.attachment_id} /> : "—"}</td>
               <td>{item.notes || "—"}</td>
             </tr>;
           })}</tbody>
           {detail.purchaseTotals && <tfoot><tr><td colSpan={6}>{text("预估合计", "Estimated total")}</td><td><strong>{formatMoney(detail.purchaseTotals.estimatedTotal, currency, language)}</strong><small>{detail.purchaseTotals.unpricedItemCount > 0 && text(`另有 ${detail.purchaseTotals.unpricedItemCount} 行未报价`, `${detail.purchaseTotals.unpricedItemCount} additional unpriced items`)}{detail.purchaseTotals.pendingSkuCount > 0 && text(` · ${detail.purchaseTotals.pendingSkuCount} 行 SKU 待定`, ` · ${detail.purchaseTotals.pendingSkuCount} SKUs pending`)}</small></td><td colSpan={2} /></tr></tfoot>}
         </table></div>}
     </Section>
-    <Section title={text("报价单附件", "Quote attachments")} count={detail.attachments.length}><AttachmentTable attachments={detail.attachments} /></Section>
+    <Section title={text("报价单附件", "Quote attachments")} count={detail.attachments.length}><AttachmentTable detail={detail} attachments={detail.attachments} /></Section>
   </>;
 }
 
@@ -268,7 +278,7 @@ function SalesQuotationLines({ detail }: { detail: ObjectDetail }) {
           </tfoot>}
         </table></div>}
     </Section>
-    <Section title={text("报价单附件", "Quotation attachments")} count={detail.attachments.length}><AttachmentTable attachments={detail.attachments} /></Section>
+    <Section title={text("报价单附件", "Quotation attachments")} count={detail.attachments.length}><AttachmentTable detail={detail} attachments={detail.attachments} /></Section>
   </>;
 }
 
@@ -321,7 +331,7 @@ function SalesOrderLines({ detail }: { detail: ObjectDetail }) {
           </tfoot>}
         </table></div>}
     </Section>
-    <Section title={text("订单附件", "Order attachments")} count={detail.attachments.length}><AttachmentTable attachments={detail.attachments} /></Section>
+    <Section title={text("订单附件", "Order attachments")} count={detail.attachments.length}><AttachmentTable detail={detail} attachments={detail.attachments} /></Section>
   </>;
 }
 

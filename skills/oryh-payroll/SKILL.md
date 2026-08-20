@@ -37,6 +37,8 @@ The three facts that follow from that:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/who-you-are-acting-as.md}}
+
 {{include:_common/read-before-you-decide.md}}
 
 {{include:_common/leave-no-orphan-work.md}}
@@ -199,6 +201,16 @@ payables, two payments.
 figure, then file. When you need attendance or commission figures, get them from
 the timesheets and the settlement ledger — never assume a full month.
 
+If the workspace also produces a payslip **document** — a PDF handed to the
+person, a signed acknowledgement they return — attach it (`attachment_id` on
+the payslip) rather than keeping it outside the system; see "Keeping the
+original" below. Read it back with
+`GET /invoices/{invoice_id}/attachments/{attachment_id}/content`, and note
+that this is the one attachment family where the document route matters for
+more than tidiness: a payslip's file is somebody's net pay, so only a
+credential that may see the payslip may see it. Reaching it by id alone does
+not work for anyone but the workspace administrator, by design.
+
 ## Disbursing
 
 One payment per person, all sharing a `reference_no` as the bank batch number.
@@ -227,6 +239,11 @@ POST /payments/{payment_id}/apply
   "idempotency_key": "payroll-2026-07-zhou"
 }
 ```
+
+**Each payout settles its OWN payslip** — the payment's `payee_employee_id` and
+the payslip's must be the same person, or the application is refused (409). In
+a batch of forty this is the mistake that hides: the amounts are plausible, the
+totals reconcile, and two people's pay is recorded against each other's payslip.
 
 **Always pass an `idempotency_key`** — this endpoint writes money, and a retry
 without one applies twice. A repeat with the same key returns `replayed: true`
@@ -261,6 +278,8 @@ If voiding really is right — the whole batch was computed against the wrong
 month, say — then it is a void, and the rules in "Leave No Orphan Work" above
 apply: the todos are yours to close, and the two documents should name each
 other.
+
+{{include:_common/attachment-evidence.md}}
 
 ## What This Skill Never Does
 

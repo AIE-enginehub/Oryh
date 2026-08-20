@@ -27,6 +27,8 @@ Four facts shape everything:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/who-you-are-acting-as.md}}
+
 ## Trigger Examples
 
 - "City First Hospital prepaid 100,000" / "how much credit do they have left?"

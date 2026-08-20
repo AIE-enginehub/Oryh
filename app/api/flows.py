@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.common import envelope, get_tenant_id, list_rows, requested_pagination
-from app.api.deps import Actor, attributed, get_actor, require_permission
+from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import FlowRun, FlowSubscription
 from app.schemas import (
@@ -53,7 +53,7 @@ def subscription_or_404(db: Session, tenant_id: str, subscription_id: str) -> Fl
     response_model_exclude_unset=True,
 )
 def list_flow_subscriptions(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
     entity_type: str | None = None,
     enabled: bool | None = None,
@@ -62,7 +62,14 @@ def list_flow_subscriptions(
 ):
     """What the platform drives in this workspace — the tenant's own answer to
     "where has our routing been handed over", and the runner's answer to "what
-    am I responsible for here"."""
+    am I responsible for here". Operator plumbing on both readings — a member's
+    agent routes by todos and never needs the machinery list."""
+    if not (has_permission(actor, "keys.manage") or has_permission(actor, "flow_run.record")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="requires capability keys.manage or flow_run.record",
+        )
+    tenant_id = actor.tenant_id
     stmt = select(FlowSubscription).where(FlowSubscription.tenant_id == tenant_id)
     if enabled is not None:
         stmt = stmt.where(FlowSubscription.enabled.is_(enabled))
@@ -210,7 +217,7 @@ def report_driver_state(
 
 @router.get("/flow-runs", response_model=FlowRunListEnvelope, response_model_exclude_unset=True)
 def list_flow_runs(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
     entity_type: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
@@ -218,7 +225,16 @@ def list_flow_runs(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, le=200)] = None,
 ):
-    """Newest first: the last run is the question people actually ask."""
+    """Newest first: the last run is the question people actually ask.
+
+    A run row carries the runner's own working — errors, retries, what it
+    decided — which is operator telemetry, not workspace business data."""
+    if not (has_permission(actor, "keys.manage") or has_permission(actor, "flow_run.record")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="requires capability keys.manage or flow_run.record",
+        )
+    tenant_id = actor.tenant_id
     stmt = select(FlowRun).where(FlowRun.tenant_id == tenant_id)
     return list_rows(
         db, stmt,

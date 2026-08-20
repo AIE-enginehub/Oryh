@@ -26,6 +26,8 @@ What makes this side different from receivables:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/who-you-are-acting-as.md}}
+
 {{include:_common/leave-no-orphan-work.md}}
 
 ## Trigger Examples
@@ -60,7 +62,13 @@ oryh:
    `direction: "purchase"` with the required `vendor_id`. Record the supplier's
    own `tax_invoice_number` and `tax_invoice_code`, and put the full verification or OCR
    result in `extracted_fields` — the typed columns are only the queryable
-   subset. Set `due_date` from the payment terms; that is what the payables
+   subset. **Keep the file you read those numbers off**: upload the supplier's
+   PDF or the scan of the paper invoice and set `attachment_id` on the bill —
+   see "Keeping the original" below. Extracting the figures and discarding the
+   document leaves the workspace unable to answer what the supplier actually
+   billed, which is the question every payment dispute comes down to. Read it
+   back with
+   `GET /invoices/{invoice_id}/attachments/{attachment_id}/content`. Set `due_date` from the payment terms; that is what the payables
    queue reads. A bill must carry either `items` or a `total_amount` (422
    otherwise).
 4. **Pin the lines** to the PO lines they bill (`purchase_order_item_id`). This
@@ -100,9 +108,54 @@ ask; do not average them into a decision.
 
 ## Paying
 
+0. **Paying an expense claim? Ask which route this workspace takes.**
+   Two are legitimate and the server picks neither:
+
+   - **Bill it.** `POST /expense-claims/{claim_id}/invoice` first, then treat
+     the invoice as an ordinary bill in every step below. The claim's payable
+     lands in AP, in aging, and in whatever a ledger posts from — what a
+     company that closes books wants.
+   - **Pay it.** Skip the invoice and settle the claim itself at the end
+     (`"applied_to_type": "expense_claim"`). Fewer documents, same money, same
+     guards.
+
+   **This workspace's answer is written down — read it, do not choose for
+   them.** Two places, in order:
+
+   - the **"Workspace calibration" section at the bottom of this skill** — it
+     is already in your bundle, nothing to fetch. The admin states the route
+     there in a sentence ("pay claims directly, no invoice" / "always bill
+     first").
+   - the claim's workflow definition:
+     `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim`
+     — what happens after approval is that document's subject.
+
+   When neither says, ask the principal once and say which you used. When they
+   disagree, say so and ask — do not pick.
+
+   A single claim may not take both routes: whichever it takes first is the one
+   it keeps, and the other is refused with a 409 naming what already covers it.
+   The two documents keep separate running totals, so paying both would pay the
+   employee twice while each reported itself correctly settled. Reversing the
+   applications releases the claim to the other route.
+
+   On the billing route: the company owes the EMPLOYEE, so the invoice names
+   them as payee — the merchant who issued the receipt was already paid, by the
+   employee, out of their own money. It arrives `issued`, not `draft`: the
+   spending was approved on the claim, and a second approval round would ask
+   someone to re-decide it holding none of the receipts. It bills the claim's
+   **unbilled lines**, so a claim may carry several invoices — bill what is
+   agreed now, the disputed lines once they are settled.
+   `GET /expense-claims/{claim_id}/detail` reports `invoices`,
+   `invoiced_amount` and `uninvoiced_amount`; read those, never the status.
+
+   A supplier bill needs none of this; start at 1.
 1. **File the payment.** `POST /payments` with `direction: "outbound"` and the
    `vendor_id` (or `payee_employee_id` when paying an expense claim). Leave it at `draft`.
 2. **Record `counterparty_account`.** The account the money is about to go to.
+   Attach the bank receipt or remittance advice once you have it
+   (`attachment_id` on the payment); read it back with
+   `GET /payments/{payment_id}/attachments/{attachment_id}/content`.
    This is the single most valuable field on the document: payment-diversion
    fraud works by
    changing the account on an invoice, and an approver comparing this against
@@ -125,12 +178,19 @@ POST /payments/{payment_id}/apply
 ```
 
 - One payment settles several bills — one line each.
+- **The payment and the document must name the same party** (409 otherwise).
+  The trap is employee reimbursement: the merchant issued the receipt, so
+  their bill looks like the thing being reimbursed — but they were already
+  paid, by the employee, out of the employee's own money. Settle the
+  employee's claim, not the merchant's bill.
 - **Always pass an `idempotency_key`**: this writes money, and a retry without
   one applies twice. A repeat with the same key returns `replayed: true`.
-- Paying an expense claim works identically with
-  `"applied_to_type": "expense_claim"`. The claim's `paid` status remains the
-  flow's marker; the money fact is this application. What may be settled is the
-  sum of the claim's live items.
+- **An expense claim is settled by one route or the other, never both** — see
+  step 0 of "Paying". If this workspace bills, apply to the invoice; if it does
+  not, apply to the claim with `"applied_to_type": "expense_claim"`. A 409 here
+  means the claim already went the other way, and it names what covers it. The
+  claim's `paid` status remains the flow's marker either way; the money fact is
+  the application.
 - A prepayment in transit is an outbound payment whose `unapplied_amount` is still
   positive: `GET /payments?direction=outbound&unapplied=true`. When the supplier
   keeps a **standing prepayment account** with you, apply the payment to it
@@ -138,6 +198,8 @@ POST /payments/{payment_id}/apply
   fact rather than a floating one — see `$oryh-billing-account`.
 - A wrong match is reversed with a negative `amount_applied` and a `note`. Both
   rows stay in the ledger.
+
+{{include:_common/attachment-evidence.md}}
 
 ## Validate Before Writing
 

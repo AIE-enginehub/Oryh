@@ -37,6 +37,8 @@ from app.api.common import (
     get_scoped_or_404,
     list_rows,
     page_only_pagination,
+    register_attachment_source,
+    serve_document_attachment,
 )
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -575,3 +577,27 @@ def repeal_policy(
     db.commit()
     db.refresh(policy)
     return envelope(PolicyRead.model_validate(policy).model_dump(by_alias=True))
+
+
+# --- the original document, reached through the record that carries it ------
+#
+# Authorisation is the DOCUMENT's, never the attachment id's. See
+# `serve_document_attachment` in common.py for why the standalone
+# `/attachments/{id}/content` could not answer this question safely.
+
+
+register_attachment_source(Policy)
+
+
+@router.get("/policies/{policy_id}/attachments/{attachment_id}/content")
+def get_policy_attachment(
+    policy_id: str,
+    attachment_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """The policy document itself. Drafts and repealed policies are
+    visible only to `policy.manage`, and so are their files."""
+    document = get_scoped_or_404(db, Policy, actor.tenant_id, policy_id)
+    ensure_policy_visible(actor, document)
+    return serve_document_attachment(db, actor.tenant_id, document, attachment_id)

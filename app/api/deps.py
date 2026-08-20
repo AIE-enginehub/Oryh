@@ -16,6 +16,7 @@ from app.core.permissions import (
     PRINCIPAL_HOSTED_FLOW_AGENT,
     PRINCIPAL_TENANT_SERVICE,
     permissions_cover,
+    permissions_cover_any_scope,
 )
 from app.core.security import hash_token
 from app.db.session import bind_tenant_context, get_db
@@ -259,6 +260,14 @@ def has_permission(actor: Actor, verb: str, scope: str | None = None) -> bool:
     if actor.bypasses_permissions:
         return True
     return permissions_cover(actor.permissions, verb, scope)
+
+
+def has_permission_any_scope(actor: Actor, verb: str) -> bool:
+    """`has_permission` for a question that does not name a scope. See
+    `permissions_cover_any_scope`."""
+    if actor.bypasses_permissions:
+        return True
+    return permissions_cover_any_scope(actor.permissions, verb)
 
 
 def require_permission(actor: Actor, verb: str, scope: str | None = None) -> None:

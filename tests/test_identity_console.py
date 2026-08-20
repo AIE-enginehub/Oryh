@@ -750,7 +750,9 @@ def test_role_capability_typed_crud_guards_and_isolation(client: TestClient) -> 
     assert set(catalog["data"]) == {"capabilities", "object_types"}
     assert "console.review" in {row["name"] for row in catalog["data"]["capabilities"]}
 
-    # Read access remains open to an ordinary member; all writes remain users.manage-gated.
+    # The roles list is the workspace's access topology — every grant set and
+    # its headcount — which is users.manage's own subject. It used to be open
+    # to any member; now reading it takes the capability that acts on it.
     member_invite = invite(
         client,
         service,
@@ -758,7 +760,8 @@ def test_role_capability_typed_crud_guards_and_isolation(client: TestClient) -> 
         name="Reader",
     )
     member = accept_and_issue_key(client, service, member_invite)
-    assert client.get("/api/v1/roles", headers=member).status_code == 200
+    assert client.get("/api/v1/roles", headers=member).status_code == 403
+    assert client.get("/api/v1/roles", headers=service).status_code == 200
     assert client.get("/api/v1/capabilities", headers=member).status_code == 200
     assert client.post(
         "/api/v1/roles", json={"name": "blocked", "permissions": []}, headers=member

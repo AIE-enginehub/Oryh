@@ -69,7 +69,7 @@ PaymentMethod = TypeOptionName
 # payslip, whose counterparty is an employee rather than a customer or a
 # supplier. Not a type option — every settlement and visibility guard branches
 # on it, so an extensible vocabulary would leave them undecidable.
-InvoiceDirection = Literal["sales", "purchase", "payroll"]
+InvoiceDirection = Literal["sales", "purchase", "payroll", "reimbursement"]
 PayPeriodType = TypeOptionName
 PayrollItemType = TypeOptionName
 PayComponentType = TypeOptionName
@@ -539,7 +539,7 @@ class BulkSalesQuotationRow(BulkDocumentRowBase):
     quote_date: date | None = None
     valid_until: date | None = None
     # any state of the tenant's machine: historical quotations arrive closed
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     outcome_note: str | None = Field(default=None, max_length=2000)
 
 
@@ -551,7 +551,7 @@ class BulkSalesOrderRow(BulkDocumentRowBase):
     contract_no: str | None = Field(default=None, max_length=64)
     order_date: date | None = None
     promised_date: date | None = None
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
 
 
 class BulkPurchaseOrderRow(RequestModel):
@@ -574,7 +574,7 @@ class BulkPurchaseOrderRow(RequestModel):
     payment_terms: str | None = Field(default=None, max_length=2000)
     delivery_terms: str | None = Field(default=None, max_length=2000)
     total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
     items: list[BulkDocumentLineRow] = Field(default_factory=list, max_length=200)
@@ -632,7 +632,7 @@ class BulkInvoiceRow(RequestModel):
     tax_invoice_code: str | None = Field(default=None, max_length=32)
     tax_invoice_number: str | None = Field(default=None, max_length=64)
     # any state of the tenant's machine: historical invoices arrive issued
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
     items: list[BulkInvoiceLineRow] = Field(default_factory=list, max_length=200)
@@ -666,7 +666,7 @@ class BulkPaymentRow(RequestModel):
     bank_account: str | None = Field(default=None, max_length=200)
     counterparty_account: str | None = Field(default=None, max_length=200)
     reference_no: str | None = Field(default=None, max_length=100)
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -2504,7 +2504,7 @@ class TimesheetHeaderBase(RequestModel):
     employee_id: str | None = None
     period_start: date | None = None
     period_end: date | None = None
-    status: TimesheetStatus = "draft"
+    status: TimesheetStatus | None = None
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -2587,7 +2587,7 @@ class CreateEmployeeLeaveRequest(RequestModel):
     # was agreed rather than subtracting two dates itself.
     duration_days: float = Field(gt=0)
     reason: str | None = Field(default=None, max_length=2000)
-    status: LeaveStatus = "draft"
+    status: LeaveStatus | None = None
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -2688,7 +2688,7 @@ class ExpenseClaimBase(RequestModel):
     title: str | None = Field(default=None, max_length=200)
     claim_date: date | None = None
     currency: str = Field(default="CNY", min_length=3, max_length=3)
-    status: ExpenseStatus = "draft"
+    status: ExpenseStatus | None = None
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -2830,7 +2830,7 @@ class PurchaseRequestBase(RequestModel):
     vendor_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
     currency: str = Field(default="CNY", min_length=3, max_length=3)
-    status: PurchaseStatus = "draft"
+    status: PurchaseStatus | None = None
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -3276,6 +3276,19 @@ class TimesheetDetailRead(BaseModel):
     approval_records: list[ApprovalRecordRead]
 
 
+class ClaimInvoiceRead(APIModel):
+    """One reimbursement invoice raised from this claim. The claim carries no
+    stored list — a stored list drifts the moment an invoice is voided — so
+    this is read from the invoices themselves each time."""
+
+    id: str
+    invoice_no: str
+    status: str
+    billed_total: float
+    applied_amount: float
+    outstanding_amount: float
+
+
 class ExpenseClaimDetailRead(BaseModel):
     claim: ExpenseClaimRead
     items: list[ExpenseItemDetailRead]
@@ -3283,6 +3296,14 @@ class ExpenseClaimDetailRead(BaseModel):
     attachments: list[AttachmentRead]
     total_amount: float
     total_tax_amount: float
+    # every reimbursement invoice raised from this claim, oldest first — a
+    # claim is billed in instalments, so there may be several
+    invoices: list[ClaimInvoiceRead]
+    # what the invoices between them bill, and what is left. The claim's own
+    # `applied_amount` stays zero forever now that money reaches it through the
+    # invoices, so these are the numbers to route on — never the status.
+    invoiced_amount: float
+    uninvoiced_amount: float
 
 
 ExpenseClaimDetailEnvelope = Envelope[ExpenseClaimDetailRead]
@@ -3322,7 +3343,7 @@ class SalesQuotationBase(RequestModel):
     payment_terms: str | None = Field(default=None, max_length=2000)
     delivery_terms: str | None = Field(default=None, max_length=2000)
     total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: QuotationStatus = "draft"
+    status: QuotationStatus | None = None
     remarks: str | None = Field(default=None, max_length=2000)
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -3637,7 +3658,7 @@ class PurchaseOrderBase(RequestModel):
     payment_terms: str | None = Field(default=None, max_length=2000)
     delivery_terms: str | None = Field(default=None, max_length=2000)
     total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -3925,7 +3946,7 @@ class InvoiceBase(RequestModel):
     sales_order_id: str | None = None
     purchase_order_id: str | None = None
     project_id: str | None = None
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -3981,6 +4002,8 @@ class InvoiceRead(APIModel):
     id: str
     invoice_no: str
     direction: InvoiceDirection
+    # present on `reimbursement`: the approved claim this was raised from
+    expense_claim_id: str | None = None
     invoice_type: str | None = None
     employee_id: str
     customer_id: str | None = None
@@ -4628,7 +4651,7 @@ class PaymentBase(RequestModel):
     counterparty_account: str | None = Field(default=None, max_length=200)
     reference_no: str | None = Field(default=None, max_length=100)
     attachment_id: str | None = None
-    status: str = Field(default="draft", max_length=30)
+    status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -4819,7 +4842,7 @@ class SalesOrderBase(RequestModel):
     payment_terms: str | None = Field(default=None, max_length=2000)
     delivery_terms: str | None = Field(default=None, max_length=2000)
     total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: OrderStatus = "draft"
+    status: OrderStatus | None = None
     logistics_company: str | None = Field(default=None, max_length=100)
     logistics_tracking_no: str | None = Field(default=None, max_length=100)
     remarks: str | None = Field(default=None, max_length=2000)

@@ -56,7 +56,12 @@ SEEDED_ROLES: dict[str, list[str]] = {
         "policy.manage", "policy.publish",
     ],
     "finance_reviewer": MEMBER_BASE + [
+        # `:reimbursement` pays a colleague back; `:purchase` pays a supplier.
+        # Separate scopes because the counterparty class differs, and this desk
+        # does both — which is exactly what the deployment e2e caught it not
+        # having.
         "approval.record", "invoice.manage:sales", "invoice.manage:purchase",
+        "invoice.manage:reimbursement",
         "invoice.advance", "payment.record", "payment.apply",
         "billing_account.manage", "billing_account.post:currency",
     ],

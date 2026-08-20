@@ -38,7 +38,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "invoice.manage",
         True,
         "开具/登记发票",
-        "创建、编辑、提交发票；可按方向作用域（invoice.manage:sales 仅销项，:purchase 仅进项）",
+        "创建、编辑、提交发票；可按方向作用域（invoice.manage:sales 仅销项，:purchase 仅进项，:payroll 仅工资条，:reimbursement 仅员工报销）",
     ),
     ("invoice.advance", False, "推进发票状态", "发票状态转换（开具、退回、作废、坏账核销）——流程推进权"),
     ("payment.record", False, "登记收付款", "创建、编辑、提交收款与付款单；不含核销"),
@@ -222,6 +222,25 @@ def permissions_cover(permissions: frozenset[str], verb: str, scope: str | None 
     if verb in permissions or f"{verb}:*" in permissions:
         return True
     return scope is not None and f"{verb}:{scope}" in permissions
+
+
+def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
+    """Does this actor hold `verb` under ANY scope?
+
+    `permissions_cover(perms, "invoice.manage")` is False for someone holding
+    only `invoice.manage:sales`, and that is right wherever the caller knows
+    which scope it needs — the settlement path always does.
+
+    The attachment gate does not. It asks a different question: "does this
+    actor file attachment-backed records at all", and an 应收会计 scoped to
+    销项 files exactly as many as one scoped to both. Asking the scoped
+    question there produced a 403 on the upload for someone fully entitled to
+    the record the upload was for.
+    """
+    if verb in permissions:
+        return True
+    prefix = verb + ":"
+    return any(grant.startswith(prefix) for grant in permissions)
 
 
 def validate_permission_grammar(grant: str, known_custom: frozenset[str]) -> str | None:

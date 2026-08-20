@@ -25,6 +25,8 @@ Three facts shape everything here:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/who-you-are-acting-as.md}}
+
 {{include:_common/leave-no-orphan-work.md}}
 
 ## Trigger Examples
@@ -81,7 +83,12 @@ of them, do that half and say plainly which step someone else must take.
 6. Correct a wrong header with `PATCH /invoices/{invoice_id}`; the direction is
    not correctable by design, so a wrongly-directed invoice is voided and
    refiled. Once the tax invoice actually exists, record its own number in
-   `tax_invoice_number` (+ `tax_invoice_code`) — that number may only be booked
+   `tax_invoice_number` (+ `tax_invoice_code`), and attach the issued document
+   itself — the PDF or OFD the tax system produced — via `attachment_id`; see
+   "Keeping the original" below. The customer will ask for it again, and a
+   number without the document behind it is not a copy anyone can send. Read it
+   back with `GET /invoices/{invoice_id}/attachments/{attachment_id}/content`.
+   That number may only be booked
    once in the workspace, and a 409 naming the other document is the
    duplicate-booking backstop doing its job.
 
@@ -111,6 +118,9 @@ POST /payments/{payment_id}/apply
 }
 ```
 
+- **The receipt and the invoice must name the same customer** (409 otherwise) —
+  one customer's money never clears another's invoice, however alike the
+  amounts look on a bank statement.
 - One payment settles several invoices — that is the ordinary case, one line
   each.
 - **Always pass an `idempotency_key`** on a fresh match: this endpoint writes
@@ -172,6 +182,8 @@ applications so far. Summarize; do not dump the ledger at the person.
 Uncollectable, and the workspace's definition allows writing it off →
 `PATCH /invoices/{invoice_id}` with `{"status": "written_off"}`. That is a
 policy decision: confirm with the principal, never take it on your own reading.
+
+{{include:_common/attachment-evidence.md}}
 
 ## Validate Before Writing
 

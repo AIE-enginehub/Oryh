@@ -41,7 +41,14 @@ from app.api.common import (
     requested_pagination,
     require_master_data_manage,
 )
-from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
+from app.api.deps import (
+    Actor,
+    attributed,
+    get_actor,
+    has_permission,
+    has_permission_any_scope,
+    require_permission,
+)
 from app.core.config import settings
 from app.core.permissions import (
     HOSTED_FLOW_AGENT_DISPLAY_NAME,
@@ -699,6 +706,33 @@ def list_audit_logs(
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
+# Every capability that files an attachment-backed record. The gate below said
+# "any capability that files attachment-backed records grants upload" and then
+# named two of them, while EIGHT models carry `attachment_id`. So an 应收会计
+# holding only `invoice.manage:sales` could raise the invoice and could set its
+# `attachment_id`, but got 403 producing the id — the 发票原件 (a customer's
+# PDF, a 增值税发票扫描件) had nowhere to go, on the one document family whose
+# whole point is that the original is the evidence.
+#
+# It hid because every seeded role builds on `member_base`, which carries
+# `expense.submit_own`: in a demo tenant everyone is also an expense claimant,
+# so the gate passed for reasons unrelated to what they were filing. A service
+# key scoped to invoice entry alone is where it bites.
+#
+# `test_attachment_upload_gate.py` walks the mappers and fails when a model
+# grows `attachment_id` without a capability named here — the list is a fact
+# about the schema, not a list anyone should have to remember to update.
+ATTACHMENT_FILING_CAPABILITIES = (
+    "expense.submit_own",      # ExpenseItem
+    "purchase.submit_own",     # PurchaseRequestItem
+    "purchase_order.manage",   # PurchaseOrderItem
+    "quotation.submit_own",    # SalesQuotationItem
+    "order.submit_own",        # SalesOrderItem
+    "invoice.manage",          # Invoice
+    "payment.record",          # Payment
+    "policy.manage",           # Policy
+)
+
 
 @router.post("/attachments", status_code=status.HTTP_201_CREATED)
 def create_attachment(
@@ -708,11 +742,16 @@ def create_attachment(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    # any capability that files attachment-backed records grants upload
-    if not (has_permission(actor, "expense.submit_own") or has_permission(actor, "purchase.submit_own")):
+    # any capability that files attachment-backed records grants upload.
+    # `_any_scope` because `invoice.manage` is scopable and the question here
+    # is not which direction they bill — it is whether they file at all.
+    if not any(has_permission_any_scope(actor, verb) for verb in ATTACHMENT_FILING_CAPABILITIES):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="requires capability expense.submit_own or purchase.submit_own",
+            detail=(
+                "requires a capability that files attachment-backed records: "
+                + ", ".join(ATTACHMENT_FILING_CAPABILITIES)
+            ),
         )
     try:
         content = base64.b64decode(payload.content_base64, validate=True)
@@ -769,19 +808,71 @@ def create_attachment(
 @router.get("/attachments/{attachment_id}")
 def get_attachment(
     attachment_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    attachment = get_scoped_or_404(db, Attachment, tenant_id, attachment_id)
+    """Metadata by bare id — the administrator's route, exactly like /content.
+
+    A filename is content in miniature ("2026-07-payslip-li.pdf"), and the
+    sha256 answers "does this workspace hold these exact bytes" — neither is a
+    thing holding an id entitles you to. Everyone else reads attachment
+    metadata where it already rides: on the document's own /detail."""
+    if not has_permission(actor, "users.manage"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "reading an attachment by id alone is the workspace administrator's "
+                "route. Attachment metadata rides the owning document's /detail — "
+                "this is the wrong URL, not a missing capability"
+            ),
+        )
+    attachment = get_scoped_or_404(db, Attachment, actor.tenant_id, attachment_id)
     return envelope(AttachmentRead.model_validate(attachment).model_dump(by_alias=True))
 
 
 @router.get("/attachments/{attachment_id}/content")
 def get_attachment_content(
     attachment_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    """The bytes by id alone — the workspace administrator's route only.
+
+    Everyone else reaches an attachment through the document that carries it:
+    `GET /invoices/{id}/attachments/{attachment_id}/content` and its eight
+    siblings, where the document's own visibility answers the question first.
+    An attachment is never a thing you are entitled to because you hold its id.
+
+    This route used to be tenant-scoped and nothing else, so any credential in
+    the workspace could read a payslip's PDF — 工资条 is an invoice, and its
+    attachment is the payslip. `tests/test_payroll_visibility.py` calls payroll
+    "the first read in this API that belonging to the workspace does not
+    entitle you to", and warns that a gate is only worth its least covered
+    path. This was that path.
+
+    It stays open to `users.manage` because an administrator already reads the
+    whole audit trail and manages every credential — the id-based route buys
+    them nothing they lack, and taking it away would leave no way to inspect an
+    attachment whose referencing document was deleted.
+    """
+    # NOT `require_permission`, whose "requires capability users.manage" would
+    # send an approver to their admin asking for administrator rights — the
+    # worst possible outcome of this change, and a likelier one than it looks:
+    # an approver running a skill bundle from before this release calls the old
+    # URL, reads the 403, and does what it says. The message has to name the
+    # route instead, because that is the actual fix.
+    if not has_permission(actor, "users.manage"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "reading an attachment by id alone is the workspace administrator's "
+                "route. Fetch it through the document that carries it instead, e.g. "
+                "GET /expense-claims/{claim_id}/attachments/{attachment_id}/content "
+                "or /invoices/{invoice_id}/attachments/{attachment_id}/content — "
+                "this is the wrong URL, not a missing capability"
+            ),
+        )
+    tenant_id = actor.tenant_id
     attachment = get_scoped_or_404(db, Attachment, tenant_id, attachment_id)
     return Response(
         content=attachment.content,

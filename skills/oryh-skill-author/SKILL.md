@@ -16,6 +16,7 @@ The single most important thing you do is **classify before you write**. Tenant 
 | **Process contract** | Which API calls, in what order, iron rules, reply formats, hand-offs between roles — *how an agent executes* | Customer workflow skill in the `/skills` registry | Revise the skill; agents pick it up on next sync |
 | **Deterministic capability** | Pricing engines, code/OCR parsers, document templates, anything needing exactness or regression tests | A local tool the agent calls — **code, not prose** | Engineering work; a skill may *reference* the tool, never *be* it |
 | **Calibration** | How a SHIPPED skill should behave here — how much detail to report, which shortcuts to prefer, what this workspace always wants mentioned | `calibration` on the product skill itself | `PATCH /skills/{ref}` with `calibration`; **does not fork it**, so catalog updates keep arriving |
+| **State vocabulary** | What lifecycle states are CALLED here — the initial state's name, the in-flight names, what "approval finished" is called | The builtin `state_machine` on the object-type definition | Edit the machine; rename freely, point the server's `roles` at your names; effective immediately |
 
 A requirement usually decomposes across several of these. "a discount over 10% needs the sales director" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
 
@@ -67,8 +68,13 @@ Everything else comes from the conversation and from the tenant's own records.
 5. **Draft the SKILL.md** following [references/authoring-guide.md](references/authoring-guide.md) exactly: frontmatter contract, naming, section order, iron-rule style, and the base-skill rule — a customer workflow skill *composes* the product skills (`$oryh-quotation-submit`, `$oryh-business-object`, …) and the tenant's objects; it never re-documents core API mechanics the product skills already own.
 5a. **A preference is calibration, not a rewrite.** When the admin wants a
    shipped skill to behave differently *here* — "keep the todo list brief",
-   "expense notifications should name the project" — set `calibration` on that
-   product skill and stop.
+   "expense notifications should name the project", "pay approved expense
+   claims directly, no reimbursement invoice" — set `calibration` on that
+   product skill and stop. The last one is the canonical case: which
+   settlement route reimbursements take is read from `$oryh-payables`'s own
+   calibration, so switching a workspace from direct payment to
+   invoice-first (or back) is ONE sentence in one PATCH — no configuration,
+   no server change.
    Do NOT copy its files and edit them: editing `files` on a product skill
    FORKS it to `custom`, and from that moment it stops receiving every
    correction the catalog ships. One workspace paid three improvements for one
@@ -98,6 +104,37 @@ Everything else comes from the conversation and from the tenant's own records.
    means is not its job — so this check is yours and it must happen before you
    write. Match on meaning, not only spelling, and when it matches, tell the
    admin which built-in it is rather than creating a second one.
+
+5c. **State names are the workspace's words — rename them on the machine,
+   not in prose.** "call the post-approval invoice state `approved`, not
+   `issued`" is neither a
+   policy nor a calibration: it is the builtin `state_machine` on the
+   object-type definition. Fetch it
+   (`GET /object-type-definitions?entity_kind=builtin&object_type=invoice`),
+   rename the state everywhere it appears — `states`, `transitions`,
+   `editable_states` — and point the server's anchors at your names with a
+   `roles` map, then `PATCH` the definition back:
+
+   ```json
+   {"states": ["draft", "submitted", "returned", "approved", "paid", "written_off", "void", "cancelled"],
+    "roles": {"issued": "approved"},
+    "transitions": {"submitted": ["approved", "returned", "cancelled"], "approved": ["paid", "written_off", "void"], "...": ["..."]}}
+   ```
+
+   The roles are the server's own anchor points inside your vocabulary —
+   `submitted` (where /submit lands, every family), `issued` (a live
+   settleable invoice; its timestamp and reimbursement invoices follow it),
+   `paid` (a payment that moved), `sent` and `superseded` (quotations). A
+   machine that renames a state without moving its role is refused at save
+   time, and the error names the exact entry to add. The `initial` key is
+   already yours: creation lands there whatever you call it.
+
+   Everything downstream follows with no further edits: documents are created
+   in your initial, /submit lands on your word, timestamps stamp on your
+   word, and flow agents finalize in whatever your workflow definition says.
+   Do NOT write state renamings into the workflow definition text alone — the
+   definition is read by agents, but the machine is what the server enforces,
+   and the two must agree.
 
 6. **Choose `required_capability`** — this is the **floor**: what someone must
    be allowed to do before this skill is safe to hand them. Decide it deliberately:

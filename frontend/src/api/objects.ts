@@ -1236,6 +1236,30 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
   };
 }
 
-export function attachmentContentUrl(attachmentId: string): string {
-  return `${API_ROOT}/attachments/${encodeURIComponent(attachmentId)}/content`;
+// The document that carries an attachment is what authorises reading it: the
+// server checks "may this person see this document" and only then serves the
+// bytes. `/attachments/{id}/content` still exists but is the workspace
+// administrator's route — an ordinary member gets 403 there, which is why
+// every download link below names its document.
+const ATTACHMENT_COLLECTIONS: Partial<Record<ObjectEntityType, string>> = {
+  expense_claim: "expense-claims",
+  purchase_request: "purchase-requests",
+  sales_quotation: "sales-quotations",
+  sales_order: "sales-orders",
+  invoice: "invoices",
+  payment: "payments",
+  // purchase_order and policy have the same API route but no console detail
+  // page, so they are absent from ObjectEntityType. Returning null here is the
+  // safe failure: no link rather than a link that 403s.
+};
+
+export function attachmentContentUrl(
+  entityType: ObjectEntityType,
+  documentId: string,
+  attachmentId: string,
+): string | null {
+  const collection = ATTACHMENT_COLLECTIONS[entityType];
+  if (!collection) return null;
+  return `${API_ROOT}/${collection}/${encodeURIComponent(documentId)}`
+    + `/attachments/${encodeURIComponent(attachmentId)}/content`;
 }

@@ -1547,9 +1547,12 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
             "or (direction = 'purchase' and vendor_id is not null "
             "and customer_id is null and payee_employee_id is null) "
             "or (direction = 'payroll' and payee_employee_id is not null "
+            "and customer_id is null and vendor_id is null) "
+            "or (direction = 'reimbursement' and payee_employee_id is not null "
             "and customer_id is null and vendor_id is null)",
             name="invoices_direction_counterparty_ck",
         ),
+
         # 双发工资 is the expensive mistake in this family, so one payslip per
         # person per period is a database fact rather than an agent's care.
         Index(
@@ -1562,7 +1565,16 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     )
 
     invoice_no: Mapped[str] = mapped_column(String(64))
-    # 'sales' = 销项 (we issued it), 'purchase' = 进项 (we received it)
+    # 'sales' = money owed to us, 'purchase' = money owed to a supplier,
+    # 'payroll' = a payslip, 'reimbursement' = money owed to an employee who
+    # paid for something on the company's behalf.
+    #
+    # Reimbursement is a fourth direction rather than a purchase invoice
+    # against the merchant, because the merchant was never owed anything: the
+    # employee already paid them, with their own money. What the company owes
+    # is the employee, and an invoice whose counterparty is not the party that
+    # gets paid cannot be settled honestly — see the counterparty guard in
+    # `SettlementTarget`.
     direction: Mapped[str] = mapped_column(String(10), index=True)
     # 增值税专用发票 / 普通发票 / 电子发票 / 形式发票 / 收据 — tenant vocabulary
     invoice_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
@@ -1612,6 +1624,15 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
         ForeignKey("billing_accounts.id"), nullable=True, index=True
     )
     project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
+    # the approved expense claim this reimbursement invoice was raised from.
+    # Not unique: a claim may be billed in instalments — some lines now, the
+    # disputed ones after they are settled — exactly as a purchase order is
+    # billed by several supplier invoices. What stops the same LINE being
+    # billed twice is `InvoiceItem.expense_item_id`, one level down, which is
+    # also what makes "what on this claim is still unbilled" answerable.
+    expense_claim_id: Mapped[str | None] = mapped_column(
+        ForeignKey("expense_claims.id"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(String(20), default="draft")
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -1642,6 +1663,20 @@ class InvoiceItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     line, and therefore what makes the three-way match possible."""
 
     __tablename__ = "invoice_items"
+    __table_args__ = (
+        # One expense line is billed once. This is what replaced the
+        # one-invoice-per-claim rule: a claim may be billed in instalments, but
+        # a LINE billed twice is the employee reimbursed twice for one taxi,
+        # and it is the retry — the same call arriving again after a timeout —
+        # that would do it.
+        Index(
+            "invoice_items_expense_item_uk",
+            "tenant_id", "expense_item_id",
+            unique=True,
+            postgresql_where=text("expense_item_id IS NOT NULL AND deleted_at IS NULL"),
+            sqlite_where=text("expense_item_id IS NOT NULL AND deleted_at IS NULL"),
+        ),
+    )
 
     invoice_id: Mapped[str] = mapped_column(ForeignKey("invoices.id"), index=True)
     line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1657,6 +1692,12 @@ class InvoiceItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     tax_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     tax_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    # The expense line this invoice line bills — the same shape as the order
+    # links below, and the reason a claim can carry several invoices without
+    # any line being paid twice. `OrderItemBilling` for reimbursements.
+    expense_item_id: Mapped[str | None] = mapped_column(
+        ForeignKey("expense_items.id"), nullable=True, index=True
+    )
     sales_order_item_id: Mapped[str | None] = mapped_column(
         ForeignKey("sales_order_items.id"), nullable=True, index=True
     )

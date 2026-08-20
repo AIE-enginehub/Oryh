@@ -53,12 +53,14 @@ from app.api.common import (
     order_billed_on_account,
     page_only_pagination,
     recheck_charged_document,
+    register_attachment_source,
     requested_pagination,
     require_line_on_document,
     require_machine_state,
     resolve_chargeable_account,
     resolve_item_refs,
     restore_document,
+    serve_document_attachment,
     sku_pending_flag,
     submit_document,
     update_adjustment,
@@ -243,7 +245,7 @@ def create_purchase_request(
     require_permission(actor, "purchase.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    require_machine_state(db, tenant_id, PurchaseRequest, payload.status)
+    initial_status = require_machine_state(db, tenant_id, PurchaseRequest, payload.status)
     vendor_id, vendor_name_snapshot = normalize_vendor_context(
         db, tenant_id, payload.vendor_id, payload.vendor_name_snapshot
     )
@@ -256,7 +258,7 @@ def create_purchase_request(
         vendor_id=vendor_id,
         vendor_name_snapshot=vendor_name_snapshot,
         currency=payload.currency,
-        status=payload.status,
+        status=initial_status,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
     )
@@ -566,7 +568,7 @@ def create_purchase_order(
     require_permission(actor, "purchase_order.manage")
     vendor = get_scoped_or_404(db, Vendor, tenant_id, payload.vendor_id)
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
-    require_machine_state(db, tenant_id, PurchaseOrder, payload.status)
+    initial_status = require_machine_state(db, tenant_id, PurchaseOrder, payload.status)
     charged_account = None
     if payload.billing_account_id:
         # OUR standing account at this vendor: prepay, then order against it,
@@ -592,7 +594,7 @@ def create_purchase_order(
         payment_terms=payload.payment_terms,
         delivery_terms=payload.delivery_terms,
         total_amount=payload.total_amount,
-        status=payload.status,
+        status=initial_status,
         remarks=payload.remarks,
         source_report_text=payload.source_report_text,
         custom_fields_jsonb=payload.custom_fields,
@@ -1018,3 +1020,40 @@ def receive_purchase_order(
     )
     db.commit()
     return envelope(ReceivePurchaseOrderResult(lines=results).model_dump())
+
+
+# --- the original document, reached through the record that carries it ------
+#
+# Authorisation is the DOCUMENT's, never the attachment id's. See
+# `serve_document_attachment` in common.py for why the standalone
+# `/attachments/{id}/content` could not answer this question safely.
+
+
+register_attachment_source(PurchaseRequest, PurchaseRequestItem, "request_id")
+
+
+@router.get("/purchase-requests/{request_id}/attachments/{attachment_id}/content")
+def get_purchase_request_attachment(
+    request_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A quote file, reached through the request that carries it."""
+    document = get_scoped_or_404(db, PurchaseRequest, tenant_id, request_id)
+    return serve_document_attachment(db, tenant_id, document, attachment_id)
+
+
+register_attachment_source(PurchaseOrder, PurchaseOrderItem, "po_id")
+
+
+@router.get("/purchase-orders/{po_id}/attachments/{attachment_id}/content")
+def get_purchase_order_attachment(
+    po_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A line's supporting file, reached through the order."""
+    document = get_scoped_or_404(db, PurchaseOrder, tenant_id, po_id)
+    return serve_document_attachment(db, tenant_id, document, attachment_id)
