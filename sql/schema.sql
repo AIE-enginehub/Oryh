@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260820_0059
+-- Alembic revision: 20260820_0061
 --
 
 --
@@ -590,7 +590,7 @@ CREATE TABLE oryh.invoices (
     id uuid NOT NULL,
     tenant_id uuid NOT NULL,
     invoice_no character varying(64) NOT NULL,
-    direction character varying(10) NOT NULL,
+    direction character varying(20) NOT NULL,
     invoice_type character varying(30),
     employee_id uuid NOT NULL,
     customer_id uuid,

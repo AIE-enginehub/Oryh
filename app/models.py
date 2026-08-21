@@ -1565,7 +1565,11 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     )
 
     invoice_no: Mapped[str] = mapped_column(String(64))
-    # 'sales' = money owed to us, 'purchase' = money owed to a supplier,
+    # String(20), not (10): `reimbursement` is 13 characters and the column was
+    # sized for the three shorter words that came before it. Postgres refused
+    # the insert; SQLite, which the suite runs on, does not enforce VARCHAR
+    # length at all — so 1409 green tests said nothing about it and the first
+    # report came from production.
     # 'payroll' = a payslip, 'reimbursement' = money owed to an employee who
     # paid for something on the company's behalf.
     #
@@ -1575,7 +1579,7 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     # is the employee, and an invoice whose counterparty is not the party that
     # gets paid cannot be settled honestly — see the counterparty guard in
     # `SettlementTarget`.
-    direction: Mapped[str] = mapped_column(String(10), index=True)
+    direction: Mapped[str] = mapped_column(String(20), index=True)
     # 增值税专用发票 / 普通发票 / 电子发票 / 形式发票 / 收据 — tenant vocabulary
     invoice_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     # the 经办人 who owns the document, as in every other family
