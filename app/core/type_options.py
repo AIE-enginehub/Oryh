@@ -84,6 +84,12 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("vat_electronic", "电子发票", "全电/电子发票"),
         ("proforma", "形式发票", "对外报价性质的形式发票，非税务凭证"),
         ("receipt", "收据", "非发票的收付款凭证"),
+        # 报销与工资条不是税务票据，但它们仍是单据，而这张表本来就装着
+        # 非税务凭证——形式发票"非税务凭证"，收据"非发票的收付款凭证"。
+        # 归进 `other` 会更糟：那是"是票据但未归类"，而这两者根本不是票据，
+        # 混进去会污染将来的进项税额统计。
+        ("reimbursement", "报销单", "员工垫付后由公司偿付的内部应付凭证，非税务票据"),
+        ("payslip", "工资条", "发薪凭证，非税务票据"),
         ("other", "其他", "未归类的票据类型"),
     ),
     # OFBiz invoiceItemTypeId: charges and allowances are LINE types here, which

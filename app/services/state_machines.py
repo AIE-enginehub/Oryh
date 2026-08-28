@@ -153,6 +153,82 @@ DEFAULT_PURCHASE_ORDER_MACHINE: dict = {
 }
 
 
+# Shipped default for the SALES RETURN lifecycle — rows in `sales_orders`
+# with order_kind='return', shaped by the e-commerce reality that decided
+# the model: 客户申请(submitted) → 商家同意(approved) → 退单已发出
+# (in_transit) → 已收到(received) → 已验货入库(inspected) → 已退款(refunded).
+# The graph is permissive where reality is: seller-arranged pickup skips
+# in_transit, cheap goods are refunded without waiting for the parcel
+# (approved → refunded), and a received parcel may be refunded before formal
+# inspection. Money and goods are still separate FACTS — the refund itself
+# is a payment document, the restock an inventory movement naming this row;
+# `refunded` here is the flow marker, the same stance as invoice `paid`.
+DEFAULT_SALES_RETURN_MACHINE: dict = {
+    "initial": "draft",
+    "states": [
+        "draft", "submitted", "approved", "rejected",
+        "in_transit", "received", "inspected", "refunded", "cancelled",
+    ],
+    "transitions": {
+        "draft": ["submitted", "cancelled"],
+        "submitted": ["approved", "rejected", "cancelled"],
+        "approved": ["in_transit", "received", "refunded", "cancelled"],
+        "in_transit": ["received", "cancelled"],
+        "received": ["inspected", "refunded"],
+        "inspected": ["refunded"],
+        "refunded": [],
+        "rejected": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft"],
+}
+
+# Shipped default for the PURCHASE RETURN lifecycle — rows in
+# `purchase_orders` with order_kind='return': goods going BACK to a vendor.
+# Mirror-image of the sales return with the transit leg outbound; the
+# vendor's money coming back is a payment document, `refunded` the marker.
+DEFAULT_PURCHASE_RETURN_MACHINE: dict = {
+    "initial": "draft",
+    "states": [
+        "draft", "submitted", "approved", "rejected",
+        "shipped", "refunded", "cancelled",
+    ],
+    "transitions": {
+        "draft": ["submitted", "cancelled"],
+        "submitted": ["approved", "rejected", "cancelled"],
+        "approved": ["shipped", "refunded", "cancelled"],
+        "shipped": ["refunded"],
+        "refunded": [],
+        "rejected": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft"],
+}
+
+
+# Shipped default for the shipment lifecycle — one freight leg, one machine
+# for BOTH directions (the invoice precedent): draft → packed → shipped →
+# received, where `received` means "arrived at the destination" — the
+# customer's hands outbound, our dock inbound. OFBiz keeps two status sets
+# (SHIPMENT_/PURCH_SHIP_); we keep one vocabulary and let the tenant rename
+# or extend (in_transit, delivered, 揽收…) in a sentence. The stock effect
+# is NOT a state: /post-stock bridges to the inventory ledger exactly once,
+# whatever the status says — the same money/goods-as-facts stance as
+# invoice `paid`.
+DEFAULT_SHIPMENT_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "packed", "shipped", "received", "cancelled"],
+    "transitions": {
+        "draft": ["packed", "shipped", "cancelled"],
+        "packed": ["shipped", "cancelled"],
+        "shipped": ["received"],
+        "received": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft", "packed"],
+}
+
+
 # Shipped default for the builtin invoice lifecycle, shared by both directions
 # (OFBiz keeps one status vocabulary across sales and purchase invoices too).
 # `submitted` is 开票申请 on the sales side and 待核对 on the purchase side.
@@ -224,6 +300,11 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "sales_quotation": DEFAULT_QUOTATION_MACHINE,
     "sales_order": DEFAULT_ORDER_MACHINE,
     "purchase_order": DEFAULT_PURCHASE_ORDER_MACHINE,
+    # kind-split types: rows live in the order tables under order_kind
+    # ='return', with their own lifecycle — see KIND_SPLIT_MACHINE_TYPES
+    "sales_return": DEFAULT_SALES_RETURN_MACHINE,
+    "purchase_return": DEFAULT_PURCHASE_RETURN_MACHINE,
+    "shipment": DEFAULT_SHIPMENT_MACHINE,
     "invoice": DEFAULT_INVOICE_MACHINE,
     "payment": DEFAULT_PAYMENT_MACHINE,
 }
@@ -260,6 +341,9 @@ STATE_ROLES["invoice"] = ("submitted", "issued")
 # the server writes both states
 STATE_ROLES["sales_quotation"] = ("submitted", "superseded", "sent")
 STATE_ROLES["payment"] = ("submitted", "paid")
+# a shipment is never submitted-for-approval: the warehouse records it and
+# moves it; the server writes none of its states by role
+STATE_ROLES["shipment"] = ()
 
 
 def state_for_role(machine: dict, object_type: str, role: str) -> str:
@@ -452,13 +536,17 @@ def validate_status_filter(
     """
     if status_filter is None:
         return
-    machine = get_builtin_machine(db, tenant_id, object_type)
-    states = machine.get("states", ())
+    # a kind-split listing (orders AND returns in one table) may span two
+    # machines: pass the tuple, and the vocabulary is their union
+    types = (object_type,) if isinstance(object_type, str) else tuple(object_type)
+    states: set[str] = set()
+    for machine_type in types:
+        states |= set(get_builtin_machine(db, tenant_id, machine_type).get("states", ()))
     if status_filter not in states:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"unknown status {status_filter!r} for {object_type}; "
+                f"unknown status {status_filter!r} for {' / '.join(types)}; "
                 f"this workspace uses: {', '.join(sorted(states))}"
             ),
         )

@@ -51,9 +51,11 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("approval_records", "entity_type"): (
         "approval_target", "business_object", "employee_leave", "expense_claim",
         "invoice", "payment", "purchase_order", "purchase_request", "sales_order",
-        "sales_quotation", "timesheet_header",
+        "sales_quotation", "shipment", "timesheet_header",
     ),
     ("billing_accounts", "unit_type"): ("currency", "points"),
+    ("purchase_orders", "order_kind"): ("order", "return"),
+    ("sales_orders", "order_kind"): ("order", "return"),
     ("capabilities", "kind"): ("custom", "system"),
     ("customers", "status"): ("active", "archived"),
     ("device_authorizations", "status"): ("approved", "consumed", "denied", "pending"),
@@ -89,8 +91,9 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("todos", "entity_type"): (
         "approval_target", "business_object", "employee_leave", "expense_claim",
         "invoice", "payment", "project", "purchase_order", "purchase_request",
-        "sales_order", "sales_quotation", "timesheet_header",
+        "sales_order", "sales_quotation", "shipment", "timesheet_header",
     ),
+    ("shipments", "direction"): ("inbound", "outbound"),
     ("todos", "status"): ("cancelled", "completed", "open"),
     ("users", "status"): ("active", "disabled", "invited"),
     ("vendors", "status"): ("active", "archived"),

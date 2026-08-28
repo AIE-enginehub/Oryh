@@ -29,6 +29,9 @@ def post_inventory_detail(
     description: str | None = None,
     entity_type: str | None = None,
     entity_id: str | None = None,
+    sales_order_id: str | None = None,
+    purchase_order_id: str | None = None,
+    custom_fields: dict | None = None,
     unit_cost: float | None = None,
     effective_at=None,
     created_by: str | None = None,
@@ -56,9 +59,12 @@ def post_inventory_detail(
         available_to_promise_diff=atp_diff,
         reason=reason,
         description=description,
+        sales_order_id=sales_order_id,
+        purchase_order_id=purchase_order_id,
         entity_type=entity_type,
         entity_id=entity_id,
         unit_cost=unit_cost,
+        custom_fields_jsonb=custom_fields or {},
         created_by=created_by,
     )
     if effective_at is not None:

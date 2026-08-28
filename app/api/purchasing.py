@@ -57,6 +57,7 @@ from app.api.common import (
     requested_pagination,
     require_line_on_document,
     require_machine_state,
+    require_original_order,
     resolve_chargeable_account,
     resolve_item_refs,
     restore_document,
@@ -522,12 +523,20 @@ def list_purchase_orders(
     billing_account_id: str | None = None,
     employee_id: str | None = None,
     po_number: str | None = None,
+    order_kind: str | None = None,
+    original_order_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
-    validate_status_filter(db, tenant_id, "purchase_order", status_filter)
+    validate_status_filter(
+        db, tenant_id,
+        {"order": "purchase_order", "return": "purchase_return"}.get(
+            order_kind, ("purchase_order", "purchase_return")
+        ),
+        status_filter,
+    )
     stmt = select(PurchaseOrder).where(
         PurchaseOrder.tenant_id == tenant_id, PurchaseOrder.deleted_at.is_(None)
     )
@@ -538,6 +547,8 @@ def list_purchase_orders(
             PurchaseOrder.billing_account_id: billing_account_id,
             PurchaseOrder.employee_id: employee_id,
             PurchaseOrder.po_number: po_number,
+            PurchaseOrder.order_kind: order_kind,
+            PurchaseOrder.original_order_id: original_order_id,
             PurchaseOrder.status: status_filter,
         },
         keyword=keyword,
@@ -568,7 +579,27 @@ def create_purchase_order(
     require_permission(actor, "purchase_order.manage")
     vendor = get_scoped_or_404(db, Vendor, tenant_id, payload.vendor_id)
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, PurchaseOrder, payload.status)
+    if payload.order_kind == "return":
+        # goods going BACK: the vendor's refund is a payment document, and a
+        # return must not occupy our credit at the vendor
+        if payload.billing_account_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "a return is not charged to a billing account — the vendor's "
+                    "refund is a payment document; leave billing_account_id off"
+                ),
+            )
+    elif payload.original_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="original_order_id belongs on a return (order_kind='return')",
+        )
+    require_original_order(db, tenant_id, PurchaseOrder, payload.original_order_id)
+    initial_status = require_machine_state(
+        db, tenant_id, PurchaseOrder, payload.status,
+        object_type="purchase_return" if payload.order_kind == "return" else "purchase_order",
+    )
     charged_account = None
     if payload.billing_account_id:
         # OUR standing account at this vendor: prepay, then order against it,
@@ -578,10 +609,15 @@ def create_purchase_order(
             owner_field="vendor_id", owner_id=payload.vendor_id,
             currency=payload.currency, label="purchase order",
         )
-    po_number = payload.po_number or allocate_number(db, PurchaseOrder, tenant_id)
+    po_number = payload.po_number or allocate_number(
+        db, PurchaseOrder, tenant_id,
+        prefix="PR-" if payload.order_kind == "return" else None,
+    )
     po = PurchaseOrder(
         tenant_id=tenant_id,
         po_number=po_number,
+        order_kind=payload.order_kind,
+        original_order_id=payload.original_order_id,
         vendor_id=payload.vendor_id,
         vendor_name_snapshot=payload.vendor_name_snapshot or vendor.name,
         employee_id=payload.employee_id,
@@ -648,6 +684,23 @@ def update_purchase_order(
     require_permission(actor, "purchase_order.manage")
     po = get_active_document_or_404(db, PurchaseOrder, tenant_id, po_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "original_order_id" in updates:
+        if po.order_kind != "return":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="original_order_id belongs on a return (order_kind='return')",
+            )
+        require_original_order(db, tenant_id, PurchaseOrder, updates["original_order_id"])
+    if po.order_kind == "return" and updates.get("billing_account_id"):
+        # the create-time guard, held on the PATCH path too — otherwise a
+        # return acquires an account after the fact and occupies credit
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "a return is not charged to a billing account — the vendor's "
+                "refund is a payment document"
+            ),
+        )
     if updates.get("vendor_id"):
         vendor = get_scoped_or_404(db, Vendor, tenant_id, updates["vendor_id"])
         updates.setdefault("vendor_name_snapshot", vendor.name)
@@ -934,6 +987,17 @@ def receive_purchase_order(
     tenant_id = actor.tenant_id
     require_permission(actor, "purchase_order.manage")
     po = get_active_document_or_404(db, PurchaseOrder, tenant_id, po_id)
+    if po.order_kind == "return":
+        # on a purchase return the goods LEAVE — receiving against one would
+        # book phantom stock and a nonsense received_quantity
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "goods leave on a purchase return — record the outbound as an "
+                "`issued` inventory movement naming this return "
+                "(purchase_order_id); /receive is for orders"
+            ),
+        )
     results: list[ReceivedLineRead] = []
     for line in payload.lines:
         item = require_line_on_document(
@@ -975,6 +1039,9 @@ def receive_purchase_order(
                 quantity_on_hand_diff=line.quantity,
                 reason="received",
                 description=f"PO {po.po_number} 收货：{line.quantity}{item.unit or ''}",
+                # header FK for "every movement this order caused"; the pair
+                # below keeps the LINE, which is the precise cause
+                purchase_order_id=po.id,
                 entity_type="purchase_order_item",
                 entity_id=item.id,
                 unit_cost=line.unit_cost if line.unit_cost is not None else (

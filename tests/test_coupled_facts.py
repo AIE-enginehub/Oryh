@@ -231,10 +231,14 @@ def test_every_family_shares_the_funnel() -> None:
     """
     endpoints = routed_endpoints()
     # `BUILTIN_QUEUE_PATHS` answers "what here is unattended" and deliberately
-    # omits purchase orders — nobody hosted may advance one. Its PATCH still
-    # sets a status, so it belongs in this check even though it never appears
-    # in a flow queue; leaving it out is how it would go unwatched.
-    collections = {path.strip("/") for path in BUILTIN_QUEUE_PATHS.values()} | {"purchase-orders"}
+    # omits purchase orders and shipments — nobody hosted may advance either
+    # (one functional grant drives each, and neither has a /submit). Their
+    # PATCHes still set a status, so they belong in this check even though
+    # they never appear in a flow queue; leaving them out is how they would
+    # go unwatched.
+    collections = {path.strip("/") for path in BUILTIN_QUEUE_PATHS.values()} | {
+        "purchase-orders", "shipments",
+    }
     assert len(collections) == len(DOCUMENT_ENTITY_TYPES), (
         f"{len(collections)} collections for {len(DOCUMENT_ENTITY_TYPES)} document families — "
         "a family was added and this test cannot see its endpoints"

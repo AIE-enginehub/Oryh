@@ -59,6 +59,7 @@ from app.api.common import (
     register_attachment_source,
     requested_pagination,
     require_machine_state,
+    require_original_order,
     resolve_chargeable_account,
     resolve_item_refs,
     restore_document,
@@ -965,6 +966,8 @@ def list_sales_orders(
     billing_account_id: str | None = None,
     quotation_id: str | None = None,
     order_no: str | None = None,
+    order_kind: str | None = None,
+    original_order_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     include_deleted: bool = False,
     without_open_todo: bool = False,
@@ -972,7 +975,15 @@ def list_sales_orders(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, le=200)] = None,
 ):
-    validate_status_filter(db, tenant_id, "sales_order", status_filter)
+    # the status vocabulary follows the kind: a kind-scoped list is checked
+    # against that kind's machine, an unscoped one against the union of both
+    validate_status_filter(
+        db, tenant_id,
+        {"order": "sales_order", "return": "sales_return"}.get(
+            order_kind, ("sales_order", "sales_return")
+        ),
+        status_filter,
+    )
     stmt = select(SalesOrder).where(SalesOrder.tenant_id == tenant_id)
     if not include_deleted:
         stmt = stmt.where(SalesOrder.deleted_at.is_(None))
@@ -986,6 +997,8 @@ def list_sales_orders(
             SalesOrder.billing_account_id: billing_account_id,
             SalesOrder.quotation_id: quotation_id,
             SalesOrder.order_no: order_no,
+            SalesOrder.order_kind: order_kind,
+            SalesOrder.original_order_id: original_order_id,
             SalesOrder.status: status_filter,
         },
         keyword=keyword,
@@ -1019,7 +1032,34 @@ def create_sales_order(
     require_permission(actor, "order.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, SalesOrder, payload.status)
+    if payload.order_kind == "return":
+        # a return runs its own machine and reverses money rather than owing
+        # it: no quotation behind it, and never a credit-account charge — a
+        # refund is a payment document, and letting a return OCCUPY credit
+        # would count the customer's money against them twice
+        if payload.quotation_id or payload.source_quote_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="a return fulfils no quotation — link the original order instead",
+            )
+        if payload.billing_account_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "a return is not charged to a billing account — the refund "
+                    "is a payment document; leave billing_account_id off"
+                ),
+            )
+    elif payload.original_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="original_order_id belongs on a return (order_kind='return')",
+        )
+    require_original_order(db, tenant_id, SalesOrder, payload.original_order_id)
+    initial_status = require_machine_state(
+        db, tenant_id, SalesOrder, payload.status,
+        object_type="sales_return" if payload.order_kind == "return" else "sales_order",
+    )
     quotation_id, source_quote_number = normalize_order_quotation_context(
         db, tenant_id, payload.quotation_id, payload.source_quote_number
     )
@@ -1038,10 +1078,15 @@ def create_sales_order(
             owner_field="customer_id", owner_id=customer_id,
             currency=payload.currency, label="sales order",
         )
-    order_no = payload.order_no or allocate_number(db, SalesOrder, tenant_id)
+    order_no = payload.order_no or allocate_number(
+        db, SalesOrder, tenant_id,
+        prefix="SR-" if payload.order_kind == "return" else None,
+    )
     order = SalesOrder(
         tenant_id=tenant_id,
         order_no=order_no,
+        order_kind=payload.order_kind,
+        original_order_id=payload.original_order_id,
         quotation_id=quotation_id,
         source_quote_number=source_quote_number,
         employee_id=payload.employee_id,
@@ -1121,6 +1166,30 @@ def update_sales_order(
     enforce_member_employee(actor, order.employee_id)
     updates = payload.model_dump(exclude_unset=True)
     ensure_content_edit_allowed(actor, "order", updates)
+    if "original_order_id" in updates:
+        if order.order_kind != "return":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="original_order_id belongs on a return (order_kind='return')",
+            )
+        require_original_order(db, tenant_id, SalesOrder, updates["original_order_id"])
+    if order.order_kind == "return":
+        # the create-time guards, held on the PATCH path too: a return fulfils
+        # no quotation, and letting one acquire a billing account after the
+        # fact would occupy credit for money that flows the other way
+        if updates.get("quotation_id") or updates.get("source_quote_number"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="a return fulfils no quotation — link the original order instead",
+            )
+        if updates.get("billing_account_id"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "a return is not charged to a billing account — the refund "
+                    "is a payment document"
+                ),
+            )
     if "status" in updates and updates["status"] != order.status:
         # flow advancement is the workflow admin's write: members submit via
         # POST .../submit — never a raw status patch (no self-approval)

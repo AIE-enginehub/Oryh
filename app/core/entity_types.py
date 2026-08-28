@@ -30,8 +30,26 @@ DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
     "purchase_request",
     "sales_order",
     "sales_quotation",
+    "shipment",
     "timesheet_header",
 )
+
+# Machine types that are NOT document families of their own: their rows live
+# inside another family's table, split by that row's `order_kind` column. A
+# sales return IS a `sales_orders` row (退单跟订单一张表 — the deciding
+# requirement), so a todo or an approval that points at one says
+# `sales_order` and resolves through the same table; only the LIFECYCLE
+# differs, because an e-commerce return runs 申请→发出→收到→验货入库→退款,
+# which is not an order's life. Each entry maps the split-off machine type to
+# the family whose table holds its rows.
+#
+# `tests/test_entity_reference_types.py` pins BUILTIN_MACHINES ==
+# DOCUMENT_ENTITY_TYPES ∪ this — a machine added tomorrow must either be a
+# real family or say here whose table it lives in.
+KIND_SPLIT_MACHINE_TYPES: dict[str, str] = {
+    "sales_return": "sales_order",
+    "purchase_return": "purchase_order",
+}
 
 # Not document families: `approval_target` and `business_object` are
 # tenant-defined, and `project` is a standing record a todo may hang off.

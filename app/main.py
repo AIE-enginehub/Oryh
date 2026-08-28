@@ -9,6 +9,7 @@ from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
 from app.api.claims import router as claims_router
 from app.api.device import router as device_router
+from app.api.external import router as external_router
 from app.api.flow_runner_bootstrap import router as flow_runner_bootstrap_router
 from app.api.flows import router as flows_router
 from app.api.master_data import router as master_data_router
@@ -18,6 +19,7 @@ from app.api.people import router as people_router
 from app.api.policies import router as policies_router
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
+from app.api.shipments import router as shipments_router
 from app.api.sales import router as sales_router
 from app.api.skills import router as skills_router
 from app.api.workspace import router as workspace_router
@@ -57,9 +59,11 @@ app.include_router(claims_router, prefix=API_PREFIX)
 app.include_router(notifications_router, prefix=API_PREFIX)
 app.include_router(objects_router, prefix=API_PREFIX)
 app.include_router(master_data_router, prefix=API_PREFIX)
+app.include_router(external_router, prefix=API_PREFIX)
 app.include_router(people_router, prefix=API_PREFIX)
 app.include_router(policies_router, prefix=API_PREFIX)
 app.include_router(resources_router, prefix=API_PREFIX)
+app.include_router(shipments_router, prefix=API_PREFIX)
 app.include_router(workspace_router, prefix=API_PREFIX)
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(device_router, prefix=API_PREFIX)

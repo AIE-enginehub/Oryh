@@ -509,6 +509,120 @@ class SupplierProduct(TenantRecord, MetadataJsonbMixin, Base):
         return self.vendor.name if self.vendor is not None else None
 
 
+class ExternalProductMap(TenantRecord, MetadataJsonbMixin, Base):
+    """How an external system's product identity translates into ours — AT A
+    GIVEN TIME. Tmall listing 6543… IS product X (×1), or IS 2× product A and
+    1× product B (a bundle). Many-to-many by rows: a bundle listing is
+    several rows with quantities, one product sold on five channels is five
+    rows — and one listing meaning DIFFERENT products over time is several
+    rows with effective windows.
+
+    The windows exist because platforms reward a listing's ranking, not its
+    contents: a merchant who fought for a good promotion slot keeps the SAME
+    external id and swaps what it sells. So a row asserts "from
+    effective_from until effective_to this listing meant this product" —
+    half-open [from, to), nulls open-ended, both null meaning "always" so
+    tenants that never swap never touch them. A swap CLOSES the old row's
+    window and creates the new row; the old row stays ACTIVE, because it is
+    still the truth about its window, and back-dated imports (yesterday's
+    orders synced today) must translate against what the listing meant on
+    the ORDER's date, not today. `status: archived` therefore means
+    withdrawn — a mistaken pairing that never described the listing — never
+    "superseded". This is deliberately stronger than the price book's
+    status-only history: archived prices are an audit trail nobody re-reads,
+    while closed windows here are live translation data.
+
+    The uniqueness is a partial index, not a full constraint, for the same
+    reason: "at most one OPEN live assertion per (source, listing, product)".
+    A closed window frees the slot, so a listing can swap BACK to a product
+    it meant before. Overlap between closed windows is curation, not a
+    constraint a btree can hold.
+
+    The CHANNEL mirror of SupplierProduct: that table maps a vendor's code
+    for what we buy; this one maps a platform's id for what we sell (or
+    anything else an external system names). Reference data, curated like
+    the rest of the catalog — the order-recording agent CONSULTS it to
+    translate lines and never learns platform ids by heart.
+
+    external_sku_id is NOT NULL with '' meaning "the listing has no SKU
+    level", the lot_id convention, so the identity tuple stays enforceable.
+    quantity is "one external unit = N of this product" — the bundle
+    multiplier, Numeric because bulk goods sell in kg as naturally as units."""
+
+    __tablename__ = "external_product_maps"
+    __table_args__ = (
+        Index(
+            "external_product_maps_open_uq",
+            "tenant_id", "source", "external_product_id", "external_sku_id", "product_id",
+            unique=True,
+            postgresql_where=text("status = 'active' AND effective_to IS NULL"),
+            sqlite_where=text("status = 'active' AND effective_to IS NULL"),
+        ),
+    )
+
+    # the external system, lowercased on write: "tmall", "jd", "amazon",
+    # a mini-program's name — free text, because tenants' channels are
+    source: Mapped[str] = mapped_column(String(50))
+    external_product_id: Mapped[str] = mapped_column(String(128))
+    external_sku_id: Mapped[str] = mapped_column(String(128), default="")
+    # snapshot of the external listing title, for a human checking the map
+    external_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True)
+    quantity: Mapped[float] = mapped_column(Numeric(12, 2), default=1)
+    # [effective_from, effective_to): when this pairing described the listing.
+    # The swap day belongs to the NEW meaning; dates, not timestamps, because
+    # curators state days — the skill flags boundary-day orders for a human.
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    product: Mapped[Product] = relationship()
+
+
+class ExternalDocumentLink(IdMixin, TenantMixin, CreatedAtMixin, MetadataJsonbMixin, Base):
+    """One external document number tied to one document of ours: Tmall order
+    TM2026… became sales order S-0042. Many-to-many by rows, because reality
+    splits and merges — one platform order fulfilled as two of our orders
+    (拆单) is two rows, three platform orders shipped as one (合单) is three.
+
+    Two tables, not one, for this and ExternalProductMap: a product mapping
+    is reference data where multiple rows per external id are the POINT
+    (bundles), while a document link is a transactional claim where the full
+    tuple must be unique — recording the same link twice is a retry, and the
+    unique constraint is what makes "have we imported TM2026… already?" a
+    reliable dedup check instead of a convention.
+
+    The target is the generic (entity_type, entity_id) pair, validated
+    against LINKABLE_DOCUMENTS at write time: an external order links a
+    sales_order; an external return normally links the return row — a
+    sales_orders row with order_kind='return', so entity_type is still
+    sales_order — and may equally name a refund payment or the `returned`
+    inventory movement, because the link names reality wherever it was
+    recorded. Rows are deletable (a mislink is a mistake, not history) — the
+    ledger rows they point at keep their own immutability rules."""
+
+    __tablename__ = "external_document_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "source", "external_kind", "external_no",
+            "entity_type", "entity_id",
+            name="external_document_links_unique_link",
+        ),
+        Index("external_document_links_no_idx", "tenant_id", "source", "external_no"),
+        Index("external_document_links_entity_idx", "tenant_id", "entity_type", "entity_id"),
+    )
+
+    source: Mapped[str] = mapped_column(String(50))
+    # what the number is over there: "order", "return" by convention; free
+    # text because platforms invent kinds (aftersale, exchange, refund)
+    external_kind: Mapped[str] = mapped_column(String(50))
+    external_no: Mapped[str] = mapped_column(String(128))
+    entity_type: Mapped[str] = mapped_column(String(100))
+    entity_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
 class InventoryItem(TenantRecord, MetadataJsonbMixin, Base):
     """One stock position: a product (or one of its SKUs) at a facility, in a
     lot. Modeled on OFBiz InventoryItem, minus serialized items, owner
@@ -566,11 +680,29 @@ class InventoryItem(TenantRecord, MetadataJsonbMixin, Base):
         return self.product.product_code if self.product is not None else None
 
 
-class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, Base):
+class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJsonbMixin, Base):
     """One movement of one inventory item — the append-only ledger the item's
-    totals are a sum of. Modeled on OFBiz InventoryItemDetail; the many
-    per-source id columns collapse into the generic (entity_type, entity_id)
-    pair the rest of this codebase already uses for cross-references.
+    totals are a sum of. Modeled on OFBiz InventoryItemDetail.
+
+    Provenance comes in three shapes, because movements come from three worlds:
+
+    - **The two order chains get real foreign keys.** Stock overwhelmingly
+      moves because an order did — received against a purchase order, issued
+      against a sales order — and those are closed document chains whose
+      correctness is stock, the same boundary that gives PaymentApplication
+      its explicit columns instead of a generic pair. A bare uuid can point at
+      an order that does not exist, and only the API would ever notice; an FK
+      cannot. Header-level on purpose: "every movement this order caused" is
+      one indexed query, while the line stays in the pair below.
+    - **Everything else in the system keeps the generic (entity_type,
+      entity_id) pair** — adjustments, transfers, imports, a business object.
+      Open-ended provenance, deliberately unconstrained.
+    - **External orders go in `custom_fields_jsonb`.** A workspace that runs
+      only inventory here fulfils Tmall or JD orders whose numbers are not
+      uuids — `entity_id` is uuid-typed and cannot even hold "TM2026…", which
+      is not an accident: a foreign system's reference is a claim this
+      database cannot check, so it belongs in the tenant's own fields, not in
+      a column that promises resolvability.
 
     Rows are immutable: there is no update or delete, a mistake is corrected
     by a counter-entry. `reason` says why stock moved — `import_override` is
@@ -587,6 +719,13 @@ class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, Base):
     # adjustment / damaged / returned / transfer / other
     reason: Mapped[str] = mapped_column(String(30))
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # the order this movement fulfils, when it is one of ours — at most one
+    sales_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
+    purchase_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("purchase_orders.id"), nullable=True, index=True
+    )
     # what caused the movement, when it is a record in the system
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     entity_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
@@ -595,6 +734,88 @@ class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, Base):
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     item: Mapped[InventoryItem] = relationship()
+
+
+class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One freight leg: goods physically moving in a parcel or a truck —
+    Modeled on OFBiz Shipment, reduced to the agent-native shape (one leg,
+    no packages/routes/ETA machinery). `direction` is the whole split:
+    `outbound` goods leave us (shipping a sales order, sending a purchase
+    return back), `inbound` goods arrive (receiving a purchase order, a
+    customer return's parcel). One machine serves both, the invoice/payment
+    precedent for direction-shared vocabularies.
+
+    The shipment is the FREIGHT document, never the stock truth: stock moves
+    only through the inventory ledger, and /shipments/{id}/post-stock is the
+    one bridge — it posts a movement per line that names a stock position,
+    stamps stock_posted_at, and refuses to run twice. An order's header
+    logistics fields remain the simple single-parcel path; shipments exist
+    for the rest — partial shipments, split parcels, return legs.
+
+    Order linkage is header-level and at most one side (CHECK), the same
+    pattern the inventory ledger uses — and because returns live in the
+    order tables, a return's parcel links the RETURN row through the same
+    FK. Direction must agree with what the linked row IS: (sales order →
+    outbound, sales return → inbound, purchase order → inbound, purchase
+    return → outbound), enforced with the matrix in the error."""
+
+    __tablename__ = "shipments"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "shipment_no", name="shipments_shipment_no_uk"),
+        CheckConstraint(
+            "sales_order_id IS NULL OR purchase_order_id IS NULL",
+            name="shipments_one_order_side_check",
+        ),
+    )
+
+    shipment_no: Mapped[str] = mapped_column(String(64))
+    direction: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    sales_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
+    purchase_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("purchase_orders.id"), nullable=True, index=True
+    )
+    # OUR side of the leg — the warehouse it leaves from or arrives at, free
+    # text like every facility; the far side is an address snapshot
+    facility: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    carrier: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tracking_no: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    expected_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="draft")
+    shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # when /post-stock landed this shipment in the inventory ledger — the
+    # idempotence stamp; null means the goods' stock effect is not yet booked
+    stock_posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ShipmentItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One product on one freight leg. `inventory_item_id` is the OFBiz
+    ItemIssuance/ShipmentReceipt association collapsed to its useful core:
+    which stock POSITION (product@facility@lot) the goods leave or land in.
+    Nullable, because a 直发/drop-ship leg never touches our stock — the
+    same convention the purchase-order receive keeps with its optional
+    facility. When set, its product (and SKU when both name one) must match
+    the line's, checked at write time."""
+
+    __tablename__ = "shipment_items"
+
+    shipment_id: Mapped[str] = mapped_column(ForeignKey("shipments.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True)
+    quantity: Mapped[float] = mapped_column(Numeric(12, 2))
+    inventory_item_id: Mapped[str | None] = mapped_column(
+        ForeignKey("inventory_items.id"), nullable=True, index=True
+    )
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    shipment: Mapped[Shipment] = relationship()
+    inventory_item: Mapped[InventoryItem | None] = relationship()
 
 
 class Resource(TenantRecord, MetadataJsonbMixin, Base):
@@ -1278,9 +1499,26 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
     __tablename__ = "purchase_orders"
     __table_args__ = (
         UniqueConstraint("tenant_id", "po_number", name="purchase_orders_po_number_uk"),
+        CheckConstraint(
+            "order_kind = 'return' OR original_order_id IS NULL",
+            name="purchase_orders_original_only_on_returns_check",
+        ),
     )
 
     po_number: Mapped[str] = mapped_column(String(64))
+    # 'order' or 'return' — a return to the vendor lives in this same table
+    # (the user-facing decision: 退单跟订单一张表), splitting only the KIND.
+    # The kind picks the row's state machine ('purchase_order' vs
+    # 'purchase_return'); everything else — lines, numbering uniqueness,
+    # provenance links — is shared. Identity, never editable after create.
+    order_kind: Mapped[str] = mapped_column(String(20), default="order")
+    # the order this return reverses. One order, many returns: many rows
+    # point here. Nullable because reality outruns paperwork (goods come back
+    # before anyone finds the PO) — but a return SHOULD name its original,
+    # and the API refuses an original that is itself a return.
+    original_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("purchase_orders.id"), nullable=True, index=True
+    )
     # the counterparty is the point of the document — required, unlike the
     # sales side's optional customer
     vendor_id: Mapped[str] = mapped_column(ForeignKey("vendors.id"), index=True)
@@ -1381,10 +1619,29 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     __tablename__ = "sales_orders"
     __table_args__ = (
         UniqueConstraint("tenant_id", "order_no", name="sales_orders_order_no_uk"),
+        CheckConstraint(
+            "order_kind = 'return' OR original_order_id IS NULL",
+            name="sales_orders_original_only_on_returns_check",
+        ),
     )
 
     # server-allocated when the agent doesn't bring a tenant convention
     order_no: Mapped[str] = mapped_column(String(64))
+    # 'order' or 'return' — a customer return lives in this same table (the
+    # user-facing decision: 退单跟订单一张表), splitting only the KIND. The
+    # kind picks the row's state machine ('sales_order' vs 'sales_return' —
+    # an e-commerce return runs 申请→发出→收到→验货入库→退款, which is not an
+    # order's life); everything else — lines as the goods coming back, the
+    # number series' uniqueness, external links — is shared. Identity, never
+    # editable after create.
+    order_kind: Mapped[str] = mapped_column(String(20), default="order")
+    # the order this return reverses. One order, many returns: many rows
+    # point here — that IS the 多次退单 requirement. Nullable because reality
+    # outruns paperwork (the parcel arrives before anyone matches it); the
+    # API refuses an original that is itself a return.
+    original_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
     # the won quotation this order fulfils — FK + snapshot, like every other
     # master-data reference; free-standing orders (no quote) are legal facts
     quotation_id: Mapped[str | None] = mapped_column(

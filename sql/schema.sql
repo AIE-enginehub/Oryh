@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260820_0061
+-- Alembic revision: 20260828_0067
 --
 
 --
@@ -90,7 +90,7 @@ CREATE TABLE oryh.approval_records (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     historical_conflict_closed boolean DEFAULT false NOT NULL,
     CONSTRAINT approval_records_action_chk CHECK ((action = ANY (ARRAY['submitted'::text, 'approved'::text, 'rejected'::text, 'returned'::text, 'commented'::text]))),
-    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
+    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['approval_target'::text, 'business_object'::text, 'employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text]))),
     CONSTRAINT approval_records_round_no_chk CHECK ((round_no >= 1)),
     CONSTRAINT approval_records_sequence_no_chk CHECK ((sequence_no >= 1)),
     CONSTRAINT approval_records_source_chk CHECK (((source = ANY (ARRAY['web'::text, 'api'::text, 'ai'::text, 'system'::text])) OR (source IS NULL)))
@@ -460,6 +460,47 @@ CREATE TABLE oryh.expense_items (
 
 
 --
+-- Name: external_document_links; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.external_document_links (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source character varying(50) NOT NULL,
+    external_kind character varying(50) NOT NULL,
+    external_no character varying(128) NOT NULL,
+    entity_type character varying(100) NOT NULL,
+    entity_id uuid NOT NULL,
+    created_by character varying(100),
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: external_product_maps; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.external_product_maps (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source character varying(50) NOT NULL,
+    external_product_id character varying(128) NOT NULL,
+    external_sku_id character varying(128) DEFAULT ''::character varying NOT NULL,
+    external_name character varying(200),
+    product_id uuid NOT NULL,
+    sku_id uuid,
+    quantity numeric(12,2) DEFAULT 1 NOT NULL,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    effective_from date,
+    effective_to date
+);
+
+
+--
 -- Name: flow_runs; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -521,7 +562,10 @@ CREATE TABLE oryh.inventory_item_details (
     unit_cost numeric(12,2),
     effective_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by character varying(100),
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    sales_order_id uuid,
+    purchase_order_id uuid,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 
@@ -1029,7 +1073,11 @@ CREATE TABLE oryh.purchase_orders (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
-    billing_account_id uuid
+    billing_account_id uuid,
+    order_kind character varying(20) DEFAULT 'order'::character varying NOT NULL,
+    original_order_id uuid,
+    CONSTRAINT purchase_orders_order_kind_chk CHECK (((order_kind)::text = ANY ((ARRAY['order'::character varying, 'return'::character varying])::text[]))),
+    CONSTRAINT purchase_orders_original_only_on_returns_check CHECK ((((order_kind)::text = 'return'::text) OR (original_order_id IS NULL)))
 );
 
 
@@ -1255,6 +1303,10 @@ CREATE TABLE oryh.sales_orders (
     deleted_by text,
     delete_reason text,
     billing_account_id uuid,
+    order_kind character varying(20) DEFAULT 'order'::character varying NOT NULL,
+    original_order_id uuid,
+    CONSTRAINT sales_orders_order_kind_chk CHECK (((order_kind)::text = ANY ((ARRAY['order'::character varying, 'return'::character varying])::text[]))),
+    CONSTRAINT sales_orders_original_only_on_returns_check CHECK ((((order_kind)::text = 'return'::text) OR (original_order_id IS NULL))),
     CONSTRAINT sales_orders_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -1353,6 +1405,58 @@ CREATE TABLE oryh.sales_quotations (
     delete_reason text,
     CONSTRAINT sales_quotations_revision_no_chk CHECK ((revision_no >= 1)),
     CONSTRAINT sales_quotations_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
+);
+
+
+--
+-- Name: shipment_items; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.shipment_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    shipment_id uuid NOT NULL,
+    line_no integer,
+    product_id uuid NOT NULL,
+    sku_id uuid,
+    quantity numeric(12,2) NOT NULL,
+    inventory_item_id uuid,
+    description character varying(500),
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: shipments; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.shipments (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    shipment_no character varying(64) NOT NULL,
+    direction character varying(20) NOT NULL,
+    title character varying(200),
+    sales_order_id uuid,
+    purchase_order_id uuid,
+    facility character varying(100),
+    address character varying(500),
+    carrier character varying(100),
+    tracking_no character varying(100),
+    expected_date date,
+    status character varying(30) DEFAULT 'draft'::character varying NOT NULL,
+    shipped_at timestamp with time zone,
+    received_at timestamp with time zone,
+    stock_posted_at timestamp with time zone,
+    remarks text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT shipments_direction_chk CHECK (((direction)::text = ANY ((ARRAY['inbound'::character varying, 'outbound'::character varying])::text[]))),
+    CONSTRAINT shipments_one_order_side_check CHECK (((sales_order_id IS NULL) OR (purchase_order_id IS NULL)))
 );
 
 
@@ -1507,7 +1611,7 @@ CREATE TABLE oryh.todos (
     todo_type text,
     created_by text,
     due_at timestamp with time zone,
-    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
+    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['approval_target'::text, 'business_object'::text, 'employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'payment'::text, 'project'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text]))),
     CONSTRAINT todos_status_chk CHECK ((status = ANY (ARRAY['open'::text, 'completed'::text, 'cancelled'::text])))
 );
 
@@ -1809,6 +1913,30 @@ ALTER TABLE ONLY oryh.expense_claims
 
 ALTER TABLE ONLY oryh.expense_items
     ADD CONSTRAINT expense_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_document_links external_document_links_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.external_document_links
+    ADD CONSTRAINT external_document_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_document_links external_document_links_unique_link; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.external_document_links
+    ADD CONSTRAINT external_document_links_unique_link UNIQUE (tenant_id, source, external_kind, external_no, entity_type, entity_id);
+
+
+--
+-- Name: external_product_maps external_product_maps_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.external_product_maps
+    ADD CONSTRAINT external_product_maps_pkey PRIMARY KEY (id);
 
 
 --
@@ -2161,6 +2289,30 @@ ALTER TABLE ONLY oryh.sales_quotations
 
 ALTER TABLE ONLY oryh.sales_quotations
     ADD CONSTRAINT sales_quotations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shipment_items shipment_items_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipment_items
+    ADD CONSTRAINT shipment_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shipments shipments_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipments
+    ADD CONSTRAINT shipments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shipments shipments_shipment_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipments
+    ADD CONSTRAINT shipments_shipment_no_uk UNIQUE (tenant_id, shipment_no);
 
 
 --
@@ -2627,6 +2779,48 @@ CREATE INDEX expense_items_tenant_invoice_idx ON oryh.expense_items USING btree 
 
 
 --
+-- Name: external_document_links_entity_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX external_document_links_entity_idx ON oryh.external_document_links USING btree (tenant_id, entity_type, entity_id);
+
+
+--
+-- Name: external_document_links_no_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX external_document_links_no_idx ON oryh.external_document_links USING btree (tenant_id, source, external_no);
+
+
+--
+-- Name: external_document_links_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX external_document_links_tenant_idx ON oryh.external_document_links USING btree (tenant_id);
+
+
+--
+-- Name: external_product_maps_open_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX external_product_maps_open_uq ON oryh.external_product_maps USING btree (tenant_id, source, external_product_id, external_sku_id, product_id) WHERE (((status)::text = 'active'::text) AND (effective_to IS NULL));
+
+
+--
+-- Name: external_product_maps_product_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX external_product_maps_product_idx ON oryh.external_product_maps USING btree (product_id);
+
+
+--
+-- Name: external_product_maps_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX external_product_maps_tenant_idx ON oryh.external_product_maps USING btree (tenant_id);
+
+
+--
 -- Name: flow_runs_open_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -2834,6 +3028,20 @@ CREATE INDEX invoices_tenant_idx ON oryh.invoices USING btree (tenant_id);
 --
 
 CREATE INDEX invoices_vendor_idx ON oryh.invoices USING btree (vendor_id);
+
+
+--
+-- Name: ix_inventory_item_details_purchase_order_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_inventory_item_details_purchase_order_id ON oryh.inventory_item_details USING btree (purchase_order_id);
+
+
+--
+-- Name: ix_inventory_item_details_sales_order_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_inventory_item_details_sales_order_id ON oryh.inventory_item_details USING btree (sales_order_id);
 
 
 --
@@ -3208,6 +3416,13 @@ CREATE INDEX purchase_orders_employee_idx ON oryh.purchase_orders USING btree (e
 
 
 --
+-- Name: purchase_orders_original_order_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX purchase_orders_original_order_idx ON oryh.purchase_orders USING btree (original_order_id);
+
+
+--
 -- Name: purchase_orders_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3327,6 +3542,13 @@ CREATE INDEX sales_orders_employee_idx ON oryh.sales_orders USING btree (employe
 
 
 --
+-- Name: sales_orders_original_order_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_orders_original_order_idx ON oryh.sales_orders USING btree (original_order_id);
+
+
+--
 -- Name: sales_orders_quotation_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3387,6 +3609,55 @@ CREATE INDEX sales_quotations_employee_idx ON oryh.sales_quotations USING btree 
 --
 
 CREATE INDEX sales_quotations_tenant_status_idx ON oryh.sales_quotations USING btree (tenant_id, status, created_at DESC);
+
+
+--
+-- Name: shipment_items_inventory_item_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipment_items_inventory_item_idx ON oryh.shipment_items USING btree (inventory_item_id);
+
+
+--
+-- Name: shipment_items_product_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipment_items_product_idx ON oryh.shipment_items USING btree (product_id);
+
+
+--
+-- Name: shipment_items_shipment_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipment_items_shipment_idx ON oryh.shipment_items USING btree (shipment_id);
+
+
+--
+-- Name: shipment_items_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipment_items_tenant_idx ON oryh.shipment_items USING btree (tenant_id);
+
+
+--
+-- Name: shipments_purchase_order_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipments_purchase_order_idx ON oryh.shipments USING btree (purchase_order_id);
+
+
+--
+-- Name: shipments_sales_order_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipments_sales_order_idx ON oryh.shipments USING btree (sales_order_id);
+
+
+--
+-- Name: shipments_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipments_tenant_idx ON oryh.shipments USING btree (tenant_id);
 
 
 --
@@ -3680,6 +3951,22 @@ ALTER TABLE ONLY oryh.expense_items
 
 
 --
+-- Name: external_product_maps external_product_maps_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.external_product_maps
+    ADD CONSTRAINT external_product_maps_product_id_fkey FOREIGN KEY (product_id) REFERENCES oryh.products(id);
+
+
+--
+-- Name: external_product_maps external_product_maps_sku_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.external_product_maps
+    ADD CONSTRAINT external_product_maps_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
+
+
+--
 -- Name: flow_runs flow_runs_subscription_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3701,6 +3988,22 @@ ALTER TABLE ONLY oryh.flow_subscriptions
 
 ALTER TABLE ONLY oryh.inventory_item_details
     ADD CONSTRAINT inventory_item_details_inventory_item_id_fkey FOREIGN KEY (inventory_item_id) REFERENCES oryh.inventory_items(id);
+
+
+--
+-- Name: inventory_item_details inventory_item_details_purchase_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.inventory_item_details
+    ADD CONSTRAINT inventory_item_details_purchase_order_id_fkey FOREIGN KEY (purchase_order_id) REFERENCES oryh.purchase_orders(id);
+
+
+--
+-- Name: inventory_item_details inventory_item_details_sales_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.inventory_item_details
+    ADD CONSTRAINT inventory_item_details_sales_order_id_fkey FOREIGN KEY (sales_order_id) REFERENCES oryh.sales_orders(id);
 
 
 --
@@ -4096,6 +4399,14 @@ ALTER TABLE ONLY oryh.purchase_orders
 
 
 --
+-- Name: purchase_orders purchase_orders_original_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.purchase_orders
+    ADD CONSTRAINT purchase_orders_original_order_id_fkey FOREIGN KEY (original_order_id) REFERENCES oryh.purchase_orders(id);
+
+
+--
 -- Name: purchase_orders purchase_orders_vendor_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4248,6 +4559,14 @@ ALTER TABLE ONLY oryh.sales_orders
 
 
 --
+-- Name: sales_orders sales_orders_original_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_orders
+    ADD CONSTRAINT sales_orders_original_order_id_fkey FOREIGN KEY (original_order_id) REFERENCES oryh.sales_orders(id);
+
+
+--
 -- Name: sales_orders sales_orders_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4341,6 +4660,54 @@ ALTER TABLE ONLY oryh.sales_quotations
 
 ALTER TABLE ONLY oryh.sales_quotations
     ADD CONSTRAINT sales_quotations_revision_of_id_fkey FOREIGN KEY (revision_of_id) REFERENCES oryh.sales_quotations(id);
+
+
+--
+-- Name: shipment_items shipment_items_inventory_item_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipment_items
+    ADD CONSTRAINT shipment_items_inventory_item_id_fkey FOREIGN KEY (inventory_item_id) REFERENCES oryh.inventory_items(id);
+
+
+--
+-- Name: shipment_items shipment_items_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipment_items
+    ADD CONSTRAINT shipment_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES oryh.products(id);
+
+
+--
+-- Name: shipment_items shipment_items_shipment_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipment_items
+    ADD CONSTRAINT shipment_items_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES oryh.shipments(id);
+
+
+--
+-- Name: shipment_items shipment_items_sku_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipment_items
+    ADD CONSTRAINT shipment_items_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
+
+
+--
+-- Name: shipments shipments_purchase_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipments
+    ADD CONSTRAINT shipments_purchase_order_id_fkey FOREIGN KEY (purchase_order_id) REFERENCES oryh.purchase_orders(id);
+
+
+--
+-- Name: shipments shipments_sales_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipments
+    ADD CONSTRAINT shipments_sales_order_id_fkey FOREIGN KEY (sales_order_id) REFERENCES oryh.sales_orders(id);
 
 
 --
@@ -4528,6 +4895,18 @@ ALTER TABLE oryh.expense_claims ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE oryh.expense_items ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: external_document_links; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.external_document_links ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: external_product_maps; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.external_product_maps ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: flow_runs; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -4732,6 +5111,18 @@ ALTER TABLE oryh.sales_quotation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.sales_quotations ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: shipment_items; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.shipment_items ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: shipments; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.shipments ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: supplier_products; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -4840,6 +5231,20 @@ CREATE POLICY tenant_isolation ON oryh.expense_claims USING ((((tenant_id)::text
 --
 
 CREATE POLICY tenant_isolation ON oryh.expense_items USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: external_document_links tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.external_document_links USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: external_product_maps tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.external_product_maps USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -5029,6 +5434,20 @@ CREATE POLICY tenant_isolation ON oryh.sales_quotation_items USING ((((tenant_id
 --
 
 CREATE POLICY tenant_isolation ON oryh.sales_quotations USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: shipment_items tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.shipment_items USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: shipments tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.shipments USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

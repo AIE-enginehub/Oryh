@@ -71,6 +71,7 @@ from app.models import (
     PurchaseRequestItem,
     ResourceBooking,
     SalesOrder,
+    Shipment,
     SalesOrderItem,
     SalesQuotation,
     SalesQuotationItem,
@@ -748,16 +749,38 @@ def get_object_directory(
             )
         )
         or 0,
+        # orders and returns share a table; the directory splits them by kind
+        # so neither row is counted under two names
         "sales_order": db.scalar(
             select(func.count()).select_from(SalesOrder).where(
-                SalesOrder.tenant_id == tenant_id
+                SalesOrder.tenant_id == tenant_id,
+                SalesOrder.order_kind == "order",
+            )
+        )
+        or 0,
+        "sales_return": db.scalar(
+            select(func.count()).select_from(SalesOrder).where(
+                SalesOrder.tenant_id == tenant_id,
+                SalesOrder.order_kind == "return",
             )
         )
         or 0,
         "purchase_order": db.scalar(
             select(func.count()).select_from(PurchaseOrder).where(
-                PurchaseOrder.tenant_id == tenant_id
+                PurchaseOrder.tenant_id == tenant_id,
+                PurchaseOrder.order_kind == "order",
             )
+        )
+        or 0,
+        "purchase_return": db.scalar(
+            select(func.count()).select_from(PurchaseOrder).where(
+                PurchaseOrder.tenant_id == tenant_id,
+                PurchaseOrder.order_kind == "return",
+            )
+        )
+        or 0,
+        "shipment": db.scalar(
+            select(func.count()).select_from(Shipment).where(Shipment.tenant_id == tenant_id)
         )
         or 0,
         "invoice": db.scalar(invoice_count_stmt) or 0,

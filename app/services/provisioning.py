@@ -19,9 +19,12 @@ from app.services.state_machines import (
     DEFAULT_LEAVE_MACHINE,
     DEFAULT_PAYMENT_MACHINE,
     DEFAULT_PURCHASE_ORDER_MACHINE,
+    DEFAULT_PURCHASE_RETURN_MACHINE,
     DEFAULT_ORDER_MACHINE,
     DEFAULT_PURCHASE_MACHINE,
     DEFAULT_QUOTATION_MACHINE,
+    DEFAULT_SALES_RETURN_MACHINE,
+    DEFAULT_SHIPMENT_MACHINE,
     DEFAULT_TIMESHEET_MACHINE,
 )
 
@@ -274,6 +277,24 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         "Sales Order",
         "Lifecycle of sales orders; the fulfilment half (confirmed/shipped/signed) may be renamed for service delivery (e.g. in_delivery/delivered).",
         DEFAULT_ORDER_MACHINE,
+    ),
+    (
+        "sales_return",
+        "Sales Return",
+        "Lifecycle of customer returns — rows in the sales-orders table with order_kind='return'. E-commerce-shaped: requested, approved, in transit back, received, inspected into stock, refunded; edit freely — the refund itself is a payment document and the restock an inventory movement, so 'refunded' here is a flow marker.",
+        DEFAULT_SALES_RETURN_MACHINE,
+    ),
+    (
+        "purchase_return",
+        "Purchase Return",
+        "Lifecycle of returns to vendors — rows in the purchase-orders table with order_kind='return': approved, shipped back, refunded. The vendor's refund is a payment document; this machine tracks the flow.",
+        DEFAULT_PURCHASE_RETURN_MACHINE,
+    ),
+    (
+        "shipment",
+        "Shipment",
+        "Lifecycle of freight legs, one machine for both directions (outbound to customers/vendors, inbound receipts and return parcels). 'received' means arrived at the destination; rename or extend freely — the stock effect is posted to the inventory ledger via /post-stock, not implied by any state.",
+        DEFAULT_SHIPMENT_MACHINE,
     ),
     (
         "invoice",

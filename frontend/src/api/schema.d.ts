@@ -1795,6 +1795,79 @@ export interface paths {
         patch: operations["update_expense_item_api_v1_expense_items__item_id__patch"];
         trace?: never;
     };
+    "/api/v1/external-document-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List External Document Links */
+        get: operations["list_external_document_links_api_v1_external_document_links_get"];
+        put?: never;
+        /** Create External Document Link */
+        post: operations["create_external_document_link_api_v1_external_document_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/external-document-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get External Document Link */
+        get: operations["get_external_document_link_api_v1_external_document_links__link_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete External Document Link */
+        delete: operations["delete_external_document_link_api_v1_external_document_links__link_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/external-product-maps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List External Product Maps */
+        get: operations["list_external_product_maps_api_v1_external_product_maps_get"];
+        put?: never;
+        /** Create External Product Map */
+        post: operations["create_external_product_map_api_v1_external_product_maps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/external-product-maps/{map_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get External Product Map */
+        get: operations["get_external_product_map_api_v1_external_product_maps__map_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete External Product Map */
+        delete: operations["delete_external_product_map_api_v1_external_product_maps__map_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update External Product Map */
+        patch: operations["update_external_product_map_api_v1_external_product_maps__map_id__patch"];
+        trace?: never;
+    };
     "/api/v1/flow-runs": {
         parameters: {
             query?: never;
@@ -3986,6 +4059,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shipment-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Shipment Items */
+        get: operations["list_shipment_items_api_v1_shipment_items_get"];
+        put?: never;
+        /** Create Shipment Item */
+        post: operations["create_shipment_item_api_v1_shipment_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipment-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Shipment Item */
+        delete: operations["delete_shipment_item_api_v1_shipment_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Shipment Item */
+        patch: operations["update_shipment_item_api_v1_shipment_items__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Shipments */
+        get: operations["list_shipments_api_v1_shipments_get"];
+        put?: never;
+        /** Create Shipment */
+        post: operations["create_shipment_api_v1_shipments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shipment */
+        get: operations["get_shipment_api_v1_shipments__shipment_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Shipment */
+        delete: operations["delete_shipment_api_v1_shipments__shipment_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Shipment */
+        patch: operations["update_shipment_api_v1_shipments__shipment_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/post-stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Shipment Stock
+         * @description The one bridge from freight to stock: one ledger movement per line
+         *     that names a position, direction deciding the sign, the shipment line as
+         *     provenance and the header's order FK carried through. Idempotent by
+         *     refusal — the ledger is append-only, so running twice would double the
+         *     goods, and the stamp is what makes the second call a loud 409 instead.
+         */
+        post: operations["post_shipment_stock_api_v1_shipments__shipment_id__post_stock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Shipment */
+        post: operations["restore_shipment_api_v1_shipments__shipment_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills": {
         parameters: {
             query?: never;
@@ -4771,7 +4958,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -6230,7 +6417,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -6591,6 +6778,60 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** CreateExternalDocumentLinkRequest */
+        CreateExternalDocumentLinkRequest: {
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** External Kind */
+            external_kind: string;
+            /** External No */
+            external_no: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Source */
+            source: string;
+        };
+        /** CreateExternalProductMapRequest */
+        CreateExternalProductMapRequest: {
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** External Name */
+            external_name?: string | null;
+            /** External Product Id */
+            external_product_id: string;
+            /**
+             * External Sku Id
+             * @default
+             */
+            external_sku_id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
         /** CreateFlowSubscriptionRequest */
         CreateFlowSubscriptionRequest: {
             /** Api Key Id */
@@ -6615,6 +6856,10 @@ export interface components {
             available_to_promise_diff?: number | null;
             /** Created By */
             created_by?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
             /** Description */
             description?: string | null;
             /** Effective At */
@@ -6625,6 +6870,8 @@ export interface components {
             entity_type?: string | null;
             /** Inventory Item Id */
             inventory_item_id: string;
+            /** Purchase Order Id */
+            purchase_order_id?: string | null;
             /** Quantity On Hand Diff */
             quantity_on_hand_diff: number;
             /**
@@ -6632,6 +6879,8 @@ export interface components {
              * @enum {string}
              */
             reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other";
+            /** Sales Order Id */
+            sales_order_id?: string | null;
             /** Unit Cost */
             unit_cost?: number | null;
         };
@@ -7168,6 +7417,14 @@ export interface components {
             items?: components["schemas"]["PurchaseOrderItemBase"][];
             /** Order Date */
             order_date?: string | null;
+            /**
+             * Order Kind
+             * @default order
+             * @enum {string}
+             */
+            order_kind: "order" | "return";
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Po Number */
@@ -7428,8 +7685,16 @@ export interface components {
             logistics_tracking_no?: string | null;
             /** Order Date */
             order_date?: string | null;
+            /**
+             * Order Kind
+             * @default order
+             * @enum {string}
+             */
+            order_kind: "order" | "return";
             /** Order No */
             order_no?: string | null;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Project Id */
@@ -7561,6 +7826,59 @@ export interface components {
             total_amount?: number | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /** CreateShipmentItemRequest */
+        CreateShipmentItemRequest: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Shipment Id */
+            shipment_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** CreateShipmentRequest */
+        CreateShipmentRequest: {
+            /** Address */
+            address?: string | null;
+            /** Carrier */
+            carrier?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "outbound" | "inbound";
+            /** Expected Date */
+            expected_date?: string | null;
+            /** Facility */
+            facility?: string | null;
+            /** Items */
+            items?: components["schemas"]["ShipmentItemBase"][];
+            /** Purchase Order Id */
+            purchase_order_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Shipment No */
+            shipment_no?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Tracking No */
+            tracking_no?: string | null;
         };
         /** CreateSkillAssignmentRequest */
         CreateSkillAssignmentRequest: {
@@ -7737,7 +8055,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -8228,6 +8546,16 @@ export interface components {
             data: components["schemas"]["ExpiringBillingAccountEntriesRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[ExternalDocumentLinkRead] */
+        Envelope_ExternalDocumentLinkRead_: {
+            data: components["schemas"]["ExternalDocumentLinkRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ExternalProductMapRead] */
+        Envelope_ExternalProductMapRead_: {
+            data: components["schemas"]["ExternalProductMapRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[FlowRunRead] */
         Envelope_FlowRunRead_: {
             data: components["schemas"]["FlowRunRead"];
@@ -8321,6 +8649,11 @@ export interface components {
         /** Envelope[PostBillingAccountEntriesResult] */
         Envelope_PostBillingAccountEntriesResult_: {
             data: components["schemas"]["PostBillingAccountEntriesResult"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[PostShipmentStockRead] */
+        Envelope_PostShipmentStockRead_: {
+            data: components["schemas"]["PostShipmentStockRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ProductPriceRead] */
@@ -8421,6 +8754,16 @@ export interface components {
         /** Envelope[SalesQuotationDetailRead] */
         Envelope_SalesQuotationDetailRead_: {
             data: components["schemas"]["SalesQuotationDetailRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ShipmentItemRead] */
+        Envelope_ShipmentItemRead_: {
+            data: components["schemas"]["ShipmentItemRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ShipmentRead] */
+        Envelope_ShipmentRead_: {
+            data: components["schemas"]["ShipmentRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[SkillAssignmentRead] */
@@ -8652,6 +8995,74 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /** ExternalDocumentLinkRead */
+        ExternalDocumentLinkRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** External Kind */
+            external_kind: string;
+            /** External No */
+            external_no: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Source */
+            source: string;
+        };
+        /** ExternalProductMapRead */
+        ExternalProductMapRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** External Name */
+            external_name?: string | null;
+            /** External Product Id */
+            external_product_id: string;
+            /** External Sku Id */
+            external_sku_id: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** FlowRunRead */
         FlowRunRead: {
             /**
@@ -8758,6 +9169,10 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
             /** Description */
             description?: string | null;
             /**
@@ -8773,6 +9188,8 @@ export interface components {
             id: string;
             /** Inventory Item Id */
             inventory_item_id: string;
+            /** Purchase Order Id */
+            purchase_order_id?: string | null;
             /** Quantity On Hand Diff */
             quantity_on_hand_diff: number;
             /**
@@ -8780,6 +9197,8 @@ export interface components {
              * @enum {string}
              */
             reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other";
+            /** Sales Order Id */
+            sales_order_id?: string | null;
             /** Unit Cost */
             unit_cost?: number | null;
         };
@@ -9416,6 +9835,18 @@ export interface components {
             data: components["schemas"]["ExpenseClaimRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[ExternalDocumentLinkRead] */
+        ListEnvelope_ExternalDocumentLinkRead_: {
+            /** Data */
+            data: components["schemas"]["ExternalDocumentLinkRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ExternalProductMapRead] */
+        ListEnvelope_ExternalProductMapRead_: {
+            /** Data */
+            data: components["schemas"]["ExternalProductMapRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[FlowRunRead] */
         ListEnvelope_FlowRunRead_: {
             /** Data */
@@ -9582,6 +10013,18 @@ export interface components {
         ListEnvelope_SalesQuotationRead_: {
             /** Data */
             data: components["schemas"]["SalesQuotationRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ShipmentItemRead] */
+        ListEnvelope_ShipmentItemRead_: {
+            /** Data */
+            data: components["schemas"]["ShipmentItemRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ShipmentRead] */
+        ListEnvelope_ShipmentRead_: {
+            /** Data */
+            data: components["schemas"]["ShipmentRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[SupplierProductRead] */
@@ -10086,6 +10529,32 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** PostShipmentStockRead */
+        PostShipmentStockRead: {
+            /** Lines */
+            lines: components["schemas"]["PostedStockLineRead"][];
+            /** Shipment Id */
+            shipment_id: string;
+            /**
+             * Stock Posted At
+             * Format: date-time
+             */
+            stock_posted_at: string;
+        };
+        /** PostedStockLineRead */
+        PostedStockLineRead: {
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "posted" | "skipped_no_position";
+            /** Quantity On Hand Diff */
+            quantity_on_hand_diff?: number | null;
+            /** Shipment Item Id */
+            shipment_item_id: string;
+        };
         /** ProductPriceRead */
         ProductPriceRead: {
             /**
@@ -10301,6 +10770,10 @@ export interface components {
             items?: components["schemas"]["PurchaseOrderItemRead"][];
             /** Order Date */
             order_date?: string | null;
+            /** Order Kind */
+            order_kind: string;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Po Number */
@@ -10519,6 +10992,10 @@ export interface components {
             id: string;
             /** Order Date */
             order_date?: string | null;
+            /** Order Kind */
+            order_kind: string;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Po Number */
@@ -11290,8 +11767,12 @@ export interface components {
             logistics_tracking_no?: string | null;
             /** Order Date */
             order_date?: string | null;
+            /** Order Kind */
+            order_kind: string;
             /** Order No */
             order_no: string;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Project Id */
@@ -11606,6 +12087,102 @@ export interface components {
             outstanding_amount?: number | null;
             /** Settleable Total */
             settleable_total?: number | null;
+        };
+        /** ShipmentItemBase */
+        ShipmentItemBase: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** ShipmentItemRead */
+        ShipmentItemRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Shipment Id */
+            shipment_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ShipmentRead */
+        ShipmentRead: {
+            /** Address */
+            address?: string | null;
+            /** Carrier */
+            carrier?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "outbound" | "inbound";
+            /** Expected Date */
+            expected_date?: string | null;
+            /** Facility */
+            facility?: string | null;
+            /** Id */
+            id: string;
+            /** Purchase Order Id */
+            purchase_order_id?: string | null;
+            /** Received At */
+            received_at?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Shipment No */
+            shipment_no: string;
+            /** Shipped At */
+            shipped_at?: string | null;
+            /** Status */
+            status: string;
+            /** Stock Posted At */
+            stock_posted_at?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Tracking No */
+            tracking_no?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SkillAssignmentRead */
         SkillAssignmentRead: {
@@ -12037,7 +12614,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -12338,6 +12915,25 @@ export interface components {
             tax_amount?: number | null;
             /** Vendor Id */
             vendor_id?: string | null;
+        };
+        /** UpdateExternalProductMapRequest */
+        UpdateExternalProductMapRequest: {
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** External Name */
+            external_name?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
         };
         /**
          * UpdateFlowSubscriptionRequest
@@ -12747,6 +13343,8 @@ export interface components {
             delivery_terms?: string | null;
             /** Order Date */
             order_date?: string | null;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Promised Date */
@@ -12959,6 +13557,8 @@ export interface components {
             logistics_tracking_no?: string | null;
             /** Order Date */
             order_date?: string | null;
+            /** Original Order Id */
+            original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Project Id */
@@ -13076,6 +13676,46 @@ export interface components {
             total_amount?: number | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /** UpdateShipmentItemRequest */
+        UpdateShipmentItemRequest: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** UpdateShipmentRequest */
+        UpdateShipmentRequest: {
+            /** Address */
+            address?: string | null;
+            /** Carrier */
+            carrier?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Expected Date */
+            expected_date?: string | null;
+            /** Facility */
+            facility?: string | null;
+            /** Purchase Order Id */
+            purchase_order_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Tracking No */
+            tracking_no?: string | null;
         };
         /** UpdateSupplierProductRequest */
         UpdateSupplierProductRequest: {
@@ -17896,6 +18536,366 @@ export interface operations {
             };
         };
     };
+    list_external_document_links_api_v1_external_document_links_get: {
+        parameters: {
+            query?: {
+                source?: string | null;
+                external_kind?: string | null;
+                external_no?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ExternalDocumentLinkRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_external_document_link_api_v1_external_document_links_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExternalDocumentLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExternalDocumentLinkRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_external_document_link_api_v1_external_document_links__link_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExternalDocumentLinkRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_external_document_link_api_v1_external_document_links__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_external_product_maps_api_v1_external_product_maps_get: {
+        parameters: {
+            query?: {
+                source?: string | null;
+                external_product_id?: string | null;
+                external_sku_id?: string | null;
+                product_id?: string | null;
+                /** @description Resolve the map AS OF this date — rows whose [effective_from, effective_to) window covers it, null bounds open. This is THE translation query: pass the ORDER's date, because a listing that swapped products means different things on different days. Without an explicit status filter, `at` returns live rows only — an archived (withdrawn) pairing never described the listing. */
+                at?: string | null;
+                status?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ExternalProductMapRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_external_product_map_api_v1_external_product_maps_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExternalProductMapRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExternalProductMapRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_external_product_map_api_v1_external_product_maps__map_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                map_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExternalProductMapRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_external_product_map_api_v1_external_product_maps__map_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                map_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_external_product_map_api_v1_external_product_maps__map_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                map_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExternalProductMapRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExternalProductMapRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_flow_runs_api_v1_flow_runs_get: {
         parameters: {
             query?: {
@@ -18152,6 +19152,8 @@ export interface operations {
                 reason?: string | null;
                 entity_type?: string | null;
                 entity_id?: string | null;
+                sales_order_id?: string | null;
+                purchase_order_id?: string | null;
                 page?: number | null;
                 size?: number;
             };
@@ -21739,6 +22741,8 @@ export interface operations {
                 billing_account_id?: string | null;
                 employee_id?: string | null;
                 po_number?: string | null;
+                order_kind?: string | null;
+                original_order_id?: string | null;
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
@@ -23731,6 +24735,8 @@ export interface operations {
                 billing_account_id?: string | null;
                 quotation_id?: string | null;
                 order_no?: string | null;
+                order_kind?: string | null;
+                original_order_id?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 without_open_todo?: boolean;
@@ -25044,6 +26050,445 @@ export interface operations {
                 "application/json": components["schemas"]["SubmitSalesQuotationRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_shipment_items_api_v1_shipment_items_get: {
+        parameters: {
+            query?: {
+                shipment_id?: string | null;
+                product_id?: string | null;
+                inventory_item_id?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ShipmentItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_shipment_item_api_v1_shipment_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShipmentItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_shipment_item_api_v1_shipment_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_shipment_item_api_v1_shipment_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShipmentItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_shipments_api_v1_shipments_get: {
+        parameters: {
+            query?: {
+                direction?: string | null;
+                sales_order_id?: string | null;
+                purchase_order_id?: string | null;
+                shipment_no?: string | null;
+                tracking_no?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ShipmentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_shipment_api_v1_shipments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shipment_api_v1_shipments__shipment_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_shipment_api_v1_shipments__shipment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_shipment_api_v1_shipments__shipment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_shipment_stock_api_v1_shipments__shipment_id__post_stock_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PostShipmentStockRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_shipment_api_v1_shipments__shipment_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

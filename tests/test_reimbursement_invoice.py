@@ -421,3 +421,110 @@ def test_the_database_refuses_a_line_billed_twice(shop) -> None:
         ))
         with pytest.raises(IntegrityError):
             db.commit()
+
+
+def test_the_invoice_states_its_total_rather_than_leaving_it_derived(shop) -> None:
+    """`null` means "the line sum is the total" — a real contract, honoured by
+    settlement, so the money was never wrong. The reader was: an invoice list
+    renders the header total, and a reimbursement showed a dash where every
+    other invoice shows an amount.
+
+    Payroll refuses a declared total on purpose (net pay must be derived,
+    because +2000 and -2000 are the same number until you read the sign).
+    Reimbursement is the opposite: every line is a positive expense and the
+    figure was agreed when the claim was approved.
+    """
+    claim = shop["claim"]()          # 480 transport + 820 lodging, tax 45.28
+    shop["approve"](claim["id"])
+    invoice = raise_invoice(shop, claim["id"]).json()["data"]
+
+    assert invoice["total_amount"] == 1300.0, "the header carries no amount to render"
+    assert invoice["tax_amount"] == 45.28, "recoverable input tax must survive the hop"
+
+    # …and what it states agrees with what it bills
+    detail = shop["client"].get(f"/api/v1/invoices/{invoice['id']}/detail",
+                                headers=shop["headers"]).json()["data"]
+    assert detail["computed_total"] == detail["billed_total"] == 1300.0
+    assert detail["computed_tax_total"] == 45.28
+
+
+def test_a_claim_with_no_tax_states_no_tax(shop) -> None:
+    """`0.0` and "no tax was recorded" are different facts. Summing to zero and
+    storing it would claim the receipts were examined and found tax-free."""
+    claim = shop["post"]("/expense-claims", {
+        "employee_id": shop["employee"], "title": "no tax anywhere",
+        "items": [{"expense_date": "2026-07-18", "amount": 60.0, "category": "meal"}]})
+    shop["approve"](claim["id"])
+    invoice = raise_invoice(shop, claim["id"]).json()["data"]
+
+    assert invoice["total_amount"] == 60.0
+    assert invoice["tax_amount"] is None, "no tax on any line must not become a stated zero"
+
+
+def test_an_employee_facing_invoice_states_what_kind_it_is(shop) -> None:
+    """A document with no type reads as an unfinished one.
+
+    Neither a payslip nor a reimbursement is a tax instrument, so none of the
+    发票 values fit — and `other` would be a different lie: it means "a
+    document nobody classified", which would put these in the same bucket as
+    genuinely unclassified receipts the next time somebody totals input tax.
+    Each gets a seeded value of its own.
+    """
+    claim = shop["claim"]()
+    shop["approve"](claim["id"])
+    raised = raise_invoice(shop, claim["id"]).json()["data"]
+    assert raised["invoice_type"] == "reimbursement"
+
+    # …and the same default reaches a payslip filed through the ordinary route
+    payslip = shop["post"]("/invoices", {
+        "direction": "payroll", "employee_id": shop["employee"],
+        "payee_employee_id": shop["employee"], "title": "July salary",
+        "period_start": "2026-07-01", "period_end": "2026-07-31",
+        "items": [{"invoice_item_type": "payroll_salary",
+                   "product_name_snapshot": "Base salary", "amount": 15000.0,
+                   "notes": "15000.00 a month"}]})
+    assert payslip["invoice_type"] == "payslip"
+
+
+def test_a_stated_type_is_never_overwritten(shop) -> None:
+    """The default fills a silence; it does not correct the caller. A workspace
+    that classifies its own reimbursements keeps its answer."""
+    stated = shop["post"]("/invoices", {
+        "direction": "reimbursement", "employee_id": shop["employee"],
+        "payee_employee_id": shop["employee"], "title": "stated",
+        "invoice_type": "receipt", "total_amount": 100.0})
+    assert stated["invoice_type"] == "receipt"
+
+
+def test_supplier_and_customer_invoices_are_left_open(shop) -> None:
+    """Which 发票 a supplier issued is a fact about the paper. The server has
+    no business guessing it, so those directions get no default — filling them
+    in would be inventing evidence."""
+    vendor = shop["post"]("/vendors", {"name": "Dell"})["id"]
+    bill = shop["post"]("/invoices", {
+        "direction": "purchase", "employee_id": shop["employee"], "vendor_id": vendor,
+        "title": "a bill", "total_amount": 500.0})
+    assert bill["invoice_type"] is None
+
+
+def test_every_default_type_is_a_value_the_vocabulary_actually_ships() -> None:
+    """A default naming a value no workspace has is worse than none.
+
+    `require_type_option` runs on what the CALLER states, not on what the
+    server fills in — so a default pointing at an unseeded value would write a
+    type nothing can resolve, and a mutation removing the seeded entry left
+    every other test here green. The two must be checked against each other
+    directly.
+    """
+    from app.api.billing import DEFAULT_INVOICE_TYPE_BY_DIRECTION
+    from app.core.type_options import SYSTEM_TYPE_OPTIONS
+
+    shipped = {name for name, _, _ in SYSTEM_TYPE_OPTIONS["invoice_type"]}
+    missing = {
+        direction: value
+        for direction, value in DEFAULT_INVOICE_TYPE_BY_DIRECTION.items()
+        if value not in shipped
+    }
+    assert not missing, (
+        f"these directions default to invoice types no workspace is seeded with: {missing}"
+    )

@@ -961,6 +961,131 @@ SupplierProductListEnvelope = ListEnvelope[SupplierProductRead]
 SupplierProductEnvelope = Envelope[SupplierProductRead]
 
 
+class _NormalizesSource(RequestModel):
+    """`source` is the join key between the product map and the document
+    links; "Tmall" and "tmall" silently splitting the mapping space is the
+    exact mess these tables exist to prevent, so the server lowercases it."""
+
+    @field_validator("source", mode="before", check_fields=False)
+    @classmethod
+    def _normalize_source(cls, v: object) -> object:
+        return v.strip().lower() if isinstance(v, str) else v
+
+
+class ExternalProductMapBase(_NormalizesSource):
+    @field_validator("external_product_id", "external_sku_id", mode="before", check_fields=False)
+    @classmethod
+    def _strip_external_ids(cls, v: object) -> object:
+        # trailing whitespace from a copy-pasted platform id is the classic
+        # silent way to split one listing into two map identities
+        return v.strip() if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def _window_in_order(self):
+        f = getattr(self, "effective_from", None)
+        t = getattr(self, "effective_to", None)
+        if f is not None and t is not None and t <= f:
+            raise ValueError(
+                "effective_to must be after effective_from — the window is "
+                "[from, to), and a zero-length window asserts nothing"
+            )
+        return self
+
+    external_sku_id: str = Field(default="", max_length=128)
+    external_name: str | None = Field(default=None, max_length=200)
+    sku_id: str | None = None
+    quantity: float = Field(default=1, gt=0, le=9_999_999.99)
+    # [effective_from, effective_to): when this pairing described the
+    # listing. Nulls are open-ended; both null = "always" (the common case).
+    effective_from: date | None = None
+    effective_to: date | None = None
+    status: SupplierProductStatus = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateExternalProductMapRequest(ExternalProductMapBase):
+    source: str = Field(min_length=1, max_length=50)
+    external_product_id: str = Field(min_length=1, max_length=128)
+    product_id: str
+
+
+class UpdateExternalProductMapRequest(RequestModel):
+    # (source, external ids, product) is the row's identity and is not
+    # editable — a wrong pairing is deleted and recreated, not bent. The
+    # WINDOW is editable: closing effective_to is how a listing swap is
+    # recorded, and a mis-stated date is a fact to correct.
+    external_name: str | None = Field(default=None, max_length=200)
+    sku_id: str | None = None
+    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    effective_from: date | None = None
+    effective_to: date | None = None
+    status: SupplierProductStatus | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class ExternalProductMapRead(APIModel):
+    id: str
+    source: str
+    external_product_id: str
+    external_sku_id: str
+    external_name: str | None = None
+    product_id: str
+    sku_id: str | None = None
+    quantity: float
+    effective_from: date | None = None
+    effective_to: date | None = None
+    status: SupplierProductStatus
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+ExternalProductMapListEnvelope = ListEnvelope[ExternalProductMapRead]
+
+
+ExternalProductMapEnvelope = Envelope[ExternalProductMapRead]
+
+
+class CreateExternalDocumentLinkRequest(_NormalizesSource):
+    source: str = Field(min_length=1, max_length=50)
+    # "order" and "return" by convention; free text because platforms
+    # invent kinds (aftersale, exchange, refund)
+    external_kind: str = Field(min_length=1, max_length=50)
+    external_no: str = Field(min_length=1, max_length=128)
+    entity_type: str = Field(min_length=1, max_length=100)
+    entity_id: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("external_no", "external_kind", mode="before")
+    @classmethod
+    def _strip(cls, v: object) -> object:
+        return v.strip() if isinstance(v, str) else v
+
+
+class ExternalDocumentLinkRead(APIModel):
+    id: str
+    source: str
+    external_kind: str
+    external_no: str
+    entity_type: str
+    entity_id: str
+    created_by: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+
+
+ExternalDocumentLinkListEnvelope = ListEnvelope[ExternalDocumentLinkRead]
+
+
+ExternalDocumentLinkEnvelope = Envelope[ExternalDocumentLinkRead]
+
+
 # Why stock moved. `import_override` is reserved for the bulk import finding
 # the system count different from the imported count — the difference lands
 # as a movement, never as an edit of the item's totals.
@@ -1042,6 +1167,12 @@ class CreateInventoryItemDetailRequest(RequestModel):
     description: str | None = Field(default=None, max_length=500)
     entity_type: str | None = Field(default=None, max_length=50)
     entity_id: str | None = None
+    # the order this movement fulfils, when it is one of ours — at most one.
+    # An EXTERNAL order (Tmall, JD, another system) goes in `custom_fields`:
+    # its number is not a uuid and this database cannot vouch for it.
+    sales_order_id: str | None = None
+    purchase_order_id: str | None = None
+    custom_fields: dict = Field(default_factory=dict)
     unit_cost: float | None = Field(default=None, ge=0, le=9_999_999.99)
     effective_at: datetime | None = None
     created_by: str | None = Field(default=None, max_length=100)
@@ -1054,18 +1185,153 @@ class InventoryItemDetailRead(APIModel):
     available_to_promise_diff: float
     reason: InventoryMovementReason
     description: str | None = None
+    sales_order_id: str | None = None
+    purchase_order_id: str | None = None
     entity_type: str | None = None
     entity_id: str | None = None
     unit_cost: float | None = None
     effective_at: datetime
     created_by: str | None = None
     created_at: datetime
+    custom_fields: dict = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("custom_fields", "custom_fields_jsonb"),
+        serialization_alias="custom_fields",
+    )
 
 
 InventoryItemDetailListEnvelope = ListEnvelope[InventoryItemDetailRead]
 
 
 InventoryItemDetailEnvelope = Envelope[InventoryItemDetailRead]
+
+
+ShipmentDirection = Literal["outbound", "inbound"]
+
+
+class ShipmentBase(RequestModel):
+    # server-allocated SH-NNNNNN when omitted
+    shipment_no: str | None = Field(default=None, max_length=64)
+    title: str | None = Field(default=None, max_length=200)
+    sales_order_id: str | None = None
+    purchase_order_id: str | None = None
+    facility: str | None = Field(default=None, max_length=100)
+    address: str | None = Field(default=None, max_length=500)
+    carrier: str | None = Field(default=None, max_length=100)
+    tracking_no: str | None = Field(default=None, max_length=100)
+    expected_date: date | None = None
+    status: str | None = Field(default=None, max_length=30)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class ShipmentItemBase(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    product_id: str
+    sku_id: str | None = None
+    quantity: float = Field(gt=0, le=9_999_999.99)
+    # the stock POSITION this line leaves or lands in; omit for 直发 legs
+    inventory_item_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+
+
+class CreateShipmentRequest(ShipmentBase):
+    direction: ShipmentDirection
+    items: list[ShipmentItemBase] = Field(default_factory=list, max_length=200)
+
+
+class UpdateShipmentRequest(RequestModel):
+    # direction is identity; the order links move only while the leg is
+    # editable, like every line write
+    title: str | None = Field(default=None, max_length=200)
+    sales_order_id: str | None = None
+    purchase_order_id: str | None = None
+    facility: str | None = Field(default=None, max_length=100)
+    address: str | None = Field(default=None, max_length=500)
+    carrier: str | None = Field(default=None, max_length=100)
+    tracking_no: str | None = Field(default=None, max_length=100)
+    expected_date: date | None = None
+    status: str | None = Field(default=None, max_length=30)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class CreateShipmentItemRequest(ShipmentItemBase):
+    shipment_id: str
+
+
+class UpdateShipmentItemRequest(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    sku_id: str | None = None
+    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    inventory_item_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ShipmentItemRead(APIModel):
+    id: str
+    shipment_id: str
+    line_no: int | None = None
+    product_id: str
+    sku_id: str | None = None
+    quantity: float
+    inventory_item_id: str | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ShipmentRead(APIModel):
+    id: str
+    shipment_no: str
+    direction: ShipmentDirection
+    title: str | None = None
+    sales_order_id: str | None = None
+    purchase_order_id: str | None = None
+    facility: str | None = None
+    address: str | None = None
+    carrier: str | None = None
+    tracking_no: str | None = None
+    expected_date: date | None = None
+    status: str
+    shipped_at: datetime | None = None
+    received_at: datetime | None = None
+    stock_posted_at: datetime | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+ShipmentListEnvelope = ListEnvelope[ShipmentRead]
+
+
+ShipmentEnvelope = Envelope[ShipmentRead]
+
+
+ShipmentItemListEnvelope = ListEnvelope[ShipmentItemRead]
+
+
+ShipmentItemEnvelope = Envelope[ShipmentItemRead]
+
+
+class PostedStockLineRead(BaseModel):
+    shipment_item_id: str
+    inventory_item_id: str | None = None
+    quantity_on_hand_diff: float | None = None
+    outcome: Literal["posted", "skipped_no_position"]
+
+
+class PostShipmentStockRead(APIModel):
+    shipment_id: str
+    stock_posted_at: datetime
+    lines: list[PostedStockLineRead]
+
+
+PostShipmentStockEnvelope = Envelope[PostShipmentStockRead]
 
 
 class BulkInventoryRow(RequestModel):
@@ -3669,6 +3935,11 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
     vendor_id: str
     billing_account_id: str | None = None
     employee_id: str
+    # 'return' records goods going back to the vendor, in this same table
+    # under its own state machine; identity, not editable after create
+    order_kind: Literal["order", "return"] = "order"
+    # returns only: the purchase order this return reverses
+    original_order_id: str | None = None
     # lines ride the create, as on every other document family: one call, one
     # transaction, and a bad row rolls the order back instead of leaving an
     # empty PO behind
@@ -3676,6 +3947,8 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
 
 
 class UpdatePurchaseOrderRequest(RequestModel):
+    # returns only: linkage recorded later; order_kind is identity, no field
+    original_order_id: str | None = None
     vendor_id: str | None = None
     billing_account_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
@@ -3695,6 +3968,8 @@ class UpdatePurchaseOrderRequest(RequestModel):
 class PurchaseOrderRead(APIModel):
     id: str
     po_number: str
+    order_kind: str
+    original_order_id: str | None = None
     vendor_id: str
     billing_account_id: str | None = None
     vendor_name_snapshot: str | None = None
@@ -4853,10 +5128,18 @@ class SalesOrderBase(RequestModel):
 class CreateSalesOrderRequest(SalesOrderBase):
     employee_id: str
     title: str = Field(max_length=200)
+    # 'return' records a customer return in this same table under its own
+    # state machine; identity, not editable after create
+    order_kind: Literal["order", "return"] = "order"
+    # returns only: the order this return reverses (one order, many returns)
+    original_order_id: str | None = None
     items: list[SalesOrderItemBase] = Field(default_factory=list, max_length=200)
 
 
 class UpdateSalesOrderRequest(RequestModel):
+    # returns only: a return recorded before its order was known gains the
+    # linkage later. order_kind is identity and has no update field.
+    original_order_id: str | None = None
     quotation_id: str | None = None
     source_quote_number: str | None = Field(default=None, max_length=64)
     customer_id: str | None = None
@@ -4899,6 +5182,8 @@ class SubmitSalesOrderRequest(RequestModel):
 class SalesOrderRead(APIModel):
     id: str
     order_no: str
+    order_kind: str
+    original_order_id: str | None = None
     quotation_id: str | None = None
     source_quote_number: str | None = None
     employee_id: str

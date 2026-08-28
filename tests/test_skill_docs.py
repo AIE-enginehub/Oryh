@@ -624,3 +624,98 @@ def test_every_money_skill_says_who_its_holder_is() -> None:
         f"these move money and never say whose desk they are: {missing} — "
         f"include {{{{include:{fragment}}}}}"
     )
+
+
+def test_the_warehouse_doctrine_is_written_where_the_agent_reads() -> None:
+    """The ledger ACCEPTS an undocumented movement — but the agent only records
+    one if its instructions say to. The doctrine is the half that turns the
+    mechanism into behaviour: record reality first, never fabricate a document,
+    resolve later by counter-entry. A refactor that drops the section leaves
+    the mechanism intact and the behaviour gone, which no API test can see.
+    """
+    body = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "## The Warehouse Records Reality, Not Paperwork" in body
+    for sentence in (
+        "never a\ndocument",
+        "Never fabricate a document",
+        "counter-entry",
+    ):
+        assert sentence in body, f"the doctrine lost: {sentence!r}"
+
+
+def test_channel_order_translation_is_taught_where_each_agent_reads() -> None:
+    """The server holds two mapping tables; the BEHAVIOUR — dedup by the
+    platform's order number before creating, translate lines through the map
+    instead of guessing, name a movement's external return by a link instead
+    of a counter-entry — lives only in skill prose. Each desk gets its half:
+    the seller dedups and translates, the catalog admin curates the map, the
+    warehouse links returns. Losing any of these sections leaves the tables
+    intact and the mess they exist to prevent back in place."""
+    seller = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/external-document-links" in seller, "the seller lost the dedup check"
+    assert "/external-product-maps" in seller, "the seller lost the line translation"
+    assert "Dedup" in seller and "FIRST" in seller, \
+        "dedup must be taught as the first step, not an aside"
+    assert "at={the ORDER's date}" in seller, \
+        "translation without the order's date mistranslates every back-dated " \
+        "import after a listing swap — the `at` param is the whole point"
+
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/external-product-maps" in curator, "the catalog admin lost map curation"
+    assert "effective_to" in curator and "Never archive" in curator, \
+        "the swap workflow (close the window, keep the row active) lives only " \
+        "here — losing it turns every listing swap into a withdrawn history"
+
+    keeper = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/external-document-links" in keeper, \
+        "the warehouse lost the link that names a frozen row later"
+
+
+def test_returns_as_order_rows_are_taught_where_each_agent_reads() -> None:
+    """The server holds the kind split; the BEHAVIOUR — a return is a row in
+    the same collection naming its original, running its own e-commerce
+    lifecycle, never charging credit — lives in skill prose. The seller
+    records customer returns, procurement records vendor returns, the
+    warehouse books the parcel against the return row. Losing any section
+    leaves the columns intact and the agents recording returns as free-text
+    remarks again."""
+    seller = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert '"order_kind": "return"' in seller, "the seller lost the return-row shape"
+    assert "original_order_id" in seller, "the seller lost the original-order linkage"
+    assert "many returns" in seller, "one order, many returns is the requirement — say it"
+
+    buyer = (PRODUCT_SKILLS_DIR / "oryh-purchase-order" / "SKILL.md").read_text(encoding="utf-8")
+    assert "order_kind" in buyer and "original_order_id" in buyer, \
+        "procurement lost the vendor-return shape"
+
+    keeper = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "RETURN row" in keeper, \
+        "the warehouse must know a return receipt names the return row"
+
+    receivables = (PRODUCT_SKILLS_DIR / "oryh-receivables" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Refunding a Customer Return" in receivables and "settles no invoice" in receivables, \
+        "the refund is the money half of every return and no other desk records " \
+        "it — losing this section strands every return one step before refunded"
+    payables = (PRODUCT_SKILLS_DIR / "oryh-payables" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Purchase Return" in payables and "inbound" in payables, \
+        "the vendor's refund coming home is the payables desk's inbound exception"
+
+    keeper_api = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/post-stock" in keeper_api and "ONCE" in keeper_api, \
+        "the once-only bridge is the rule that stops double-booked goods"
+    assert "Never book the same goods twice" in keeper_api, \
+        "/receive and shipments both reach the ledger — without this warning " \
+        "the same parcel lands twice"
+    assert "object_type=sales_return" in keeper_api and "original position" in keeper_api, \
+        "where returned goods land is the tenant's sentence in the sales_return " \
+        "definition, defaulting to the original position — losing this teaching " \
+        "reopens the OFBiz fork as every keeper's private guess"
+
+    flow_md = PRODUCT_SKILLS_DIR / "oryh-order-approval-flow" / "SKILL.md"
+    if flow_md.is_file():  # *-approval-flow skills are PRIVATE_SKILLS, absent
+        flow = flow_md.read_text(encoding="utf-8")  # from the open-core export
+        assert "order_kind" in flow, \
+            "the hosted queue serves returns too — a flow admin who cannot tell " \
+            "the kinds apart writes order states onto returns and loops on 409s"
+        assert "sales_return" in flow, \
+            "the return decision reads the sales_return definition and machine"

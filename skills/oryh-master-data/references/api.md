@@ -271,51 +271,69 @@ DELETE /supplier-products/{supplier_product_id}            → archive; re-impor
 belong to the product (400 otherwise). Bulk rows write product-level prices
 only.
 
-## Inventory (stock-count import)
+## The External Product Map (channel listings → catalog)
 
-Stock lives on a LEDGER. An inventory item's `quantity_on_hand` /
-`available_to_promise` are running sums of its detail rows — nothing edits
-them directly, and the import obeys the same rule:
-
-```text
-POST /inventory-items/bulk
-{"rows": [
-  {"product_code": "P-001", "facility": "Main warehouse", "lot_id": "B2026-07",
-   "quantity": 120.5, "expire_date": "2027-06-30"}
- ], "dry_run": true, "on_error": "abort"}
-```
-
-- The stock position is (product-or-sku, `facility`, `lot_id`); `sku_code`
-  names a variant, empty facility/lot mean "unspecified". One row per
-  position per file — a duplicate is a per-row error.
-- No item at that position yet → created, opening balance recorded as a
-  ledger detail with reason `import_initial`.
-- Counted `quantity` equals the system count → `unchanged`, no ledger noise.
-- Counted `quantity` DIFFERS → the item is NOT edited: a detail is appended
-  with `quantity_on_hand_diff` = (counted − system), reason
-  `import_override`, its description naming both numbers (import override:
-  system quantity X → imported quantity Y). The row result reports
-  `changed: ["quantity_on_hand"]`.
-- `product_code` (and `sku_code`) must already exist — unknown codes are
-  per-row errors, never invented records.
-
-Endpoints:
+What a platform's product id means in this catalog: Tmall listing 6543… IS
+product X, or IS 2× cup and 1× lid (a bundle = several rows with
+quantities). The channel mirror of supplier-products — that table maps a
+vendor's code for what the tenant buys; this one maps Tmall/JD/Amazon/a
+mini-program's id for what it sells. Order-recording agents READ this map to
+translate channel orders; curation is this desk's work.
 
 ```text
-GET    /inventory-items?product_id=&sku_id=&facility=&lot_id=&status=
-POST   /inventory-items             → optional initial_quantity lands as the first detail; 409 if the position exists
-PATCH  /inventory-items/{item_id}   → identity/dates/cost only — it has NO quantity fields; sending one is a 422
-DELETE /inventory-items/{item_id}   → archive (the ledger beneath stays)
-
-GET    /inventory-item-details?inventory_item_id=&reason=&entity_type=&entity_id=
-POST   /inventory-item-details      → append one movement; the ONLY way totals move
+GET    /external-product-maps?source=&external_product_id=&external_sku_id=&product_id=&status=
+GET    /external-product-maps?source=&external_product_id=&at=2026-08-10
+                                    → the map AS OF that date (live rows whose window covers it)
+POST   /external-product-maps       → 409 only if an OPEN-ended live row already pairs this
+                                      (source, listing, product); closed windows never block
+PATCH  /external-product-maps/{map_id}   → external_name/sku_id/quantity/effective_from/
+                                           effective_to/status; identity fields are fixed
+DELETE /external-product-maps/{map_id}   → archive = WITHDRAWN (a mistaken pairing);
+                                           never how a superseded pairing is recorded
 ```
 
-Details are immutable — no update, no delete, no per-row path; a mistake is
-corrected by a counter-entry. `reason` catalog: `initial | import_initial |
-import_override | received | issued | adjustment | damaged | returned |
-transfer | other`. A movement caused by a record in the system carries it in
-(`entity_type`, `entity_id`). Posting to an archived item is a 409.
+```json
+POST /external-product-maps
+{
+  "source": "tmall",
+  "external_product_id": "654321987",
+  "external_sku_id": "4890",
+  "external_name": "Two-cup set with lid",
+  "product_id": "product-id",
+  "quantity": 2
+}
+```
+
+- `source` is the platform, lowercased by the server — "Tmall" and "tmall"
+  must not split the mapping space. Free text: any system a tenant sells
+  or buys through.
+- `quantity` is the bundle multiplier: one unit of the listing = N of this
+  product. A bundle is SEVERAL rows for the same (source, listing), one per
+  component. A wrong pairing is deleted and re-created — identity fields
+  never bend.
+- `sku_id` (optional) must belong to `product_id` (422 otherwise);
+  `external_sku_id` holds the PLATFORM's sku when it distinguishes one.
+- `effective_from` / `effective_to` bound WHEN the pairing described the
+  listing — half-open `[from, to)`, null bounds open, both omitted =
+  "always". **A listing swap is: PATCH the old row's `effective_to`, POST
+  the new row with the same date as `effective_from`.** The old row stays
+  active (it still translates back-dated orders); the swap day belongs to
+  the new meaning. Swapping back later is allowed — only a second
+  open-ended row for the same pairing is a 409. Recording a purely
+  historical pairing (both bounds set) is also legal, e.g. when onboarding
+  mid-year and importing last month's orders.
+
+The external ORDER number is not master data: it lands in
+`/external-document-links` when the order is recorded ($oryh-order-submit).
+
+## Inventory
+
+The stock ledger is not master data. `/inventory-items`,
+`/inventory-item-details` and the stock-count import (`POST
+/inventory-items/bulk`) moved to `$oryh-inventory`, under their own capability
+`inventory.manage` — held by the warehouse, not by default by a catalog
+administrator. Products, SKUs, vendors and customers stay here; a stock sheet
+goes there.
 
 ## Single-Record Writes
 

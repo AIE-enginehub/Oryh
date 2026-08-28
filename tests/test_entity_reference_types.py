@@ -27,6 +27,7 @@ from sqlalchemy import text
 
 from app.api.common import DOCUMENT_FAMILIES
 from app.core.entity_types import (
+    KIND_SPLIT_MACHINE_TYPES,
     APPROVAL_ENTITY_TYPES,
     DOCUMENT_ENTITY_TYPES,
     TODO_ENTITY_TYPES,
@@ -86,13 +87,26 @@ def test_the_one_declaration_matches_both_registries() -> None:
     """`app/core/entity_types.py` is the single declaration; these are the two
     registries it must not drift from. Adding a document family without
     updating it fails here — which is the whole reason it is one file and not
-    four scattered lists."""
+    four scattered lists.
+
+    Kind-split machine types are the stated exception: a sales_return is a
+    `sales_orders` row (退单跟订单一张表), so it has a MACHINE of its own but
+    no family, no entity type, no table — a todo pointing at one says
+    `sales_order` and lands on the same row. The declaration says whose table
+    each split type lives in, and this pin holds machines == entity types ∪
+    that declaration, so a machine added tomorrow must either be a real
+    family or say where its rows live."""
     families = {family.object_type for family in DOCUMENT_FAMILIES.values()}
     assert families == set(DOCUMENT_ENTITY_TYPES), (
         "DOCUMENT_FAMILIES and app/core/entity_types.py disagree"
     )
-    assert set(BUILTIN_MACHINES) == set(DOCUMENT_ENTITY_TYPES), (
+    assert set(BUILTIN_MACHINES) == set(DOCUMENT_ENTITY_TYPES) | set(KIND_SPLIT_MACHINE_TYPES), (
         "BUILTIN_MACHINES and app/core/entity_types.py disagree"
+    )
+    # every split type names a real family as its home table
+    assert set(KIND_SPLIT_MACHINE_TYPES.values()) <= set(DOCUMENT_ENTITY_TYPES)
+    assert set(KIND_SPLIT_MACHINE_TYPES) & set(DOCUMENT_ENTITY_TYPES) == set(), (
+        "a kind-split type must not also be a family"
     )
     assert families <= set(TODO_ENTITY_TYPES)
     assert families <= set(APPROVAL_ENTITY_TYPES)

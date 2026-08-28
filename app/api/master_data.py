@@ -20,10 +20,13 @@ router.
 
 from __future__ import annotations
 
+import uuid
+
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -38,12 +41,15 @@ from app.api.common import (
     page_only_pagination,
     require_master_data_manage,
 )
-from app.api.deps import Actor, attributed, get_actor
+from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
     Customer,
+    ExternalProductMap,
     InventoryItem,
     InventoryItemDetail,
+    PurchaseOrder,
+    SalesOrder,
     Product,
     ProductPrice,
     ProductSku,
@@ -63,9 +69,13 @@ from app.schemas import (
     CreateInventoryItemRequest,
     CreateProductPriceRequest,
     CreateProductRequest,
+    CreateExternalProductMapRequest,
     CreateProductSkuRequest,
     CreateSupplierProductRequest,
     CreateVendorRequest,
+    ExternalProductMapEnvelope,
+    ExternalProductMapListEnvelope,
+    ExternalProductMapRead,
     CustomerEnvelope,
     CustomerListEnvelope,
     CustomerRead,
@@ -88,6 +98,7 @@ from app.schemas import (
     SupplierProductListEnvelope,
     SupplierProductRead,
     UpdateCustomerRequest,
+    UpdateExternalProductMapRequest,
     UpdateInventoryItemRequest,
     UpdateProductPriceRequest,
     UpdateProductRequest,
@@ -1078,7 +1089,240 @@ def delete_supplier_product(
     return archive_row(db, actor, SupplierProduct, supplier_product_id)
 
 
+# --- external product maps: what a platform's ids mean in our catalog ------
+#
+# The channel mirror of supplier-products: that table maps a vendor's code
+# for what we buy, this one maps Tmall/JD/Amazon/anything's id for what we
+# sell. Many-to-many by rows — a bundle listing is several rows with
+# quantities, one product on five channels is five rows. The order-recording
+# agent consults this to translate lines; the external ORDER number lands in
+# external-document-links, a separate table because a link must be
+# hard-unique per tuple while multiple map rows per external id are the point.
+
+
+@router.get(
+    "/external-product-maps",
+    response_model=ExternalProductMapListEnvelope,
+    response_model_exclude_unset=True,
+)
+def list_external_product_maps(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    source: str | None = None,
+    external_product_id: str | None = None,
+    external_sku_id: str | None = None,
+    product_id: str | None = None,
+    at: Annotated[
+        date | None,
+        Query(description=(
+            "Resolve the map AS OF this date — rows whose [effective_from, "
+            "effective_to) window covers it, null bounds open. This is THE "
+            "translation query: pass the ORDER's date, because a listing that "
+            "swapped products means different things on different days. "
+            "Without an explicit status filter, `at` returns live rows only — "
+            "an archived (withdrawn) pairing never described the listing."
+        )),
+    ] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    stmt = select(ExternalProductMap).where(ExternalProductMap.tenant_id == tenant_id)
+    if at is not None:
+        stmt = stmt.where(
+            or_(ExternalProductMap.effective_from.is_(None),
+                ExternalProductMap.effective_from <= at),
+            or_(ExternalProductMap.effective_to.is_(None),
+                ExternalProductMap.effective_to > at),
+        )
+        if status_filter is None:
+            status_filter = "active"
+    return list_rows(
+        db, stmt,
+        filters={
+            ExternalProductMap.source: source.strip().lower() if source else None,
+            ExternalProductMap.external_product_id: (
+                external_product_id.strip() if external_product_id else None
+            ),
+            ExternalProductMap.external_sku_id: (
+                external_sku_id.strip() if external_sku_id is not None else None
+            ),
+            ExternalProductMap.product_id: product_id,
+            ExternalProductMap.status: status_filter,
+        },
+        order_by=(
+            ExternalProductMap.source.asc(),
+            ExternalProductMap.external_product_id.asc(),
+            ExternalProductMap.created_at.asc(),
+            ExternalProductMap.id.asc(),
+        ),
+        pagination=page_only_pagination(page, size),
+        read_model=ExternalProductMapRead,
+    )
+
+
+@router.post(
+    "/external-product-maps",
+    response_model=ExternalProductMapEnvelope,
+    response_model_exclude_unset=True,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_external_product_map(
+    payload: CreateExternalProductMapRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    get_scoped_or_404(db, Product, tenant_id, payload.product_id)
+    if payload.sku_id is not None:
+        sku = get_scoped_or_404(db, ProductSku, tenant_id, payload.sku_id)
+        if sku.product_id != payload.product_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"sku {payload.sku_id} belongs to product {sku.product_id}, not {payload.product_id}",
+            )
+    # Only an OPEN live assertion claims the slot: a row with a closed window
+    # is history (the listing meant this product until the swap), so a
+    # listing may swap BACK to a product it meant before, and closed-window
+    # rows for back-dated imports never conflict with the current pairing.
+    if payload.status == "active" and payload.effective_to is None:
+        existing = db.scalar(
+            select(ExternalProductMap).where(
+                ExternalProductMap.tenant_id == tenant_id,
+                ExternalProductMap.source == payload.source,
+                ExternalProductMap.external_product_id == payload.external_product_id,
+                ExternalProductMap.external_sku_id == payload.external_sku_id,
+                ExternalProductMap.product_id == payload.product_id,
+                ExternalProductMap.status == "active",
+                ExternalProductMap.effective_to.is_(None),
+            )
+        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"map {existing.id} already pairs this external listing with this "
+                    "product, open-ended — PATCH it, or close its window "
+                    "(effective_to) if the listing changed meaning on a date"
+                ),
+            )
+    row = ExternalProductMap(
+        tenant_id=tenant_id,
+        source=payload.source,
+        external_product_id=payload.external_product_id,
+        external_sku_id=payload.external_sku_id,
+        external_name=payload.external_name,
+        product_id=payload.product_id,
+        sku_id=payload.sku_id,
+        quantity=payload.quantity,
+        effective_from=payload.effective_from,
+        effective_to=payload.effective_to,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an open-ended map for this (source, external listing, product) already exists",
+        )
+    db.refresh(row)
+    return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
+
+
+@router.get(
+    "/external-product-maps/{map_id}",
+    response_model=ExternalProductMapEnvelope,
+    response_model_exclude_unset=True,
+)
+def get_external_product_map(
+    map_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    row = get_scoped_or_404(db, ExternalProductMap, tenant_id, map_id)
+    return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
+
+
+@router.patch(
+    "/external-product-maps/{map_id}",
+    response_model=ExternalProductMapEnvelope,
+    response_model_exclude_unset=True,
+)
+def update_external_product_map(
+    map_id: str,
+    payload: UpdateExternalProductMapRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    row = get_scoped_or_404(db, ExternalProductMap, actor.tenant_id, map_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "sku_id" in updates and updates["sku_id"] is not None:
+        sku = get_scoped_or_404(db, ProductSku, actor.tenant_id, updates["sku_id"])
+        if sku.product_id != row.product_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"sku {updates['sku_id']} belongs to product {sku.product_id}, not {row.product_id}",
+            )
+    if "metadata" in updates:
+        row.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(row, field, value)
+    # cross-field, so the schema cannot see it: a PATCH may move one bound
+    # against the other already on the row
+    if (row.effective_from is not None and row.effective_to is not None
+            and row.effective_to <= row.effective_from):
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "effective_to must be after effective_from — the window is "
+                "[from, to), and a zero-length window asserts nothing"
+            ),
+        )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "reopening this pairing collides with an open-ended map for the "
+                "same (source, external listing, product) — close that one first"
+            ),
+        )
+    db.refresh(row)
+    return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
+
+
+@router.delete("/external-product-maps/{map_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_external_product_map(
+    map_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, ExternalProductMap, map_id)
+
+
 # --- inventory: items are running sums of an append-only detail ledger -----
+
+
+def require_inventory_manage(actor: Actor) -> None:
+    """Guard the stock ledger and its positions.
+
+    Strict — no legacy alias. `require_master_data_manage` accepts
+    `users.manage` because it shipped before the admin top-up existed and
+    needed a bridge; this capability ships after it, so admins hold it on
+    deploy, and migration 0063 grants it to every role that held
+    `master_data.manage` — the roles that could do this yesterday can do it
+    today, and a workspace can now take it away from the ones that should not.
+    """
+    require_permission(actor, "inventory.manage")
 
 
 @router.get("/inventory-items", response_model=InventoryItemListEnvelope, response_model_exclude_unset=True)
@@ -1124,7 +1368,7 @@ def create_inventory_item(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    require_inventory_manage(actor)
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Product, tenant_id, payload.product_id)
     if payload.sku_id:
@@ -1203,7 +1447,7 @@ def update_inventory_item(
     """Identity, dates and cost — never quantities: the request model carries
     no quantity fields, so a client sending one gets a 422 naming it. Stock
     moves only through POST /inventory-item-details."""
-    require_master_data_manage(actor)
+    require_inventory_manage(actor)
     item = get_scoped_or_404(db, InventoryItem, actor.tenant_id, item_id)
     updates = payload.model_dump(exclude_unset=True)
     if "metadata" in updates:
@@ -1228,7 +1472,7 @@ def delete_inventory_item(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return archive_row(db, actor, InventoryItem, item_id)
+    return archive_row(db, actor, InventoryItem, item_id, permission="inventory.manage")
 
 
 @router.get(
@@ -1243,6 +1487,8 @@ def list_inventory_item_details(
     reason: str | None = None,
     entity_type: str | None = None,
     entity_id: str | None = None,
+    sales_order_id: str | None = None,
+    purchase_order_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
@@ -1253,6 +1499,8 @@ def list_inventory_item_details(
             InventoryItemDetail.reason: reason,
             InventoryItemDetail.entity_type: entity_type,
             InventoryItemDetail.entity_id: entity_id,
+            InventoryItemDetail.sales_order_id: sales_order_id,
+            InventoryItemDetail.purchase_order_id: purchase_order_id,
         },
         order_by=(
             InventoryItemDetail.effective_at.desc(),
@@ -1278,13 +1526,46 @@ def create_inventory_item_detail(
     """Append one movement. Details are immutable — there is no PATCH or
     DELETE; a mistake is corrected by a counter-entry. The item's totals move
     here and only here."""
-    require_master_data_manage(actor)
+    require_inventory_manage(actor)
     item = get_scoped_or_404(db, InventoryItem, actor.tenant_id, payload.inventory_item_id)
     if item.status != "active":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="inventory item is archived — set it active before posting movement",
         )
+    # `entity_id` promises resolvability — it is uuid-typed, and before this
+    # check a Tmall order number here was a 500 from the ValueError inside the
+    # column type, not an answer. The refusal has to name where the reference
+    # DOES go, because the caller's need is real; only the column is wrong.
+    if payload.entity_id is not None:
+        try:
+            uuid.UUID(payload.entity_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"entity_id must be the uuid of a record in this system — "
+                    f"{payload.entity_id!r} is not one. An external order "
+                    "(Tmall, JD, another system) goes in `custom_fields`, e.g. "
+                    '{"source": "tmall", "order_no": "..."}'
+                ),
+            )
+    # A movement fulfils at most one of OUR orders. Two at once is not a
+    # transfer — it is two movements — and an external order (Tmall, JD) is
+    # neither: its number is not a uuid this database can vouch for, so it
+    # belongs in `custom_fields`, not in a column that promises resolvability.
+    if payload.sales_order_id and payload.purchase_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "a movement fulfils at most one order — record two movements if "
+                "stock genuinely moved twice"
+            ),
+        )
+    if payload.sales_order_id:
+        get_scoped_or_404(db, SalesOrder, actor.tenant_id, payload.sales_order_id)
+    if payload.purchase_order_id:
+        get_scoped_or_404(db, PurchaseOrder, actor.tenant_id, payload.purchase_order_id)
     detail = post_inventory_detail(
         db,
         item=item,
@@ -1292,9 +1573,12 @@ def create_inventory_item_detail(
         available_to_promise_diff=payload.available_to_promise_diff,
         reason=payload.reason,
         description=payload.description,
+        sales_order_id=payload.sales_order_id,
+        purchase_order_id=payload.purchase_order_id,
         entity_type=payload.entity_type,
         entity_id=payload.entity_id,
         unit_cost=payload.unit_cost,
+        custom_fields=payload.custom_fields,
         effective_at=payload.effective_at,
         created_by=attributed(actor, payload.created_by),
     )
@@ -1316,7 +1600,7 @@ def bulk_upsert_inventory(
     """The stock-take import. Quantities land as ledger details — a counted
     number that differs from the system count becomes an `import_override`
     movement naming both numbers, never an edit of the item."""
-    require_master_data_manage(actor)
+    require_inventory_manage(actor)
     result = bulk_inventory_upsert(
         db,
         tenant_id=actor.tenant_id,

@@ -9,6 +9,7 @@ export const BUILTIN_OBJECT_TYPES = [
   "purchase_request",
   "sales_quotation",
   "sales_order",
+  "sales_return",
   "invoice",
   "payment",
   "billing_account",
@@ -661,6 +662,7 @@ const BUILTIN_TITLES: Record<BuiltinObjectType, [string, string]> = {
   purchase_request: ["采购申请", "Purchase request"],
   sales_quotation: ["销售报价", "Sales quotation"],
   sales_order: ["销售订单", "Sales order"],
+  sales_return: ["销售退单", "Sales return"],
   invoice: ["发票", "Invoice"],
   payment: ["收付款", "Payment"],
   billing_account: ["往来账户", "Billing account"],
@@ -673,6 +675,7 @@ const BUILTIN_STATUSES: Record<BuiltinObjectType, string[]> = {
   purchase_request: [],
   sales_quotation: [],
   sales_order: [],
+  sales_return: [],
   invoice: [],
   payment: [],
   billing_account: ["active", "frozen", "closed"],
@@ -685,6 +688,8 @@ const ENTITY_ALIASES: Record<ObjectEntityType, string[]> = {
   purchase_request: ["purchase_request"],
   sales_quotation: ["sales_quotation"],
   sales_order: ["sales_order"],
+  // a sales return IS a sales_orders row; its todos/approvals say sales_order
+  sales_return: ["sales_order"],
   invoice: ["invoice"],
   payment: ["payment"],
   billing_account: ["billing_account"],
@@ -832,7 +837,10 @@ function listEndpoint(filters: ObjectListFilters): string {
     case "sales_quotation":
       return apiUrl("/sales-quotations", { ...common, include_deleted: true });
     case "sales_order":
-      return apiUrl("/sales-orders", { ...common, include_deleted: true });
+      // orders and returns share the table; each console page shows its kind
+      return apiUrl("/sales-orders", { ...common, order_kind: "order", include_deleted: true });
+    case "sales_return":
+      return apiUrl("/sales-orders", { ...common, order_kind: "return", include_deleted: true });
     case "invoice":
       return apiUrl("/invoices", { ...common, include_deleted: true });
     case "payment":
@@ -858,6 +866,10 @@ function normalizeRecords(entityType: ObjectEntityType, records: unknown[]): Obj
       return (records as SalesQuotation[]).map((record) => ({ entityType, record }));
     case "sales_order":
       return (records as SalesOrder[]).map((record) => ({ entityType, record }));
+    case "sales_return":
+      // tagged as sales_order so search, links and the detail page — which
+      // render the same row — need no second case anywhere downstream
+      return (records as SalesOrder[]).map((record) => ({ entityType: "sales_order" as const, record }));
     case "invoice":
       return (records as Invoice[]).map((record) => ({ entityType, record }));
     case "payment":
@@ -1018,6 +1030,10 @@ type PrimaryDetail = {
 };
 
 async function getPrimaryDetail(entityType: ObjectEntityType, recordId: string, locale: ObjectLocale): Promise<PrimaryDetail> {
+  if (entityType === "sales_return") {
+    // a sales return IS a sales_orders row; its detail is the order's detail
+    return getPrimaryDetail("sales_order", recordId, locale);
+  }
   const id = encodeURIComponent(recordId);
   if (entityType === "business_object") {
     const detail = await apiRequest<BusinessObjectDetailResponse>(apiUrl(`/business-objects/${id}/detail`, { include_deleted: true }));

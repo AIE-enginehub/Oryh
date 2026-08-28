@@ -1,6 +1,6 @@
 ---
 name: oryh-master-data
-description: Use when a person's AI agent needs to load or maintain the company's master data in oryh — importing products, vendors, or customers from a spreadsheet ("import the products in this Excel file"), adding or correcting entries by hand, archiving obsolete ones, or auditing what the catalog already holds. Covers reading the file locally, working out which column means what and confirming it with the person, a dry-run preview before anything is written, upsert by the tenant's own code, and per-row reporting. Requires master-data management rights; ordinary submit/approve skills read this catalog but must never write it.
+description: Use when a person's AI agent needs to load or maintain the company's master data in oryh — importing products, vendors, or customers from a spreadsheet ("import the products in this Excel file"), adding or correcting entries by hand, archiving obsolete ones, or auditing what the catalog already holds. Also curates the external product map ("天猫这个商品对应我们哪个货"、"京东商品id映射"): which platform listing means which catalog product, bundles included. Covers reading the file locally, working out which column means what and confirming it with the person, a dry-run preview before anything is written, upsert by the tenant's own code, and per-row reporting. Requires master-data management rights; ordinary submit/approve skills read this catalog but must never write it.
 required_capability: master_data.manage
 ---
 
@@ -143,13 +143,10 @@ decided to send.
      and problem-document summaries. **But the order starts here** — customer
      and product master data must be imported first, or every document is
      skipped for an unresolvable reference.
-   - Stock-count sheets (quantity, facility, lot, expiry) go to
-     `POST /inventory-items/bulk`. Inventory is a ledger: a quantity difference
-     is posted as an `import_override` detail row naming both the system figure
-     and the counted one, rather than overwriting the number — so read the
-     large differences out before importing:
-     "P-001 shows 120.5 in the system, you counted 97, a difference of 23.5.
-     Post the counted figure?"
+   - Stock-count sheets (quantity, facility, lot, expiry) are not master
+     data: they are the stock ledger, and `$oryh-inventory` owns it — a
+     different capability (`inventory.manage`) held by the warehouse, not
+     the catalog administrator. Hand the sheet over rather than posting it.
    - Columns with no home in the schema can go into `metadata` rather than
      be thrown away — offer it, do not do it silently.
 
@@ -219,9 +216,43 @@ Nothing here needs approval — master data is not a submitted document. The
 import is recorded in the tenant audit log as one `master_data.imported` event
 with its counts.
 
+## The External Product Map
+
+Tenants selling through Tmall, JD, Amazon or a mini-program keep a
+translation table here: which platform listing means which catalog product,
+with a quantity per row so a bundle listing is several rows ("two-cup set with lid" =
+2× cup + 1× lid). Curating it is catalog work — the same authority as
+products themselves — and the order-recording agents only read it. When a
+salesperson reports an unmapped listing, this is the desk that fixes it:
+`POST /external-product-maps` with `source`, the platform's ids, the catalog
+`product_id`, and the multiplier. Never map by name similarity without the
+person confirming — a wrong mapping ships the wrong goods silently.
+
+**A listing's meaning changes over time, and the map records WHEN.**
+Platforms rank the listing, not its contents, so a merchant who fought for a
+good promotion slot keeps the same platform id and swaps the goods behind
+it. When the person says a listing changed ("from Aug 15 this listing sells
+the scarf instead"):
+
+1. `PATCH` the current row with `effective_to: <the swap date>` — it stays
+   `active`, because it is still the truth about its window, and orders
+   synced late still translate against it. **Never archive it**: archived
+   means withdrawn-as-a-mistake, and an archived row stops translating the
+   old orders it correctly describes.
+2. `POST` the new pairing with `effective_from: <the same date>`. The swap
+   day belongs to the NEW meaning (`[from, to)`).
+
+Swapping back later to a product the listing sold before is normal and
+allowed — only two OPEN-ended rows for one (source, listing, product) are
+refused. If the person cannot name the exact day, record their best date and
+say out loud that orders ON the boundary day may need a hand check.
+
 ## What This Skill Never Does
 
 - Invent, derive, or auto-number a missing code.
+- Map an external listing to a product by name similarity alone — the person
+  confirms every pairing; a wrong map row ships wrong goods with no error
+  anywhere.
 - Write anything before showing the column mapping AND a dry run.
 - Guess which column is the price when more than one could be.
 - Force a price column into a type that does not mean it. A missing type is

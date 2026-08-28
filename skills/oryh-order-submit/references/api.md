@@ -124,3 +124,58 @@ PATCH /sales-orders/{order_id}
 
 The flow agent advances `confirmed → shipped → signed` from these facts;
 `shipped_at`/`signed_at` stamp automatically on those transitions.
+
+## Channel Orders: External Numbers and the Product Map
+
+```text
+GET /external-document-links?source=tmall&external_kind=order&external_no=TM2026…
+                                                        → dedup BEFORE creating the order
+GET /external-document-links?entity_type=sales_order&entity_id={order_id}
+                                                        → which platform orders became this one
+GET /external-product-maps?source=tmall&external_product_id={platform id}&at={order date}
+                                                        → the map AS OF that date. Listings swap
+                                                          goods while keeping their id, so pass the
+                                                          ORDER's date, not today. Rows: each
+                                                          contributes quantity × line qty of
+                                                          product_id; several rows = a bundle
+```
+
+```json
+POST /external-document-links
+{
+  "source": "tmall",
+  "external_kind": "order",
+  "external_no": "TM202608280010012345",
+  "entity_type": "sales_order",
+  "entity_id": "oryh-order-id"
+}
+```
+
+One row per (platform number, oryh document) pair — splits and merges are
+extra rows. Exact duplicate → 409 naming the existing link: a retry, not a
+new fact. The same `POST` with `external_kind: "return"` ties a platform
+return number to whatever recorded the return (`entity_type` also accepts
+`payment`, `business_object`, `inventory_item_detail`, `purchase_order`,
+`invoice` — the capability that governs writing that document governs its
+links). `DELETE /external-document-links/{id}` undoes a mislink; the tuple
+reopens. The map itself is read-only here — curation is catalog work
+($oryh-master-data).
+
+## Returns
+
+```text
+GET  /sales-orders?order_kind=return&status=received      → returns, by their own machine's states
+GET  /sales-orders?original_order_id={order_id}           → every return of one order — many returns = many rows
+POST /sales-orders  {"order_kind": "return", "original_order_id": "...", ...}
+                                                          → SR-NNNNNN beside the orders' SO-
+PATCH /sales-orders/{id}  {"original_order_id": "..."}    → an orphan return matched later
+```
+
+Create accepts any state of the RETURN machine (`draft → submitted → approved
+→ in_transit → received → inspected → refunded`; rejected/cancelled as
+exits) — a platform-synced return arrives mid-flow as a fact. 422s that
+teach: `original_order_id` on an order, an original that is itself a return,
+a `billing_account_id` or `quotation_id` on a return (the refund is a
+payment document; a return fulfils no quotation). An unscoped `?status=` is
+checked against the UNION of both machines; add `order_kind=` to scope the
+vocabulary to one.

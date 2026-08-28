@@ -370,6 +370,32 @@ def test_the_browsable_and_workflow_lists_stay_pinned_to_their_sources() -> None
     assert set(BUILTIN_OBJECT_TYPES) - machine_types == {"resource_booking", "billing_account"}
 
 
+def test_every_shipped_machine_passes_the_validation_tenant_edits_face() -> None:
+    """The seed data every new tenant starts from, held to the rule tenants
+    are held to. `ensure_valid_state_machine` runs on the EDIT path only, so
+    a defect typed into a shipped default — a transition target that is not a
+    state, an anchor role that no longer resolves — would sail into every
+    fresh workspace and surface as a runtime 422 in whatever endpoint needed
+    the anchor. That is not hypothetical: renaming `issued` once passed the
+    old validation and broke the reimbursement route in production, which is
+    why STATE_ROLES exists. The builtin branch of the validator checks
+    exactly that resolution, so running it over the seed list makes "the
+    initialization data is correct" a build-time fact instead of a claim.
+
+    Title and description ride along: they are what the console shows an
+    admin deciding which machine to edit, and an empty one ships blind.
+    """
+    from app.services.provisioning import BUILTIN_DEFINITIONS
+    from app.services.state_machines import ensure_valid_state_machine
+
+    for object_type, title, description, machine in BUILTIN_DEFINITIONS:
+        ensure_valid_state_machine(
+            machine, entity_kind="builtin", object_type=object_type
+        )
+        assert title and title.strip(), f"{object_type} ships without a title"
+        assert description and description.strip(), f"{object_type} ships without a description"
+
+
 # --- ORYH states what it ships; the agent decides ---------------------------
 
 

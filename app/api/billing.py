@@ -386,6 +386,23 @@ COUNTERPARTY_MODEL_BY_DIRECTION = {
 CHARGE_OWNER_BY_DIRECTION = {"sales": "customer_id", "purchase": "vendor_id"}
 
 
+# What a document of this kind IS, when the caller does not say.
+#
+# Only the two employee-facing directions have an answer. A payslip and a
+# reimbursement are not tax instruments, and leaving the field null left
+# documents that read as unfinished — while `other` would have meant "a
+# document nobody classified", putting them in the same bucket as genuinely
+# unclassified receipts the next time somebody totals input tax.
+#
+# Sales and purchase are deliberately absent: which 发票 a supplier issued is a
+# fact about the paper, and the server has no business guessing it. There the
+# caller states it or it stays open.
+DEFAULT_INVOICE_TYPE_BY_DIRECTION = {
+    "payroll": "payslip",
+    "reimbursement": "reimbursement",
+}
+
+
 ORDER_LINK_BY_DIRECTION = {
     "sales": "sales_order_id",
     "purchase": "purchase_order_id",
@@ -463,9 +480,20 @@ def ensure_invoice_order_link(db: Session, tenant_id: str, direction: str, updat
             ),
         )
     if wanted is not None and updates.get(wanted) is not None:
-        get_active_document_or_404(
+        order = get_active_document_or_404(
             db, ORDER_MODEL_BY_DIRECTION[direction], tenant_id, updates[wanted]
         )
+        if order.order_kind == "return":
+            # the three-way match reads this link as "the order billed" — a
+            # return's money moves the other way, as a refund payment
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"{updates[wanted]} is a return — an invoice bills an ORDER; "
+                    "a return's money moves back as a refund payment. Link the "
+                    "original order if that is what this invoice covers"
+                ),
+            )
 
 
 def ensure_payroll_shape(db: Session, tenant_id: str, payload) -> None:
@@ -722,6 +750,7 @@ def create_invoice(
         ensure_payroll_shape(db, tenant_id, payload)
     if payload.invoice_type is not None:
         require_type_option(db, tenant_id, "invoice_type", payload.invoice_type)
+    invoice_type = payload.invoice_type or DEFAULT_INVOICE_TYPE_BY_DIRECTION.get(payload.direction)
     ensure_invoice_order_link(
         db, tenant_id, payload.direction,
         {
@@ -767,7 +796,7 @@ def create_invoice(
         tenant_id=tenant_id,
         invoice_no=invoice_no,
         direction=payload.direction,
-        invoice_type=payload.invoice_type,
+        invoice_type=invoice_type,
         employee_id=payload.employee_id,
         counterparty_name_snapshot=payload.counterparty_name_snapshot or party_name,
         title=payload.title,
@@ -3312,6 +3341,14 @@ def raise_reimbursement_invoice(
         tenant_id=tenant_id,
         invoice_no=allocate_number(db, Invoice, tenant_id),
         direction="reimbursement",
+        # A document with no type reads as an unfinished one. This is not a
+        # tax instrument, so none of the 发票 values fit and `other` would be
+        # a lie of a different kind — it means "a document nobody classified",
+        # and would put reimbursements in the same bucket as genuinely
+        # unclassified receipts the next time somebody totals input tax.
+        # `reimbursement` is a seeded value of its own, and reaches existing
+        # workspaces on the next deploy through `provision_system_type_options`.
+        invoice_type="reimbursement",
         employee_id=claim.employee_id,
         payee_employee_id=claim.employee_id,
         counterparty_name_snapshot=employee.name,
@@ -3320,6 +3357,26 @@ def raise_reimbursement_invoice(
         currency=claim.currency,
         expense_claim_id=claim.id,
         project_id=next((item.project_id for item in items if item.project_id), None),
+        # The lines' sum, stated rather than left to be derived.
+        #
+        # `null` here is a real contract — it means "the line sum IS the total"
+        # — and settlement honours it, so leaving it null was never wrong for
+        # the money. It was wrong for the reader: an invoice list renders the
+        # header total, so a reimbursement showed a dash where every other
+        # invoice shows its amount.
+        #
+        # Payroll refuses a declared total on purpose: net pay must be derived
+        # from lines, because +2000 and -2000 are the same number until you
+        # read the sign. Reimbursement is the opposite case — every line is a
+        # positive expense, and the figure was AGREED when the claim was
+        # approved. Stating it records that agreement, and if a line is voided
+        # later, `/detail` reports the declared total beside the computed one,
+        # which is the gap an agent is supposed to notice.
+        total_amount=round(sum(float(item.amount) for item in items), 2),
+        tax_amount=(
+            round(sum(float(item.tax_amount) for item in items if item.tax_amount is not None), 2)
+            or None
+        ),
         # Live on arrival, not a draft awaiting its own approval round. The
         # decision this invoice records was already made — on the claim, by the
         # people the tenant's workflow named — and putting it through invoice

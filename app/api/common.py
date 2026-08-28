@@ -49,6 +49,7 @@ from app.models import (
     SalesOrderAdjustment,
     SalesOrderItem,
     SalesQuotation,
+    Shipment,
     SalesQuotationAdjustment,
     SalesQuotationItem,
     TimesheetHeader,
@@ -71,6 +72,7 @@ from app.schemas import (
     SalesQuotationAdjustmentRead,
     SalesQuotationItemRead,
     SalesQuotationRead,
+    ShipmentRead,
     TimesheetHeaderRead,
 )
 from app.services import (
@@ -294,6 +296,17 @@ class DocumentFamily:
     number_prefix: str | None = None
     number_field: str | None = None
     lock_scope: str | None = None
+    # doc -> the machine key for THIS row, for families whose one table holds
+    # more than one lifecycle: `order_kind` splits orders from returns, and a
+    # return runs a return's machine (申请→发出→收到→验货入库→退款), not an
+    # order's. None = the family's single object_type, which is every other
+    # family. Only MACHINE lookups branch on this; entity references, hosted
+    # write scopes and audits stay keyed on the table's own object_type,
+    # because the row IS a row of that table.
+    machine_type_for: object | None = None
+
+    def machine_type(self, document) -> str:
+        return self.machine_type_for(document) if self.machine_type_for else self.object_type
 
 
 DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
@@ -353,6 +366,7 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         lambda d: {"employee_id": d.employee_id, "order_no": d.order_no, "title": d.title},
         "order", advance_permission="order.advance",
         number_prefix="SO-", number_field="order_no", lock_scope="sales_order_number",
+        machine_type_for=lambda d: "sales_return" if d.order_kind == "return" else "sales_order",
     ),
     PurchaseOrder: DocumentFamily(
         # procurement is a function, not "my documents": one capability files
@@ -363,6 +377,18 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         "purchase order", advance_permission=None,
         owner_checked=False, attributed_delete=False,
         number_prefix="PO-", number_field="po_number", lock_scope="purchase_order_number",
+        machine_type_for=lambda d: "purchase_return" if d.order_kind == "return" else "purchase_order",
+    ),
+    Shipment: DocumentFamily(
+        # freight is warehouse work: the capability that holds the stock
+        # ledger holds the legs that feed it — one grant files AND advances,
+        # like the purchase order, and everyone in the workspace reads
+        "shipment", "shipment items", "shipment",
+        "inventory.manage", ShipmentRead, "shipment",
+        lambda d: {"shipment_no": d.shipment_no, "direction": d.direction},
+        "shipment", advance_permission=None,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="SH-", number_field="shipment_no", lock_scope="shipment_number",
     ),
     Invoice: DocumentFamily(
         # invoicing is a finance function like procurement — no owner-own limit
@@ -450,16 +476,23 @@ def _document_read(family: DocumentFamily, document) -> dict:
     return family.read_model.model_validate(document).model_dump(by_alias=True)
 
 
-def require_machine_state(db: Session, tenant_id: str, model, status_value: str | None) -> str:
+def require_machine_state(
+    db: Session, tenant_id: str, model, status_value: str | None,
+    *, object_type: str | None = None,
+) -> str:
     """Create-time gate, returning the state the document starts in.
 
     A new document may start in ANY state of the tenant's machine (history
     imports arrive mid-flow), but never outside it. `None` — the schema
     default — means the machine's own `initial`: state names are the tenant's
     vocabulary, so the server cannot write `"draft"` into the contract and
-    survive a workspace that calls that state something else."""
+    survive a workspace that calls that state something else.
+
+    `object_type` overrides the family's machine key for kind-split tables:
+    a sales_orders row being created as a RETURN starts in the return
+    machine's vocabulary, and there is no document yet to derive that from."""
     family = DOCUMENT_FAMILIES[model]
-    machine = get_builtin_machine(db, tenant_id, family.object_type)
+    machine = get_builtin_machine(db, tenant_id, object_type or family.object_type)
     if status_value is None:
         return machine["initial"]
     if status_value not in set(machine.get("states", ())):
@@ -541,8 +574,12 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     if family.advance_permission:
         require_permission(actor, family.advance_permission)
     require_hosted_write_scope(actor, family.object_type, document)
-    machine = get_builtin_machine(db, document.tenant_id, family.object_type)
-    validate_transition(machine, document.status, new_status, subject=family.object_type)
+    # the MACHINE follows the row's kind (a return runs a return's life);
+    # todo retirement below stays on family.object_type, because todos point
+    # at the table's entity type — the same row either way
+    machine_type = family.machine_type(document)
+    machine = get_builtin_machine(db, document.tenant_id, machine_type)
+    validate_transition(machine, document.status, new_status, subject=machine_type)
     record_audit(
         db,
         tenant_id=document.tenant_id,
@@ -555,7 +592,7 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     retire_open_work_if_finished(
         db, actor, machine, family.object_type, document.id,
         current=document.status, new_status=new_status,
-        editable=editable_states(machine, family.object_type),
+        editable=editable_states(machine, machine_type),
     )
     return machine
 
@@ -632,14 +669,15 @@ def submit_document(db: Session, actor: Actor, model, document_id: str) -> dict:
     require_hosted_write_scope(actor, family.object_type, document)
     if family.owner_checked:
         enforce_member_employee(actor, document.employee_id)
-    machine = get_builtin_machine(db, actor.tenant_id, family.object_type)
+    machine_type = family.machine_type(document)
+    machine = get_builtin_machine(db, actor.tenant_id, machine_type)
     # "submitted" is a ROLE — the tenant may call the state itself something
     # else, and /submit lands wherever their machine says the role lives
-    submitted = state_for_role(machine, family.object_type, "submitted")
+    submitted = state_for_role(machine, machine_type, "submitted")
     if document.status == submitted:
         # idempotent resubmit
         return envelope(_document_read(family, document))
-    validate_transition(machine, document.status, submitted, subject=family.object_type)
+    validate_transition(machine, document.status, submitted, subject=machine_type)
     record_audit(
         db,
         tenant_id=actor.tenant_id,
@@ -916,8 +954,9 @@ def ensure_document_editable(db: Session, document) -> None:
     the single write-gate for lines and adjustments across every family."""
     ensure_not_consumed_by_an_order(db, document)
     family = DOCUMENT_FAMILIES[type(document)]
-    machine = get_builtin_machine(db, document.tenant_id, family.object_type)
-    editable = editable_states(machine, family.object_type)
+    machine_type = family.machine_type(document)
+    machine = get_builtin_machine(db, document.tenant_id, machine_type)
+    editable = editable_states(machine, machine_type)
     if document.status not in editable:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -928,12 +967,36 @@ def ensure_document_editable(db: Session, document) -> None:
         )
 
 
-def allocate_number(db: Session, model, tenant_id: str) -> str:
+def require_original_order(db: Session, tenant_id: str, model, original_order_id: str | None):
+    """A return's linkage to the order it reverses — used by both order
+    tables at create and update. The original must exist in this tenant, in
+    the SAME table, and be an ORDER: a return pointing at another return
+    chains nothing anyone can settle, and one order carrying many returns is
+    simply many rows naming the same original."""
+    if original_order_id is None:
+        return None
+    original = get_scoped_or_404(db, model, tenant_id, original_order_id)
+    if original.order_kind != "order":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"original_order_id names {original_order_id}, which is itself a "
+                "return — a return reverses an ORDER"
+            ),
+        )
+    return original
+
+
+def allocate_number(db: Session, model, tenant_id: str, *, prefix: str | None = None) -> str:
+    """`prefix` overrides the family's series for kind-split rows — a sales
+    return allocates SR- beside the orders' SO- so a human tells them apart
+    at a glance; uniqueness is still the one (tenant, number) constraint."""
     family = DOCUMENT_FAMILIES[model]
     return allocate_document_number(
         db, tenant_id,
         model=model, number_column=getattr(model, family.number_field),
-        prefix=family.number_prefix, lock_scope=family.lock_scope, field=family.number_field,
+        prefix=prefix or family.number_prefix,
+        lock_scope=family.lock_scope, field=family.number_field,
     )
 
 

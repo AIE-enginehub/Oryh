@@ -126,6 +126,19 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "主数据管理",
         "创建、编辑和归档项目、供应商、客户、产品、SKU 与资源等工作空间主数据",
     ),
+    # Split out of master_data.manage. The stock ledger is a warehouse's daily
+    # work — receiving, issuing, stock-takes, the informal movements nobody has
+    # a document for — and a keeper is not a catalog administrator. Under one
+    # capability a warehouse role held every product, vendor and customer
+    # record or nothing at all. Receiving against a purchase order stays with
+    # purchase_order.manage: that is a procurement act, and it posts the
+    # movement itself.
+    (
+        "inventory.manage",
+        False,
+        "库存管理",
+        "登记库存台账与库存变动（收货、发出、盘点、借用、退回）；不含产品/供应商/客户主数据",
+    ),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用工作空间与个人访问凭证"),

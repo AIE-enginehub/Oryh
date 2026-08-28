@@ -1,6 +1,6 @@
 ---
 name: oryh-payables
-description: Use when an accounts-payable person needs to book what a supplier billed and pay it — 登记进项发票 against a purchase order, checking it against what was ordered and what actually arrived (三单匹配), filing the 付款申请 that goes through approval, and 核销 matching the payment to the bills it settles. Also settles employee expense claims once approved. Not for the customer side (oryh-receivables), not for placing the purchase order (oryh-purchase-order), and not for routing the approval (oryh-invoice-approval-flow for the bill, oryh-payment-approval-flow for the payment).
+description: Use when an accounts-payable person needs to book what a supplier billed and pay it — 登记进项发票 against a purchase order, checking it against what was ordered and what actually arrived (三单匹配), filing the 付款申请 that goes through approval, and 核销 matching the payment to the bills it settles. Also settles employee expense claims once approved. Not for the customer side (oryh-receivables), not for placing the purchase order (oryh-purchase-order), and not for routing the approval (oryh-invoice-approval-flow for the bill, oryh-payment-approval-flow for the payment). Also records the vendor's REFUND coming home for a purchase return ("戴尔退款到了"): an inbound payment named to the PR- return.
 required_capability: invoice.manage:purchase
 ---
 
@@ -164,6 +164,18 @@ ask; do not average them into a decision.
 3. **Submit it**: `POST /payments/{payment_id}/submit`. Approval routing is the
    flow agent's job; do not advance the status yourself past `submitted`.
 4. **After the transfer**, whoever holds `payment.advance` moves it to `paid`.
+
+## A Vendor's Refund for a Purchase Return
+
+Goods went back (`/purchase-orders` row with `order_kind: "return"`, PR-
+number) and the vendor's money comes home: record an **inbound** payment,
+counterparty `vendor_id`, the return's number in `reference_no` and its row
+id in `custom_fields` (`{"return_order_id": "..."}`) — the flow agent reads
+that to move the return to `refunded`. A vendor refund settles no invoice
+either (a return carries none — the server refuses); if the vendor issues a
+credit against FUTURE purchases instead of money, that is a billing-account
+entry on our standing account with them ($oryh-billing-account), not a
+payment — say which of the two actually happened, never guess.
 
 ## Settlement
 

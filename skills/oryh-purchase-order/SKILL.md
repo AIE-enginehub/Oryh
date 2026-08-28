@@ -103,6 +103,32 @@ arrived → `received`; invoiced/settled per tenant practice → `closed`).
 - A cancel after goods were received → the inventory entries stand; reversing
   stock is an explicit inventory adjustment, not a side effect. Say so.
 
+## Returning Goods To A Vendor
+
+A return to the vendor is a row in the SAME `/purchase-orders` collection:
+`order_kind: "return"` with `original_order_id` naming the PO being reversed
+(one PO, many partial returns — many rows). The server allocates `PR-NNNNNN`
+beside the orders' `PO-`, and the return runs its own machine — by default
+`draft → submitted → approved → shipped → refunded` (rejected/cancelled as
+exits): the goods leave, then the vendor's money comes back. That refund is
+a PAYMENT document recorded by the finance skills; `refunded` here is the
+flow marker. A return never charges the billing account (422 — freeing our
+prepayment happens through the payment, not through occupation), and its
+`original_order_id` must name an ORDER, never another return. Stock leaving
+the warehouse for the courier is an `issued` movement naming this return row
+(`purchase_order_id` = the RETURN row's id) — normally posted by the
+outbound shipment's `/post-stock` ($oryh-inventory), or directly when no
+freight leg is filed. One door per parcel, once.
+
+## Freight Records Beside Receiving
+
+`POST /purchase-orders/{po_id}/receive` remains THE stock entry for PO
+goods. A `/shipments` document (inbound, linked to the PO) may additionally
+record the freight leg — carrier, tracking, dates — but if the goods entered
+stock through `/receive`, never also `/post-stock` that shipment: one
+physical movement, one ledger entry. The outbound leg of a purchase RETURN
+is where shipments carry the stock too — see $oryh-inventory.
+
 ## What This Skill Never Does
 
 - Order without a decided vendor, or invent vendors/products to make a line pass.

@@ -27,7 +27,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES
+from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES, KIND_SPLIT_MACHINE_TYPES
 from app.core.permissions import HOSTED_FLOW_AGENT_PERMISSIONS, PRINCIPAL_HOSTED_FLOW_AGENT
 from app.models import ApiKey, FlowSubscription, TenantSkill
 from app.services.audit_trail import catalogue_write
@@ -52,18 +52,30 @@ def derived_queue_filter(db: Session, tenant_id: str, entity_type: str) -> dict:
 
     This matters twice over: the filter is also the hosted agent's write
     boundary, so deriving it narrow is deriving the boundary narrow.
+
+    A kind-split family's queue path serves BOTH kinds — `/sales-orders` holds
+    orders and returns — so the landing states union over the family's machine
+    and its split machines. Without the union, a tenant renaming the ORDER
+    machine's submitted would silently drop every submitted RETURN out of the
+    hosted queue: both machines happen to say `submitted` today, and deriving
+    from one of them is correct only as long as that coincidence holds.
     """
-    machine = get_builtin_machine(db, tenant_id, entity_type)
-    transitions = machine.get("transitions") or {}
-    editable = editable_states(machine, entity_type)
-    # A state absent from `transitions` has no way out, same as one mapped to an
-    # empty list. `cancelled` reaches this branch from every machine.
-    landing = {
-        state
-        for source in editable
-        for state in transitions.get(source, [])
-        if transitions.get(state) and state not in editable
-    }
+    machine_types = [entity_type] + sorted(
+        split for split, home in KIND_SPLIT_MACHINE_TYPES.items() if home == entity_type
+    )
+    landing: set[str] = set()
+    for machine_type in machine_types:
+        machine = get_builtin_machine(db, tenant_id, machine_type)
+        transitions = machine.get("transitions") or {}
+        editable = editable_states(machine, machine_type)
+        # A state absent from `transitions` has no way out, same as one mapped
+        # to an empty list. `cancelled` reaches this branch from every machine.
+        landing |= {
+            state
+            for source in editable
+            for state in transitions.get(source, [])
+            if transitions.get(state) and state not in editable
+        }
     if not landing:
         # A machine with no route out of its editable states cannot be driven at
         # all. An empty filter would hand the agent every record of the type —

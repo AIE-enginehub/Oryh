@@ -1,6 +1,6 @@
 ---
 name: oryh-receivables
-description: Use when an accounts-receivable person needs to bill a customer and collect — 给客户开票 from a sales order or free-standing, 登记收款 when money lands in the bank, 核销 matching that money to the invoices it settles (including reversing a wrong match), and chasing what is overdue. Covers the whole AR arc for one role. Not for filing the sales order (that is oryh-order-submit), not for the supplier side (oryh-payables), and not for approving or routing anything (oryh-invoice-approval-flow / oryh-payment-approval-flow).
+description: Use when an accounts-receivable person needs to bill a customer and collect — 给客户开票 from a sales order or free-standing, 登记收款 when money lands in the bank, 核销 matching that money to the invoices it settles (including reversing a wrong match), and chasing what is overdue. Covers the whole AR arc for one role. Not for filing the sales order (that is oryh-order-submit), not for the supplier side (oryh-payables), and not for approving or routing anything (oryh-invoice-approval-flow / oryh-payment-approval-flow). Also records customer REFUNDS for sales returns ("给买家退款"、"退货款退回去"): an outbound payment named to the SR- return, settling no invoice.
 required_capability: invoice.manage:sales
 ---
 
@@ -162,6 +162,31 @@ directly to the invoice, and the account's available recovers by itself.
 **Reversing a wrong match**: the same endpoint with a negative
 `amount_applied` and a `note` saying why. Both rows stand in the ledger — that
 is the audit trail, and hiding the mistake is not an option the API offers.
+
+## Refunding a Customer Return
+
+A sales return that reached its refund step (inspected, refund approved) is THIS
+desk's work — the customer money relationship is yours in both directions.
+The return is a row in `/sales-orders` with `order_kind: "return"`; the todo
+or the flow agent hands you its id.
+
+- Record an **outbound** payment, counterparty `customer_id`, amount = what
+  the return refunds (the return row's `total_amount`, or the person's
+  words when they differ — say the difference out loud). Put the return's
+  number in `reference_no` ("SR-000012") and the row id in `custom_fields`
+  (`{"return_order_id": "..."}`), because that is how the flow agent finds
+  the refund fact to move the return to `refunded`.
+- **A refund settles no invoice.** Returns carry none — the server refuses
+  an invoice against a return (422) and refuses charging one to a billing
+  account. Do not create a credit note to "have something to apply against";
+  the payment standing alone, named to the return, IS the record.
+- The payment walks the ordinary payment approval flow (the hosted workflow admin agent);
+  nothing about a refund exempts it. Once it is `paid`, the flow agent — not
+  you — moves the RETURN to its refunded state.
+- Platform-fronted refunds (the platform refunded the buyer directly and settles with
+  you later): still record the outbound payment when the settlement says the
+  money left, with the platform's aftersale number linked to the return row
+  via `/external-document-links` (`external_kind: "return"`).
 
 ## Collecting
 

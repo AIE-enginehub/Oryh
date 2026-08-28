@@ -418,15 +418,12 @@ def test_new_tenant_gets_product_skills_and_builtin_machine(client: TestClient) 
     from app.services.state_machines import BUILTIN_MACHINES
 
     assert set(by_type) == set(BUILTIN_MACHINES)
-    assert by_type["timesheet_header"]["state_machine"]["initial"] == "draft"
-    assert by_type["expense_claim"]["state_machine"]["initial"] == "draft"
-    assert "paid" in by_type["expense_claim"]["state_machine"]["states"]
-    assert by_type["purchase_request"]["state_machine"]["initial"] == "draft"
-    assert "ordered" in by_type["purchase_request"]["state_machine"]["states"]
-    assert by_type["sales_quotation"]["state_machine"]["initial"] == "draft"
-    assert "superseded" in by_type["sales_quotation"]["state_machine"]["states"]
-    assert by_type["sales_order"]["state_machine"]["initial"] == "draft"
-    assert "shipped" in by_type["sales_order"]["state_machine"]["states"]
+    # and each seeded machine is the shipped default, whole — spot checks let
+    # a mangled transitions table or a dropped editable_states ship unseen
+    for object_type, machine in BUILTIN_MACHINES.items():
+        assert by_type[object_type]["state_machine"] == machine, (
+            f"fresh tenant's {object_type} machine differs from the shipped default"
+        )
 
     # editing a product skill forks it to custom so catalog syncs keep hands off
     skill_name = "oryh-timesheet-submit"
