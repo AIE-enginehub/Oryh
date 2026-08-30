@@ -188,6 +188,14 @@ or the flow agent hands you its id.
   money left, with the platform's aftersale number linked to the return row
   via `/external-document-links` (`external_kind: "return"`).
 
+## Where the Cash Actually Landed
+
+Marking a payment `paid` is the book's claim; the BANK's confirmation lives
+in the treasury register ($oryh-treasury), where the cashier links the bank
+line to your payment. If someone asks "has the money actually landed", the honest answer reads
+the register link, not the payment's status — and a paid payment with no
+bank line yet is exactly the case worth saying out loud.
+
 ## Collecting
 
 The overdue queue:

@@ -25,6 +25,8 @@ DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
     "employee_leave",
     "expense_claim",
     "invoice",
+    "lead",
+    "opportunity",
     "payment",
     "purchase_order",
     "purchase_request",

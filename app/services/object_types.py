@@ -29,6 +29,8 @@ BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
     "purchase_order",
     "purchase_return",
     "shipment",
+    "lead",
+    "opportunity",
     "invoice",
     "payment",
     "billing_account",

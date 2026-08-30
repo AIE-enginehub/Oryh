@@ -120,6 +120,16 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ),
     ("todos.complete_own", False, "完成自己的待办", "完成指派给自己的待办"),
     ("booking.own", False, "预订资源", "以自己名义创建/修改/取消资源预订"),
+    # The sales pipeline is personal work like a booking, not a routed
+    # document: no approval half exists, so the one grant files AND advances
+    # your own leads and opportunities — and drives the lead's conversion
+    # bridge, which creates the customer it qualified into.
+    (
+        "crm.own",
+        False,
+        "维护自己的销售线索与商机",
+        "以自己名义创建、推进、转化销售线索,维护自己的商机直至赢单/输单;转化桥会代为建立客户档案",
+    ),
     (
         "master_data.manage",
         False,
@@ -138,6 +148,18 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         False,
         "库存管理",
         "登记库存台账与库存变动（收货、发出、盘点、借用、退回）；不含产品/供应商/客户主数据",
+    ),
+    # The treasury desk, split from the accounting desk on purpose: 钱账分离.
+    # Whoever holds the bank register must not need — and does not get — the
+    # payment documents' write; whoever files payments cannot touch the
+    # register. Deliberately granted to NO shipped role: which person is the
+    # cashier is the tenant's first treasury decision, and the setup report
+    # names the gap until they make it.
+    (
+        "fin_account.manage",
+        False,
+        "资金账户与银行流水",
+        "登记资金账户（银行/现金/微信支付宝等第三方支付）与交易流水，导入对账单，链接付款单对账；不含付款单据本身",
     ),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
@@ -176,6 +198,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "approval.record",
         "todos.complete_own",
         "booking.own",
+        "crm.own",
     ),
 }
 

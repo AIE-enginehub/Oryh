@@ -68,6 +68,11 @@ Everything else comes from conversation: who the customer is, what to quote, at 
    the names are known from conversation):
    - Customer: `GET /customers?keyword={name}` or `?tax_id=`. Confident match → `customer_id` (name backfills the snapshot); otherwise the principal's words go in `customer_name_snapshot`. Per-quote contact fields (`contact_name/phone/email`) are THIS deal's buyer — may differ from the master record.
    - Product per line: `GET /products?keyword=`. A confident match auto-captures `list_price_snapshot` — quote your `unit_price` against it knowingly.
+   - **A matched customer may have negotiated terms**: `GET /customer-products?customer_id=`
+     in the same batch. An `agreed_price` on a quoted product is the price to
+     quote — the price book is the rule, the agreement is that customer's
+     exception; quote something else only by saying so out loud. Their
+     `customer_product_code` is what THEIR paperwork calls the product.
    - SKUs need a product id, so they are the only second wave: for matched
      products with `has_skus: true`, `GET /product-skus?product_id=&status=active`,
      all of them together (same granularity rules as purchasing).

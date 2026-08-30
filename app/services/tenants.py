@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.email_domains import registrable_domain
+from app.db.session import bind_tenant_context
 from app.models import ApiKey, Tenant, generate_api_key, hash_api_key
 
 # Long enough to stay recognizable ("starbridge-consulting"), short enough that
@@ -70,13 +71,19 @@ def create_tenant_with_api_key(
 ) -> tuple[Tenant, ApiKey, str]:
     plain_text_api_key = generate_api_key()
     tenant = Tenant(name=tenant_name, status=tenant_status, slug=derive_tenant_slug(db, None))
+    db.add(tenant)
+    db.flush()
+    # The open-create path runs with no RLS context at all — no caller, no
+    # platform flag — so the bootstrap key's insert must carry the new
+    # tenant's GUC or a non-owner role is refused by tenant_insert.
+    bind_tenant_context(db, tenant.id)
     api_key = ApiKey(
         tenant=tenant,
         key_hash=hash_api_key(plain_text_api_key),
         label=api_key_label,
         is_active=True,
     )
-    db.add_all([tenant, api_key])
+    db.add(api_key)
     db.commit()
     db.refresh(tenant)
     db.refresh(api_key)

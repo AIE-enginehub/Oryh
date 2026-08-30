@@ -24,6 +24,8 @@ from app.services.state_machines import (
     DEFAULT_PURCHASE_MACHINE,
     DEFAULT_QUOTATION_MACHINE,
     DEFAULT_SALES_RETURN_MACHINE,
+    DEFAULT_LEAD_MACHINE,
+    DEFAULT_OPPORTUNITY_MACHINE,
     DEFAULT_SHIPMENT_MACHINE,
     DEFAULT_TIMESHEET_MACHINE,
 )
@@ -295,6 +297,18 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         "Shipment",
         "Lifecycle of freight legs, one machine for both directions (outbound to customers/vendors, inbound receipts and return parcels). 'received' means arrived at the destination; rename or extend freely — the stock effect is posted to the inventory ledger via /post-stock, not implied by any state.",
         DEFAULT_SHIPMENT_MACHINE,
+    ),
+    (
+        "lead",
+        "Lead",
+        "Lifecycle of sales leads — a potential customer before qualification. `converted` is written by the conversion bridge (/leads/{id}/convert), which creates or names the Customer; rename it via a roles map if you rename the state. `disqualified` may revive to `contacted`.",
+        DEFAULT_LEAD_MACHINE,
+    ),
+    (
+        "opportunity",
+        "Opportunity",
+        "Lifecycle of sales opportunities — a deal being pursued. `won`/`lost` stamp closed_at when kept as literal names; the actual money lives in the quotations and orders the deal produces, so edit stages freely (e.g. add a poc/tender step).",
+        DEFAULT_OPPORTUNITY_MACHINE,
     ),
     (
         "invoice",

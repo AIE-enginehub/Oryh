@@ -371,6 +371,58 @@ class Customer(TenantRecord, MetadataJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")
 
 
+class CustomerContact(TenantRecord, MetadataJsonbMixin, Base):
+    """One person AT a customer — the rolodex behind a B2B account, which is
+    ProductSku's shape applied to Customer: a child identity table under a
+    master-data parent. A hospital has a procurement clerk, an equipment
+    engineer and a finance desk; "寄票找谁" and "验收谁签字" are questions
+    about PEOPLE, and the parent row's single contact column cannot hold
+    three of them.
+
+    Documents deliberately keep their free-text `contact_name` snapshots —
+    what a printed quotation said survives the person changing jobs — so no
+    document grows a contact FK. This table is the master data agents CONSULT
+    when writing those snapshots and answering those questions.
+
+    Two partial-unique invariants, both freed by archiving:
+    - at most one PRIMARY contact per customer (the default answer to "找谁"),
+      and SETTING a new primary demotes the old one in the same write — the
+      rolodex semantic, documented at the endpoint;
+    - one active row per (customer, phone): the same number twice under one
+      customer is a duplicate person, not a second person."""
+
+    __tablename__ = "customer_contacts"
+    __table_args__ = (
+        Index(
+            "customer_contacts_primary_uq",
+            "tenant_id", "customer_id",
+            unique=True,
+            postgresql_where=text("is_primary AND status = 'active'"),
+            sqlite_where=text("is_primary AND status = 'active'"),
+        ),
+        Index(
+            "customer_contacts_phone_uq",
+            "tenant_id", "customer_id", "phone",
+            unique=True,
+            postgresql_where=text("phone IS NOT NULL AND status = 'active'"),
+            sqlite_where=text("phone IS NOT NULL AND status = 'active'"),
+        ),
+    )
+
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    # 职务/角色 as the tenant says it — 采购, 设备科, 财务, free text
+    title: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    wechat: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    customer: Mapped[Customer] = relationship()
+
+
 class Product(TenantRecord, MetadataJsonbMixin, Base):
     """Product/goods master data. Referenced by purchase-request items; a
     requisition line may also carry free text only when the item isn't in
@@ -507,6 +559,46 @@ class SupplierProduct(TenantRecord, MetadataJsonbMixin, Base):
         table, and an agent should not need a second query per row to say
         which vendor a source is."""
         return self.vendor.name if self.vendor is not None else None
+
+
+class CustomerProduct(TenantRecord, MetadataJsonbMixin, Base):
+    """SupplierProduct's sell-side mirror: one customer's standing terms for
+    one product — THEIR code and name for it (the join key against their
+    purchase orders), the agreed price, order rules. One row per (product,
+    customer); status archives a lapsed agreement and re-creating the pair
+    revives it. agreed_price updates in place (it means "currently agreed");
+    the paper trail is the documents that quoted it. The price book
+    (ProductPrice) stays the general answer — this row is the exception one
+    named customer negotiated."""
+
+    __tablename__ = "customer_products"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "product_id", "customer_id",
+            name="customer_products_tenant_product_customer_uk",
+        ),
+    )
+
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    # the CUSTOMER's own code/name for this product — what their POs say
+    customer_product_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    customer_product_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    agreed_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    # Numeric, not int: bulk goods sell in kg/m as naturally as in units
+    min_order_quantity: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    order_increment: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    product: Mapped[Product] = relationship()
+    customer: Mapped[Customer] = relationship()
+
+    @property
+    def customer_name(self) -> str | None:
+        """Denormalized for reads, as vendor_name is on the buy side: a list
+        of agreements should say whose they are without a query per row."""
+        return self.customer.name if self.customer is not None else None
 
 
 class ExternalProductMap(TenantRecord, MetadataJsonbMixin, Base):
@@ -816,6 +908,188 @@ class ShipmentItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
 
     shipment: Mapped[Shipment] = relationship()
     inventory_item: Mapped[InventoryItem | None] = relationship()
+
+
+class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One unqualified potential customer: someone met at a trade fair, a
+    number from an ad inquiry, a referral — before anybody has decided they
+    belong in master data. The pipeline's front door, and a personal
+    document (owner-checked like a quotation): my leads are mine to work.
+
+    No lines, no approval half. Qualification is the salesperson's own
+    judgment, so the one filing capability (`crm.own`) advances the machine
+    too. The lifecycle ends at `converted` — written only by the conversion
+    bridge (/leads/{id}/convert), which creates or names the Customer this
+    lead became and records it in `converted_customer_id` — or at
+    `disqualified`, from which a lead may come back to `contacted` when the
+    budget reappears. A CHECK insists a lead names SOMEBODY: a company or a
+    person, at least one."""
+
+    __tablename__ = "leads"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "lead_no", name="leads_lead_no_uk"),
+        CheckConstraint(
+            "company_name IS NOT NULL OR contact_name IS NOT NULL",
+            name="leads_names_somebody_check",
+        ),
+    )
+
+    lead_no: Mapped[str] = mapped_column(String(64))
+    company_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    wechat: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    # free text on purpose — 展会/朋友介绍/抖音: the vocabulary is the
+    # tenant's habit, and the skill teaches consistency instead of a table
+    source: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    status: Mapped[str] = mapped_column(String(50), default="new")
+    converted_customer_id: Mapped[str | None] = mapped_column(
+        ForeignKey("customers.id"), nullable=True, index=True
+    )
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee: Mapped[Employee] = relationship()
+    converted_customer: Mapped[Customer | None] = relationship()
+
+
+class Opportunity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One deal being pursued: a name, a customer (matched or a free-text
+    snapshot, the quotation's convention), what it might be worth and when
+    it might close. The pipeline's second half — usually born from a
+    converted lead (`lead_id`), legally born without one.
+
+    Personal like the lead: `crm.own` files and advances. `expected_amount`
+    is the salesperson's estimate, not a price fact — actual money lives in
+    the quotations and orders this deal produces. `closed_at` stamps when
+    the machine enters the literal `won` or `lost` (the shipment
+    convention); a lost deal that comes back is a NEW opportunity, because
+    "how long do deals take" is a question `closed_at - created_at` should
+    answer honestly."""
+
+    __tablename__ = "opportunities"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "opportunity_no", name="opportunities_opportunity_no_uk"),
+    )
+
+    opportunity_no: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(200))
+    customer_id: Mapped[str | None] = mapped_column(
+        ForeignKey("customers.id"), nullable=True, index=True
+    )
+    customer_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    lead_id: Mapped[str | None] = mapped_column(
+        ForeignKey("leads.id"), nullable=True, index=True
+    )
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    expected_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    expected_close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="open")
+    closed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee: Mapped[Employee] = relationship()
+    customer: Mapped[Customer | None] = relationship()
+    lead: Mapped[Lead | None] = relationship()
+
+
+class FinAccount(TenantRecord, CustomFieldsJsonbMixin, Base):
+    """One place the company's money sits: a bank account, the cash box, or a
+    third-party payment balance (微信支付/支付宝/PayPal merchant accounts).
+    Modeled on OFBiz FinAccount minus the retail machinery (authorizations,
+    gift certificates, replenish) — the agent-native shape is a register and
+    its running balance.
+
+    `current_balance` is DERIVED: nothing may write it directly — every
+    movement is a FinAccountTrans appended through post_fin_account_trans(),
+    and the balance moves only there. The opening balance is the register's
+    first row (trans_type `opening`), never an edit. Same discipline, same
+    reason as the inventory ledger: the register is the truth, the account
+    row a running sum of it.
+
+    `account_type` is the tenant-extensible `fin_account_type` vocabulary
+    (bank / cash / wallet / other shipped); `institution` is the bank — or
+    微信支付/支付宝/PayPal, which is why the column is not called bank_name.
+    A PayPal holding several currencies is several accounts, one per
+    currency; conversions are a transfer pair whose amounts differ by
+    exactly the exchange."""
+
+    __tablename__ = "fin_accounts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="fin_accounts_tenant_name_uk"),
+    )
+
+    name: Mapped[str] = mapped_column(String(200))
+    institution: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    account_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    account_type: Mapped[str] = mapped_column(String(50), default="bank")
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    current_balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class FinAccountTrans(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJsonbMixin, Base):
+    """One movement on one fin account — the bank's fact, appended and never
+    edited. Modeled on OFBiz FinAccountTrans with the lifecycle deliberately
+    removed: a statement line has no approval flow, and a wrong row is
+    corrected by a counter-entry, the ledger doctrine everywhere here.
+
+    `amount` is SIGNED (the net effect on the balance). Third-party payment
+    lines carry the split the fee economy forces: `gross_amount` −
+    `fee_amount` = `amount` when both are present (a customer's ¥100 with a
+    ¥0.6 platform fee lands as one row, fees stay queryable, and the dedup
+    key stays one-per-statement-line). Banks leave both null.
+
+    Provenance keeps the ledger's three-worlds shape:
+    - `payment_id` — the closed chain: this line IS that payment document's
+      cash landing (B2B; retail lines have no payment document and leave it
+      null — their reconciliation is the daily aggregate, an agent act).
+    - the generic (`entity_type`, `entity_id`) pair — a retail line matched
+      to its order, a refund line to the RETURN row, anything else.
+    - `custom_fields` — the PSP's raw facts (微信支付单号, buyer ids).
+
+    `reference_no` is the bank's own line id, partially unique per account,
+    which is what makes re-importing the same statement idempotent. The bank
+    facts (amount, dates, type, reference) are immutable; the reconciliation
+    links are OUR annotation and stay settable — the frozen-row-gains-a-name
+    rule the external links established."""
+
+    __tablename__ = "fin_account_transactions"
+    __table_args__ = (
+        Index(
+            "fin_account_trans_reference_uq",
+            "tenant_id", "fin_account_id", "reference_no",
+            unique=True,
+            postgresql_where=text("reference_no IS NOT NULL"),
+            sqlite_where=text("reference_no IS NOT NULL"),
+        ),
+        Index("fin_account_trans_account_date_idx", "tenant_id", "fin_account_id", "trans_date"),
+    )
+
+    fin_account_id: Mapped[str] = mapped_column(ForeignKey("fin_accounts.id"), index=True)
+    trans_type: Mapped[str] = mapped_column(String(20))
+    amount: Mapped[float] = mapped_column(Numeric(14, 2))
+    gross_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    fee_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    # the bank's value date; created_at is when WE recorded it
+    trans_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # the other side as the statement prints it — free text, statements are messy
+    counterparty: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reference_no: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    payment_id: Mapped[str | None] = mapped_column(
+        ForeignKey("payments.id"), nullable=True, index=True
+    )
+    entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    account: Mapped[FinAccount] = relationship()
 
 
 class Resource(TenantRecord, MetadataJsonbMixin, Base):

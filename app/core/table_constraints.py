@@ -50,16 +50,24 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("approval_records", "entity_type"): (
         "approval_target", "business_object", "employee_leave", "expense_claim",
-        "invoice", "payment", "purchase_order", "purchase_request", "sales_order",
-        "sales_quotation", "shipment", "timesheet_header",
+        "invoice", "lead", "opportunity", "payment", "purchase_order",
+        "purchase_request", "sales_order", "sales_quotation", "shipment",
+        "timesheet_header",
     ),
     ("billing_accounts", "unit_type"): ("currency", "points"),
     ("purchase_orders", "order_kind"): ("order", "return"),
     ("sales_orders", "order_kind"): ("order", "return"),
     ("capabilities", "kind"): ("custom", "system"),
+    ("customer_contacts", "status"): ("active", "archived"),
+    ("customer_products", "status"): ("active", "archived"),
     ("customers", "status"): ("active", "archived"),
     ("device_authorizations", "status"): ("approved", "consumed", "denied", "pending"),
     ("employees", "status"): ("active", "inactive"),
+    ("fin_account_transactions", "trans_type"): (
+        "adjustment", "deposit", "fee", "interest", "opening", "refund",
+        "transfer_in", "transfer_out", "withdrawal",
+    ),
+    ("fin_accounts", "status"): ("active", "archived"),
     ("enterprise_pilot_applications", "status"): (
         "accepted", "contacted", "rejected", "submitted",
     ),
@@ -90,8 +98,9 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     # extensible family from acquiring one again.
     ("todos", "entity_type"): (
         "approval_target", "business_object", "employee_leave", "expense_claim",
-        "invoice", "payment", "project", "purchase_order", "purchase_request",
-        "sales_order", "sales_quotation", "shipment", "timesheet_header",
+        "invoice", "lead", "opportunity", "payment", "project",
+        "purchase_order", "purchase_request", "sales_order", "sales_quotation",
+        "shipment", "timesheet_header",
     ),
     ("shipments", "direction"): ("inbound", "outbound"),
     ("todos", "status"): ("cancelled", "completed", "open"),
@@ -132,6 +141,17 @@ def check_expression(table: str, column: str) -> str:
 # `(0)::numeric` and `0` mean the same thing and pinning the spelling would
 # turn every dump-format change into a failure.
 TABLE_INVARIANTS: dict[str, tuple[str, str]] = {
+    # The bank register's money honesty, enforced where SQLite-backed tests
+    # can also witness it (the varchar(10) lesson):
+    "fin_account_trans_amount_nonzero_ck": (
+        "fin_account_transactions", "amount <> 0"),
+    "fin_account_trans_sign_ck": (
+        "fin_account_transactions",
+        "(trans_type NOT IN ('deposit', 'interest', 'transfer_in') OR amount > 0) "
+        "AND (trans_type NOT IN ('withdrawal', 'fee', 'transfer_out') OR amount < 0)"),
+    "fin_account_trans_net_ck": (
+        "fin_account_transactions",
+        "gross_amount IS NULL OR fee_amount IS NULL OR amount = gross_amount - fee_amount"),
     "approval_records_round_no_chk": ("approval_records", "round_no >= 1"),
     "approval_records_sequence_no_chk": ("approval_records", "sequence_no >= 1"),
     "approval_records_source_chk": ("approval_records", "(source in ('web', 'api', 'ai', 'system')) OR (source IS NULL)"),

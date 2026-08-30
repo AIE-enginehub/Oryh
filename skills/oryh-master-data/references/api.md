@@ -265,11 +265,36 @@ GET    /supplier-products?product_id=&vendor_id=&status=   → preferred sources
 POST   /supplier-products           → 409 if the (product, vendor) pair exists — PATCH that row instead
 PATCH  /supplier-products/{supplier_product_id}
 DELETE /supplier-products/{supplier_product_id}            → archive; re-import or PATCH status revives
+
+GET    /customer-products?product_id=&customer_id=&customer_product_code=&status=   → rows carry customer_name
+POST   /customer-products           → 409 if the (product, customer) pair exists — PATCH that row (revives archived)
+PATCH  /customer-products/{customer_product_id}   → agreed_price/code/name/MOQ; the pair itself is fixed
+DELETE /customer-products/{customer_product_id}   → archive; the agreement lapses, the pair stays claimed
 ```
 
 `POST /product-prices` may carry `sku_id` to price one variant; the SKU must
 belong to the product (400 otherwise). Bulk rows write product-level prices
 only.
+
+## Customer Contacts (the rolodex)
+
+```text
+GET    /customer-contacts?customer_id=&phone=&status=&keyword=   → primary lists first
+POST   /customer-contacts        → 404 if the customer is not here; phone dup at the same customer → 409
+PATCH  /customer-contacts/{contact_id}   → fields incl. is_primary (new primary demotes the old)
+DELETE /customer-contacts/{contact_id}   → archive; frees the phone slot and the primary slot
+```
+
+```json
+POST /customer-contacts
+{
+  "customer_id": "customer-id",
+  "name": "Zhang Jie",
+  "title": "Finance",
+  "phone": "13800000003",
+  "is_primary": true
+}
+```
 
 ## The External Product Map (channel listings → catalog)
 

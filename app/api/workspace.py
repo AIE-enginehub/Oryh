@@ -27,7 +27,7 @@ from typing import Annotated, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import String, cast, or_, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
@@ -881,3 +881,252 @@ def get_attachment_content(
             "Content-Disposition": f"attachment; filename*=UTF-8''{quote(attachment.filename)}",
         },
     )
+
+
+# --- the setup report: where this workspace stands, derived, never stored ---
+
+
+@router.get("/workspace/setup-report")
+def workspace_setup_report(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Everything a new administrator's agent needs to know about where this
+    workspace stands — computed from live data on every call, stored nowhere.
+
+    The report deliberately has no memory: the workspace IS the state. Every
+    hand-maintained progress record in this codebase has drifted from the
+    thing it recorded; a derivation cannot. That also makes the wizard built
+    on it resumable by construction — steps done outside it, in any order,
+    by anybody, show as done.
+
+    Statuses are a rough shorthand; the FACTS beside them are the answer. An
+    `untouched` area is a statement about data, never a to-do: whether a
+    workspace uses inventory is the administrator's judgment, held in their
+    agent's own context — this server does not record such decisions
+    (deliberate, per the product owner: no module switches, no declared-off
+    registry).
+
+    A document family is `ready` when it is STAFFED (a person-holdable role
+    with at least one active person carries its filing capability — the
+    system admin role is excluded, since it holds everything by definition
+    and would mark every family staffed on day one) and, where a flow
+    exists to drive, DEFINED (an active workflow definition). Usage counts
+    ride along as facts. Admin-gated: the report exposes the access
+    topology, which the member surface deliberately does not."""
+    from app.api.common import DOCUMENT_FAMILIES
+    from app.core.entity_types import KIND_SPLIT_MACHINE_TYPES
+    from app.core.permissions import permissions_cover_any_scope
+    from app.models import (
+        Customer,
+        CustomerContact,
+        CustomerProduct,
+        Employee,
+        ExternalDocumentLink,
+        ExternalProductMap,
+        FinAccount,
+        FinAccountTrans,
+        FlowSubscription,
+        Product,
+        Role,
+        TypeOption,
+        User,
+        Vendor,
+        WorkflowDefinition,
+    )
+    from app.services.provisioning import unheld_shipped_capabilities
+
+    require_permission(actor, "users.manage")
+    tenant_id = actor.tenant_id
+
+    def count(model, *conditions) -> int:
+        stmt = select(func.count()).select_from(model).where(
+            model.tenant_id == tenant_id, *conditions
+        )
+        if hasattr(model, "deleted_at"):
+            stmt = stmt.where(model.deleted_at.is_(None))
+        return db.scalar(stmt) or 0
+
+    # --- who can act: roles, their people, and the capabilities they carry --
+    roles = list(db.scalars(select(Role).where(Role.tenant_id == tenant_id)))
+    users_by_role: dict[str, int] = dict(
+        db.execute(
+            select(User.role, func.count())
+            .where(User.tenant_id == tenant_id, User.status == "active")
+            .group_by(User.role)
+        ).all()
+    )
+    person_roles = [
+        r for r in roles if not (r.name == "admin" and r.is_system)
+    ]
+
+    def staffing(capability: str) -> dict:
+        holder_roles = [
+            r.name for r in person_roles
+            if permissions_cover_any_scope(frozenset(r.permissions_jsonb or []), capability)
+        ]
+        holder_users = sum(users_by_role.get(name, 0) for name in holder_roles)
+        return {"roles": sorted(holder_roles), "active_users": holder_users}
+
+    definitions_by_type: dict[str, int] = dict(
+        db.execute(
+            select(WorkflowDefinition.object_type, func.count())
+            .where(
+                WorkflowDefinition.tenant_id == tenant_id,
+                WorkflowDefinition.entity_kind == "builtin",
+                WorkflowDefinition.status == "active",
+            )
+            .group_by(WorkflowDefinition.object_type)
+        ).all()
+    )
+
+    areas: dict[str, dict] = {}
+
+    # --- organization ------------------------------------------------------
+    employees = count(Employee)
+    non_admin_users = sum(
+        n for role, n in users_by_role.items() if role != "admin"
+    )
+    linked_users = db.scalar(
+        select(func.count()).select_from(User).where(
+            User.tenant_id == tenant_id,
+            User.status == "active",
+            User.employee_id.is_not(None),
+        )
+    ) or 0
+    unheld = unheld_shipped_capabilities(db, tenant_id)
+    org_facts = {
+        "employees": employees,
+        "active_non_admin_users": non_admin_users,
+        "users_linked_to_employees": linked_users,
+        "custom_roles": sum(1 for r in roles if not r.is_system),
+        "capabilities_reaching_nobody": sorted(unheld),
+    }
+    areas["organization"] = {
+        "status": (
+            "ready" if employees and non_admin_users
+            else "partial" if employees or non_admin_users
+            else "untouched"
+        ),
+        "facts": org_facts,
+        "next": (
+            "invite people, create employees and link them, shape roles — "
+            "$oryh-access-admin"
+        ),
+    }
+
+    # --- master data -------------------------------------------------------
+    md_facts = {
+        "products": count(Product),
+        "customers": count(Customer),
+        "customer_contacts": count(CustomerContact),
+        "customer_products": count(CustomerProduct),
+        "vendors": count(Vendor),
+        "custom_type_options": count(TypeOption, TypeOption.kind == "custom"),
+    }
+    areas["master_data"] = {
+        "status": "ready" if any(
+            md_facts[k] for k in ("products", "customers", "vendors")
+        ) else "untouched",
+        "facts": md_facts,
+        "next": "import the catalog from spreadsheets — $oryh-master-data",
+    }
+
+    # --- one area per document family, derived from the registry -----------
+    split_by_family: dict[str, list[str]] = {}
+    for machine_type, home in KIND_SPLIT_MACHINE_TYPES.items():
+        split_by_family.setdefault(home, []).append(machine_type)
+
+    for model, family in DOCUMENT_FAMILIES.items():
+        staffed = staffing(family.permission)
+        machine_types = [family.object_type] + sorted(
+            split_by_family.get(family.object_type, [])
+        )
+        defined = {
+            machine_type: definitions_by_type.get(machine_type, 0) > 0
+            for machine_type in machine_types
+        }
+        facts: dict = {
+            "filing_capability": family.permission,
+            "staffed_by": staffed,
+            "workflow_definitions": defined,
+            "documents": count(model),
+        }
+        if family.object_type in split_by_family:
+            facts["documents"] = count(model, model.order_kind == "order")
+            facts["returns"] = count(model, model.order_kind == "return")
+        is_staffed = staffed["active_users"] > 0
+        # a family with no advance permission (purchase orders, shipments) is
+        # driven by its one functional grant; a definition is optional there
+        needs_definition = family.advance_permission is not None
+        if is_staffed and (defined[family.object_type] or not needs_definition):
+            status_word = "ready"
+        elif is_staffed or facts["documents"] or any(defined.values()):
+            status_word = "partial"
+        else:
+            status_word = "untouched"
+        areas[family.object_type] = {
+            "status": status_word,
+            "facts": facts,
+            "next": (
+                f"grant {family.permission} to a role with people in it"
+                if not is_staffed
+                else f"publish a workflow definition for {family.object_type}"
+                if needs_definition and not defined[family.object_type]
+                else "in use — nothing missing"
+            ),
+        }
+
+    # --- flow driving ------------------------------------------------------
+    subscriptions = list(db.scalars(
+        select(FlowSubscription).where(FlowSubscription.tenant_id == tenant_id)
+    ))
+    areas["flow_driving"] = {
+        "status": "ready" if any(s.enabled for s in subscriptions) else "untouched",
+        "facts": {
+            "enabled": sorted(s.entity_type for s in subscriptions if s.enabled),
+            "disabled": sorted(s.entity_type for s in subscriptions if not s.enabled),
+        },
+        "next": "subscriptions provision automatically; switch off what your own agents drive",
+    }
+
+    # --- treasury: the cash side, split from the accounting desk ------------
+    treasury_staffed = staffing("fin_account.manage")
+    treasury_accounts = count(FinAccount)
+    areas["treasury"] = {
+        "status": (
+            "ready" if treasury_staffed["active_users"] and treasury_accounts
+            else "partial" if treasury_staffed["active_users"] or treasury_accounts
+            else "untouched"
+        ),
+        "facts": {
+            "filing_capability": "fin_account.manage",
+            "staffed_by": treasury_staffed,
+            "fin_accounts": treasury_accounts,
+            "register_rows": count(FinAccountTrans),
+        },
+        "next": (
+            "grant fin_account.manage to the cashier (钱账分离 — deliberately "
+            "no shipped role carries it), then open accounts and import "
+            "statements — $oryh-treasury"
+        ),
+    }
+
+    # --- e-commerce (optional — only relevant when selling through platforms)
+    areas["ecommerce"] = {
+        "status": "ready" if (
+            count(ExternalProductMap) or count(ExternalDocumentLink)
+        ) else "untouched",
+        "optional": True,
+        "facts": {
+            "channel_product_maps": count(ExternalProductMap),
+            "external_document_links": count(ExternalDocumentLink),
+        },
+        "next": (
+            "only if you sell through Tmall/JD/Amazon/mini-programs: curate "
+            "the product map ($oryh-master-data), record channel orders "
+            "($oryh-order-submit)"
+        ),
+    }
+
+    return envelope({"areas": areas})

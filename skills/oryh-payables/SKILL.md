@@ -177,6 +177,12 @@ credit against FUTURE purchases instead of money, that is a billing-account
 entry on our standing account with them ($oryh-billing-account), not a
 payment — say which of the two actually happened, never guess.
 
+## Where the Cash Actually Left
+
+The payment's `paid` is the book's claim; the bank's fact is a register
+line the cashier links to it ($oryh-treasury). "has it actually left the bank" reads that
+link — a paid payment with no bank line is a chase, not a shrug.
+
 ## Settlement
 
 ```json

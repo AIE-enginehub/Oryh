@@ -901,6 +901,61 @@ ProductPriceListEnvelope = ListEnvelope[ProductPriceRead]
 ProductPriceEnvelope = Envelope[ProductPriceRead]
 
 
+class CustomerContactBase(RequestModel):
+    title: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=50)
+    wechat: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=320)
+    is_primary: bool = False
+    status: SupplierProductStatus = "active"
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateCustomerContactRequest(CustomerContactBase):
+    customer_id: str
+    name: str = Field(min_length=1, max_length=100)
+
+
+class UpdateCustomerContactRequest(RequestModel):
+    # customer_id is identity — a contact does not move between customers;
+    # the person changing employers is a new row at the new customer
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    title: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=50)
+    wechat: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=320)
+    is_primary: bool | None = None
+    status: SupplierProductStatus | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] | None = None
+
+
+class CustomerContactRead(APIModel):
+    id: str
+    customer_id: str
+    name: str
+    title: str | None = None
+    phone: str | None = None
+    wechat: str | None = None
+    email: str | None = None
+    is_primary: bool
+    status: SupplierProductStatus
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CustomerContactListEnvelope = ListEnvelope[CustomerContactRead]
+
+
+CustomerContactEnvelope = Envelope[CustomerContactRead]
+
+
 class SupplierProductBase(RequestModel):
     supplier_product_code: str | None = Field(default=None, max_length=64)
     supplier_product_name: str | None = Field(default=None, max_length=200)
@@ -959,6 +1014,63 @@ SupplierProductListEnvelope = ListEnvelope[SupplierProductRead]
 
 
 SupplierProductEnvelope = Envelope[SupplierProductRead]
+
+
+CustomerProductStatus = Literal["active", "archived"]
+
+
+class CustomerProductBase(RequestModel):
+    customer_product_code: str | None = Field(default=None, max_length=64)
+    customer_product_name: str | None = Field(default=None, max_length=200)
+    agreed_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    min_order_quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    order_increment: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    status: CustomerProductStatus = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateCustomerProductRequest(CustomerProductBase):
+    product_id: str
+    customer_id: str
+
+
+class UpdateCustomerProductRequest(RequestModel):
+    # the (product, customer) pair is the row's identity and is not editable
+    customer_product_code: str | None = Field(default=None, max_length=64)
+    customer_product_name: str | None = Field(default=None, max_length=200)
+    agreed_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    min_order_quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    order_increment: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    status: CustomerProductStatus | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class CustomerProductRead(APIModel):
+    id: str
+    product_id: str
+    customer_id: str
+    customer_name: str | None = None
+    customer_product_code: str | None = None
+    customer_product_name: str | None = None
+    agreed_price: float | None = None
+    currency: str
+    min_order_quantity: float | None = None
+    order_increment: float | None = None
+    status: CustomerProductStatus
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CustomerProductListEnvelope = ListEnvelope[CustomerProductRead]
+
+
+CustomerProductEnvelope = Envelope[CustomerProductRead]
 
 
 class _NormalizesSource(RequestModel):
@@ -1304,6 +1416,311 @@ class ShipmentRead(APIModel):
     )
     created_at: datetime
     updated_at: datetime
+
+
+class LeadBase(RequestModel):
+    company_name: str | None = Field(default=None, max_length=200)
+    contact_name: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=50)
+    wechat: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=320)
+    source: str | None = Field(default=None, max_length=100)
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateLeadRequest(LeadBase):
+    employee_id: str
+    lead_no: str | None = Field(default=None, max_length=64)
+
+    @model_validator(mode="after")
+    def _names_somebody(self) -> "CreateLeadRequest":
+        if self.company_name is None and self.contact_name is None:
+            raise ValueError(
+                "a lead names SOMEBODY — a company or a person, at least one"
+            )
+        return self
+
+
+class UpdateLeadRequest(RequestModel):
+    # employee_id is the owner and lead_no the identity — neither moves;
+    # converted_customer_id is the bridge's write, never a field edit
+    company_name: str | None = Field(default=None, max_length=200)
+    contact_name: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=50)
+    wechat: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=320)
+    source: str | None = Field(default=None, max_length=100)
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class ConvertLeadRequest(RequestModel):
+    """The conversion bridge's one decision: WHICH customer this lead became.
+    Name an existing record, or omit both and the bridge creates one from
+    the lead's own names. An opportunity is optional and rides the same
+    transaction."""
+
+    customer_id: str | None = None
+    customer_name: str | None = Field(default=None, max_length=200)
+    opportunity_title: str | None = Field(default=None, max_length=200)
+    expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    expected_close_date: date | None = None
+
+    @model_validator(mode="after")
+    def _one_customer_answer(self) -> "ConvertLeadRequest":
+        if self.customer_id is not None and self.customer_name is not None:
+            raise ValueError(
+                "customer_id names an existing customer and customer_name asks "
+                "to create one — pass one answer, not both"
+            )
+        return self
+
+
+class LeadRead(APIModel):
+    id: str
+    lead_no: str
+    company_name: str | None = None
+    contact_name: str | None = None
+    phone: str | None = None
+    wechat: str | None = None
+    email: str | None = None
+    source: str | None = None
+    employee_id: str
+    status: str
+    converted_customer_id: str | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+LeadListEnvelope = ListEnvelope[LeadRead]
+
+
+LeadEnvelope = Envelope[LeadRead]
+
+
+class OpportunityBase(RequestModel):
+    customer_id: str | None = None
+    customer_name_snapshot: str | None = Field(default=None, max_length=200)
+    lead_id: str | None = None
+    expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    expected_close_date: date | None = None
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateOpportunityRequest(OpportunityBase):
+    employee_id: str
+    title: str = Field(min_length=1, max_length=200)
+    opportunity_no: str | None = Field(default=None, max_length=64)
+
+
+class UpdateOpportunityRequest(RequestModel):
+    # employee_id and opportunity_no are identity; closed_at is the
+    # transition's stamp, never a field edit
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    customer_id: str | None = None
+    customer_name_snapshot: str | None = Field(default=None, max_length=200)
+    lead_id: str | None = None
+    expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    expected_close_date: date | None = None
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class OpportunityRead(APIModel):
+    id: str
+    opportunity_no: str
+    title: str
+    customer_id: str | None = None
+    customer_name_snapshot: str | None = None
+    lead_id: str | None = None
+    employee_id: str
+    expected_amount: float | None = None
+    currency: str
+    expected_close_date: date | None = None
+    status: str
+    closed_at: datetime | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+OpportunityListEnvelope = ListEnvelope[OpportunityRead]
+
+
+OpportunityEnvelope = Envelope[OpportunityRead]
+
+
+FinAccountStatus = Literal["active", "archived"]
+
+
+FinAccountTransType = Literal[
+    "adjustment", "deposit", "fee", "interest", "opening", "refund",
+    "transfer_in", "transfer_out", "withdrawal",
+]
+
+
+class FinAccountBase(RequestModel):
+    institution: str | None = Field(default=None, max_length=200)
+    account_number: str | None = Field(default=None, max_length=64)
+    # validated against the tenant's `fin_account_type` vocabulary at write
+    account_type: str = Field(default="bank", max_length=50)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    status: FinAccountStatus = "active"
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateFinAccountRequest(FinAccountBase):
+    name: str = Field(min_length=1, max_length=200)
+    # lands as the register's FIRST row (trans_type `opening`) — the balance
+    # column is derived and nothing ever edits it
+    opening_balance: float | None = Field(default=None, le=9_999_999_999.99, ge=-9_999_999_999.99)
+    opening_date: date | None = None
+
+
+class UpdateFinAccountRequest(RequestModel):
+    # no balance field on purpose: the register is the only way money moves
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    institution: str | None = Field(default=None, max_length=200)
+    account_number: str | None = Field(default=None, max_length=64)
+    account_type: str | None = Field(default=None, max_length=50)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    status: FinAccountStatus | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class FinAccountRead(APIModel):
+    id: str
+    name: str
+    institution: str | None = None
+    account_number: str | None = None
+    account_type: str
+    currency: str
+    current_balance: float
+    status: FinAccountStatus
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+FinAccountListEnvelope = ListEnvelope[FinAccountRead]
+
+
+FinAccountEnvelope = Envelope[FinAccountRead]
+
+
+class _FinTransAmounts(RequestModel):
+    @model_validator(mode="after")
+    def _money_holds_together(self):
+        amount = getattr(self, "amount", None)
+        if amount is not None and amount == 0:
+            raise ValueError("a zero movement is not a movement — the register refuses it")
+        gross, fee = getattr(self, "gross_amount", None), getattr(self, "fee_amount", None)
+        if gross is not None and fee is not None and amount is not None:
+            if round(gross - fee, 2) != round(amount, 2):
+                raise ValueError(
+                    f"amount must equal gross_amount - fee_amount "
+                    f"({gross} - {fee} = {round(gross - fee, 2)}, not {amount})"
+                )
+        return self
+
+
+class CreateFinAccountTransRequest(_FinTransAmounts):
+    fin_account_id: str
+    # omitted -> derived from the sign (deposit / withdrawal); state it for
+    # fees, interest, transfers, refunds, adjustments
+    trans_type: FinAccountTransType | None = None
+    amount: float = Field(ge=-9_999_999_999.99, le=9_999_999_999.99)
+    gross_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
+    fee_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
+    trans_date: date | None = None
+    counterparty: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    reference_no: str | None = Field(default=None, max_length=128)
+    payment_id: str | None = None
+    entity_type: str | None = Field(default=None, max_length=50)
+    entity_id: str | None = None
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class LinkFinAccountTransRequest(RequestModel):
+    """The ONLY writable part of a register row after it lands: the
+    reconciliation links. Everything else is the bank's fact — a wrong one is
+    corrected by a counter-entry, and any other field here is a 422 by the
+    strict-request rule, which is the immutability teaching itself."""
+
+    payment_id: str | None = None
+    entity_type: str | None = Field(default=None, max_length=50)
+    entity_id: str | None = None
+
+
+class FinAccountTransRead(APIModel):
+    id: str
+    fin_account_id: str
+    trans_type: str
+    amount: float
+    gross_amount: float | None = None
+    fee_amount: float | None = None
+    trans_date: date | None = None
+    counterparty: str | None = None
+    description: str | None = None
+    reference_no: str | None = None
+    payment_id: str | None = None
+    entity_type: str | None = None
+    entity_id: str | None = None
+    created_by: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+
+
+FinAccountTransListEnvelope = ListEnvelope[FinAccountTransRead]
+
+
+FinAccountTransEnvelope = Envelope[FinAccountTransRead]
+
+
+class BulkFinAccountTransRow(_FinTransAmounts):
+    trans_date: date | None = None
+    amount: float = Field(ge=-9_999_999_999.99, le=9_999_999_999.99)
+    trans_type: FinAccountTransType | None = None
+    gross_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
+    fee_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
+    counterparty: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    reference_no: str | None = Field(default=None, max_length=128)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class BulkFinAccountTransImportRequest(RequestModel):
+    fin_account_id: str
+    rows: list[BulkFinAccountTransRow] = Field(min_length=1, max_length=500)
+    dry_run: bool = False
+    on_error: Literal["abort", "skip"] = "abort"
 
 
 ShipmentListEnvelope = ListEnvelope[ShipmentRead]

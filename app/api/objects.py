@@ -63,6 +63,8 @@ from app.models import (
     ExpenseClaim,
     ExpenseItem,
     Invoice,
+    Lead,
+    Opportunity,
     ObjectTypeDefinition,
     Payment,
     Project,
@@ -781,6 +783,18 @@ def get_object_directory(
         or 0,
         "shipment": db.scalar(
             select(func.count()).select_from(Shipment).where(Shipment.tenant_id == tenant_id)
+        )
+        or 0,
+        "lead": db.scalar(
+            select(func.count()).select_from(Lead).where(
+                Lead.tenant_id == tenant_id
+            )
+        )
+        or 0,
+        "opportunity": db.scalar(
+            select(func.count()).select_from(Opportunity).where(
+                Opportunity.tenant_id == tenant_id
+            )
         )
         or 0,
         "invoice": db.scalar(invoice_count_stmt) or 0,

@@ -1340,6 +1340,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customer-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customer Contacts */
+        get: operations["list_customer_contacts_api_v1_customer_contacts_get"];
+        put?: never;
+        /** Create Customer Contact */
+        post: operations["create_customer_contact_api_v1_customer_contacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customer-contacts/{contact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Contact */
+        get: operations["get_customer_contact_api_v1_customer_contacts__contact_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Customer Contact */
+        delete: operations["delete_customer_contact_api_v1_customer_contacts__contact_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Customer Contact */
+        patch: operations["update_customer_contact_api_v1_customer_contacts__contact_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/customer-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customer Products */
+        get: operations["list_customer_products_api_v1_customer_products_get"];
+        put?: never;
+        /** Create Customer Product */
+        post: operations["create_customer_product_api_v1_customer_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customer-products/{customer_product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Customer Product */
+        get: operations["get_customer_product_api_v1_customer_products__customer_product_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Customer Product */
+        delete: operations["delete_customer_product_api_v1_customer_products__customer_product_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Customer Product */
+        patch: operations["update_customer_product_api_v1_customer_products__customer_product_id__patch"];
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -1868,6 +1942,108 @@ export interface paths {
         patch: operations["update_external_product_map_api_v1_external_product_maps__map_id__patch"];
         trace?: never;
     };
+    "/api/v1/fin-account-transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fin Account Transactions */
+        get: operations["list_fin_account_transactions_api_v1_fin_account_transactions_get"];
+        put?: never;
+        /** Create Fin Account Trans */
+        post: operations["create_fin_account_trans_api_v1_fin_account_transactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fin-account-transactions/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Import Fin Account Trans
+         * @description Statement import, the master-data contract: dry_run runs the identical
+         *     write path and rolls back; `reference_no` is the idempotence key — the
+         *     same line re-imported reports `unchanged`, and the same reference with a
+         *     DIFFERENT amount is an error row, because a bank that reuses line ids
+         *     with new numbers is a question for a person, not a silent overwrite.
+         */
+        post: operations["bulk_import_fin_account_trans_api_v1_fin_account_transactions_bulk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fin-account-transactions/{trans_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Link Fin Account Trans
+         * @description The bank facts are frozen; the LINKS are ours to set, correct and
+         *     clear — the frozen-row-gains-a-name rule. Any bank-fact field in this
+         *     PATCH is refused by the strict request model, which is the immutability
+         *     teaching delivered as a 422 naming the field.
+         */
+        patch: operations["link_fin_account_trans_api_v1_fin_account_transactions__trans_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/fin-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Fin Accounts */
+        get: operations["list_fin_accounts_api_v1_fin_accounts_get"];
+        put?: never;
+        /** Create Fin Account */
+        post: operations["create_fin_account_api_v1_fin_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fin-accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Fin Account */
+        get: operations["get_fin_account_api_v1_fin_accounts__account_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Fin Account */
+        delete: operations["delete_fin_account_api_v1_fin_accounts__account_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Fin Account */
+        patch: operations["update_fin_account_api_v1_fin_accounts__account_id__patch"];
+        trace?: never;
+    };
     "/api/v1/flow-runs": {
         parameters: {
             query?: never;
@@ -2272,6 +2448,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Leads */
+        get: operations["list_leads_api_v1_leads_get"];
+        put?: never;
+        /** Create Lead */
+        post: operations["create_lead_api_v1_leads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leads/{lead_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Lead */
+        get: operations["get_lead_api_v1_leads__lead_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Lead */
+        delete: operations["delete_lead_api_v1_leads__lead_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Lead */
+        patch: operations["update_lead_api_v1_leads__lead_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/leads/{lead_id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert Lead
+         * @description The one orchestration the server owns: lead → customer (+rolodex
+         *     entry) [+opportunity], one transaction. It exists because the agent
+         *     holding `crm.own` does not hold `master_data.manage` — promotion into
+         *     master data is the conversion's whole meaning, so the bridge carries
+         *     that single write rather than handing the salesperson the catalog.
+         */
+        post: operations["convert_lead_api_v1_leads__lead_id__convert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/leads/{lead_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Lead */
+        post: operations["restore_lead_api_v1_leads__lead_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/my/skill-bundle": {
         parameters: {
             query?: never;
@@ -2445,6 +2699,60 @@ export interface paths {
         head?: never;
         /** Update Object Type Definition */
         patch: operations["update_object_type_definition_api_v1_object_type_definitions__definition_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/opportunities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Opportunities */
+        get: operations["list_opportunities_api_v1_opportunities_get"];
+        put?: never;
+        /** Create Opportunity */
+        post: operations["create_opportunity_api_v1_opportunities_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunities/{opportunity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Opportunity */
+        get: operations["get_opportunity_api_v1_opportunities__opportunity_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Opportunity */
+        delete: operations["delete_opportunity_api_v1_opportunities__opportunity_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Opportunity */
+        patch: operations["update_opportunity_api_v1_opportunities__opportunity_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/opportunities/{opportunity_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Opportunity */
+        post: operations["restore_opportunity_api_v1_opportunities__opportunity_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/pay-histories": {
@@ -4796,6 +5104,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspace/setup-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workspace Setup Report
+         * @description Everything a new administrator's agent needs to know about where this
+         *     workspace stands — computed from live data on every call, stored nowhere.
+         *
+         *     The report deliberately has no memory: the workspace IS the state. Every
+         *     hand-maintained progress record in this codebase has drifted from the
+         *     thing it recorded; a derivation cannot. That also makes the wizard built
+         *     on it resumable by construction — steps done outside it, in any order,
+         *     by anybody, show as done.
+         *
+         *     Statuses are a rough shorthand; the FACTS beside them are the answer. An
+         *     `untouched` area is a statement about data, never a to-do: whether a
+         *     workspace uses inventory is the administrator's judgment, held in their
+         *     agent's own context — this server does not record such decisions
+         *     (deliberate, per the product owner: no module switches, no declared-off
+         *     registry).
+         *
+         *     A document family is `ready` when it is STAFFED (a person-holdable role
+         *     with at least one active person carries its filing capability — the
+         *     system admin role is excluded, since it holds everything by definition
+         *     and would mark every family staffed on day one) and, where a flow
+         *     exists to drive, DEFINED (an active workflow definition). Usage counts
+         *     ride along as facts. Admin-gated: the report exposes the access
+         *     topology, which the member surface deliberately does not.
+         */
+        get: operations["workspace_setup_report_api_v1_workspace_setup_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4958,7 +5308,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -5388,6 +5738,47 @@ export interface components {
              * @enum {string}
              */
             outcome: "created" | "updated" | "unchanged" | "error";
+        };
+        /** BulkFinAccountTransImportRequest */
+        BulkFinAccountTransImportRequest: {
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Fin Account Id */
+            fin_account_id: string;
+            /**
+             * On Error
+             * @default abort
+             * @enum {string}
+             */
+            on_error: "abort" | "skip";
+            /** Rows */
+            rows: components["schemas"]["BulkFinAccountTransRow"][];
+        };
+        /** BulkFinAccountTransRow */
+        BulkFinAccountTransRow: {
+            /** Amount */
+            amount: number;
+            /** Counterparty */
+            counterparty?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Fee Amount */
+            fee_amount?: number | null;
+            /** Gross Amount */
+            gross_amount?: number | null;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Trans Date */
+            trans_date?: string | null;
+            /** Trans Type */
+            trans_type?: ("adjustment" | "deposit" | "fee" | "interest" | "opening" | "refund" | "transfer_in" | "transfer_out" | "withdrawal") | null;
         };
         /**
          * BulkInventoryRow
@@ -6378,6 +6769,25 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /**
+         * ConvertLeadRequest
+         * @description The conversion bridge's one decision: WHICH customer this lead became.
+         *     Name an existing record, or omit both and the bridge creates one from
+         *     the lead's own names. An opportunity is optional and rides the same
+         *     transaction.
+         */
+        ConvertLeadRequest: {
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Customer Name */
+            customer_name?: string | null;
+            /** Expected Amount */
+            expected_amount?: number | null;
+            /** Expected Close Date */
+            expected_close_date?: string | null;
+            /** Opportunity Title */
+            opportunity_title?: string | null;
+        };
         /** CreateApiKeyRequest */
         CreateApiKeyRequest: {
             /**
@@ -6417,7 +6827,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -6561,6 +6971,70 @@ export interface components {
             name: string;
             /** Title */
             title?: string | null;
+        };
+        /** CreateCustomerContactRequest */
+        CreateCustomerContactRequest: {
+            /** Customer Id */
+            customer_id: string;
+            /** Email */
+            email?: string | null;
+            /**
+             * Is Primary
+             * @default false
+             */
+            is_primary: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Title */
+            title?: string | null;
+            /** Wechat */
+            wechat?: string | null;
+        };
+        /** CreateCustomerProductRequest */
+        CreateCustomerProductRequest: {
+            /** Agreed Price */
+            agreed_price?: number | null;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Customer Product Code */
+            customer_product_code?: string | null;
+            /** Customer Product Name */
+            customer_product_name?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Min Order Quantity */
+            min_order_quantity?: number | null;
+            /** Order Increment */
+            order_increment?: number | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
         };
         /** CreateCustomerRequest */
         CreateCustomerRequest: {
@@ -6832,6 +7306,72 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** CreateFinAccountRequest */
+        CreateFinAccountRequest: {
+            /** Account Number */
+            account_number?: string | null;
+            /**
+             * Account Type
+             * @default bank
+             */
+            account_type: string;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Institution */
+            institution?: string | null;
+            /** Name */
+            name: string;
+            /** Opening Balance */
+            opening_balance?: number | null;
+            /** Opening Date */
+            opening_date?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
+        /** CreateFinAccountTransRequest */
+        CreateFinAccountTransRequest: {
+            /** Amount */
+            amount: number;
+            /** Counterparty */
+            counterparty?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Fee Amount */
+            fee_amount?: number | null;
+            /** Fin Account Id */
+            fin_account_id: string;
+            /** Gross Amount */
+            gross_amount?: number | null;
+            /** Payment Id */
+            payment_id?: string | null;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Trans Date */
+            trans_date?: string | null;
+            /** Trans Type */
+            trans_type?: ("adjustment" | "deposit" | "fee" | "interest" | "opening" | "refund" | "transfer_in" | "transfer_out" | "withdrawal") | null;
+        };
         /** CreateFlowSubscriptionRequest */
         CreateFlowSubscriptionRequest: {
             /** Api Key Id */
@@ -7049,6 +7589,33 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** CreateLeadRequest */
+        CreateLeadRequest: {
+            /** Company Name */
+            company_name?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Email */
+            email?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Lead No */
+            lead_no?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Wechat */
+            wechat?: string | null;
+        };
         /** CreateObjectTypeDefinitionRequest */
         CreateObjectTypeDefinitionRequest: {
             /** Created By */
@@ -7073,6 +7640,38 @@ export interface components {
             } | null;
             /** Title */
             title?: string | null;
+        };
+        /** CreateOpportunityRequest */
+        CreateOpportunityRequest: {
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Customer Name Snapshot */
+            customer_name_snapshot?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Expected Amount */
+            expected_amount?: number | null;
+            /** Expected Close Date */
+            expected_close_date?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Opportunity No */
+            opportunity_no?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Title */
+            title: string;
         };
         /**
          * CreatePayHistoryRequest
@@ -8055,7 +8654,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -8126,6 +8725,88 @@ export interface components {
             name: string;
             /** Object Type */
             object_type: string;
+        };
+        /** CustomerContactRead */
+        CustomerContactRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Email */
+            email?: string | null;
+            /** Id */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Title */
+            title?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Wechat */
+            wechat?: string | null;
+        };
+        /** CustomerProductRead */
+        CustomerProductRead: {
+            /** Agreed Price */
+            agreed_price?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Customer Name */
+            customer_name?: string | null;
+            /** Customer Product Code */
+            customer_product_code?: string | null;
+            /** Customer Product Name */
+            customer_product_name?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Min Order Quantity */
+            min_order_quantity?: number | null;
+            /** Order Increment */
+            order_increment?: number | null;
+            /** Product Id */
+            product_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** CustomerRead */
         CustomerRead: {
@@ -8516,6 +9197,16 @@ export interface components {
             data: components["schemas"]["CreateEnterprisePilotApplicationResponse"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[CustomerContactRead] */
+        Envelope_CustomerContactRead_: {
+            data: components["schemas"]["CustomerContactRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[CustomerProductRead] */
+        Envelope_CustomerProductRead_: {
+            data: components["schemas"]["CustomerProductRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[CustomerRead] */
         Envelope_CustomerRead_: {
             data: components["schemas"]["CustomerRead"];
@@ -8554,6 +9245,16 @@ export interface components {
         /** Envelope[ExternalProductMapRead] */
         Envelope_ExternalProductMapRead_: {
             data: components["schemas"]["ExternalProductMapRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[FinAccountRead] */
+        Envelope_FinAccountRead_: {
+            data: components["schemas"]["FinAccountRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[FinAccountTransRead] */
+        Envelope_FinAccountTransRead_: {
+            data: components["schemas"]["FinAccountTransRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[FlowRunRead] */
@@ -8601,9 +9302,19 @@ export interface components {
             data: components["schemas"]["InvoiceRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[LeadRead] */
+        Envelope_LeadRead_: {
+            data: components["schemas"]["LeadRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ObjectTypeDefinitionRead] */
         Envelope_ObjectTypeDefinitionRead_: {
             data: components["schemas"]["ObjectTypeDefinitionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[OpportunityRead] */
+        Envelope_OpportunityRead_: {
+            data: components["schemas"]["OpportunityRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[PasswordResetEmailRead] */
@@ -9062,6 +9773,84 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** FinAccountRead */
+        FinAccountRead: {
+            /** Account Number */
+            account_number?: string | null;
+            /** Account Type */
+            account_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Current Balance */
+            current_balance: number;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /** Institution */
+            institution?: string | null;
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** FinAccountTransRead */
+        FinAccountTransRead: {
+            /** Amount */
+            amount: number;
+            /** Counterparty */
+            counterparty?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Fee Amount */
+            fee_amount?: number | null;
+            /** Fin Account Id */
+            fin_account_id: string;
+            /** Gross Amount */
+            gross_amount?: number | null;
+            /** Id */
+            id: string;
+            /** Payment Id */
+            payment_id?: string | null;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Trans Date */
+            trans_date?: string | null;
+            /** Trans Type */
+            trans_type: string;
         };
         /** FlowRunRead */
         FlowRunRead: {
@@ -9711,6 +10500,62 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** LeadRead */
+        LeadRead: {
+            /** Company Name */
+            company_name?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Converted Customer Id */
+            converted_customer_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Email */
+            email?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Id */
+            id: string;
+            /** Lead No */
+            lead_no: string;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Wechat */
+            wechat?: string | null;
+        };
+        /**
+         * LinkFinAccountTransRequest
+         * @description The ONLY writable part of a register row after it lands: the
+         *     reconciliation links. Everything else is the bank's fact — a wrong one is
+         *     corrected by a counter-entry, and any other field here is a 422 by the
+         *     strict-request rule, which is the immutability teaching itself.
+         */
+        LinkFinAccountTransRequest: {
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Payment Id */
+            payment_id?: string | null;
+        };
         /**
          * LinkedPurchaseItemRead
          * @description A purchase line filed to fulfil this order line (按单采购). The
@@ -9805,6 +10650,18 @@ export interface components {
             data: components["schemas"]["BusinessObjectRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[CustomerContactRead] */
+        ListEnvelope_CustomerContactRead_: {
+            /** Data */
+            data: components["schemas"]["CustomerContactRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CustomerProductRead] */
+        ListEnvelope_CustomerProductRead_: {
+            /** Data */
+            data: components["schemas"]["CustomerProductRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[CustomerRead] */
         ListEnvelope_CustomerRead_: {
             /** Data */
@@ -9847,6 +10704,18 @@ export interface components {
             data: components["schemas"]["ExternalProductMapRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[FinAccountRead] */
+        ListEnvelope_FinAccountRead_: {
+            /** Data */
+            data: components["schemas"]["FinAccountRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[FinAccountTransRead] */
+        ListEnvelope_FinAccountTransRead_: {
+            /** Data */
+            data: components["schemas"]["FinAccountTransRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[FlowRunRead] */
         ListEnvelope_FlowRunRead_: {
             /** Data */
@@ -9883,6 +10752,12 @@ export interface components {
             data: components["schemas"]["InvoiceRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[LeadRead] */
+        ListEnvelope_LeadRead_: {
+            /** Data */
+            data: components["schemas"]["LeadRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ObjectDirectoryEntryRead] */
         ListEnvelope_ObjectDirectoryEntryRead_: {
             /** Data */
@@ -9893,6 +10768,12 @@ export interface components {
         ListEnvelope_ObjectTypeDefinitionRead_: {
             /** Data */
             data: components["schemas"]["ObjectTypeDefinitionRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[OpportunityRead] */
+        ListEnvelope_OpportunityRead_: {
+            /** Data */
+            data: components["schemas"]["OpportunityRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[PayHistoryRead] */
@@ -10163,6 +11044,49 @@ export interface components {
              * @enum {string}
              */
             trigger: "cadence" | "signal" | "manual";
+        };
+        /** OpportunityRead */
+        OpportunityRead: {
+            /** Closed At */
+            closed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Customer Name Snapshot */
+            customer_name_snapshot?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Expected Amount */
+            expected_amount?: number | null;
+            /** Expected Close Date */
+            expected_close_date?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Opportunity No */
+            opportunity_no: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** PasswordResetEmailRead */
         PasswordResetEmailRead: {
@@ -12614,7 +13538,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -12787,6 +13711,50 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** UpdateCustomerContactRequest */
+        UpdateCustomerContactRequest: {
+            /** Email */
+            email?: string | null;
+            /** Is Primary */
+            is_primary?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+            /** Title */
+            title?: string | null;
+            /** Wechat */
+            wechat?: string | null;
+        };
+        /** UpdateCustomerProductRequest */
+        UpdateCustomerProductRequest: {
+            /** Agreed Price */
+            agreed_price?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Customer Product Code */
+            customer_product_code?: string | null;
+            /** Customer Product Name */
+            customer_product_name?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Min Order Quantity */
+            min_order_quantity?: number | null;
+            /** Order Increment */
+            order_increment?: number | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateCustomerRequest */
         UpdateCustomerRequest: {
             /** Address */
@@ -12935,6 +13903,27 @@ export interface components {
             /** Status */
             status?: ("active" | "archived") | null;
         };
+        /** UpdateFinAccountRequest */
+        UpdateFinAccountRequest: {
+            /** Account Number */
+            account_number?: string | null;
+            /** Account Type */
+            account_type?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Institution */
+            institution?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /**
          * UpdateFlowSubscriptionRequest
          * @description Platform-side edits. The tenant's own PATCH accepts `enabled` only.
@@ -13075,6 +14064,29 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** UpdateLeadRequest */
+        UpdateLeadRequest: {
+            /** Company Name */
+            company_name?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Email */
+            email?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Wechat */
+            wechat?: string | null;
+        };
         /** UpdateObjectTypeDefinitionRequest */
         UpdateObjectTypeDefinitionRequest: {
             /** Description */
@@ -13089,6 +14101,31 @@ export interface components {
             } | null;
             /** Status */
             status?: ("active" | "archived") | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** UpdateOpportunityRequest */
+        UpdateOpportunityRequest: {
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Customer Name Snapshot */
+            customer_name_snapshot?: string | null;
+            /** Expected Amount */
+            expected_amount?: number | null;
+            /** Expected Close Date */
+            expected_close_date?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: string | null;
             /** Title */
             title?: string | null;
         };
@@ -17085,6 +18122,404 @@ export interface operations {
             };
         };
     };
+    list_customer_contacts_api_v1_customer_contacts_get: {
+        parameters: {
+            query?: {
+                customer_id?: string | null;
+                phone?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CustomerContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_contact_api_v1_customer_contacts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_contact_api_v1_customer_contacts__contact_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contact_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_customer_contact_api_v1_customer_contacts__contact_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contact_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_contact_api_v1_customer_contacts__contact_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contact_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_customer_products_api_v1_customer_products_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                customer_id?: string | null;
+                customer_product_code?: string | null;
+                status?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CustomerProductRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_product_api_v1_customer_products_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerProductRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_customer_product_api_v1_customer_products__customer_product_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                customer_product_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerProductRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_customer_product_api_v1_customer_products__customer_product_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                customer_product_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_product_api_v1_customer_products__customer_product_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                customer_product_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerProductRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_customers_api_v1_customers_get: {
         parameters: {
             query?: {
@@ -18896,6 +20331,373 @@ export interface operations {
             };
         };
     };
+    list_fin_account_transactions_api_v1_fin_account_transactions_get: {
+        parameters: {
+            query?: {
+                fin_account_id?: string | null;
+                trans_type?: string | null;
+                payment_id?: string | null;
+                reference_no?: string | null;
+                unlinked?: boolean;
+                date_from?: string | null;
+                date_to?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_FinAccountTransRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_fin_account_trans_api_v1_fin_account_transactions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinAccountTransRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FinAccountTransRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_import_fin_account_trans_api_v1_fin_account_transactions_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkFinAccountTransImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_fin_account_trans_api_v1_fin_account_transactions__trans_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                trans_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkFinAccountTransRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FinAccountTransRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fin_accounts_api_v1_fin_accounts_get: {
+        parameters: {
+            query?: {
+                account_type?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_FinAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_fin_account_api_v1_fin_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FinAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_fin_account_api_v1_fin_accounts__account_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FinAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_fin_account_api_v1_fin_accounts__account_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_fin_account_api_v1_fin_accounts__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFinAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FinAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_flow_runs_api_v1_flow_runs_get: {
         parameters: {
             query?: {
@@ -20079,6 +21881,286 @@ export interface operations {
             };
         };
     };
+    list_leads_api_v1_leads_get: {
+        parameters: {
+            query?: {
+                employee_id?: string | null;
+                source?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_LeadRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_lead_api_v1_leads_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LeadRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lead_api_v1_leads__lead_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LeadRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_lead_api_v1_leads__lead_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_lead_api_v1_leads__lead_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LeadRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    convert_lead_api_v1_leads__lead_id__convert_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConvertLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_lead_api_v1_leads__lead_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     my_skill_bundle_api_v1_my_skill_bundle_get: {
         parameters: {
             query?: never;
@@ -20434,6 +22516,245 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ObjectTypeDefinitionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_opportunities_api_v1_opportunities_get: {
+        parameters: {
+            query?: {
+                employee_id?: string | null;
+                customer_id?: string | null;
+                lead_id?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_OpportunityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_opportunity_api_v1_opportunities_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOpportunityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_opportunity_api_v1_opportunities__opportunity_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_opportunity_api_v1_opportunities__opportunity_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_opportunity_api_v1_opportunities__opportunity_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOpportunityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_opportunity_api_v1_opportunities__opportunity_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -28611,6 +30932,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_WorkflowDefinitionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_setup_report_api_v1_workspace_setup_report_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

@@ -35,6 +35,8 @@ from app.models import (
     ExpenseClaim,
     ExpenseItem,
     Invoice,
+    Lead,
+    Opportunity,
     InvoiceItem,
     Payment,
     Product,
@@ -60,6 +62,8 @@ from app.schemas import (
     EmployeeLeaveRead,
     ExpenseClaimRead,
     InvoiceRead,
+    LeadRead,
+    OpportunityRead,
     PaymentRead,
     PurchaseOrderAdjustmentRead,
     PurchaseOrderItemRead,
@@ -389,6 +393,30 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         "shipment", advance_permission=None,
         owner_checked=False, attributed_delete=False,
         number_prefix="SH-", number_field="shipment_no", lock_scope="shipment_number",
+    ),
+    Lead: DocumentFamily(
+        # the pipeline's front door: personal like a quotation (my leads are
+        # mine to work), approval-free like a shipment — one grant files AND
+        # advances, and the same grant drives the conversion bridge
+        "lead", "lead details", "lead",
+        "crm.own", LeadRead, "lead",
+        lambda d: {
+            "lead_no": d.lead_no,
+            "company_name": d.company_name,
+            "contact_name": d.contact_name,
+        },
+        "lead", advance_permission=None,
+        attributed_delete=False,
+        number_prefix="LD-", number_field="lead_no", lock_scope="lead_number",
+    ),
+    Opportunity: DocumentFamily(
+        "opportunity", "opportunity details", "opportunity",
+        "crm.own", OpportunityRead, "opportunity",
+        lambda d: {"opportunity_no": d.opportunity_no, "title": d.title},
+        "opportunity", advance_permission=None,
+        attributed_delete=False,
+        number_prefix="OPP-", number_field="opportunity_no",
+        lock_scope="opportunity_number",
     ),
     Invoice: DocumentFamily(
         # invoicing is a finance function like procurement — no owner-own limit

@@ -27,7 +27,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # `docs/policies.md` resolves there and cannot resolve here. It is still
 # checked — this same test runs inside the export, by which point that file IS
 # the root README.
-RECORDS = {"ops", "artifacts", "test-results", "site", "public"}
+#
+# `docsite/` is the same shape one build over: `docsite/scripts/build_content.py`
+# assembles authored pages NEXT TO the manual it copies out of docs/, so
+# `authored/index.md`'s `manual/install.md` resolves on the built site and
+# cannot resolve here. The built site is where those links live.
+RECORDS = {"ops", "artifacts", "test-results", "site", "public", "docsite"}
 SKIP = {".git", ".venv", "node_modules", "__pycache__", ".claude", "dist", "build"}
 
 _LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")

@@ -283,6 +283,39 @@ DEFAULT_PAYMENT_MACHINE: dict = {
 }
 
 
+# Shipped defaults for the sales pipeline. No approval half in either: a
+# lead is qualified by the salesperson's judgment and an opportunity is won
+# by the customer's signature, neither of which is a review step. States are
+# the tenant's vocabulary as everywhere — rename or extend freely; the one
+# server-written state is the lead's `converted` (the conversion bridge
+# lands there), anchored by ROLE so renaming it keeps the bridge working.
+DEFAULT_LEAD_MACHINE: dict = {
+    "initial": "new",
+    "states": ["new", "contacted", "qualified", "converted", "disqualified"],
+    "transitions": {
+        "new": ["contacted", "qualified", "disqualified"],
+        "contacted": ["qualified", "disqualified"],
+        "qualified": ["converted", "disqualified"],
+        # a dead lead may come back to life — 半年后又有预算了
+        "disqualified": ["contacted"],
+        "converted": [],
+    },
+    "editable_states": ["new", "contacted", "qualified"],
+}
+
+DEFAULT_OPPORTUNITY_MACHINE: dict = {
+    "initial": "open",
+    "states": ["open", "quoting", "negotiating", "won", "lost"],
+    "transitions": {
+        "open": ["quoting", "negotiating", "won", "lost"],
+        "quoting": ["negotiating", "won", "lost"],
+        "negotiating": ["won", "lost"],
+        "won": [],
+        "lost": [],
+    },
+    "editable_states": ["open", "quoting", "negotiating"],
+}
+
 # Fallback statuses for custom business object types without a machine —
 # the pre-existing free mode.
 DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "archived"}
@@ -305,6 +338,8 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "sales_return": DEFAULT_SALES_RETURN_MACHINE,
     "purchase_return": DEFAULT_PURCHASE_RETURN_MACHINE,
     "shipment": DEFAULT_SHIPMENT_MACHINE,
+    "lead": DEFAULT_LEAD_MACHINE,
+    "opportunity": DEFAULT_OPPORTUNITY_MACHINE,
     "invoice": DEFAULT_INVOICE_MACHINE,
     "payment": DEFAULT_PAYMENT_MACHINE,
 }
@@ -344,6 +379,13 @@ STATE_ROLES["payment"] = ("submitted", "paid")
 # a shipment is never submitted-for-approval: the warehouse records it and
 # moves it; the server writes none of its states by role
 STATE_ROLES["shipment"] = ()
+# the pipeline has no submit: the salesperson records and advances their own.
+# The lead keeps one anchor — the conversion bridge writes `converted` — and
+# the opportunity none: won/lost are the salesperson's PATCH, and closed_at
+# stamps on the literal names (the shipment convention: renamed states move
+# without stamping, and the fact is PATCHed by whoever knows it)
+STATE_ROLES["lead"] = ("converted",)
+STATE_ROLES["opportunity"] = ()
 
 
 def state_for_role(machine: dict, object_type: str, role: str) -> str:

@@ -54,12 +54,13 @@ MEMBER_READS: dict[tuple[str, str], str] = {
            "projects", "resources", "resource-bookings",
            "inventory-items", "inventory-item-details",
            "shipments", "shipment-items",
+           "leads", "opportunities",
            "external-document-links",
        )},
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
-       for r in ("customers", "vendors", "employees", "products", "product-skus",
-                 "product-prices", "supplier-products", "external-product-maps",
+       for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus",
+                 "product-prices", "supplier-products", "customer-products", "external-product-maps",
                  "type-options")},
     # --- coordination, naming, vocabulary ------------------------------------
     ("GET", "/api/v1/todos"): "todos are the coordination fabric",
@@ -91,6 +92,13 @@ ADMIN_ONLY_READS: tuple[tuple[str, str], ...] = (
     ("GET", "/api/v1/attachments/{attachment_id}"),
     ("GET", "/api/v1/attachments/{attachment_id}/content"),
     ("GET", "/api/v1/audit-logs"),
+    # the setup report exposes the access topology — roles, who holds what,
+    # what reaches nobody — the exact machinery this audit closed to members
+    ("GET", "/api/v1/workspace/setup-report"),
+    # the bank register is payroll-grade sensitive (cash position, salary
+    # payout lines) — the cashier's capability gates reads too (钱账分离)
+    ("GET", "/api/v1/fin-accounts"),
+    ("GET", "/api/v1/fin-account-transactions"),
 )
 
 

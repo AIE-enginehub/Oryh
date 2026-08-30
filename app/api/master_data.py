@@ -26,7 +26,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -45,6 +45,8 @@ from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
     Customer,
+    CustomerContact,
+    CustomerProduct,
     ExternalProductMap,
     InventoryItem,
     InventoryItemDetail,
@@ -76,7 +78,15 @@ from app.schemas import (
     ExternalProductMapEnvelope,
     ExternalProductMapListEnvelope,
     ExternalProductMapRead,
+    CreateCustomerContactRequest,
+    CreateCustomerProductRequest,
+    CustomerContactEnvelope,
+    CustomerContactListEnvelope,
+    CustomerContactRead,
     CustomerEnvelope,
+    CustomerProductEnvelope,
+    CustomerProductListEnvelope,
+    CustomerProductRead,
     CustomerListEnvelope,
     CustomerRead,
     InventoryItemDetailEnvelope,
@@ -97,6 +107,8 @@ from app.schemas import (
     SupplierProductEnvelope,
     SupplierProductListEnvelope,
     SupplierProductRead,
+    UpdateCustomerContactRequest,
+    UpdateCustomerProductRequest,
     UpdateCustomerRequest,
     UpdateExternalProductMapRequest,
     UpdateInventoryItemRequest,
@@ -1087,6 +1099,286 @@ def delete_supplier_product(
     db: Annotated[Session, Depends(get_db)],
 ):
     return archive_row(db, actor, SupplierProduct, supplier_product_id)
+
+
+# --- customer price agreements: SupplierProduct's sell-side mirror ----------
+
+
+@router.get("/customer-products", response_model=CustomerProductListEnvelope, response_model_exclude_unset=True)
+def list_customer_products(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    product_id: str | None = None,
+    customer_id: str | None = None,
+    # the reverse lookup this table exists for: the customer's PO says
+    # "货号 KH-3301" and the agent needs to know which product that is
+    customer_product_code: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    return list_rows(
+        db, select(CustomerProduct).where(CustomerProduct.tenant_id == tenant_id),
+        filters={
+            CustomerProduct.product_id: product_id,
+            CustomerProduct.customer_id: customer_id,
+            CustomerProduct.customer_product_code: customer_product_code,
+            CustomerProduct.status: status_filter,
+        },
+        order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=CustomerProductRead,
+    )
+
+
+@router.post(
+    "/customer-products",
+    response_model=CustomerProductEnvelope,
+    response_model_exclude_unset=True,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_customer_product(
+    payload: CreateCustomerProductRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    get_scoped_or_404(db, Product, tenant_id, payload.product_id)
+    get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
+    existing = db.scalar(
+        select(CustomerProduct).where(
+            CustomerProduct.tenant_id == tenant_id,
+            CustomerProduct.product_id == payload.product_id,
+            CustomerProduct.customer_id == payload.customer_id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"agreement {existing.id} already exists for this (product, customer) — "
+                "PATCH it; an archived agreement revives by setting status active"
+            ),
+        )
+    agreement = CustomerProduct(
+        tenant_id=tenant_id,
+        product_id=payload.product_id,
+        customer_id=payload.customer_id,
+        customer_product_code=payload.customer_product_code,
+        customer_product_name=payload.customer_product_name,
+        agreed_price=payload.agreed_price,
+        currency=payload.currency,
+        min_order_quantity=payload.min_order_quantity,
+        order_increment=payload.order_increment,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(agreement)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an agreement for this (product, customer) already exists",
+        )
+    db.refresh(agreement)
+    return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
+
+
+@router.get(
+    "/customer-products/{customer_product_id}",
+    response_model=CustomerProductEnvelope,
+    response_model_exclude_unset=True,
+)
+def get_customer_product(
+    customer_product_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    agreement = get_scoped_or_404(db, CustomerProduct, tenant_id, customer_product_id)
+    return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
+
+
+@router.patch(
+    "/customer-products/{customer_product_id}",
+    response_model=CustomerProductEnvelope,
+    response_model_exclude_unset=True,
+)
+def update_customer_product(
+    customer_product_id: str,
+    payload: UpdateCustomerProductRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    agreement = get_scoped_or_404(db, CustomerProduct, actor.tenant_id, customer_product_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "metadata" in updates:
+        agreement.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(agreement, field, value)
+    db.commit()
+    db.refresh(agreement)
+    return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
+
+
+@router.delete("/customer-products/{customer_product_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer_product(
+    customer_product_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, CustomerProduct, customer_product_id)
+
+
+# --- customer contacts: the rolodex behind a B2B account --------------------
+
+
+def _demote_current_primary(db: Session, tenant_id: str, customer_id: str) -> None:
+    """Setting a new primary DEMOTES the old one in the same write — the
+    rolodex semantic: "the" contact is one question with one answer, and
+    making callers un-set the old primary first would turn every change into
+    a two-step dance that half the time stops after step one. The partial
+    unique index stays as the backstop for the race this cannot see."""
+    db.execute(
+        update(CustomerContact)
+        .where(
+            CustomerContact.tenant_id == tenant_id,
+            CustomerContact.customer_id == customer_id,
+            CustomerContact.is_primary.is_(True),
+        )
+        .values(is_primary=False)
+        .execution_options(synchronize_session=False)
+    )
+
+
+@router.get("/customer-contacts", response_model=CustomerContactListEnvelope,
+            response_model_exclude_unset=True)
+def list_customer_contacts(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    customer_id: str | None = None,
+    phone: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    return list_rows(
+        db, select(CustomerContact).where(CustomerContact.tenant_id == tenant_id),
+        filters={
+            CustomerContact.customer_id: customer_id,
+            CustomerContact.phone: phone,
+            CustomerContact.status: status_filter,
+        },
+        keyword=keyword,
+        keyword_columns=(
+            CustomerContact.name, CustomerContact.title,
+            CustomerContact.wechat, CustomerContact.email,
+        ),
+        # the primary first, then the rest by arrival — the order a person
+        # answering "找谁" actually wants
+        order_by=(
+            CustomerContact.is_primary.desc(),
+            CustomerContact.created_at.asc(),
+            CustomerContact.id.asc(),
+        ),
+        pagination=page_only_pagination(page, size),
+        read_model=CustomerContactRead,
+    )
+
+
+@router.post("/customer-contacts", response_model=CustomerContactEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_customer_contact(
+    payload: CreateCustomerContactRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
+    if payload.is_primary:
+        _demote_current_primary(db, tenant_id, payload.customer_id)
+    contact = CustomerContact(
+        tenant_id=tenant_id,
+        customer_id=payload.customer_id,
+        name=payload.name,
+        title=payload.title,
+        phone=payload.phone,
+        wechat=payload.wechat,
+        email=payload.email,
+        is_primary=payload.is_primary,
+        status=payload.status,
+        remarks=payload.remarks,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(contact)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "an active contact with this phone already exists at this "
+                "customer — the same number twice is a duplicate person; "
+                "PATCH that row, or archive it first"
+            ),
+        )
+    db.refresh(contact)
+    return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
+
+
+@router.get("/customer-contacts/{contact_id}", response_model=CustomerContactEnvelope,
+            response_model_exclude_unset=True)
+def get_customer_contact(
+    contact_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    contact = get_scoped_or_404(db, CustomerContact, tenant_id, contact_id)
+    return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
+
+
+@router.patch("/customer-contacts/{contact_id}", response_model=CustomerContactEnvelope,
+              response_model_exclude_unset=True)
+def update_customer_contact(
+    contact_id: str,
+    payload: UpdateCustomerContactRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    contact = get_scoped_or_404(db, CustomerContact, actor.tenant_id, contact_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if updates.get("is_primary") and not contact.is_primary:
+        _demote_current_primary(db, actor.tenant_id, contact.customer_id)
+    if "metadata" in updates:
+        contact.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(contact, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an active contact with this phone already exists at this customer",
+        )
+    db.refresh(contact)
+    return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
+
+
+@router.delete("/customer-contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer_contact(
+    contact_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, CustomerContact, contact_id)
 
 
 # --- external product maps: what a platform's ids mean in our catalog ------

@@ -671,6 +671,81 @@ def test_channel_order_translation_is_taught_where_each_agent_reads() -> None:
         "the warehouse lost the link that names a frozen row later"
 
 
+def test_the_rolodex_is_taught_where_the_catalog_desk_reads() -> None:
+    """The two rolodex rules live in prose: one primary (demotion is the
+    server's, not a two-step), and phone-dedup-per-customer with archiving
+    freeing the slot. Losing them turns the rolodex into a duplicate farm."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/customer-contacts" in curator, "the catalog desk owns the rolodex"
+    assert "demotes the old" in curator, "one primary, demotion in the same write"
+    assert "duplicate person" in curator, "phone dedup is per customer"
+
+
+def test_the_agreed_price_is_taught_where_prices_are_quoted() -> None:
+    """The agreement's one behavioural rule — agreed price beats the price
+    book for THAT customer — matters at the quoting desk, not just the
+    catalog desk. Losing it there makes the table decorative: agreements
+    exist and every quote still reads the general price."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/customer-products" in curator, "the catalog desk owns the agreements"
+    assert "REVIVES" in curator, "a lapsed pair revives — POST never forks it"
+    for desk in ("oryh-quotation-submit", "oryh-order-submit"):
+        text = (PRODUCT_SKILLS_DIR / desk / "SKILL.md").read_text(encoding="utf-8")
+        assert "agreed_price" in text and "/customer-products" in text, \
+            f"{desk} prices lines without consulting the customer's agreement"
+
+
+def test_the_pipeline_doctrine_is_written_where_the_salesperson_reads() -> None:
+    """The pipeline's three load-bearing rules live only in prose: convert
+    through the bridge (a bare status write loses WHICH customer), estimates
+    are not money (real amounts live downstream), and a lost deal returns as
+    a NEW opportunity while a dead lead revives. Losing them turns leads
+    into a parallel customer table nobody promoted."""
+    crm = (PRODUCT_SKILLS_DIR / "oryh-crm" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/leads/{id}/convert" in crm, "conversion goes through the bridge"
+    assert "NEW opportunity" in crm, "lost deals return as new deals"
+    assert "expected_amount" in crm and "quotations and orders" in crm, \
+        "estimates are not money — the real amounts live downstream"
+    for pointer in ("$oryh-quotation-submit", "$oryh-order-submit"):
+        assert pointer in crm, "the pipeline hands off where the money starts"
+
+
+def test_the_treasury_doctrine_is_written_where_the_cashier_reads() -> None:
+    """The register's three rules live only in prose: rows freeze (links are
+    the one writable part), balances derive (no field to set), and oryh holds
+    no platform credentials. Losing any of these turns the bank register into
+    a second editable ledger — the exact corruption it exists to prevent."""
+    treasury = (PRODUCT_SKILLS_DIR / "oryh-treasury" / "SKILL.md").read_text(encoding="utf-8")
+    assert "counter-entry" in treasury, "corrections are counter-entries, never edits"
+    assert "Balances derive" in treasury, "no balance field exists to set — say so"
+    assert "unlinked=true" in treasury, "the reconciliation queue is derived, read never remembered"
+    assert "own tools" in treasury and "no platform secrets" in treasury.lower() or \
+        "stores no platform secrets" in treasury, \
+        "oryh never holds PSP credentials — the tenant's agent fetches bills"
+    assert "gross" in treasury and "fee" in treasury, "the PSP three-number mapping"
+    for pointer in ("$oryh-payables", "$oryh-receivables"):
+        assert pointer in treasury, "the desks split; the skill says where payments live"
+
+
+def test_the_wizard_derives_and_never_stores() -> None:
+    """The setup wizard's two load-bearing sentences: progress comes from the
+    derived report (re-read after every handoff, never memory), and whether a
+    workspace USES an area is the administrator's judgment held in the
+    agent's context — oryh stores no module switches and no declared-off
+    registry, the product owner's explicit call. A wizard that starts
+    storing "done" marks or writes decisions into the server unwinds both."""
+    wizard = (PRODUCT_SKILLS_DIR / "oryh-workspace-setup" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/workspace/setup-report" in wizard, "the wizard lost its one read"
+    assert "workspace is\nthe state" in wizard or "workspace is the state" in wizard, \
+        "no wizard state anywhere — the workspace is the state"
+    assert "lives in YOUR context" in wizard, \
+        "module judgment stays in the agent's context — stored nowhere here"
+    assert "re-reading the report" in wizard, \
+        "verification is a fresh read, never memory — a live agent once reported rows from recall"
+    for handoff in ("$oryh-access-admin", "$oryh-master-data"):
+        assert handoff in wizard, f"the wizard orchestrates through {handoff}, never re-teaches"
+
+
 def test_returns_as_order_rows_are_taught_where_each_agent_reads() -> None:
     """The server holds the kind split; the BEHAVIOUR — a return is a row in
     the same collection naming its original, running its own e-commerce

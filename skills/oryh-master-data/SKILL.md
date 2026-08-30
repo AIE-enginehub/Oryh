@@ -216,6 +216,45 @@ Nothing here needs approval — master data is not a submitted document. The
 import is recorded in the tenant audit log as one `master_data.imported` event
 with its counts.
 
+## The Rolodex: People At A Customer
+
+A B2B customer is several PEOPLE — procurement, the equipment engineer, the
+finance desk — and `/customer-contacts` is where they live: name, title,
+phone, wechat, email, one row each, under the customer. The parent row's
+single `contact` column stays as the printed-document default; the rolodex
+answers "who receives the invoice" and "who signs the acceptance".
+
+- **One primary per customer**, and setting a new one demotes the old in
+  the same write — never do the two-step yourself.
+- **Same phone twice under one customer is a duplicate person** (409);
+  archive the stale row to free the number. The same person at TWO
+  customers is two rows — that is normal.
+- A contact sheet from the person imports as a loop of creates today; map
+  columns conversationally like every sheet (job title→title, mobile→phone), and
+  never invent a person a row does not name.
+- Documents keep their free-text contact snapshots on purpose — this table
+  is what agents CONSULT when writing them, not a FK they must resolve.
+
+## Customer Price Agreements
+
+`/customer-products` is the sell-side mirror of `/supplier-products`: one
+customer's standing terms for one product — THEIR item code and name for it
+(their purchase order says "item no. KH-3301", and this table is what makes
+that resolvable), the agreed price, minimum quantity, pack multiple. One
+row per (product, customer).
+
+- **The agreed price is the exception; the price book is the rule.** A
+  quote or order for a customer with an agreement uses `agreed_price`,
+  everyone else gets the price book — that is the whole reason this table
+  is separate from `/product-prices`.
+- **A lapsed agreement REVIVES, never forks.** POST on an existing pair —
+  active or archived — is a 409 pointing at the row: PATCH it. Price
+  changes update `agreed_price` in place; the paper trail is the
+  quotations and orders that carried each price, not this row.
+- A price agreement sheet imports like every sheet: map columns
+  conversationally (customer item no.→customer_product_code, agreed price→agreed_price),
+  and each row needs a customer and a product that already exist.
+
 ## The External Product Map
 
 Tenants selling through Tmall, JD, Amazon or a mini-program keep a

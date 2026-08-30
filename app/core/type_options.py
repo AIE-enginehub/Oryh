@@ -24,6 +24,12 @@ TYPE_NAME_PATTERN = r"^[a-z][a-z0-9_]{0,49}$"
 # family → (name, title, description); the shipped vocabulary each tenant
 # starts from. Order is display order.
 SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "fin_account_type": (
+        ("bank", "银行账户", "对公/对私银行户"),
+        ("cash", "现金", "备用金/现金柜"),
+        ("wallet", "第三方支付", "微信支付/支付宝/PayPal 等商户账户余额"),
+        ("other", "其他", "其余资金形态"),
+    ),
     "product_price_type": (
         ("list", "目录价", "对外目录/牌价，报价折扣的比较基准"),
         ("default", "默认售价", "无特殊约定时的默认成交价"),
