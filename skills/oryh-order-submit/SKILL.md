@@ -40,6 +40,9 @@ oryh:
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
 3. **From the won quotation** (the normal path): `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title` — the
+a channel order names the front it came through: `GET /stores?source=tmall`
+(the platform key, lowercase) finds the storefront and its id goes in
+`store_id` — an offline sale names the shop the same way. The
 customer's people live in `GET /customer-contacts?customer_id=` when you
 need who to name in `contact_name` (the snapshot stays free text), and the
 customer's negotiated terms in `GET /customer-products?customer_id=` — on a

@@ -64,6 +64,7 @@ from app.models import (
     ExpenseItem,
     Invoice,
     Lead,
+    Picklist,
     Opportunity,
     ObjectTypeDefinition,
     Payment,
@@ -783,6 +784,12 @@ def get_object_directory(
         or 0,
         "shipment": db.scalar(
             select(func.count()).select_from(Shipment).where(Shipment.tenant_id == tenant_id)
+        )
+        or 0,
+        "picklist": db.scalar(
+            select(func.count()).select_from(Picklist).where(
+                Picklist.tenant_id == tenant_id
+            )
         )
         or 0,
         "lead": db.scalar(

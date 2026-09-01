@@ -48,11 +48,15 @@ from app.models import (
     CustomerContact,
     CustomerProduct,
     ExternalProductMap,
+    Facility,
     InventoryItem,
     InventoryItemDetail,
     PurchaseOrder,
+    Store,
+    StoreFacility,
     SalesOrder,
     Product,
+    ProductCategory,
     ProductPrice,
     ProductSku,
     SupplierProduct,
@@ -70,6 +74,8 @@ from app.schemas import (
     CreateInventoryItemDetailRequest,
     CreateInventoryItemRequest,
     CreateProductPriceRequest,
+    CreateFacilityRequest,
+    CreateProductCategoryRequest,
     CreateProductRequest,
     CreateExternalProductMapRequest,
     CreateProductSkuRequest,
@@ -77,6 +83,9 @@ from app.schemas import (
     CreateVendorRequest,
     ExternalProductMapEnvelope,
     ExternalProductMapListEnvelope,
+    FacilityEnvelope,
+    FacilityListEnvelope,
+    FacilityRead,
     ExternalProductMapRead,
     CreateCustomerContactRequest,
     CreateCustomerProductRequest,
@@ -95,6 +104,9 @@ from app.schemas import (
     InventoryItemEnvelope,
     InventoryItemListEnvelope,
     InventoryItemRead,
+    ProductCategoryEnvelope,
+    ProductCategoryListEnvelope,
+    ProductCategoryRead,
     ProductEnvelope,
     ProductListEnvelope,
     ProductPriceEnvelope,
@@ -113,6 +125,18 @@ from app.schemas import (
     UpdateExternalProductMapRequest,
     UpdateInventoryItemRequest,
     UpdateProductPriceRequest,
+    CreateStoreFacilityRequest,
+    CreateStoreRequest,
+    StoreEnvelope,
+    StoreFacilityEnvelope,
+    StoreFacilityListEnvelope,
+    StoreFacilityRead,
+    StoreListEnvelope,
+    StoreRead,
+    UpdateFacilityRequest,
+    UpdateProductCategoryRequest,
+    UpdateStoreFacilityRequest,
+    UpdateStoreRequest,
     UpdateProductRequest,
     UpdateProductSkuRequest,
     UpdateSupplierProductRequest,
@@ -470,6 +494,554 @@ def delete_customer(
     return archive_row(db, actor, Customer, customer_id)
 
 
+# --- stores and facilities: where you sell, and where you ship from ---------
+
+
+def _require_active_row(db: Session, tenant_id: str, model, row_id: str, noun: str):
+    row = get_scoped_or_404(db, model, tenant_id, row_id)
+    if row.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{noun} {row_id} is archived — revive it (PATCH status active) first",
+        )
+    return row
+
+
+@router.get("/facilities", response_model=FacilityListEnvelope, response_model_exclude_unset=True)
+def list_facilities(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    facility_type: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db, select(Facility).where(Facility.tenant_id == tenant_id),
+        filters={Facility.facility_type: facility_type, Facility.status: status_filter},
+        keyword=keyword,
+        keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
+        order_by=(Facility.name.asc(), Facility.id.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=FacilityRead,
+    )
+
+
+@router.post("/facilities", response_model=FacilityEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_facility(
+    payload: CreateFacilityRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    require_type_option(db, tenant_id, "facility_type", payload.facility_type)
+    ensure_code_available(db, Facility, tenant_id, "facility_code", payload.facility_code)
+    facility = Facility(
+        tenant_id=tenant_id,
+        facility_code=payload.facility_code,
+        name=payload.name,
+        facility_type=payload.facility_type,
+        address=payload.address,
+        remarks=payload.remarks,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(facility)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"an active facility named {payload.name!r} already exists — the "
+                "stock ledger joins on this name, so two live facilities cannot share it"
+            ),
+        )
+    db.refresh(facility)
+    return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
+
+
+@router.get("/facilities/{facility_id}", response_model=FacilityEnvelope,
+            response_model_exclude_unset=True)
+def get_facility(
+    facility_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    facility = get_scoped_or_404(db, Facility, tenant_id, facility_id)
+    return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
+
+
+@router.patch("/facilities/{facility_id}", response_model=FacilityEnvelope,
+              response_model_exclude_unset=True)
+def update_facility(
+    facility_id: str,
+    payload: UpdateFacilityRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    facility = get_scoped_or_404(db, Facility, tenant_id, facility_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "facility_type" in updates:
+        require_type_option(db, tenant_id, "facility_type", updates["facility_type"])
+    if "facility_code" in updates:
+        ensure_code_available(
+            db, Facility, tenant_id, "facility_code", updates["facility_code"],
+            exclude_id=facility.id,
+        )
+    if "metadata" in updates:
+        facility.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(facility, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an active facility with this name already exists",
+        )
+    db.refresh(facility)
+    return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
+
+
+@router.delete("/facilities/{facility_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_facility(
+    facility_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, Facility, facility_id)
+
+
+@router.get("/stores", response_model=StoreListEnvelope, response_model_exclude_unset=True)
+def list_stores(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    channel: str | None = None,
+    source: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db, select(Store).where(Store.tenant_id == tenant_id),
+        filters={
+            Store.channel: channel,
+            Store.source: source.strip().lower() if source else None,
+            Store.status: status_filter,
+        },
+        keyword=keyword,
+        keyword_columns=(Store.name, Store.store_code, Store.address),
+        order_by=(Store.name.asc(), Store.id.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=StoreRead,
+    )
+
+
+@router.post("/stores", response_model=StoreEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_store(
+    payload: CreateStoreRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    ensure_code_available(db, Store, tenant_id, "store_code", payload.store_code)
+    store = Store(
+        tenant_id=tenant_id,
+        store_code=payload.store_code,
+        name=payload.name,
+        channel=payload.channel,
+        source=payload.source,
+        address=payload.address,
+        remarks=payload.remarks,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(store)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"an active store named {payload.name!r} already exists",
+        )
+    db.refresh(store)
+    return envelope(StoreRead.model_validate(store).model_dump(by_alias=True))
+
+
+@router.get("/stores/{store_id}", response_model=StoreEnvelope, response_model_exclude_unset=True)
+def get_store(
+    store_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    store = get_scoped_or_404(db, Store, tenant_id, store_id)
+    data = StoreRead.model_validate(store).model_dump(by_alias=True)
+    # the store's standing answer to "who ships for it", riding the read the
+    # agent already makes — preferred first, unranked trailing
+    links = db.scalars(
+        select(StoreFacility)
+        .where(
+            StoreFacility.tenant_id == tenant_id,
+            StoreFacility.store_id == store.id,
+            StoreFacility.status == "active",
+        )
+        .order_by(StoreFacility.priority.asc().nulls_last(), StoreFacility.created_at.asc())
+    ).all()
+    data["fulfilment_facilities"] = [
+        StoreFacilityRead.model_validate(link).model_dump(by_alias=True) for link in links
+    ]
+    return envelope(data)
+
+
+@router.patch("/stores/{store_id}", response_model=StoreEnvelope, response_model_exclude_unset=True)
+def update_store(
+    store_id: str,
+    payload: UpdateStoreRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    store = get_scoped_or_404(db, Store, actor.tenant_id, store_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "store_code" in updates:
+        ensure_code_available(
+            db, Store, actor.tenant_id, "store_code", updates["store_code"],
+            exclude_id=store.id,
+        )
+    if "metadata" in updates:
+        store.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(store, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an active store with this name already exists",
+        )
+    db.refresh(store)
+    return envelope(StoreRead.model_validate(store).model_dump(by_alias=True))
+
+
+@router.delete("/stores/{store_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_store(
+    store_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, Store, store_id)
+
+
+@router.get("/store-facilities", response_model=StoreFacilityListEnvelope,
+            response_model_exclude_unset=True)
+def list_store_facilities(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    store_id: str | None = None,
+    facility_id: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db, select(StoreFacility).where(StoreFacility.tenant_id == tenant_id),
+        filters={
+            StoreFacility.store_id: store_id,
+            StoreFacility.facility_id: facility_id,
+            StoreFacility.status: status_filter,
+        },
+        # preferred shippers first; unranked trail in arrival order
+        order_by=(
+            StoreFacility.priority.asc().nulls_last(),
+            StoreFacility.created_at.asc(),
+            StoreFacility.id.asc(),
+        ),
+        pagination=page_only_pagination(page, size),
+        read_model=StoreFacilityRead,
+    )
+
+
+@router.post("/store-facilities", response_model=StoreFacilityEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_store_facility(
+    payload: CreateStoreFacilityRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    _require_active_row(db, tenant_id, Store, payload.store_id, "store")
+    _require_active_row(db, tenant_id, Facility, payload.facility_id, "facility")
+    existing = db.scalar(
+        select(StoreFacility).where(
+            StoreFacility.tenant_id == tenant_id,
+            StoreFacility.store_id == payload.store_id,
+            StoreFacility.facility_id == payload.facility_id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"link {existing.id} already exists for this (store, facility) — "
+                "PATCH it; an archived link revives by setting status active"
+            ),
+        )
+    link = StoreFacility(
+        tenant_id=tenant_id,
+        store_id=payload.store_id,
+        facility_id=payload.facility_id,
+        priority=payload.priority,
+        remarks=payload.remarks,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(link)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="a link for this (store, facility) already exists",
+        )
+    db.refresh(link)
+    return envelope(StoreFacilityRead.model_validate(link).model_dump(by_alias=True))
+
+
+@router.patch("/store-facilities/{link_id}", response_model=StoreFacilityEnvelope,
+              response_model_exclude_unset=True)
+def update_store_facility(
+    link_id: str,
+    payload: UpdateStoreFacilityRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    link = get_scoped_or_404(db, StoreFacility, actor.tenant_id, link_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "metadata" in updates:
+        link.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(link, field, value)
+    db.commit()
+    db.refresh(link)
+    return envelope(StoreFacilityRead.model_validate(link).model_dump(by_alias=True))
+
+
+@router.delete("/store-facilities/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_store_facility(
+    link_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, StoreFacility, link_id)
+
+
+# --- product categories: the catalog's shelving -----------------------------
+
+
+def _require_usable_parent(
+    db: Session, tenant_id: str, parent_id: str | None, *, moving: ProductCategory | None = None
+) -> None:
+    """A parent must exist, be active, and not sit below the category being
+    moved — one walk up the ancestor chain refuses self, cycle and archived
+    shelf alike, with the fix in the message."""
+    if parent_id is None:
+        return
+    if moving is not None and parent_id == moving.id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="a category cannot be its own parent",
+        )
+    node = get_scoped_or_404(db, ProductCategory, tenant_id, parent_id)
+    if node.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"category {node.id} is archived — revive it (PATCH status "
+                "active) before shelving anything under it"
+            ),
+        )
+    seen: set[str] = set()
+    while node is not None:
+        if node.id in seen:
+            # a pre-existing loop in the data; refuse to extend it
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="the category tree already contains a cycle at this branch",
+            )
+        seen.add(node.id)
+        if moving is not None and node.parent_id == moving.id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"category {parent_id} sits below {moving.id} — moving a "
+                    "category under its own descendant would close a loop"
+                ),
+            )
+        node = (
+            get_scoped_or_404(db, ProductCategory, tenant_id, node.parent_id)
+            if node.parent_id else None
+        )
+
+
+def require_active_category(db: Session, tenant_id: str, category_id: str | None) -> None:
+    """Products file onto ACTIVE shelves only; existing products on a shelf
+    that later archives keep their pointer — history, not a cascade."""
+    if category_id is None:
+        return
+    category = get_scoped_or_404(db, ProductCategory, tenant_id, category_id)
+    if category.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"category {category_id} is archived — revive it or pick a "
+                "live one; products already on it keep their pointer"
+            ),
+        )
+
+
+@router.get("/product-categories", response_model=ProductCategoryListEnvelope,
+            response_model_exclude_unset=True)
+def list_product_categories(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    parent_id: str | None = None,
+    root_only: bool = False,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 200,
+):
+    stmt = select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
+    if root_only:
+        stmt = stmt.where(ProductCategory.parent_id.is_(None))
+    return list_rows(
+        db, stmt,
+        filters={
+            ProductCategory.parent_id: parent_id,
+            ProductCategory.status: status_filter,
+        },
+        keyword=keyword,
+        keyword_columns=(ProductCategory.name, ProductCategory.category_code),
+        order_by=(ProductCategory.name.asc(), ProductCategory.id.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=ProductCategoryRead,
+    )
+
+
+@router.post(
+    "/product-categories",
+    response_model=ProductCategoryEnvelope,
+    response_model_exclude_unset=True,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_product_category(
+    payload: CreateProductCategoryRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    ensure_code_available(
+        db, ProductCategory, tenant_id, "category_code", payload.category_code
+    )
+    _require_usable_parent(db, tenant_id, payload.parent_id)
+    category = ProductCategory(
+        tenant_id=tenant_id,
+        category_code=payload.category_code,
+        name=payload.name,
+        parent_id=payload.parent_id,
+        description=payload.description,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(category)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"an active category named {payload.name!r} already exists at "
+                "this level — two live folders with one name is a filing "
+                "error, not a second shelf"
+            ),
+        )
+    db.refresh(category)
+    return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
+
+
+@router.get("/product-categories/{category_id}", response_model=ProductCategoryEnvelope,
+            response_model_exclude_unset=True)
+def get_product_category(
+    category_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    category = get_scoped_or_404(db, ProductCategory, tenant_id, category_id)
+    return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
+
+
+@router.patch("/product-categories/{category_id}", response_model=ProductCategoryEnvelope,
+              response_model_exclude_unset=True)
+def update_product_category(
+    category_id: str,
+    payload: UpdateProductCategoryRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    category = get_scoped_or_404(db, ProductCategory, tenant_id, category_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "category_code" in updates:
+        ensure_code_available(
+            db, ProductCategory, tenant_id, "category_code", updates["category_code"],
+            exclude_id=category.id,
+        )
+    if "parent_id" in updates:
+        _require_usable_parent(db, tenant_id, updates["parent_id"], moving=category)
+    if "metadata" in updates:
+        category.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(category, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="an active category with this name already exists at the target level",
+        )
+    db.refresh(category)
+    return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
+
+
+@router.delete("/product-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product_category(
+    category_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, ProductCategory, category_id)
+
+
 # --- products, their SKUs, and the bulk upserts beside them ----------------
 
 
@@ -478,13 +1050,14 @@ def list_products(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
     keyword: str | None = None,
+    category_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
-        filters={Product.status: status_filter},
+        filters={Product.status: status_filter, Product.category_id: category_id},
         keyword=keyword,
         # agents paste full codes ("E2E-20260801-001") into keyword — a
         # search that finds the product by name but not by its own code reads
@@ -509,10 +1082,12 @@ def create_product(
 ):
     require_master_data_manage(actor)
     ensure_code_available(db, Product, actor.tenant_id, "product_code", payload.product_code)
+    require_active_category(db, actor.tenant_id, payload.category_id)
     product = Product(
         tenant_id=actor.tenant_id,
         product_code=payload.product_code,
         name=payload.name,
+        category_id=payload.category_id,
         spec=payload.spec,
         unit=payload.unit,
         list_price=payload.list_price,
@@ -666,6 +1241,8 @@ def update_product(
     require_master_data_manage(actor)
     product = get_scoped_or_404(db, Product, actor.tenant_id, product_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "category_id" in updates:
+        require_active_category(db, actor.tenant_id, updates["category_id"])
     if "product_code" in updates:
         ensure_code_available(
             db, Product, actor.tenant_id, "product_code", updates["product_code"],
@@ -1671,6 +2248,20 @@ def create_inventory_item(
                 detail="sku_id does not belong to product_id",
             )
     facility, lot_id = payload.facility.strip(), payload.lot_id.strip()
+    if payload.facility_id:
+        registered = get_scoped_or_404(db, Facility, tenant_id, payload.facility_id)
+        if not facility:
+            # the registered name backfills the identity string, so the two
+            # spellings of "which warehouse" cannot drift apart at birth
+            facility = registered.name
+        elif facility != registered.name:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"facility {facility!r} does not match facility_id's registered "
+                    f"name {registered.name!r} — pass one, or make them agree"
+                ),
+            )
     existing = _find_item(db, tenant_id, payload.product_id, payload.sku_id, facility, lot_id)
     if existing is not None:
         raise HTTPException(
@@ -1685,6 +2276,7 @@ def create_inventory_item(
         product_id=payload.product_id,
         sku_id=payload.sku_id,
         facility=facility,
+        facility_id=payload.facility_id,
         lot_id=lot_id,
         bin_number=payload.bin_number,
         expire_date=payload.expire_date,
@@ -1858,6 +2450,27 @@ def create_inventory_item_detail(
         get_scoped_or_404(db, SalesOrder, actor.tenant_id, payload.sales_order_id)
     if payload.purchase_order_id:
         get_scoped_or_404(db, PurchaseOrder, actor.tenant_id, payload.purchase_order_id)
+    if payload.reason in ("reserved", "reservation_released"):
+        # the reservation pair moves AVAILABILITY only: goods held for an
+        # order have not moved, they have stopped being promisable. And a
+        # hold must say whose it is, or nothing can ever consume it.
+        atp = payload.available_to_promise_diff
+        wrong_shape = (
+            payload.quantity_on_hand_diff != 0
+            or atp is None
+            or (payload.reason == "reserved" and atp >= 0)
+            or (payload.reason == "reservation_released" and atp <= 0)
+        )
+        if wrong_shape or not payload.sales_order_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "a reservation row moves availability only: quantity_on_hand_diff 0, "
+                    "available_to_promise_diff negative for `reserved` (占货) and positive "
+                    "for `reservation_released`, and sales_order_id naming whose goods "
+                    "are held — goods that actually moved are `issued`/`received`"
+                ),
+            )
     detail = post_inventory_detail(
         db,
         item=item,

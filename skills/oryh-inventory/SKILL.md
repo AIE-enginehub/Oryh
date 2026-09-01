@@ -136,6 +136,63 @@ movements reference it
 through (`entity_type`, `entity_id`). The ledger composes with tenant objects;
 nothing about this needs a product change.
 
+## Reservation: A Hold Is An Availability Fact, Not A Movement
+
+When an order lands and its goods must be held, post an ATP-only ledger
+row: `POST /inventory-item-details` with `reason: "reserved"`,
+`quantity_on_hand_diff: 0`, a negative `available_to_promise_diff`, and
+the `sales_order_id` whose goods these are — available drops, on-hand
+stays, and the hold says whose it is (the server refuses any other
+shape). Whether this workspace reserves at all is the same admin sentence
+that governs picking — a small shop that never holds stock is not wrong,
+and shipping without a hold simply moves both sums together.
+
+- **Never release what post-stock will.** When the shipment posts, the
+  server consumes the hold itself: a `reservation_released` row and the
+  `issued` row land in one posting, so ATP is not deducted twice and the
+  two sums agree again at rest.
+- **A cancelled order releases by hand**: post `reservation_released`
+  (ATP-only, positive, same `sales_order_id`) with the why in
+  `description`. The ledger then tells the whole story: held, given
+  back, nothing moved.
+- Over-selling shows itself here: a hold that would push available below
+  zero is the conversation to have with sales, not a number to fudge.
+
+## Picking: Whether And How This Workspace Picks
+
+**Whether to pick at all is the admin's call, stated in prose you read —
+never a stored switch.** A three-person shop ships straight from the shelf;
+a real warehouse walks a list. Before fulfilling a confirmed order, read
+the tenant's sales_order workflow definition
+(`GET /workflow-definitions?entity_kind=builtin&object_type=sales_order`):
+if it says picking is required ("pick before shipping" — one sentence is enough),
+create a picklist; if it says nothing about picking, ship directly. The
+admin changes the practice by editing that sentence (or this skill's
+calibration), not a config flag.
+
+Where picking IS the practice:
+
+1. **Create the run**: `POST /picklists` with `sales_order_id`, the
+   `facility_id` being walked, and lines — each line REQUIRES the stock
+   position (`inventory_item_id`): naming where to take from is what a
+   picking list is for, and the position must hold the line's product. A
+   drop-ship line that touches no stock has no business on the list.
+2. **Walk it**: `PATCH /picklists/{id}` `draft → picking`; record reality
+   per line as you go — `PATCH /picklist-items/{id}
+   {"picked_quantity": …}` — a short pick (or a zero) is a fact, not an
+   error. Then `→ picked`: lines freeze; the list is now the handoff
+   record.
+3. **Pack and ship**: `POST /shipments` with `picklist_id` and NO items —
+   the server copies the picked lines (picked quantities win; zero picks
+   ship nothing), and refuses a picklist that picks for a different order.
+   Walk the shipment (`packed → shipped`), **post-stock once**, then close
+   the run: `PATCH /picklists/{id} {"status": "completed"}`. The order's
+   own `shipped` is the flow agent's write, supported by your shipment.
+
+The picklist is never the stock truth and never a router: stock moves when
+the SHIPMENT posts, and which facility a given order ships from is your
+call when you create the run.
+
 ## Shipments: The Freight Leg Is Yours Too
 
 A parcel or a truck is a `/shipments` document — OFBiz Shipment reduced to

@@ -316,6 +316,24 @@ DEFAULT_OPPORTUNITY_MACHINE: dict = {
     "editable_states": ["open", "quoting", "negotiating"],
 }
 
+# Shipped default for the picking run. Warehouse work like the shipment:
+# no approval half, one functional grant files and advances. `picked` is
+# the handoff point — the shipment copies the lines and the stock posts
+# there; `completed` closes the run after the goods left.
+DEFAULT_PICKLIST_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "picking", "picked", "completed", "cancelled"],
+    "transitions": {
+        "draft": ["picking", "cancelled"],
+        "picking": ["picked", "cancelled"],
+        "picked": ["completed", "cancelled"],
+        "completed": [],
+        "cancelled": [],
+    },
+    # picked_quantity is recorded WHILE picking, so lines stay editable there
+    "editable_states": ["draft", "picking"],
+}
+
 # Fallback statuses for custom business object types without a machine —
 # the pre-existing free mode.
 DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "archived"}
@@ -338,6 +356,7 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "sales_return": DEFAULT_SALES_RETURN_MACHINE,
     "purchase_return": DEFAULT_PURCHASE_RETURN_MACHINE,
     "shipment": DEFAULT_SHIPMENT_MACHINE,
+    "picklist": DEFAULT_PICKLIST_MACHINE,
     "lead": DEFAULT_LEAD_MACHINE,
     "opportunity": DEFAULT_OPPORTUNITY_MACHINE,
     "invoice": DEFAULT_INVOICE_MACHINE,
@@ -379,6 +398,8 @@ STATE_ROLES["payment"] = ("submitted", "paid")
 # a shipment is never submitted-for-approval: the warehouse records it and
 # moves it; the server writes none of its states by role
 STATE_ROLES["shipment"] = ()
+# picking is warehouse work too: recorded and advanced, never submitted
+STATE_ROLES["picklist"] = ()
 # the pipeline has no submit: the salesperson records and advances their own.
 # The lead keeps one anchor — the conversion bridge writes `converted` — and
 # the opportunity none: won/lost are the salesperson's PATCH, and closed_at

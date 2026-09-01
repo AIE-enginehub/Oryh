@@ -28,6 +28,41 @@ GET /type-options?family=customer_type       → the tenant's own customer categ
 Read before a big import when the person asks whether it will duplicate anything — but you do not
 need to: the upsert answers it definitively, and a dry run reports it.
 
+## Stores And Facilities
+
+```text
+GET    /facilities?facility_type=&status=&keyword=
+POST   /facilities               → {name, facility_type, facility_code?, address?}; type from the facility_type vocabulary; duplicate active name → 409
+PATCH  /facilities/{facility_id} · DELETE → archive (frees the name)
+
+GET    /stores?channel=&source=&status=&keyword=
+POST   /stores                   → {name, channel: offline|online, source?, store_code?, address?}
+GET    /stores/{store_id}        → includes fulfilment_facilities, preferred first
+PATCH  /stores/{store_id} · DELETE → archive; orders keep their pointer
+
+GET    /store-facilities?store_id=&facility_id=&status=
+POST   /store-facilities         → {store_id, facility_id, priority?}; 409 if the pair exists — PATCH it (archived revives)
+PATCH  /store-facilities/{link_id} · DELETE → archive
+```
+
+Sales orders may carry `store_id` (nullable); an archived store refuses new
+orders with the fix and keeps the old ones.
+
+## Product Categories (the shelving)
+
+```text
+GET    /product-categories?parent_id=&root_only=&status=&keyword=   → rows carry parent_name
+POST   /product-categories       → {name, category_code?, parent_id?, description?}; duplicate active sibling name → 409
+PATCH  /product-categories/{category_id}   → rename/move/revive; self or descendant parent → 422, archived parent → 409
+DELETE /product-categories/{category_id}   → archive; children and products keep their pointers
+```
+
+Products point at the tree: `category_id` on POST/PATCH `/products` (an
+archived category → 409 naming the fix), `GET /products?category_id=` filters
+one shelf, and a bulk product row may carry `category_code` — resolved
+against existing categories, never auto-created; explicit `null` takes the
+product off its shelf.
+
 ## Bulk Upsert
 
 ```text

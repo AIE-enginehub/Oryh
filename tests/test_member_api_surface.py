@@ -53,13 +53,14 @@ MEMBER_READS: dict[tuple[str, str], str] = {
            "approval-records", "approval-targets", "policies",
            "projects", "resources", "resource-bookings",
            "inventory-items", "inventory-item-details",
-           "shipments", "shipment-items",
+           "shipments", "shipment-items", "picklists", "picklist-items",
            "leads", "opportunities",
            "external-document-links",
        )},
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
-       for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus",
+       for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus", "product-categories",
+                 "facilities", "stores", "store-facilities",
                  "product-prices", "supplier-products", "customer-products", "external-product-maps",
                  "type-options")},
     # --- coordination, naming, vocabulary ------------------------------------

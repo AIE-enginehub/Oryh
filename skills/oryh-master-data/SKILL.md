@@ -216,6 +216,46 @@ Nothing here needs approval — master data is not a submitted document. The
 import is recorded in the tenant audit log as one `master_data.imported` event
 with its counts.
 
+## The Shelving: Product Categories
+
+`/product-categories` is a TREE the products hang off — one parent per
+category, `category_id` on the product row. It is master data like the
+products themselves: everyone reads it, this desk writes it.
+
+- **A sheet's category column is a tree to propose, not strings to file.**
+  Collect the distinct values, show the tree you would create ("Valves →
+  ball/gate — two levels, five shelves?"), get agreement, create the
+  categories FIRST, then import products with each row's `category_code`.
+  An unknown code in a bulk row is that row's error — the server never
+  invents a shelf, exactly as it never invents a vendor.
+- **Same name, two parents: fine. Same name, one parent: 409.** Two live
+  "Parts" folders at one level is a filing error; archiving frees the name.
+- **Archiving a shelf strands nothing.** Children and products keep their
+  pointers (history, not a cascade) — but NEW filing onto an archived
+  shelf is refused with "revive it first". Moving a category under its
+  own descendant is refused too; the tree cannot fold into itself.
+- A product needing two homes is a judgment call for the person — pick
+  the primary shelf; the other axis is usually a `customer_type`-style
+  vocabulary or a metadata tag, not a second tree.
+
+## Stores And Facilities: Where You Sell, Where You Ship From
+
+`/stores` are selling fronts (`channel`: offline door or online storefront)
+and `/facilities` are physical places (shop/warehouse/office — the tenant's
+`facility_type` vocabulary, extensible like every family). Both are this
+desk's to curate.
+
+- **The facility NAME is a join key.** The stock ledger and freight legs
+  carry facility as free text — register the facility FIRST and use its
+  exact name there, which is why two live facilities cannot share one.
+- **An online store's `source` is the channel key** external orders arrive
+  under (tmall/jd/…, lowercased) — the same key the external product map
+  uses, so "which store did this order belong to" is answerable.
+- **Fulfilment is a standing answer, not a router.** `/store-facilities`
+  rows say which facilities MAY ship for a store (priority ranks them, one
+  row per pair, archived pairs revive); which facility a given order
+  actually ships from stays the warehouse's call on the shipment.
+
 ## The Rolodex: People At A Customer
 
 A B2B customer is several PEOPLE — procurement, the equipment engineer, the

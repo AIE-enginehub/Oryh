@@ -681,6 +681,67 @@ def test_the_rolodex_is_taught_where_the_catalog_desk_reads() -> None:
     assert "duplicate person" in curator, "phone dedup is per customer"
 
 
+def test_the_hold_doctrine_is_written_where_the_keeper_reads() -> None:
+    """The reservation's three rules live in prose: 占货 is ATP-only and
+    names its order, post-stock consumes the hold itself (never release
+    what it will), and a cancelled order releases by hand. Losing them
+    either double-deducts availability or leaves phantom holds forever."""
+    keeper = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert '"reserved"' in keeper and "quantity_on_hand_diff: 0" in keeper.replace("`", ""), \
+        "the hold's exact shape is taught, not guessed"
+    assert "Never release what post-stock will" in keeper
+    assert "releases by hand" in keeper, "a cancelled order gives its hold back explicitly"
+
+
+def test_picking_is_a_sentence_the_agents_read_not_a_switch() -> None:
+    """The enablement doctrine: whether a workspace picks lives in the
+    tenant's own prose (workflow definition or calibration), read at
+    fulfilment time — no stored flag exists, on purpose. Losing this line
+    turns the choice into a config parameter, the exact thing the product
+    refuses to be."""
+    keeper = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/picklists" in keeper, "the warehouse owns the picking run"
+    assert "never a stored switch" in keeper, "enablement is prose the agent reads"
+    assert "picked quantities win" in keeper, "the handoff copies picks, not asks"
+    assert "post-stock once" in keeper, "stock still moves only through the one bridge"
+    # the flow half of the pin lives in a PRIVATE skill the open-core tree
+    # does not carry — a pin belongs to the tree that holds what it pins
+    flow_dir = PRODUCT_SKILLS_DIR / "oryh-order-approval-flow"
+    if flow_dir.is_dir():
+        flow = (flow_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert "picklist" in flow and "never a state you move" in flow, \
+            "the flow admin corroborates the run; the warehouse advances it"
+
+
+def test_the_storefronts_are_taught_where_orders_are_recorded() -> None:
+    """Two load-bearing rules live in prose: the facility NAME is the join
+    key the free-text ledger columns carry (register first, then use the
+    exact name), and fulfilment links are a standing answer, never a router
+    — the warehouse still picks the shipping facility per shipment. The
+    order desk learns to resolve a channel order's storefront by source."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/stores" in curator and "/facilities" in curator
+    assert "join key" in curator, "the ledger's free-text facility strings come from here"
+    assert "not a router" in curator, "fulfilment links never dispatch a given order"
+    orders = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "store_id" in orders and "/stores?source=" in orders, \
+        "the order desk resolves the storefront by the channel key"
+
+
+def test_the_shelving_is_taught_as_a_tree_to_propose() -> None:
+    """The one behavioural rule that keeps the tree from becoming a dump: a
+    sheet's category column becomes a PROPOSED tree the person agrees to,
+    created before the products import — and the server refuses to invent a
+    shelf from a bulk row. Losing this turns every import into a flat pile
+    of misspelled folders nobody chose."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/product-categories" in curator, "the catalog desk owns the shelving"
+    assert "a tree to propose" in curator, "category columns are proposed, never silently filed"
+    assert "invents a shelf" not in curator.replace("never\n  invents a shelf", "") and "invents a shelf" in curator, "unknown codes are the row's error"
+    api = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "references" / "api.md").read_text(encoding="utf-8")
+    assert "category_code" in api, "the bulk join key is documented where imports are taught"
+
+
 def test_the_agreed_price_is_taught_where_prices_are_quoted() -> None:
     """The agreement's one behavioural rule — agreed price beats the price
     book for THAT customer — matters at the quoting desk, not just the

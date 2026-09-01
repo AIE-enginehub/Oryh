@@ -1,18 +1,17 @@
 # Standalone (single-tenant, self-hosted) deployment: the whole product for
 # one company, no SaaS platform layer, no marketing site.
 #
-#   docker compose -f docker-compose.standalone.yml up -d
-#   docker compose -f docker-compose.standalone.yml logs api   # first-boot credentials
+#   docker compose up -d
+#   docker compose logs api   # first-boot credentials
 #
 # First boot creates the workspace and prints its credentials ONCE to the api
 # service log: the console sign-in (ORYH_STANDALONE_ADMIN_EMAIL, password
 # generated unless ORYH_STANDALONE_ADMIN_PASSWORD is set) and a service API
 # key for connecting agents. Open http://127.0.0.1:8080/ afterwards.
 #
-# Deliberately separate from docker-compose.yml (the cloud-posture stack) and
-# on its own volume: the two files model different products of the same code,
-# and sharing a database between postures is how a test cloud eats a real
-# workspace.
+# Runs on its own named volume. Point a second stack at an existing
+# database only if you mean to: sharing one between deployments is how a
+# throwaway stack eats a real workspace.
 
 services:
   db:
@@ -140,7 +139,7 @@ services:
   # model key. No bootstrap token — that mechanism exists for a fleet serving
   # many tenants, and here the credentials file IS the whole tenant set.
   #
-  #   docker compose -f docker-compose.standalone.yml --profile flow-runner up -d
+  #   docker compose --profile flow-runner up -d
   #
   # Without flow skills installed no default subscriptions exist, so the
   # runner idles until the workspace authors a flow skill and enables a

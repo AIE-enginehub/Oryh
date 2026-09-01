@@ -423,6 +423,63 @@ class CustomerContact(TenantRecord, MetadataJsonbMixin, Base):
     customer: Mapped[Customer] = relationship()
 
 
+class ProductCategory(TenantRecord, MetadataJsonbMixin, Base):
+    """The catalog's shelving: a tree of categories products hang off.
+    Modeled on OFBiz ProductCategory reduced to the agent-native core — no
+    rollup types, no category-member date ranges, ONE parent per category
+    (a product needing two homes is a product, not a second tree).
+
+    `category_code` is the import identity, nullable and partial-unique like
+    every master-data code — re-importing a code revives an archived row.
+    `name` is unique among ACTIVE siblings: two live "配件" folders under
+    one parent is a filing error, while the same name under two different
+    parents is normal shelving. Archiving frees the name slot (the archived
+    row is history) and neither detaches children nor touches products —
+    what to do with a retired shelf's contents is the catalog desk's
+    judgment, not a cascade."""
+
+    __tablename__ = "product_categories"
+    __table_args__ = (
+        Index(
+            "product_categories_tenant_code_uq",
+            "tenant_id", "category_code",
+            unique=True,
+            postgresql_where=text("category_code IS NOT NULL"),
+            sqlite_where=text("category_code IS NOT NULL"),
+        ),
+        Index(
+            "product_categories_root_name_uq",
+            "tenant_id", "name",
+            unique=True,
+            postgresql_where=text("parent_id IS NULL AND status = 'active'"),
+            sqlite_where=text("parent_id IS NULL AND status = 'active'"),
+        ),
+        Index(
+            "product_categories_child_name_uq",
+            "tenant_id", "parent_id", "name",
+            unique=True,
+            postgresql_where=text("parent_id IS NOT NULL AND status = 'active'"),
+            sqlite_where=text("parent_id IS NOT NULL AND status = 'active'"),
+        ),
+    )
+
+    category_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str] = mapped_column(String(100))
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("product_categories.id"), nullable=True, index=True
+    )
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    parent: Mapped["ProductCategory | None"] = relationship(remote_side="ProductCategory.id")
+
+    @property
+    def parent_name(self) -> str | None:
+        """Denormalized for reads: a category list is read as a tree, and the
+        agent should not need a second query per row to say where one sits."""
+        return self.parent.name if self.parent is not None else None
+
+
 class Product(TenantRecord, MetadataJsonbMixin, Base):
     """Product/goods master data. Referenced by purchase-request items; a
     requisition line may also carry free text only when the item isn't in
@@ -447,12 +504,23 @@ class Product(TenantRecord, MetadataJsonbMixin, Base):
 
     product_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
+    # where this product sits on the catalog's shelving; nullable because a
+    # catalog without categories is a legal catalog
+    category_id: Mapped[str | None] = mapped_column(
+        ForeignKey("product_categories.id"), nullable=True, index=True
+    )
     spec: Mapped[str | None] = mapped_column(String(200), nullable=True)
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # reference price for the agent's deviation check, not a hard limit
     list_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     status: Mapped[str] = mapped_column(String(20), default="active")
+
+    category: Mapped[ProductCategory | None] = relationship()
+
+    @property
+    def category_name(self) -> str | None:
+        return self.category.name if self.category is not None else None
 
 
 class ProductSku(TenantRecord, MetadataJsonbMixin, Base):
@@ -599,6 +667,125 @@ class CustomerProduct(TenantRecord, MetadataJsonbMixin, Base):
         """Denormalized for reads, as vendor_name is on the buy side: a list
         of agreements should say whose they are without a query per row."""
         return self.customer.name if self.customer is not None else None
+
+
+class Facility(TenantRecord, MetadataJsonbMixin, Base):
+    """A physical place the company operates — 店铺/仓库/办公室/工厂 —
+    modeled on OFBiz Facility minus the location/container machinery.
+    `facility_type` is the tenant-extensible `facility_type` vocabulary.
+
+    The stock ledger and freight legs name facilities by NAME (free text —
+    it is part of the stock position's identity and is not rewritten under
+    a live ledger); this registry is where those names should COME from,
+    which is why `name` is unique among active rows: two live facilities
+    with one name would make the ledger's strings ambiguous."""
+
+    __tablename__ = "facilities"
+    __table_args__ = (
+        Index(
+            "facilities_tenant_code_uq",
+            "tenant_id", "facility_code",
+            unique=True,
+            postgresql_where=text("facility_code IS NOT NULL"),
+            sqlite_where=text("facility_code IS NOT NULL"),
+        ),
+        Index(
+            "facilities_tenant_name_uq",
+            "tenant_id", "name",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+    facility_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str] = mapped_column(String(100))
+    # 店铺/仓库/办公室/工厂/... — the tenant-extensible facility_type family
+    facility_type: Mapped[str] = mapped_column(String(50))
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+
+class Store(TenantRecord, MetadataJsonbMixin, Base):
+    """A selling front, on OFBiz ProductStore's footprint reduced to the
+    agent-native core: WHERE the company sells, offline or online —
+    `channel` is the closed pair, universal like customer_kind and not the
+    tenant's to extend. An online store may carry `source`: the lowercase
+    channel key external orders arrive under (tmall/jd/…) — the SAME join
+    key the external product map and document links use, so "which store
+    did this Tmall order belong to" is answerable by equality.
+
+    Which facilities may SHIP for this store lives in StoreFacility rows,
+    not a column: several stores can share a warehouse and a store can
+    ship from several, with priority saying which first."""
+
+    __tablename__ = "stores"
+    __table_args__ = (
+        Index(
+            "stores_tenant_code_uq",
+            "tenant_id", "store_code",
+            unique=True,
+            postgresql_where=text("store_code IS NOT NULL"),
+            sqlite_where=text("store_code IS NOT NULL"),
+        ),
+        Index(
+            "stores_tenant_name_uq",
+            "tenant_id", "name",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+        CheckConstraint(
+            "channel in ('offline', 'online')",
+            name="stores_channel_chk",
+        ),
+    )
+
+    store_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str] = mapped_column(String(100))
+    channel: Mapped[str] = mapped_column(String(10))
+    # the external channel key this store's orders arrive under; lowercase,
+    # the external-map convention. Offline stores simply leave it null.
+    source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+
+class StoreFacility(TenantRecord, MetadataJsonbMixin, Base):
+    """One store may ship from one facility — OFBiz ProductStoreFacility as
+    a plain link: one row per (store, facility), `priority` ranking the
+    candidates (lower first, null unranked), status archiving a lapsed
+    arrangement with the pair reviving like the price agreement. Which
+    facility a GIVEN order actually ships from stays the warehouse's call
+    on the shipment — this table is the store's standing answer, not a
+    router."""
+
+    __tablename__ = "store_facilities"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "store_id", "facility_id",
+            name="store_facilities_tenant_store_facility_uk",
+        ),
+    )
+
+    store_id: Mapped[str] = mapped_column(ForeignKey("stores.id"), index=True)
+    facility_id: Mapped[str] = mapped_column(ForeignKey("facilities.id"), index=True)
+    priority: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    store: Mapped[Store] = relationship()
+    facility: Mapped[Facility] = relationship()
+
+    @property
+    def store_name(self) -> str | None:
+        return self.store.name if self.store is not None else None
+
+    @property
+    def facility_name(self) -> str | None:
+        return self.facility.name if self.facility is not None else None
 
 
 class ExternalProductMap(TenantRecord, MetadataJsonbMixin, Base):
@@ -751,6 +938,13 @@ class InventoryItem(TenantRecord, MetadataJsonbMixin, Base):
     sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True, index=True)
     # 仓库 and 库位/批号 as the person names them — free text, '' = unspecified
     facility: Mapped[str] = mapped_column(String(100), default="")
+    # pointer into the facilities REGISTRY; the string above stays the
+    # position's identity (unchangeable under a live ledger), this FK is the
+    # registered fact beside it — nullable because positions predate the
+    # registry and 直发 flows never touch one
+    facility_id: Mapped[str | None] = mapped_column(
+        ForeignKey("facilities.id"), nullable=True, index=True
+    )
     lot_id: Mapped[str] = mapped_column(String(64), default="")
     bin_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
     expire_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -828,6 +1022,72 @@ class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJson
     item: Mapped[InventoryItem] = relationship()
 
 
+class Picklist(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """A picking run: which product to take from which stock POSITION, how
+    many — OFBiz Picklist/PicklistItem reduced to the agent-native core (no
+    bins-per-wave, no picker assignment machinery; who picks is a todo).
+
+    Whether a workspace picks AT ALL is the admin's judgment, stated in one
+    sentence where the fulfilment agents read (the sales-order workflow
+    definition or the inventory skill's calibration) — never a stored
+    switch: a three-person shop ships straight from the shelf and a
+    picklist would be ceremony. Where picking IS the practice, the list is
+    the warehouse's working document: `inventory.manage` files and
+    advances it like a shipment, everyone reads it.
+
+    The picklist is never the stock truth and never a router: stock moves
+    only through the inventory ledger when the SHIPMENT posts, and the
+    shipment (which may copy its lines from here via `picklist_id`) is the
+    freight fact. Lines REQUIRE a position — a 直发 line that touches no
+    stock has no business on a picking list."""
+
+    __tablename__ = "picklists"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "picklist_no", name="picklists_picklist_no_uk"),
+    )
+
+    picklist_no: Mapped[str] = mapped_column(String(64))
+    sales_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
+    # the warehouse this run walks, from the facilities registry
+    facility_id: Mapped[str | None] = mapped_column(
+        ForeignKey("facilities.id"), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    facility_ref: Mapped["Facility | None"] = relationship()
+
+    @property
+    def facility_name(self) -> str | None:
+        return self.facility_ref.name if self.facility_ref is not None else None
+
+
+class PicklistItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One pick: this product, from this position, this many. `quantity` is
+    the ask; `picked_quantity` is what the picker actually took — null until
+    someone says, and a short pick is a fact to record, not an error."""
+
+    __tablename__ = "picklist_items"
+
+    picklist_id: Mapped[str] = mapped_column(ForeignKey("picklists.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True)
+    # REQUIRED, unlike the shipment line: naming the position is what a
+    # picking list is for
+    inventory_item_id: Mapped[str] = mapped_column(
+        ForeignKey("inventory_items.id"), index=True
+    )
+    quantity: Mapped[float] = mapped_column(Numeric(12, 2))
+    picked_quantity: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    picklist: Mapped[Picklist] = relationship()
+    inventory_item: Mapped["InventoryItem"] = relationship()
+
+
 class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One freight leg: goods physically moving in a parcel or a truck —
     Modeled on OFBiz Shipment, reduced to the agent-native shape (one leg,
@@ -868,6 +1128,10 @@ class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     )
     purchase_order_id: Mapped[str | None] = mapped_column(
         ForeignKey("purchase_orders.id"), nullable=True, index=True
+    )
+    # the picklist this leg fulfils, when the workspace picks before packing
+    picklist_id: Mapped[str | None] = mapped_column(
+        ForeignKey("picklists.id"), nullable=True, index=True
     )
     # OUR side of the leg — the warehouse it leaves from or arrives at, free
     # text like every facility; the far side is an address snapshot
@@ -1926,6 +2190,11 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
     customer_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # the selling front this order came through — a Tmall storefront, the
+    # downtown shop. Nullable: an order with no store is a legal fact
+    store_id: Mapped[str | None] = mapped_column(
+        ForeignKey("stores.id"), nullable=True, index=True
+    )
     contact_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # per-order ship-to — may differ from the customer master address
@@ -1966,6 +2235,13 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     customer: Mapped[Customer | None] = relationship()
     project: Mapped[Project | None] = relationship()
     items: Mapped[list["SalesOrderItem"]] = relationship(back_populates="order")
+    store: Mapped[Store | None] = relationship()
+
+    @property
+    def store_name(self) -> str | None:
+        """Denormalized for reads: which front an order came through should
+        not cost the agent a second query per row."""
+        return self.store.name if self.store is not None else None
 
 
 class SalesOrderItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):

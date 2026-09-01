@@ -319,9 +319,56 @@ CustomerListEnvelope = ListEnvelope[CustomerRead]
 CustomerEnvelope = Envelope[CustomerRead]
 
 
+ProductCategoryStatus = Literal["active", "archived"]
+
+
+class ProductCategoryBase(RequestModel):
+    category_code: str | None = Field(default=None, max_length=64)
+    parent_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    status: ProductCategoryStatus = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateProductCategoryRequest(ProductCategoryBase):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class UpdateProductCategoryRequest(RequestModel):
+    category_code: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    parent_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    status: ProductCategoryStatus | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class ProductCategoryRead(APIModel):
+    id: str
+    category_code: str | None = None
+    name: str
+    parent_id: str | None = None
+    parent_name: str | None = None
+    description: str | None = None
+    status: ProductCategoryStatus
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+ProductCategoryListEnvelope = ListEnvelope[ProductCategoryRead]
+
+
+ProductCategoryEnvelope = Envelope[ProductCategoryRead]
+
+
 class ProductBase(RequestModel):
     product_code: str | None = Field(default=None, max_length=64)
     name: str | None = Field(default=None, max_length=200)
+    category_id: str | None = None
     spec: str | None = Field(default=None, max_length=200)
     unit: str | None = Field(default=None, max_length=50)
     list_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
@@ -342,6 +389,8 @@ class ProductRead(APIModel):
     id: str
     product_code: str | None = None
     name: str
+    category_id: str | None = None
+    category_name: str | None = None
     spec: str | None = None
     unit: str | None = None
     list_price: float | None = None
@@ -418,6 +467,10 @@ class BulkSupplierRow(RequestModel):
 class BulkProductRow(ProductBase):
     product_code: str = Field(min_length=1, max_length=64)
     name: str = Field(max_length=200)
+    # joins the row to the category TREE by the tenant's own code — an
+    # unknown code is the row's error, never a category to invent; explicit
+    # null clears the product's category
+    category_code: str | None = Field(default=None, max_length=64)
     # optional price-book and supply-source writes alongside the product;
     # omitted lists leave existing rows alone, like every omitted field
     prices: list[BulkProductPriceRow] = Field(default_factory=list, max_length=50)
@@ -1084,6 +1137,151 @@ class _NormalizesSource(RequestModel):
         return v.strip().lower() if isinstance(v, str) else v
 
 
+StoreChannel = Literal["offline", "online"]
+
+
+class FacilityBase(RequestModel):
+    facility_code: str | None = Field(default=None, max_length=64)
+    # validated against the tenant's `facility_type` vocabulary at write
+    facility_type: str = Field(max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateFacilityRequest(FacilityBase):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class UpdateFacilityRequest(RequestModel):
+    facility_code: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    facility_type: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class FacilityRead(APIModel):
+    id: str
+    facility_code: str | None = None
+    name: str
+    facility_type: str
+    address: str | None = None
+    remarks: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+FacilityListEnvelope = ListEnvelope[FacilityRead]
+
+
+FacilityEnvelope = Envelope[FacilityRead]
+
+
+class StoreBase(_NormalizesSource):
+    store_code: str | None = Field(default=None, max_length=64)
+    # the external channel key this store's orders arrive under — lowercased
+    # by the same normalizer the product map uses; offline stores omit it
+    source: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateStoreRequest(StoreBase):
+    name: str = Field(min_length=1, max_length=100)
+    channel: StoreChannel
+
+
+class UpdateStoreRequest(_NormalizesSource):
+    store_code: str | None = Field(default=None, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    channel: StoreChannel | None = None
+    source: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class StoreRead(APIModel):
+    id: str
+    store_code: str | None = None
+    name: str
+    channel: StoreChannel
+    source: str | None = None
+    address: str | None = None
+    remarks: str | None = None
+    status: str
+    # present on the single-store read only: the standing fulfilment list,
+    # preferred first — lists omit it (exclude_unset)
+    fulfilment_facilities: list["StoreFacilityRead"] | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+StoreListEnvelope = ListEnvelope[StoreRead]
+
+
+StoreEnvelope = Envelope[StoreRead]
+
+
+class StoreFacilityBase(RequestModel):
+    priority: int | None = Field(default=None, ge=1, le=100)
+    remarks: str | None = Field(default=None, max_length=500)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateStoreFacilityRequest(StoreFacilityBase):
+    store_id: str
+    facility_id: str
+
+
+class UpdateStoreFacilityRequest(RequestModel):
+    # the (store, facility) pair is the row's identity and is not editable
+    priority: int | None = Field(default=None, ge=1, le=100)
+    remarks: str | None = Field(default=None, max_length=500)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class StoreFacilityRead(APIModel):
+    id: str
+    store_id: str
+    store_name: str | None = None
+    facility_id: str
+    facility_name: str | None = None
+    priority: int | None = None
+    remarks: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+StoreFacilityListEnvelope = ListEnvelope[StoreFacilityRead]
+
+
+StoreFacilityEnvelope = Envelope[StoreFacilityRead]
+
+
 class ExternalProductMapBase(_NormalizesSource):
     @field_validator("external_product_id", "external_sku_id", mode="before", check_fields=False)
     @classmethod
@@ -1204,11 +1402,18 @@ ExternalDocumentLinkEnvelope = Envelope[ExternalDocumentLinkRead]
 InventoryMovementReason = Literal[
     "initial", "import_initial", "import_override", "received", "issued",
     "adjustment", "damaged", "returned", "transfer", "other",
+    # the reservation pair: ATP-only rows. `reserved` holds goods for an
+    # order before anything ships (占货 — available drops, on-hand stays);
+    # `reservation_released` gives the hold back (a cancelled order, or
+    # post-stock consuming the hold as the goods actually leave)
+    "reserved", "reservation_released",
 ]
 InventoryItemStatus = Literal["active", "archived"]
 
 
 class CreateInventoryItemRequest(RequestModel):
+    # pointer into the facilities registry, beside the free-text identity
+    facility_id: str | None = None
     product_id: str
     sku_id: str | None = None
     facility: str = Field(default="", max_length=100)
@@ -1243,6 +1448,7 @@ class UpdateInventoryItemRequest(RequestModel):
 
 class InventoryItemRead(APIModel):
     id: str
+    facility_id: str | None = None
     product_id: str
     product_code: str | None = None
     sku_id: str | None = None
@@ -1337,6 +1543,93 @@ class ShipmentBase(RequestModel):
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
 
+class PicklistItemBase(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    product_id: str
+    sku_id: str | None = None
+    # naming the position is what a picking list is for — required
+    inventory_item_id: str
+    quantity: float = Field(gt=0, le=9_999_999.99)
+    picked_quantity: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class PicklistBase(RequestModel):
+    sales_order_id: str | None = None
+    facility_id: str | None = None
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreatePicklistRequest(PicklistBase):
+    picklist_no: str | None = Field(default=None, max_length=64)
+    items: list[PicklistItemBase] = Field(default_factory=list, max_length=200)
+
+
+class UpdatePicklistRequest(RequestModel):
+    sales_order_id: str | None = None
+    facility_id: str | None = None
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class CreatePicklistItemRequest(PicklistItemBase):
+    picklist_id: str
+
+
+class UpdatePicklistItemRequest(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    sku_id: str | None = None
+    inventory_item_id: str | None = None
+    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    picked_quantity: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class PicklistItemRead(APIModel):
+    id: str
+    picklist_id: str
+    line_no: int | None = None
+    product_id: str
+    sku_id: str | None = None
+    inventory_item_id: str
+    quantity: float
+    picked_quantity: float | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PicklistRead(APIModel):
+    id: str
+    picklist_no: str
+    sales_order_id: str | None = None
+    facility_id: str | None = None
+    facility_name: str | None = None
+    status: str
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+PicklistItemListEnvelope = ListEnvelope[PicklistItemRead]
+
+
+PicklistItemEnvelope = Envelope[PicklistItemRead]
+
+
+PicklistListEnvelope = ListEnvelope[PicklistRead]
+
+
+PicklistEnvelope = Envelope[PicklistRead]
+
+
 class ShipmentItemBase(RequestModel):
     line_no: int | None = Field(default=None, ge=1, le=9999)
     product_id: str
@@ -1349,6 +1642,9 @@ class ShipmentItemBase(RequestModel):
 
 class CreateShipmentRequest(ShipmentBase):
     direction: ShipmentDirection
+    # the picking run this leg fulfils; with no items given, the lines are
+    # COPIED from it (picked quantities winning over asked ones)
+    picklist_id: str | None = None
     items: list[ShipmentItemBase] = Field(default_factory=list, max_length=200)
 
 
@@ -1400,6 +1696,7 @@ class ShipmentRead(APIModel):
     title: str | None = None
     sales_order_id: str | None = None
     purchase_order_id: str | None = None
+    picklist_id: str | None = None
     facility: str | None = None
     address: str | None = None
     carrier: str | None = None
@@ -1739,6 +2036,10 @@ class PostedStockLineRead(BaseModel):
     shipment_item_id: str
     inventory_item_id: str | None = None
     quantity_on_hand_diff: float | None = None
+    # how much of this line's quantity was covered by a standing reservation
+    # for the same (position, order) — released in the same posting, so ATP
+    # is not deducted twice for goods already held
+    reservation_released: float | None = None
     outcome: Literal["posted", "skipped_no_position"]
 
 
@@ -5522,6 +5823,7 @@ class SalesOrderBase(RequestModel):
     customer_id: str | None = None
     billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
+    store_id: str | None = None
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
     ship_to_address: str | None = Field(default=None, max_length=500)
@@ -5562,6 +5864,7 @@ class UpdateSalesOrderRequest(RequestModel):
     customer_id: str | None = None
     billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
+    store_id: str | None = None
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
     ship_to_address: str | None = Field(default=None, max_length=500)
@@ -5607,6 +5910,8 @@ class SalesOrderRead(APIModel):
     customer_id: str | None = None
     billing_account_id: str | None = None
     customer_name_snapshot: str | None = None
+    store_id: str | None = None
+    store_name: str | None = None
     contact_name: str | None = None
     contact_phone: str | None = None
     ship_to_address: str | None = None

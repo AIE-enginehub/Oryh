@@ -22,7 +22,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Customer, Product, ProductPrice, SupplierProduct, Vendor
+from app.models import Customer, Product, ProductCategory, ProductPrice, SupplierProduct, Vendor
 from app.services.type_options import allowed_type_options
 
 # entity key → (model, code attribute). The route layer picks one; everything
@@ -300,6 +300,61 @@ def bulk_upsert(
     # unknown vendor is the row's error to take back to the person, never a
     # vendor to invent.
     vendors_by_code = _resolve_vendors(db, tenant_id, prepared, results)
+
+    # Category codes join product rows to the shelving tree — the vendor
+    # doctrine again: an unknown code is the row's error to take back to the
+    # person, never a category to invent, and an archived one names its fix.
+    # Explicit null clears the product's category; the code column never
+    # reaches the model (products carry category_id).
+    wanted_categories = sorted({
+        fields["category_code"]
+        for _i, _c, fields, _p, _s in prepared
+        if fields.get("category_code") is not None
+    })
+    categories_by_code = {}
+    if wanted_categories:
+        categories_by_code = {
+            c.category_code: c
+            for c in db.scalars(
+                select(ProductCategory).where(
+                    ProductCategory.tenant_id == tenant_id,
+                    ProductCategory.category_code.in_(wanted_categories),
+                )
+            )
+        }
+    if any("category_code" in fields for _i, _c, fields, _p, _s in prepared):
+        kept = []
+        for entry in prepared:
+            index, code, fields, _prices, _suppliers = entry
+            if "category_code" not in fields:
+                kept.append(entry)
+                continue
+            value = fields.pop("category_code")
+            if value is None:
+                fields["category_id"] = None
+                kept.append(entry)
+                continue
+            category = categories_by_code.get(value)
+            if category is None:
+                results.append({
+                    "index": index, "code": code, "outcome": "error",
+                    "error": (
+                        f"unknown category_code '{value}' — create the category "
+                        "first (POST /product-categories), never invent one"
+                    ),
+                })
+            elif category.status != "active":
+                results.append({
+                    "index": index, "code": code, "outcome": "error",
+                    "error": (
+                        f"category_code '{value}' is archived — revive it "
+                        "(PATCH status active) before filing products on it"
+                    ),
+                })
+            else:
+                fields["category_id"] = category.id
+                kept.append(entry)
+        prepared[:] = kept
 
     # Price types come from the tenant's vocabulary (shipped catalog plus
     # custom entries, minus archived) — an unknown one is the row's error.

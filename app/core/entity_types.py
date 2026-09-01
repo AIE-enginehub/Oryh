@@ -28,6 +28,7 @@ DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
     "lead",
     "opportunity",
     "payment",
+    "picklist",
     "purchase_order",
     "purchase_request",
     "sales_order",

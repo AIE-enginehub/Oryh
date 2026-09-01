@@ -82,6 +82,7 @@ from app.models import (
     SalesOrderAdjustment,
     SalesOrderItem,
     SalesQuotation,
+    Store,
     SalesQuotationAdjustment,
     SalesQuotationItem,
 )
@@ -211,6 +212,22 @@ def quote_drift(
         amount=amount,
         percent=round(amount / quote_total * 100, 2) if quote_total else None,
     )
+
+
+def require_active_store(db: Session, tenant_id: str, store_id: str | None) -> None:
+    """An order names the selling front it came through; filing one onto an
+    archived store is refused with the fix, existing orders keep theirs."""
+    if store_id is None:
+        return
+    store = get_scoped_or_404(db, Store, tenant_id, store_id)
+    if store.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"store {store_id} is archived — revive it or pick a live one; "
+                "orders already on it keep their pointer"
+            ),
+        )
 
 
 def normalize_customer_context(
@@ -961,6 +978,7 @@ def delete_sales_quotation_adjustment(
 def list_sales_orders(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    store_id: str | None = None,
     employee_id: str | None = None,
     customer_id: str | None = None,
     billing_account_id: str | None = None,
@@ -994,6 +1012,7 @@ def list_sales_orders(
         filters={
             SalesOrder.employee_id: employee_id,
             SalesOrder.customer_id: customer_id,
+            SalesOrder.store_id: store_id,
             SalesOrder.billing_account_id: billing_account_id,
             SalesOrder.quotation_id: quotation_id,
             SalesOrder.order_no: order_no,
@@ -1066,6 +1085,7 @@ def create_sales_order(
     customer_id, customer_name_snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
+    require_active_store(db, tenant_id, payload.store_id)
     if payload.project_id:
         get_scoped_or_404(db, Project, tenant_id, payload.project_id)
     charged_account = None
@@ -1092,6 +1112,7 @@ def create_sales_order(
         employee_id=payload.employee_id,
         customer_id=customer_id,
         customer_name_snapshot=customer_name_snapshot,
+        store_id=payload.store_id,
         contact_name=payload.contact_name,
         contact_phone=payload.contact_phone,
         ship_to_address=payload.ship_to_address,
@@ -1166,6 +1187,8 @@ def update_sales_order(
     enforce_member_employee(actor, order.employee_id)
     updates = payload.model_dump(exclude_unset=True)
     ensure_content_edit_allowed(actor, "order", updates)
+    if "store_id" in updates:
+        require_active_store(db, tenant_id, updates["store_id"])
     if "original_order_id" in updates:
         if order.order_kind != "return":
             raise HTTPException(

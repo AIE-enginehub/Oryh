@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260830_0071
+-- Alembic revision: 20260901_0075
 --
 
 --
@@ -90,7 +90,7 @@ CREATE TABLE oryh.approval_records (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     historical_conflict_closed boolean DEFAULT false NOT NULL,
     CONSTRAINT approval_records_action_chk CHECK ((action = ANY (ARRAY['submitted'::text, 'approved'::text, 'rejected'::text, 'returned'::text, 'commented'::text]))),
-    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
+    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
     CONSTRAINT approval_records_round_no_chk CHECK ((round_no >= 1)),
     CONSTRAINT approval_records_sequence_no_chk CHECK ((sequence_no >= 1)),
     CONSTRAINT approval_records_source_chk CHECK (((source = ANY (ARRAY['web'::text, 'api'::text, 'ai'::text, 'system'::text])) OR (source IS NULL)))
@@ -547,6 +547,26 @@ CREATE TABLE oryh.external_product_maps (
 
 
 --
+-- Name: facilities; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.facilities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    facility_code character varying(64),
+    name character varying(100) NOT NULL,
+    facility_type character varying(50) NOT NULL,
+    address character varying(500),
+    remarks text,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT facilities_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
 -- Name: fin_account_transactions; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -687,7 +707,8 @@ CREATE TABLE oryh.inventory_items (
     status text DEFAULT 'active'::text NOT NULL,
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    facility_id uuid
 );
 
 
@@ -994,6 +1015,47 @@ CREATE TABLE oryh.pending_registrations (
 
 
 --
+-- Name: picklist_items; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.picklist_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    picklist_id uuid NOT NULL,
+    line_no integer,
+    product_id uuid NOT NULL,
+    sku_id uuid,
+    inventory_item_id uuid NOT NULL,
+    quantity numeric(12,2) NOT NULL,
+    picked_quantity numeric(12,2),
+    description character varying(500),
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: picklists; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.picklists (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    picklist_no character varying(64) NOT NULL,
+    sales_order_id uuid,
+    facility_id uuid,
+    status character varying(50) DEFAULT 'draft'::character varying NOT NULL,
+    remarks text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: platform_admins; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1063,6 +1125,25 @@ CREATE TABLE oryh.policies (
 
 
 --
+-- Name: product_categories; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.product_categories (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    category_code character varying(64),
+    name character varying(100) NOT NULL,
+    parent_id uuid,
+    description character varying(500),
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT product_categories_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
 -- Name: product_prices; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1120,6 +1201,7 @@ CREATE TABLE oryh.products (
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    category_id uuid,
     CONSTRAINT products_list_price_chk CHECK (((list_price IS NULL) OR (list_price >= (0)::numeric))),
     CONSTRAINT products_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
@@ -1454,6 +1536,7 @@ CREATE TABLE oryh.sales_orders (
     billing_account_id uuid,
     order_kind character varying(20) DEFAULT 'order'::character varying NOT NULL,
     original_order_id uuid,
+    store_id uuid,
     CONSTRAINT sales_orders_order_kind_chk CHECK (((order_kind)::text = ANY ((ARRAY['order'::character varying, 'return'::character varying])::text[]))),
     CONSTRAINT sales_orders_original_only_on_returns_check CHECK ((((order_kind)::text = 'return'::text) OR (original_order_id IS NULL))),
     CONSTRAINT sales_orders_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
@@ -1604,8 +1687,50 @@ CREATE TABLE oryh.shipments (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    picklist_id uuid,
     CONSTRAINT shipments_direction_chk CHECK (((direction)::text = ANY ((ARRAY['inbound'::character varying, 'outbound'::character varying])::text[]))),
     CONSTRAINT shipments_one_order_side_check CHECK (((sales_order_id IS NULL) OR (purchase_order_id IS NULL)))
+);
+
+
+--
+-- Name: store_facilities; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.store_facilities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    store_id uuid NOT NULL,
+    facility_id uuid NOT NULL,
+    priority integer,
+    remarks character varying(500),
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT store_facilities_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
+-- Name: stores; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.stores (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    store_code character varying(64),
+    name character varying(100) NOT NULL,
+    channel character varying(10) NOT NULL,
+    source character varying(50),
+    address character varying(500),
+    remarks text,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT stores_channel_chk CHECK (((channel)::text = ANY ((ARRAY['offline'::character varying, 'online'::character varying])::text[]))),
+    CONSTRAINT stores_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
 );
 
 
@@ -1760,7 +1885,7 @@ CREATE TABLE oryh.todos (
     todo_type text,
     created_by text,
     due_at timestamp with time zone,
-    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
+    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
     CONSTRAINT todos_status_chk CHECK ((status = ANY (ARRAY['open'::text, 'completed'::text, 'cancelled'::text])))
 );
 
@@ -2113,6 +2238,14 @@ ALTER TABLE ONLY oryh.external_product_maps
 
 
 --
+-- Name: facilities facilities_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.facilities
+    ADD CONSTRAINT facilities_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: fin_account_transactions fin_account_transactions_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2297,6 +2430,30 @@ ALTER TABLE ONLY oryh.pending_registrations
 
 
 --
+-- Name: picklist_items picklist_items_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklist_items
+    ADD CONSTRAINT picklist_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: picklists picklists_picklist_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklists
+    ADD CONSTRAINT picklists_picklist_no_uk UNIQUE (tenant_id, picklist_no);
+
+
+--
+-- Name: picklists picklists_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklists
+    ADD CONSTRAINT picklists_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: platform_admins platform_admins_email_key; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2342,6 +2499,14 @@ ALTER TABLE ONLY oryh.policies
 
 ALTER TABLE ONLY oryh.policies
     ADD CONSTRAINT policies_version_uk UNIQUE (tenant_id, code, version);
+
+
+--
+-- Name: product_categories product_categories_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.product_categories
+    ADD CONSTRAINT product_categories_pkey PRIMARY KEY (id);
 
 
 --
@@ -2542,6 +2707,30 @@ ALTER TABLE ONLY oryh.shipments
 
 ALTER TABLE ONLY oryh.shipments
     ADD CONSTRAINT shipments_shipment_no_uk UNIQUE (tenant_id, shipment_no);
+
+
+--
+-- Name: store_facilities store_facilities_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.store_facilities
+    ADD CONSTRAINT store_facilities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: store_facilities store_facilities_tenant_store_facility_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.store_facilities
+    ADD CONSTRAINT store_facilities_tenant_store_facility_uk UNIQUE (tenant_id, store_id, facility_id);
+
+
+--
+-- Name: stores stores_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.stores
+    ADD CONSTRAINT stores_pkey PRIMARY KEY (id);
 
 
 --
@@ -3099,6 +3288,27 @@ CREATE INDEX external_product_maps_tenant_idx ON oryh.external_product_maps USIN
 
 
 --
+-- Name: facilities_tenant_code_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX facilities_tenant_code_uq ON oryh.facilities USING btree (tenant_id, facility_code) WHERE (facility_code IS NOT NULL);
+
+
+--
+-- Name: facilities_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX facilities_tenant_idx ON oryh.facilities USING btree (tenant_id);
+
+
+--
+-- Name: facilities_tenant_name_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX facilities_tenant_name_uq ON oryh.facilities USING btree (tenant_id, name) WHERE ((status)::text = 'active'::text);
+
+
+--
 -- Name: fin_account_trans_account_date_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3187,6 +3397,13 @@ CREATE INDEX inventory_item_details_item_idx ON oryh.inventory_item_details USIN
 --
 
 CREATE INDEX inventory_item_details_tenant_idx ON oryh.inventory_item_details USING btree (tenant_id);
+
+
+--
+-- Name: inventory_items_facility_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX inventory_items_facility_id_idx ON oryh.inventory_items USING btree (facility_id);
 
 
 --
@@ -3617,6 +3834,55 @@ CREATE INDEX pending_registrations_email_idx ON oryh.pending_registrations USING
 
 
 --
+-- Name: picklist_items_inventory_item_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklist_items_inventory_item_id_idx ON oryh.picklist_items USING btree (inventory_item_id);
+
+
+--
+-- Name: picklist_items_picklist_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklist_items_picklist_id_idx ON oryh.picklist_items USING btree (picklist_id);
+
+
+--
+-- Name: picklist_items_product_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklist_items_product_id_idx ON oryh.picklist_items USING btree (product_id);
+
+
+--
+-- Name: picklist_items_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklist_items_tenant_idx ON oryh.picklist_items USING btree (tenant_id);
+
+
+--
+-- Name: picklists_facility_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklists_facility_id_idx ON oryh.picklists USING btree (facility_id);
+
+
+--
+-- Name: picklists_sales_order_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklists_sales_order_id_idx ON oryh.picklists USING btree (sales_order_id);
+
+
+--
+-- Name: picklists_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX picklists_tenant_idx ON oryh.picklists USING btree (tenant_id);
+
+
+--
 -- Name: platform_sessions_admin_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3673,6 +3939,41 @@ CREATE INDEX policies_tenant_idx ON oryh.policies USING btree (tenant_id);
 
 
 --
+-- Name: product_categories_child_name_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX product_categories_child_name_uq ON oryh.product_categories USING btree (tenant_id, parent_id, name) WHERE ((parent_id IS NOT NULL) AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: product_categories_parent_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX product_categories_parent_id_idx ON oryh.product_categories USING btree (parent_id);
+
+
+--
+-- Name: product_categories_root_name_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX product_categories_root_name_uq ON oryh.product_categories USING btree (tenant_id, name) WHERE ((parent_id IS NULL) AND ((status)::text = 'active'::text));
+
+
+--
+-- Name: product_categories_tenant_code_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX product_categories_tenant_code_uq ON oryh.product_categories USING btree (tenant_id, category_code) WHERE (category_code IS NOT NULL);
+
+
+--
+-- Name: product_categories_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX product_categories_tenant_idx ON oryh.product_categories USING btree (tenant_id);
+
+
+--
 -- Name: product_prices_active_product_uq; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3719,6 +4020,13 @@ CREATE INDEX product_skus_product_idx ON oryh.product_skus USING btree (product_
 --
 
 CREATE INDEX product_skus_tenant_idx ON oryh.product_skus USING btree (tenant_id);
+
+
+--
+-- Name: products_category_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX products_category_id_idx ON oryh.products USING btree (category_id);
 
 
 --
@@ -3925,6 +4233,13 @@ CREATE INDEX sales_orders_quotation_idx ON oryh.sales_orders USING btree (quotat
 
 
 --
+-- Name: sales_orders_store_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_orders_store_id_idx ON oryh.sales_orders USING btree (store_id);
+
+
+--
 -- Name: sales_orders_tenant_status_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4009,6 +4324,13 @@ CREATE INDEX shipment_items_tenant_idx ON oryh.shipment_items USING btree (tenan
 
 
 --
+-- Name: shipments_picklist_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipments_picklist_id_idx ON oryh.shipments USING btree (picklist_id);
+
+
+--
 -- Name: shipments_purchase_order_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4027,6 +4349,48 @@ CREATE INDEX shipments_sales_order_idx ON oryh.shipments USING btree (sales_orde
 --
 
 CREATE INDEX shipments_tenant_idx ON oryh.shipments USING btree (tenant_id);
+
+
+--
+-- Name: store_facilities_facility_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX store_facilities_facility_id_idx ON oryh.store_facilities USING btree (facility_id);
+
+
+--
+-- Name: store_facilities_store_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX store_facilities_store_id_idx ON oryh.store_facilities USING btree (store_id);
+
+
+--
+-- Name: store_facilities_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX store_facilities_tenant_idx ON oryh.store_facilities USING btree (tenant_id);
+
+
+--
+-- Name: stores_tenant_code_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX stores_tenant_code_uq ON oryh.stores USING btree (tenant_id, store_code) WHERE (store_code IS NOT NULL);
+
+
+--
+-- Name: stores_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX stores_tenant_idx ON oryh.stores USING btree (tenant_id);
+
+
+--
+-- Name: stores_tenant_name_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX stores_tenant_name_uq ON oryh.stores USING btree (tenant_id, name) WHERE ((status)::text = 'active'::text);
 
 
 --
@@ -4416,6 +4780,14 @@ ALTER TABLE ONLY oryh.inventory_item_details
 
 
 --
+-- Name: inventory_items inventory_items_facility_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.inventory_items
+    ADD CONSTRAINT inventory_items_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES oryh.facilities(id);
+
+
+--
 -- Name: inventory_items inventory_items_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4720,6 +5092,54 @@ ALTER TABLE ONLY oryh.pending_registrations
 
 
 --
+-- Name: picklist_items picklist_items_inventory_item_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklist_items
+    ADD CONSTRAINT picklist_items_inventory_item_id_fkey FOREIGN KEY (inventory_item_id) REFERENCES oryh.inventory_items(id);
+
+
+--
+-- Name: picklist_items picklist_items_picklist_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklist_items
+    ADD CONSTRAINT picklist_items_picklist_id_fkey FOREIGN KEY (picklist_id) REFERENCES oryh.picklists(id);
+
+
+--
+-- Name: picklist_items picklist_items_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklist_items
+    ADD CONSTRAINT picklist_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES oryh.products(id);
+
+
+--
+-- Name: picklist_items picklist_items_sku_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklist_items
+    ADD CONSTRAINT picklist_items_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
+
+
+--
+-- Name: picklists picklists_facility_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklists
+    ADD CONSTRAINT picklists_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES oryh.facilities(id);
+
+
+--
+-- Name: picklists picklists_sales_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.picklists
+    ADD CONSTRAINT picklists_sales_order_id_fkey FOREIGN KEY (sales_order_id) REFERENCES oryh.sales_orders(id);
+
+
+--
 -- Name: platform_sessions platform_sessions_platform_admin_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4752,6 +5172,14 @@ ALTER TABLE ONLY oryh.policies
 
 
 --
+-- Name: product_categories product_categories_parent_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.product_categories
+    ADD CONSTRAINT product_categories_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES oryh.product_categories(id);
+
+
+--
 -- Name: product_prices product_prices_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4773,6 +5201,14 @@ ALTER TABLE ONLY oryh.product_prices
 
 ALTER TABLE ONLY oryh.product_skus
     ADD CONSTRAINT product_skus_product_id_fkey FOREIGN KEY (product_id) REFERENCES oryh.products(id);
+
+
+--
+-- Name: products products_category_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.products
+    ADD CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id) REFERENCES oryh.product_categories(id);
 
 
 --
@@ -5032,6 +5468,14 @@ ALTER TABLE ONLY oryh.sales_orders
 
 
 --
+-- Name: sales_orders sales_orders_store_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_orders
+    ADD CONSTRAINT sales_orders_store_id_fkey FOREIGN KEY (store_id) REFERENCES oryh.stores(id);
+
+
+--
 -- Name: sales_quotation_adjustments sales_quotation_adjustments_quotation_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -5144,6 +5588,14 @@ ALTER TABLE ONLY oryh.shipment_items
 
 
 --
+-- Name: shipments shipments_picklist_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.shipments
+    ADD CONSTRAINT shipments_picklist_id_fkey FOREIGN KEY (picklist_id) REFERENCES oryh.picklists(id);
+
+
+--
 -- Name: shipments shipments_purchase_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -5157,6 +5609,22 @@ ALTER TABLE ONLY oryh.shipments
 
 ALTER TABLE ONLY oryh.shipments
     ADD CONSTRAINT shipments_sales_order_id_fkey FOREIGN KEY (sales_order_id) REFERENCES oryh.sales_orders(id);
+
+
+--
+-- Name: store_facilities store_facilities_facility_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.store_facilities
+    ADD CONSTRAINT store_facilities_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES oryh.facilities(id);
+
+
+--
+-- Name: store_facilities store_facilities_store_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.store_facilities
+    ADD CONSTRAINT store_facilities_store_id_fkey FOREIGN KEY (store_id) REFERENCES oryh.stores(id);
 
 
 --
@@ -5370,6 +5838,12 @@ ALTER TABLE oryh.external_document_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.external_product_maps ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: facilities; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.facilities ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: fin_account_transactions; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -5454,6 +5928,18 @@ ALTER TABLE oryh.payment_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.payments ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: picklist_items; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.picklist_items ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: picklists; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.picklists ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: flow_runs platform_update; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -5486,6 +5972,12 @@ CREATE POLICY platform_write ON oryh.flow_subscriptions FOR INSERT WITH CHECK ((
 --
 
 ALTER TABLE oryh.policies ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: product_categories; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.product_categories ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: product_prices; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -5608,6 +6100,18 @@ ALTER TABLE oryh.shipment_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.shipments ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: store_facilities; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.store_facilities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: stores; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.stores ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: supplier_products; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -5645,7 +6149,7 @@ CREATE POLICY tenant_isolation ON oryh.attachments USING ((((tenant_id)::text = 
 -- Name: audit_logs tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
-CREATE POLICY tenant_isolation ON oryh.audit_logs USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+CREATE POLICY tenant_isolation ON oryh.audit_logs USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text)));
 
 
 --
@@ -5747,6 +6251,13 @@ CREATE POLICY tenant_isolation ON oryh.external_product_maps USING ((((tenant_id
 
 
 --
+-- Name: facilities tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.facilities USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: fin_account_transactions tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -5831,10 +6342,31 @@ CREATE POLICY tenant_isolation ON oryh.payments USING ((((tenant_id)::text = cur
 
 
 --
+-- Name: picklist_items tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.picklist_items USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: picklists tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.picklists USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: policies tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
 CREATE POLICY tenant_isolation ON oryh.policies USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: product_categories tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.product_categories USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -5975,6 +6507,20 @@ CREATE POLICY tenant_isolation ON oryh.shipment_items USING ((((tenant_id)::text
 --
 
 CREATE POLICY tenant_isolation ON oryh.shipments USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: store_facilities tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.store_facilities USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: stores tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.stores USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

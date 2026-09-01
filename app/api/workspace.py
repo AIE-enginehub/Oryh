@@ -921,6 +921,9 @@ def workspace_setup_report(
         Customer,
         CustomerContact,
         CustomerProduct,
+        Facility,
+        ProductCategory,
+        Store,
         Employee,
         ExternalDocumentLink,
         ExternalProductMap,
@@ -1018,10 +1021,13 @@ def workspace_setup_report(
     # --- master data -------------------------------------------------------
     md_facts = {
         "products": count(Product),
+        "product_categories": count(ProductCategory),
         "customers": count(Customer),
         "customer_contacts": count(CustomerContact),
         "customer_products": count(CustomerProduct),
         "vendors": count(Vendor),
+        "stores": count(Store),
+        "facilities": count(Facility),
         "custom_type_options": count(TypeOption, TypeOption.kind == "custom"),
     }
     areas["master_data"] = {

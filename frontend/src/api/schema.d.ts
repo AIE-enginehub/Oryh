@@ -1942,6 +1942,43 @@ export interface paths {
         patch: operations["update_external_product_map_api_v1_external_product_maps__map_id__patch"];
         trace?: never;
     };
+    "/api/v1/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Facilities */
+        get: operations["list_facilities_api_v1_facilities_get"];
+        put?: never;
+        /** Create Facility */
+        post: operations["create_facility_api_v1_facilities_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/facilities/{facility_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Facility */
+        get: operations["get_facility_api_v1_facilities__facility_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Facility */
+        delete: operations["delete_facility_api_v1_facilities__facility_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Facility */
+        patch: operations["update_facility_api_v1_facilities__facility_id__patch"];
+        trace?: never;
+    };
     "/api/v1/fin-account-transactions": {
         parameters: {
             query?: never;
@@ -3011,6 +3048,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/picklist-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Picklist Items */
+        get: operations["list_picklist_items_api_v1_picklist_items_get"];
+        put?: never;
+        /** Create Picklist Item */
+        post: operations["create_picklist_item_api_v1_picklist_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/picklist-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Picklist Item */
+        delete: operations["delete_picklist_item_api_v1_picklist_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Picklist Item */
+        patch: operations["update_picklist_item_api_v1_picklist_items__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/picklists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Picklists */
+        get: operations["list_picklists_api_v1_picklists_get"];
+        put?: never;
+        /** Create Picklist */
+        post: operations["create_picklist_api_v1_picklists_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/picklists/{picklist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Picklist */
+        get: operations["get_picklist_api_v1_picklists__picklist_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Picklist */
+        delete: operations["delete_picklist_api_v1_picklists__picklist_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Picklist */
+        patch: operations["update_picklist_api_v1_picklists__picklist_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/picklists/{picklist_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Picklist */
+        post: operations["restore_picklist_api_v1_picklists__picklist_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/policies": {
         parameters: {
             query?: never;
@@ -3173,6 +3300,43 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Categories */
+        get: operations["list_product_categories_api_v1_product_categories_get"];
+        put?: never;
+        /** Create Product Category */
+        post: operations["create_product_category_api_v1_product_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product Category */
+        get: operations["get_product_category_api_v1_product_categories__category_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Product Category */
+        delete: operations["delete_product_category_api_v1_product_categories__category_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Product Category */
+        patch: operations["update_product_category_api_v1_product_categories__category_id__patch"];
         trace?: never;
     };
     "/api/v1/product-prices": {
@@ -4586,6 +4750,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/store-facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Facilities */
+        get: operations["list_store_facilities_api_v1_store_facilities_get"];
+        put?: never;
+        /** Create Store Facility */
+        post: operations["create_store_facility_api_v1_store_facilities_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/store-facilities/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Store Facility */
+        delete: operations["delete_store_facility_api_v1_store_facilities__link_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Store Facility */
+        patch: operations["update_store_facility_api_v1_store_facilities__link_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Stores */
+        get: operations["list_stores_api_v1_stores_get"];
+        put?: never;
+        /** Create Store */
+        post: operations["create_store_api_v1_stores_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store */
+        get: operations["get_store_api_v1_stores__store_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Store */
+        delete: operations["delete_store_api_v1_stores__store_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Store */
+        patch: operations["update_store_api_v1_stores__store_id__patch"];
+        trace?: never;
+    };
     "/api/v1/supplier-products": {
         parameters: {
             query?: never;
@@ -5308,7 +5545,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -6069,6 +6306,10 @@ export interface components {
         };
         /** BulkProductRow */
         BulkProductRow: {
+            /** Category Code */
+            category_code?: string | null;
+            /** Category Id */
+            category_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -6827,7 +7068,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -7306,6 +7547,29 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** CreateFacilityRequest */
+        CreateFacilityRequest: {
+            /** Address */
+            address?: string | null;
+            /** Facility Code */
+            facility_code?: string | null;
+            /** Facility Type */
+            facility_type: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
         /** CreateFinAccountRequest */
         CreateFinAccountRequest: {
             /** Account Number */
@@ -7418,7 +7682,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other";
+            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
             /** Sales Order Id */
             sales_order_id?: string | null;
             /** Unit Cost */
@@ -7440,6 +7704,8 @@ export interface components {
              * @default
              */
             facility: string;
+            /** Facility Id */
+            facility_id?: string | null;
             /** Initial Description */
             initial_description?: string | null;
             /** Initial Quantity */
@@ -7449,7 +7715,7 @@ export interface components {
              * @default initial
              * @enum {string}
              */
-            initial_reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other";
+            initial_reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
             /**
              * Lot Id
              * @default
@@ -7777,6 +8043,44 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** CreatePicklistItemRequest */
+        CreatePicklistItemRequest: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Picked Quantity */
+            picked_quantity?: number | null;
+            /** Picklist Id */
+            picklist_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** CreatePicklistRequest */
+        CreatePicklistRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Facility Id */
+            facility_id?: string | null;
+            /** Items */
+            items?: components["schemas"]["PicklistItemBase"][];
+            /** Picklist No */
+            picklist_no?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Status */
+            status?: string | null;
+        };
         /** CreatePlatformAdminRequest */
         CreatePlatformAdminRequest: {
             /** Email */
@@ -7830,6 +8134,27 @@ export interface components {
              */
             visibility: "internal" | "restricted" | "public";
         };
+        /** CreateProductCategoryRequest */
+        CreateProductCategoryRequest: {
+            /** Category Code */
+            category_code?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
         /** CreateProductPriceRequest */
         CreateProductPriceRequest: {
             /**
@@ -7865,6 +8190,8 @@ export interface components {
         };
         /** CreateProductRequest */
         CreateProductRequest: {
+            /** Category Id */
+            category_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -8312,6 +8639,8 @@ export interface components {
             source_report_text?: string | null;
             /** Status */
             status?: string | null;
+            /** Store Id */
+            store_id?: string | null;
             /** Title */
             title: string;
             /** Total Amount */
@@ -8464,6 +8793,8 @@ export interface components {
             facility?: string | null;
             /** Items */
             items?: components["schemas"]["ShipmentItemBase"][];
+            /** Picklist Id */
+            picklist_id?: string | null;
             /** Purchase Order Id */
             purchase_order_id?: string | null;
             /** Remarks */
@@ -8488,6 +8819,55 @@ export interface components {
              * @enum {string}
              */
             subject_type: "user" | "role";
+        };
+        /** CreateStoreFacilityRequest */
+        CreateStoreFacilityRequest: {
+            /** Facility Id */
+            facility_id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Priority */
+            priority?: number | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Store Id */
+            store_id: string;
+        };
+        /** CreateStoreRequest */
+        CreateStoreRequest: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "offline" | "online";
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Store Code */
+            store_code?: string | null;
         };
         /** CreateSupplierProductRequest */
         CreateSupplierProductRequest: {
@@ -8654,7 +9034,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -9247,6 +9627,11 @@ export interface components {
             data: components["schemas"]["ExternalProductMapRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[FacilityRead] */
+        Envelope_FacilityRead_: {
+            data: components["schemas"]["FacilityRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[FinAccountRead] */
         Envelope_FinAccountRead_: {
             data: components["schemas"]["FinAccountRead"];
@@ -9347,6 +9732,16 @@ export interface components {
             data: components["schemas"]["PaymentRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[PicklistItemRead] */
+        Envelope_PicklistItemRead_: {
+            data: components["schemas"]["PicklistItemRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[PicklistRead] */
+        Envelope_PicklistRead_: {
+            data: components["schemas"]["PicklistRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[PolicyPublishRead] */
         Envelope_PolicyPublishRead_: {
             data: components["schemas"]["PolicyPublishRead"];
@@ -9365,6 +9760,11 @@ export interface components {
         /** Envelope[PostShipmentStockRead] */
         Envelope_PostShipmentStockRead_: {
             data: components["schemas"]["PostShipmentStockRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProductCategoryRead] */
+        Envelope_ProductCategoryRead_: {
+            data: components["schemas"]["ProductCategoryRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ProductPriceRead] */
@@ -9490,6 +9890,16 @@ export interface components {
         /** Envelope[SkillReachRead] */
         Envelope_SkillReachRead_: {
             data: components["schemas"]["SkillReachRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[StoreFacilityRead] */
+        Envelope_StoreFacilityRead_: {
+            data: components["schemas"]["StoreFacilityRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[StoreRead] */
+        Envelope_StoreRead_: {
+            data: components["schemas"]["StoreRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[SupplierProductRead] */
@@ -9774,6 +10184,37 @@ export interface components {
              */
             updated_at: string;
         };
+        /** FacilityRead */
+        FacilityRead: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Facility Code */
+            facility_code?: string | null;
+            /** Facility Type */
+            facility_type: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** FinAccountRead */
         FinAccountRead: {
             /** Account Number */
@@ -9985,7 +10426,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other";
+            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
             /** Sales Order Id */
             sales_order_id?: string | null;
             /** Unit Cost */
@@ -10008,6 +10449,8 @@ export interface components {
             expire_date?: string | null;
             /** Facility */
             facility: string;
+            /** Facility Id */
+            facility_id?: string | null;
             /** Id */
             id: string;
             /** Lot Id */
@@ -10704,6 +11147,12 @@ export interface components {
             data: components["schemas"]["ExternalProductMapRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[FacilityRead] */
+        ListEnvelope_FacilityRead_: {
+            /** Data */
+            data: components["schemas"]["FacilityRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[FinAccountRead] */
         ListEnvelope_FinAccountRead_: {
             /** Data */
@@ -10800,10 +11249,28 @@ export interface components {
             data: components["schemas"]["PendingRegistrationRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[PicklistItemRead] */
+        ListEnvelope_PicklistItemRead_: {
+            /** Data */
+            data: components["schemas"]["PicklistItemRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[PicklistRead] */
+        ListEnvelope_PicklistRead_: {
+            /** Data */
+            data: components["schemas"]["PicklistRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[PolicyRead] */
         ListEnvelope_PolicyRead_: {
             /** Data */
             data: components["schemas"]["PolicyRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProductCategoryRead] */
+        ListEnvelope_ProductCategoryRead_: {
+            /** Data */
+            data: components["schemas"]["ProductCategoryRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ProductPriceRead] */
@@ -10906,6 +11373,18 @@ export interface components {
         ListEnvelope_ShipmentRead_: {
             /** Data */
             data: components["schemas"]["ShipmentRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[StoreFacilityRead] */
+        ListEnvelope_StoreFacilityRead_: {
+            /** Data */
+            data: components["schemas"]["StoreFacilityRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[StoreRead] */
+        ListEnvelope_StoreRead_: {
+            /** Data */
+            data: components["schemas"]["StoreRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[SupplierProductRead] */
@@ -11350,6 +11829,85 @@ export interface components {
             /** Verified At */
             verified_at?: string | null;
         };
+        /** PicklistItemBase */
+        PicklistItemBase: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Picked Quantity */
+            picked_quantity?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** PicklistItemRead */
+        PicklistItemRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Picked Quantity */
+            picked_quantity?: number | null;
+            /** Picklist Id */
+            picklist_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** PicklistRead */
+        PicklistRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Facility Id */
+            facility_id?: string | null;
+            /** Facility Name */
+            facility_name?: string | null;
+            /** Id */
+            id: string;
+            /** Picklist No */
+            picklist_no: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /**
          * PolicyPublishRead
          * @description What publishing did: the version now in force, and the one it closed.
@@ -11476,8 +12034,44 @@ export interface components {
             outcome: "posted" | "skipped_no_position";
             /** Quantity On Hand Diff */
             quantity_on_hand_diff?: number | null;
+            /** Reservation Released */
+            reservation_released?: number | null;
             /** Shipment Item Id */
             shipment_item_id: string;
+        };
+        /** ProductCategoryRead */
+        ProductCategoryRead: {
+            /** Category Code */
+            category_code?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Parent Name */
+            parent_name?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ProductPriceRead */
         ProductPriceRead: {
@@ -11519,6 +12113,10 @@ export interface components {
         };
         /** ProductRead */
         ProductRead: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Category Name */
+            category_name?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -12719,6 +13317,10 @@ export interface components {
             source_report_text?: string | null;
             /** Status */
             status: string;
+            /** Store Id */
+            store_id?: string | null;
+            /** Store Name */
+            store_name?: string | null;
             /** Submitted At */
             submitted_at?: string | null;
             /** Title */
@@ -13082,6 +13684,8 @@ export interface components {
             facility?: string | null;
             /** Id */
             id: string;
+            /** Picklist Id */
+            picklist_id?: string | null;
             /** Purchase Order Id */
             purchase_order_id?: string | null;
             /** Received At */
@@ -13229,6 +13833,77 @@ export interface components {
             subject_type: "user" | "role";
             /** Withheld */
             withheld?: components["schemas"]["SkillReachEntry"][];
+        };
+        /** StoreFacilityRead */
+        StoreFacilityRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Facility Id */
+            facility_id: string;
+            /** Facility Name */
+            facility_name?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Priority */
+            priority?: number | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** StoreRead */
+        StoreRead: {
+            /** Address */
+            address?: string | null;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "offline" | "online";
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Fulfilment Facilities */
+            fulfilment_facilities?: components["schemas"]["StoreFacilityRead"][] | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status: string;
+            /** Store Code */
+            store_code?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SubmitExpenseClaimRequest */
         SubmitExpenseClaimRequest: {
@@ -13538,7 +14213,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -13903,6 +14578,25 @@ export interface components {
             /** Status */
             status?: ("active" | "archived") | null;
         };
+        /** UpdateFacilityRequest */
+        UpdateFacilityRequest: {
+            /** Address */
+            address?: string | null;
+            /** Facility Code */
+            facility_code?: string | null;
+            /** Facility Type */
+            facility_type?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateFinAccountRequest */
         UpdateFinAccountRequest: {
             /** Account Number */
@@ -14193,6 +14887,36 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** UpdatePicklistItemRequest */
+        UpdatePicklistItemRequest: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Picked Quantity */
+            picked_quantity?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** UpdatePicklistRequest */
+        UpdatePicklistRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Facility Id */
+            facility_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Sales Order Id */
+            sales_order_id?: string | null;
+            /** Status */
+            status?: string | null;
+        };
         /**
          * UpdatePolicyRequest
          * @description Drafts only. A published policy is corrected by publishing a new
@@ -14229,6 +14953,23 @@ export interface components {
             /** Visibility */
             visibility?: ("internal" | "restricted" | "public") | null;
         };
+        /** UpdateProductCategoryRequest */
+        UpdateProductCategoryRequest: {
+            /** Category Code */
+            category_code?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateProductPriceRequest */
         UpdateProductPriceRequest: {
             /** Metadata */
@@ -14246,6 +14987,8 @@ export interface components {
         };
         /** UpdateProductRequest */
         UpdateProductRequest: {
+            /** Category Id */
+            category_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -14614,6 +15357,8 @@ export interface components {
             source_report_text?: string | null;
             /** Status */
             status?: string | null;
+            /** Store Id */
+            store_id?: string | null;
             /** Title */
             title?: string | null;
             /** Total Amount */
@@ -14753,6 +15498,40 @@ export interface components {
             title?: string | null;
             /** Tracking No */
             tracking_no?: string | null;
+        };
+        /** UpdateStoreFacilityRequest */
+        UpdateStoreFacilityRequest: {
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Priority */
+            priority?: number | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
+        /** UpdateStoreRequest */
+        UpdateStoreRequest: {
+            /** Address */
+            address?: string | null;
+            /** Channel */
+            channel?: ("offline" | "online") | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+            /** Store Code */
+            store_code?: string | null;
         };
         /** UpdateSupplierProductRequest */
         UpdateSupplierProductRequest: {
@@ -20331,6 +21110,204 @@ export interface operations {
             };
         };
     };
+    list_facilities_api_v1_facilities_get: {
+        parameters: {
+            query?: {
+                facility_type?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_FacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_facility_api_v1_facilities_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_facility_api_v1_facilities__facility_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                facility_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_facility_api_v1_facilities__facility_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                facility_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_facility_api_v1_facilities__facility_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                facility_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_fin_account_transactions_api_v1_fin_account_transactions_get: {
         parameters: {
             query?: {
@@ -23421,6 +24398,403 @@ export interface operations {
             };
         };
     };
+    list_picklist_items_api_v1_picklist_items_get: {
+        parameters: {
+            query?: {
+                picklist_id?: string | null;
+                inventory_item_id?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_PicklistItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_picklist_item_api_v1_picklist_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePicklistItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PicklistItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_picklist_item_api_v1_picklist_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_picklist_item_api_v1_picklist_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePicklistItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PicklistItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_picklists_api_v1_picklists_get: {
+        parameters: {
+            query?: {
+                sales_order_id?: string | null;
+                facility_id?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_PicklistRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_picklist_api_v1_picklists_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePicklistRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_picklist_api_v1_picklists__picklist_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                picklist_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_picklist_api_v1_picklists__picklist_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                picklist_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_picklist_api_v1_picklists__picklist_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                picklist_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePicklistRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PicklistRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_picklist_api_v1_picklists__picklist_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                picklist_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_policies_api_v1_policies_get: {
         parameters: {
             query?: {
@@ -23777,6 +25151,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PolicyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_product_categories_api_v1_product_categories_get: {
+        parameters: {
+            query?: {
+                parent_id?: string | null;
+                root_only?: boolean;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProductCategoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_category_api_v1_product_categories_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductCategoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_category_api_v1_product_categories__category_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductCategoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_category_api_v1_product_categories__category_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_product_category_api_v1_product_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductCategoryRead_"];
                 };
             };
             /** @description Validation Error */
@@ -24192,6 +25765,7 @@ export interface operations {
         parameters: {
             query?: {
                 keyword?: string | null;
+                category_id?: string | null;
                 status?: string | null;
                 page?: number | null;
                 size?: number;
@@ -27051,6 +28625,7 @@ export interface operations {
     list_sales_orders_api_v1_sales_orders_get: {
         parameters: {
             query?: {
+                store_id?: string | null;
                 employee_id?: string | null;
                 customer_id?: string | null;
                 billing_account_id?: string | null;
@@ -29172,6 +30747,365 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_store_facilities_api_v1_store_facilities_get: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                facility_id?: string | null;
+                status?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_StoreFacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_store_facility_api_v1_store_facilities_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStoreFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreFacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_store_facility_api_v1_store_facilities__link_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_store_facility_api_v1_store_facilities__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStoreFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreFacilityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stores_api_v1_stores_get: {
+        parameters: {
+            query?: {
+                channel?: string | null;
+                source?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_StoreRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_store_api_v1_stores_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_store_api_v1_stores__store_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_store_api_v1_stores__store_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_store_api_v1_stores__store_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreRead_"];
                 };
             };
             /** @description Validation Error */

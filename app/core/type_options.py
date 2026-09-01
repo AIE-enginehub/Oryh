@@ -24,6 +24,13 @@ TYPE_NAME_PATTERN = r"^[a-z][a-z0-9_]{0,49}$"
 # family → (name, title, description); the shipped vocabulary each tenant
 # starts from. Order is display order.
 SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
+    "facility_type": (
+        ("store", "店铺", "对外营业的门店"),
+        ("warehouse", "仓库", "存货与发货场所"),
+        ("office", "办公室", "办公场所"),
+        ("factory", "工厂", "生产场所"),
+        ("other", "其他", "其余设施"),
+    ),
     "fin_account_type": (
         ("bank", "银行账户", "对公/对私银行户"),
         ("cash", "现金", "备用金/现金柜"),

@@ -36,6 +36,7 @@ from app.models import (
     ExpenseItem,
     Invoice,
     Lead,
+    Picklist,
     Opportunity,
     InvoiceItem,
     Payment,
@@ -63,6 +64,7 @@ from app.schemas import (
     ExpenseClaimRead,
     InvoiceRead,
     LeadRead,
+    PicklistRead,
     OpportunityRead,
     PaymentRead,
     PurchaseOrderAdjustmentRead,
@@ -382,6 +384,16 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         owner_checked=False, attributed_delete=False,
         number_prefix="PO-", number_field="po_number", lock_scope="purchase_order_number",
         machine_type_for=lambda d: "purchase_return" if d.order_kind == "return" else "purchase_order",
+    ),
+    Picklist: DocumentFamily(
+        # warehouse work like the shipment: one functional grant files AND
+        # advances, no owner, everyone reads
+        "picklist", "picklist lines", "picklist",
+        "inventory.manage", PicklistRead, "picklist",
+        lambda d: {"picklist_no": d.picklist_no, "sales_order_id": d.sales_order_id},
+        "picklist", advance_permission=None,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="PL-", number_field="picklist_no", lock_scope="picklist_number",
     ),
     Shipment: DocumentFamily(
         # freight is warehouse work: the capability that holds the stock

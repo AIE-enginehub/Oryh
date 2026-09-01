@@ -25,6 +25,7 @@ from app.services.state_machines import (
     DEFAULT_QUOTATION_MACHINE,
     DEFAULT_SALES_RETURN_MACHINE,
     DEFAULT_LEAD_MACHINE,
+    DEFAULT_PICKLIST_MACHINE,
     DEFAULT_OPPORTUNITY_MACHINE,
     DEFAULT_SHIPMENT_MACHINE,
     DEFAULT_TIMESHEET_MACHINE,
@@ -291,6 +292,12 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         "Purchase Return",
         "Lifecycle of returns to vendors — rows in the purchase-orders table with order_kind='return': approved, shipped back, refunded. The vendor's refund is a payment document; this machine tracks the flow.",
         DEFAULT_PURCHASE_RETURN_MACHINE,
+    ),
+    (
+        "picklist",
+        "Picklist",
+        "Lifecycle of picking runs — which product to take from which stock position, how many. Whether the workspace picks at all is the admin's one sentence where the fulfilment agents read it; 'picked' is the handoff to the shipment, which posts the stock. Edit freely.",
+        DEFAULT_PICKLIST_MACHINE,
     ),
     (
         "shipment",
