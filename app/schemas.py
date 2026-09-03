@@ -319,6 +319,195 @@ CustomerListEnvelope = ListEnvelope[CustomerRead]
 CustomerEnvelope = Envelope[CustomerRead]
 
 
+class ProductImageBase(RequestModel):
+    is_primary: bool = False
+    # validated against the tenant's `product_image_type` vocabulary at write
+    image_type: str = Field(default="other", max_length=50)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    caption: str | None = Field(default=None, max_length=200)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateProductImageRequest(ProductImageBase):
+    product_id: str
+    # an attachment already uploaded via POST /attachments, image/* only
+    attachment_id: str
+
+
+class UpdateProductImageRequest(RequestModel):
+    # the (product, attachment) pair is the row's identity
+    is_primary: bool | None = None
+    image_type: str | None = Field(default=None, max_length=50)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    caption: str | None = Field(default=None, max_length=200)
+    metadata: dict[str, Any] | None = None
+
+
+class ProductImageRead(APIModel):
+    id: str
+    product_id: str
+    attachment_id: str
+    filename: str | None = None
+    content_type: str | None = None
+    size_bytes: int | None = None
+    is_primary: bool
+    image_type: str
+    sort_order: int | None = None
+    caption: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+ProductImageListEnvelope = ListEnvelope[ProductImageRead]
+
+
+ProductImageEnvelope = Envelope[ProductImageRead]
+
+
+BomStatus = Literal["active", "archived", "draft"]
+
+
+class BomItemBase(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    component_product_id: str
+    quantity: float = Field(gt=0, le=99_999_999.9999)
+    unit: str | None = Field(default=None, max_length=50)
+    # percent lost making it; folded in by the explode read
+    scrap_rate: float | None = Field(default=None, ge=0, le=99.99)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class BillOfMaterialsBase(RequestModel):
+    bom_code: str | None = Field(default=None, max_length=64)
+    version: str | None = Field(default=None, max_length=50)
+    output_quantity: float = Field(default=1, gt=0, le=99_999_999.9999)
+    status: BomStatus = "draft"
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateBillOfMaterialsRequest(BillOfMaterialsBase):
+    product_id: str
+    items: list[BomItemBase] = Field(default_factory=list, max_length=500)
+
+
+class UpdateBillOfMaterialsRequest(RequestModel):
+    # product_id is the recipe's identity — a recipe for another product is
+    # another recipe
+    bom_code: str | None = Field(default=None, max_length=64)
+    version: str | None = Field(default=None, max_length=50)
+    output_quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
+    status: BomStatus | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] | None = None
+
+
+class CreateBomItemRequest(BomItemBase):
+    bom_id: str
+
+
+class UpdateBomItemRequest(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    component_product_id: str | None = None
+    quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
+    unit: str | None = Field(default=None, max_length=50)
+    scrap_rate: float | None = Field(default=None, ge=0, le=99.99)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class BomItemRead(APIModel):
+    id: str
+    bom_id: str
+    line_no: int | None = None
+    component_product_id: str
+    component_name: str | None = None
+    component_type: str | None = None
+    quantity: float
+    unit: str | None = None
+    scrap_rate: float | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BillOfMaterialsRead(APIModel):
+    id: str
+    product_id: str
+    product_name: str | None = None
+    bom_code: str | None = None
+    version: str | None = None
+    output_quantity: float
+    status: BomStatus
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    # present on the single read: the recipe's lines
+    items: list[BomItemRead] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+BillOfMaterialsListEnvelope = ListEnvelope[BillOfMaterialsRead]
+
+
+BillOfMaterialsEnvelope = Envelope[BillOfMaterialsRead]
+
+
+BomItemListEnvelope = ListEnvelope[BomItemRead]
+
+
+BomItemEnvelope = Envelope[BomItemRead]
+
+
+class BomExplodedLineRead(BaseModel):
+    """One node of the exploded recipe. `level` 1 is the recipe's own line;
+    a component with an active recipe of its own is a sub-assembly and its
+    components follow at level+1, each tagged with its parent."""
+
+    level: int
+    parent_product_id: str
+    component_product_id: str
+    component_name: str | None = None
+    component_type: str
+    unit: str | None = None
+    # what the requested quantity of the ROOT product needs of this node,
+    # output ratio and scrap already applied
+    required_quantity: float
+    scrap_rate: float | None = None
+    has_bom: bool
+    available_to_promise: float | None = None
+
+
+class BomLeafRequirementRead(BaseModel):
+    """What must be bought or already stocked: one row per product that has
+    no recipe of its own, summed across every branch it appears on."""
+
+    product_id: str
+    product_name: str | None = None
+    product_type: str
+    unit: str | None = None
+    required_quantity: float
+    available_to_promise: float | None = None
+    shortage: float | None = None
+
+
+class BomExplodeRead(APIModel):
+    bom_id: str
+    product_id: str
+    quantity: float
+    lines: list[BomExplodedLineRead]
+    leaf_requirements: list[BomLeafRequirementRead]
+
+
+BomExplodeEnvelope = Envelope[BomExplodeRead]
+
+
 ProductCategoryStatus = Literal["active", "archived"]
 
 
@@ -365,9 +554,14 @@ ProductCategoryListEnvelope = ListEnvelope[ProductCategoryRead]
 ProductCategoryEnvelope = Envelope[ProductCategoryRead]
 
 
+ProductType = Literal["finished_good", "raw_material", "semi_finished", "service"]
+
+
 class ProductBase(RequestModel):
     product_code: str | None = Field(default=None, max_length=64)
     name: str | None = Field(default=None, max_length=200)
+    # the manufacturing role — a closed axis; classification is the category tree
+    product_type: ProductType = "finished_good"
     category_id: str | None = None
     spec: str | None = Field(default=None, max_length=200)
     unit: str | None = Field(default=None, max_length=50)
@@ -389,8 +583,12 @@ class ProductRead(APIModel):
     id: str
     product_code: str | None = None
     name: str
+    product_type: ProductType
     category_id: str | None = None
     category_name: str | None = None
+    # the primary picture's link, when one exists; its bytes are read by
+    # attachment id through the product, the sibling of every other family
+    primary_image_id: str | None = None
     spec: str | None = None
     unit: str | None = None
     list_price: float | None = None
@@ -1315,8 +1513,19 @@ class ExternalProductMapBase(_NormalizesSource):
 
 class CreateExternalProductMapRequest(ExternalProductMapBase):
     source: str = Field(min_length=1, max_length=50)
-    external_product_id: str = Field(min_length=1, max_length=128)
+    # omit (or '') when the platform export carries titles, not ids — then
+    # external_name is the listing's identity and must be given
+    external_product_id: str = Field(default="", max_length=128)
     product_id: str
+
+    @model_validator(mode="after")
+    def _names_the_listing(self) -> "CreateExternalProductMapRequest":
+        if not self.external_product_id and not (self.external_name or "").strip():
+            raise ValueError(
+                "a map names the listing by external_product_id or by external_name "
+                "— an export that carries titles, not ids, maps by name"
+            )
+        return self
 
 
 class UpdateExternalProductMapRequest(RequestModel):
@@ -1339,6 +1548,7 @@ class ExternalProductMapRead(APIModel):
     external_product_id: str
     external_sku_id: str
     external_name: str | None = None
+    external_name_norm: str | None = None
     product_id: str
     sku_id: str | None = None
     quantity: float
@@ -1541,6 +1751,309 @@ class ShipmentBase(RequestModel):
     status: str | None = Field(default=None, max_length=30)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+# --- contracts: a file, and the clauses located inside it -------------------
+
+
+class ContractItemBase(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    product_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
+    unit: str | None = Field(default=None, max_length=50)
+    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    delivery_note: str | None = Field(default=None, max_length=500)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _names_something(self) -> "ContractItemBase":
+        if self.product_id is None and not (self.description or "").strip():
+            raise ValueError("a contract line names a product or describes what is contracted")
+        return self
+
+
+class ContractBase(RequestModel):
+    # validated against the tenant's contract_type vocabulary at write
+    contract_type: str = Field(default="other", max_length=50)
+    vendor_id: str | None = None
+    customer_id: str | None = None
+    counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
+    total_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    signed_date: date | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    our_signatory: str | None = Field(default=None, max_length=100)
+    counterparty_signatory: str | None = Field(default=None, max_length=100)
+    employee_id: str | None = None
+    parent_contract_id: str | None = None
+    summary: str | None = Field(default=None, max_length=10000)
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _one_side(self) -> "ContractBase":
+        if self.vendor_id and self.customer_id:
+            raise ValueError(
+                "a contract has one counterparty — vendor_id (purchase side) or "
+                "customer_id (sales side), not both"
+            )
+        f, t = self.effective_from, self.effective_to
+        if f is not None and t is not None and t < f:
+            raise ValueError("effective_to must not precede effective_from")
+        return self
+
+
+class CreateContractRequest(ContractBase):
+    title: str = Field(min_length=1, max_length=200)
+    contract_no: str | None = Field(default=None, max_length=64)
+    items: list[ContractItemBase] = Field(default_factory=list, max_length=500)
+
+    @model_validator(mode="after")
+    def _has_a_counterparty(self) -> "CreateContractRequest":
+        if not self.vendor_id and not self.customer_id and not (self.counterparty_name_snapshot or "").strip():
+            raise ValueError(
+                "a contract names its counterparty — a vendor, a customer, or at least "
+                "a name snapshot for one not yet in master data"
+            )
+        return self
+
+
+class UpdateContractRequest(RequestModel):
+    # vendor/customer are the contract's identity (the side is derived from
+    # them); a contract for another party is another contract
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    contract_type: str | None = Field(default=None, max_length=50)
+    counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
+    total_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    signed_date: date | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    our_signatory: str | None = Field(default=None, max_length=100)
+    counterparty_signatory: str | None = Field(default=None, max_length=100)
+    employee_id: str | None = None
+    parent_contract_id: str | None = None
+    summary: str | None = Field(default=None, max_length=10000)
+    status: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class CreateContractItemRequest(ContractItemBase):
+    contract_id: str
+
+
+class UpdateContractItemRequest(RequestModel):
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    product_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+    quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
+    unit: str | None = Field(default=None, max_length=50)
+    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    delivery_note: str | None = Field(default=None, max_length=500)
+    metadata: dict[str, Any] | None = None
+
+
+class ContractItemRead(APIModel):
+    id: str
+    contract_id: str
+    line_no: int | None = None
+    product_id: str | None = None
+    product_name: str | None = None
+    description: str | None = None
+    quantity: float | None = None
+    unit: str | None = None
+    unit_price: float | None = None
+    currency: str
+    delivery_note: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContractDocumentBase(RequestModel):
+    # validated against the tenant's contract_document_type vocabulary
+    document_type: str = Field(default="other", max_length=50)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    page_no: int | None = Field(default=None, ge=1, le=99999)
+    caption: str | None = Field(default=None, max_length=200)
+    # what the agent read out of this file with its own tools; oryh runs no OCR
+    extracted_text: str | None = Field(default=None, max_length=2_000_000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateContractDocumentRequest(ContractDocumentBase):
+    contract_id: str
+    attachment_id: str
+
+
+class UpdateContractDocumentRequest(RequestModel):
+    document_type: str | None = Field(default=None, max_length=50)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    page_no: int | None = Field(default=None, ge=1, le=99999)
+    caption: str | None = Field(default=None, max_length=200)
+    extracted_text: str | None = Field(default=None, max_length=2_000_000)
+    metadata: dict[str, Any] | None = None
+
+
+class ContractDocumentRead(APIModel):
+    id: str
+    contract_id: str
+    attachment_id: str
+    filename: str | None = None
+    content_type: str | None = None
+    size_bytes: int | None = None
+    document_type: str
+    sort_order: int | None = None
+    page_no: int | None = None
+    caption: str | None = None
+    # present on the single read and the search; lists omit it by default
+    extracted_text: str | None = None
+    has_text: bool = False
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContractTermBase(RequestModel):
+    # validated against the tenant's contract_term_type vocabulary
+    term_type: str = Field(max_length=50)
+    clause_ref: str | None = Field(default=None, max_length=50)
+    title: str | None = Field(default=None, max_length=200)
+    # the contract's own words, verbatim — the reading goes in summary
+    content: str = Field(min_length=1, max_length=20000)
+    summary: str | None = Field(default=None, max_length=2000)
+    document_id: str | None = None
+    page_no: int | None = Field(default=None, ge=1, le=99999)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateContractTermRequest(ContractTermBase):
+    contract_id: str
+
+
+class UpdateContractTermRequest(RequestModel):
+    term_type: str | None = Field(default=None, max_length=50)
+    clause_ref: str | None = Field(default=None, max_length=50)
+    title: str | None = Field(default=None, max_length=200)
+    content: str | None = Field(default=None, min_length=1, max_length=20000)
+    summary: str | None = Field(default=None, max_length=2000)
+    document_id: str | None = None
+    page_no: int | None = Field(default=None, ge=1, le=99999)
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    metadata: dict[str, Any] | None = None
+
+
+class ContractTermRead(APIModel):
+    id: str
+    contract_id: str
+    term_type: str
+    clause_ref: str | None = None
+    title: str | None = None
+    content: str
+    summary: str | None = None
+    document_id: str | None = None
+    page_no: int | None = None
+    sort_order: int | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContractRead(APIModel):
+    id: str
+    contract_no: str
+    title: str
+    contract_type: str
+    side: str
+    vendor_id: str | None = None
+    customer_id: str | None = None
+    counterparty_name: str | None = None
+    counterparty_name_snapshot: str | None = None
+    total_amount: float | None = None
+    currency: str
+    signed_date: date | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    our_signatory: str | None = None
+    counterparty_signatory: str | None = None
+    employee_id: str | None = None
+    parent_contract_id: str | None = None
+    summary: str | None = None
+    status: str
+    signed_at: datetime | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    # present on the single read: what was agreed, the originals, the
+    # located clauses grouped by type
+    items: list[ContractItemRead] | None = None
+    documents: list[ContractDocumentRead] | None = None
+    terms_by_type: dict[str, list[ContractTermRead]] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+ContractListEnvelope = ListEnvelope[ContractRead]
+
+
+ContractEnvelope = Envelope[ContractRead]
+
+
+ContractItemListEnvelope = ListEnvelope[ContractItemRead]
+
+
+ContractItemEnvelope = Envelope[ContractItemRead]
+
+
+ContractDocumentListEnvelope = ListEnvelope[ContractDocumentRead]
+
+
+ContractDocumentEnvelope = Envelope[ContractDocumentRead]
+
+
+ContractTermListEnvelope = ListEnvelope[ContractTermRead]
+
+
+ContractTermEnvelope = Envelope[ContractTermRead]
+
+
+class ContractExecutionRead(APIModel):
+    """What has happened under the contract, derived on every call: orders
+    placed against it, invoices billed, payments moved — never a stored
+    progress figure."""
+
+    contract_id: str
+    side: str
+    contracted_amount: float | None = None
+    orders: int
+    ordered_amount: float
+    invoices: int
+    invoiced_amount: float
+    payments: int
+    paid_amount: float
+    # by product: contracted vs ordered quantity, for the lines that name one
+    lines: list[dict[str, Any]]
+
+
+ContractExecutionEnvelope = Envelope[ContractExecutionRead]
 
 
 class PicklistItemBase(RequestModel):
@@ -4632,6 +5145,8 @@ SalesOrderAdjustmentListEnvelope = ListEnvelope[SalesOrderAdjustmentRead]
 class PurchaseOrderBase(RequestModel):
     # server-allocated when omitted; bring your own for tenant conventions
     po_number: str | None = Field(default=None, max_length=64)
+    # the purchase (or OEM) contract this order executes, when there is one
+    contract_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
     employee_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
@@ -4667,6 +5182,7 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
 class UpdatePurchaseOrderRequest(RequestModel):
     # returns only: linkage recorded later; order_kind is identity, no field
     original_order_id: str | None = None
+    contract_id: str | None = None
     vendor_id: str | None = None
     billing_account_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
@@ -4686,6 +5202,7 @@ class UpdatePurchaseOrderRequest(RequestModel):
 class PurchaseOrderRead(APIModel):
     id: str
     po_number: str
+    contract_id: str | None = None
     order_kind: str
     original_order_id: str | None = None
     vendor_id: str
@@ -4912,6 +5429,8 @@ ReceivePurchaseOrderEnvelope = Envelope[ReceivePurchaseOrderResult]
 class InvoiceBase(RequestModel):
     # server-allocated when omitted; bring your own for tenant conventions
     invoice_no: str | None = Field(default=None, max_length=64)
+    # the contract this invoice bills under, when there is one
+    contract_id: str | None = None
     invoice_type: InvoiceTypeOption | None = None
     employee_id: str | None = None
     customer_id: str | None = None
@@ -4966,6 +5485,7 @@ class CreateInvoiceRequest(InvoiceBase):
 
 class UpdateInvoiceRequest(RequestModel):
     invoice_type: InvoiceTypeOption | None = None
+    contract_id: str | None = None
     customer_id: str | None = None
     billing_account_id: str | None = None
     vendor_id: str | None = None
@@ -4994,6 +5514,7 @@ class UpdateInvoiceRequest(RequestModel):
 class InvoiceRead(APIModel):
     id: str
     invoice_no: str
+    contract_id: str | None = None
     direction: InvoiceDirection
     # present on `reimbursement`: the approved claim this was raised from
     expense_claim_id: str | None = None
@@ -5630,6 +6151,8 @@ InvoiceDetailEnvelope = Envelope[InvoiceDetailRead]
 
 class PaymentBase(RequestModel):
     payment_no: str | None = Field(default=None, max_length=64)
+    # the contract this payment settles or prepays (a deposit), when any
+    contract_id: str | None = None
     payment_method: PaymentMethod | None = None
     employee_id: str | None = None
     customer_id: str | None = None
@@ -5658,6 +6181,7 @@ class CreatePaymentRequest(PaymentBase):
 
 class UpdatePaymentRequest(RequestModel):
     payment_method: PaymentMethod | None = None
+    contract_id: str | None = None
     customer_id: str | None = None
     vendor_id: str | None = None
     payee_employee_id: str | None = None
@@ -5682,6 +6206,7 @@ class DeletePaymentRequest(RequestModel):
 class PaymentRead(APIModel):
     id: str
     payment_no: str
+    contract_id: str | None = None
     direction: PaymentDirection
     payment_method: str | None = None
     employee_id: str
@@ -5824,6 +6349,7 @@ class SalesOrderBase(RequestModel):
     billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     store_id: str | None = None
+    contract_id: str | None = None
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
     ship_to_address: str | None = Field(default=None, max_length=500)
@@ -5865,6 +6391,7 @@ class UpdateSalesOrderRequest(RequestModel):
     billing_account_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     store_id: str | None = None
+    contract_id: str | None = None
     contact_name: str | None = Field(default=None, max_length=200)
     contact_phone: str | None = Field(default=None, max_length=50)
     ship_to_address: str | None = Field(default=None, max_length=500)
@@ -5912,6 +6439,7 @@ class SalesOrderRead(APIModel):
     customer_name_snapshot: str | None = None
     store_id: str | None = None
     store_name: str | None = None
+    contract_id: str | None = None
     contact_name: str | None = None
     contact_phone: str | None = None
     ship_to_address: str | None = None

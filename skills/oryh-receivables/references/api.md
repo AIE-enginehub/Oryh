@@ -184,7 +184,7 @@ GET /object-type-definitions?entity_kind=builtin&object_type=invoice
 
 Shipped default: `draft → submitted → issued`, then `paid`, `written_off` or
 `void`; `cancelled` from draft/submitted/returned; `returned` sends a rejected
-an invoicing request back. Tenants rename and rewire — read the machine rather than assuming.
+invoicing request back to its filer. Tenants rename and rewire — read the machine rather than assuming.
 
 `paid` is a flow marker only. The truth is `outstanding_amount` on `/detail`.
 

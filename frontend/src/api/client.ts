@@ -67,6 +67,7 @@ export type Resource = ResourceRead;
 export type CreateResourceInput = ResourceCreate;
 export type UpdateResourceInput = ResourceUpdate;
 export type Product = ProductRead;
+export type ProductImageRead = components["schemas"]["ProductImageRead"];
 export type CreateProductInput = ProductCreate;
 export type UpdateProductInput = ProductUpdate;
 export type ProductSku = ProductSkuRead;
@@ -494,6 +495,20 @@ export function listProductSkus(
 // the whole picture, and the server returns the full set when no page is
 // asked for (meta carries only the total).
 export type TotalMeta = { total?: number | null };
+
+export function listProductImages(filters: {
+  product_id?: string;
+  size?: number;
+}): Promise<ApiEnvelope<ProductImageRead[], TotalMeta>> {
+  return apiRequestEnvelope<ProductImageRead[], TotalMeta>(
+    listUrl("/api/v1/product-images", filters),
+  );
+}
+
+export function productImageContentUrl(productId: string, attachmentId: string): string {
+  return "/api/v1/products/" + encodeURIComponent(productId)
+    + "/attachments/" + encodeURIComponent(attachmentId) + "/content";
+}
 
 export function listProductPrices(filters: {
   product_id?: string;

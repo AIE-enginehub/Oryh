@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import get_args
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,9 +24,25 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.type_options import TYPE_OPTION_SIGNS
+from app.schemas import InventoryMovementReason
 from app.db.session import create_ops_sessionmaker
 
 failures: list[str] = []
+
+
+def movement_reasons() -> str:
+    """The API's own movement vocabulary as a SQL list.
+
+    Derived from `InventoryMovementReason`, not restated beside it, for the
+    reason `shipped_signs` gives below: a hand-copied list is wrong the first
+    time somebody adds a value. It was — the reservations work added `reserved`
+    and `reservation_released`, this check kept its old ten, and a correct
+    ledger was reported as a violation on v2026.9.1. A check named "in the
+    API's vocabulary" has to ask the API.
+    """
+    values = get_args(InventoryMovementReason)
+    assert values, "InventoryMovementReason resolved to no values"
+    return ", ".join(f"'{value}'" for value in values)
 
 
 def shipped_signs(family: str) -> str:
@@ -203,10 +220,8 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
     # response model rejects a value the row already holds.
     (
         "inventory movement reasons are in the API's vocabulary",
-        """select count(*) from inventory_item_details
-            where reason not in ('initial','import_initial','import_override',
-                                 'received','issued','adjustment','damaged',
-                                 'returned','transfer','other')""",
+        f"""select count(*) from inventory_item_details
+            where reason not in ({movement_reasons()})""",
     ),
     (
         "inventory item totals equal the sum of their ledger",

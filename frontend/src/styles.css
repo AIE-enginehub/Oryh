@@ -326,3 +326,9 @@ body.modal-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+.product-gallery { display: flex; flex-wrap: wrap; gap: 12px; }
+.product-gallery-item { margin: 0; width: 140px; }
+.product-gallery-item img { width: 140px; height: 140px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border, #ddd); }
+.product-gallery-item.primary img { border-color: var(--accent, #2563eb); }
+.product-gallery-item figcaption { font-size: 12px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

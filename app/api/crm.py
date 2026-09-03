@@ -28,19 +28,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
     allocate_number,
     apply_status_change,
+    commit_or_conflict,
     delete_document,
-    envelope,
     ensure_document_editable,
+    envelope,
     get_active_document_or_404,
     get_scoped_or_404,
     get_tenant_id,
     list_rows,
+    normalize_customer_context,
     requested_pagination,
     require_machine_state,
     restore_document,
@@ -142,14 +143,7 @@ def create_lead(
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(lead)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"lead_no {lead_no!r} already exists",
-        )
+    commit_or_conflict(db, f"lead_no {lead_no!r} already exists")
     db.refresh(lead)
     return envelope(LeadRead.model_validate(lead).model_dump(by_alias=True))
 
@@ -221,6 +215,36 @@ def restore_lead(
     return restore_document(db, actor, Lead, lead_id)
 
 
+def _customer_for_conversion(db: Session, tenant_id: str, lead: Lead, payload: ConvertLeadRequest) -> tuple[Customer, CustomerContact | None]:
+    """The customer the lead becomes: an existing one by id, or a new one
+    named from the lead — with the person the lead named as its first
+    rolodex entry, primary by virtue of being the only one (a brand-new
+    customer, so the phone-dedup invariant cannot collide)."""
+    if payload.customer_id is not None:
+        return get_scoped_or_404(db, Customer, tenant_id, payload.customer_id), None
+    customer = Customer(
+        tenant_id=tenant_id,
+        name=payload.customer_name or lead.company_name or lead.contact_name,
+        customer_kind="company" if lead.company_name else None,
+        phone=None if lead.contact_name else lead.phone,
+    )
+    db.add(customer)
+    db.flush()
+    if not lead.contact_name:
+        return customer, None
+    contact = CustomerContact(
+        tenant_id=tenant_id,
+        customer_id=customer.id,
+        name=lead.contact_name,
+        phone=lead.phone,
+        wechat=lead.wechat,
+        email=lead.email,
+        is_primary=True,
+    )
+    db.add(contact)
+    return customer, contact
+
+
 @router.post("/leads/{lead_id}/convert", response_model_exclude_unset=True)
 def convert_lead(
     lead_id: str,
@@ -250,32 +274,7 @@ def convert_lead(
     # no pre-check of the transition: apply_status_change below validates it,
     # and nothing here commits before that gate fires
 
-    contact = None
-    if payload.customer_id is not None:
-        customer = get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
-    else:
-        customer = Customer(
-            tenant_id=tenant_id,
-            name=payload.customer_name or lead.company_name or lead.contact_name,
-            customer_kind="company" if lead.company_name else None,
-            phone=None if lead.contact_name else lead.phone,
-        )
-        db.add(customer)
-        db.flush()
-        if lead.contact_name:
-            # the person the lead named goes into the rolodex, primary by
-            # virtue of being the only one — a brand-new customer, so the
-            # phone-dedup invariant cannot collide
-            contact = CustomerContact(
-                tenant_id=tenant_id,
-                customer_id=customer.id,
-                name=lead.contact_name,
-                phone=lead.phone,
-                wechat=lead.wechat,
-                email=lead.email,
-                is_primary=True,
-            )
-            db.add(contact)
+    customer, contact = _customer_for_conversion(db, tenant_id, lead, payload)
 
     opportunity = None
     if payload.opportunity_title is not None:
@@ -352,17 +351,6 @@ def list_opportunities(
     )
 
 
-def _normalize_opportunity_customer(
-    db: Session, tenant_id: str, customer_id: str | None, snapshot: str | None
-) -> tuple[str | None, str | None]:
-    """The quotation's convention: a matched customer backfills the
-    snapshot; a snapshot alone is a prospect not yet in master data."""
-    if not customer_id:
-        return None, snapshot
-    customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
-    return customer.id, snapshot or customer.name
-
-
 @router.post("/opportunities", response_model=OpportunityEnvelope,
              response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
 def create_opportunity(
@@ -375,7 +363,7 @@ def create_opportunity(
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
     initial_status = require_machine_state(db, tenant_id, Opportunity, payload.status)
-    customer_id, snapshot = _normalize_opportunity_customer(
+    customer_id, snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
     if payload.lead_id:
@@ -397,14 +385,7 @@ def create_opportunity(
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(opportunity)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"opportunity_no {opportunity_no!r} already exists",
-        )
+    commit_or_conflict(db, f"opportunity_no {opportunity_no!r} already exists")
     db.refresh(opportunity)
     return envelope(OpportunityRead.model_validate(opportunity).model_dump(by_alias=True))
 
@@ -437,7 +418,7 @@ def update_opportunity(
     if updates:
         ensure_document_editable(db, opportunity)
     if "customer_id" in updates or "customer_name_snapshot" in updates:
-        customer_id, snapshot = _normalize_opportunity_customer(
+        customer_id, snapshot = normalize_customer_context(
             db, tenant_id,
             updates.pop("customer_id", opportunity.customer_id),
             updates.pop("customer_name_snapshot", opportunity.customer_name_snapshot),

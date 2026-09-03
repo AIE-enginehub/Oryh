@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    require_contract_for,
     CENT,
     _run_document_import,
     allocate_number,
@@ -578,6 +579,7 @@ def create_purchase_order(
     tenant_id = actor.tenant_id
     require_permission(actor, "purchase_order.manage")
     vendor = get_scoped_or_404(db, Vendor, tenant_id, payload.vendor_id)
+    require_contract_for(db, tenant_id, payload.contract_id, "purchase")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     if payload.order_kind == "return":
         # goods going BACK: the vendor's refund is a payment document, and a
@@ -616,6 +618,7 @@ def create_purchase_order(
     po = PurchaseOrder(
         tenant_id=tenant_id,
         po_number=po_number,
+        contract_id=payload.contract_id,
         order_kind=payload.order_kind,
         original_order_id=payload.original_order_id,
         vendor_id=payload.vendor_id,
@@ -704,6 +707,8 @@ def update_purchase_order(
     if updates.get("vendor_id"):
         vendor = get_scoped_or_404(db, Vendor, tenant_id, updates["vendor_id"])
         updates.setdefault("vendor_name_snapshot", vendor.name)
+    if "contract_id" in updates:
+        require_contract_for(db, tenant_id, updates["contract_id"], "purchase")
     if "status" in updates and updates["status"] != po.status:
         apply_status_change(db, actor, po, updates["status"])
     if "billing_account_id" in updates and updates["billing_account_id"] != po.billing_account_id:

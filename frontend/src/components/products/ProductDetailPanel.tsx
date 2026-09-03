@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   listInventoryItemDetails,
   listInventoryItems,
+  listProductImages,
   listProductPrices,
+  productImageContentUrl,
   listProductSkus,
   listSupplierProducts,
   type InventoryItemDetailRead,
@@ -219,6 +221,10 @@ export function ProductDetailPanel({ product, onClose, onEdit }: {
     };
   }, []);
 
+  const images = useQuery({
+    queryKey: ["product-detail", "images", product.id],
+    queryFn: () => listProductImages({ product_id: product.id, size: 50 }),
+  });
   const prices = useQuery({
     queryKey: ["product-detail", "prices", product.id],
     queryFn: () => listProductPrices({ product_id: product.id }),
@@ -285,6 +291,24 @@ export function ProductDetailPanel({ product, onClose, onEdit }: {
 
           <DetailSection title={text("附加字段 (metadata)", "Additional fields (metadata)")}>
             <MetadataBlock metadata={product.metadata} />
+          </DetailSection>
+
+          <DetailSection title={text("图片", "Pictures")} count={(images.data?.data ?? []).length}>
+            <SectionState
+              loading={images.isPending}
+              error={images.isError ? apiErrorMessage(images.error) : null}
+              empty={Boolean(images.data) && (images.data?.data ?? []).length === 0}
+              emptyText={text("还没有图片。上传附件后挂到产品上，一张主图。", "No pictures yet. Upload an attachment and link it to the product, one as primary.")}
+            >
+              <div className="product-gallery">
+                {(images.data?.data ?? []).map((image) => (
+                  <figure key={image.id} className={image.is_primary ? "product-gallery-item primary" : "product-gallery-item"}>
+                    <img src={productImageContentUrl(product.id, image.attachment_id)} alt={image.caption ?? image.filename ?? ""} loading="lazy" />
+                    <figcaption>{image.is_primary ? text("主图", "Primary") + " · " : ""}{image.image_type !== "other" ? image.image_type + " · " : ""}{image.caption ?? image.filename ?? ""}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </SectionState>
           </DetailSection>
 
           <DetailSection title={text("价格簿", "Price book")} count={priceRows.length}>

@@ -47,6 +47,8 @@ FILES_THE_RECORD = {
     "invoices": "invoice.manage",
     "payments": "payment.record",
     "policies": "policy.manage",
+    "product_images": "master_data.manage",
+    "contract_documents": "contract.manage",
 }
 
 

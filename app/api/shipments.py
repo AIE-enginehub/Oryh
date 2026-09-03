@@ -35,14 +35,14 @@ from app.api.common import (
     allocate_number,
     apply_status_change,
     delete_document,
-    envelope,
     ensure_document_editable,
-    ensure_document_not_deleted,
+    envelope,
     get_active_document_or_404,
     get_scoped_or_404,
     get_tenant_id,
     list_rows,
     requested_pagination,
+    require_active_row,
     require_machine_state,
     restore_document,
 )
@@ -282,6 +282,28 @@ def create_picklist(
     return envelope(data)
 
 
+def _live_lines(db: Session, document, item_model, parent_column) -> list:
+    return db.scalars(
+        select(item_model)
+        .where(
+            item_model.tenant_id == document.tenant_id,
+            parent_column == document.id,
+            item_model.deleted_at.is_(None),
+        )
+        .order_by(item_model.line_no.asc(), item_model.created_at.asc())
+    ).all()
+
+
+def _with_items(db: Session, document, read_model, item_model, parent_column, item_read_model) -> dict:
+    """A header with its live lines — the GET shape for both warehouse documents."""
+    data = read_model.model_validate(document).model_dump(by_alias=True)
+    data["items"] = [
+        item_read_model.model_validate(item).model_dump(by_alias=True)
+        for item in _live_lines(db, document, item_model, parent_column)
+    ]
+    return data
+
+
 @router.get("/picklists/{picklist_id}")
 def get_picklist(
     picklist_id: str,
@@ -289,20 +311,7 @@ def get_picklist(
     db: Annotated[Session, Depends(get_db)],
 ):
     picklist = get_active_document_or_404(db, Picklist, tenant_id, picklist_id)
-    items = db.scalars(
-        select(PicklistItem)
-        .where(
-            PicklistItem.tenant_id == tenant_id,
-            PicklistItem.picklist_id == picklist.id,
-            PicklistItem.deleted_at.is_(None),
-        )
-        .order_by(PicklistItem.line_no.asc(), PicklistItem.created_at.asc())
-    ).all()
-    data = PicklistRead.model_validate(picklist).model_dump(by_alias=True)
-    data["items"] = [
-        PicklistItemRead.model_validate(item).model_dump(by_alias=True) for item in items
-    ]
-    return envelope(data)
+    return envelope(_with_items(db, picklist, PicklistRead, PicklistItem, PicklistItem.picklist_id, PicklistItemRead))
 
 
 @router.patch("/picklists/{picklist_id}", response_model=PicklistEnvelope,
@@ -321,8 +330,10 @@ def update_picklist(
         get_scoped_or_404(db, SalesOrder, tenant_id, updates["sales_order_id"])
     if updates.get("facility_id"):
         get_scoped_or_404(db, Facility, tenant_id, updates["facility_id"])
-    if "status" in updates and updates["status"] != picklist.status:
-        apply_status_change(db, actor, picklist, updates["status"])
+    new_status = updates.pop("status", None)
+    if new_status is not None and new_status != picklist.status:
+        apply_status_change(db, actor, picklist, new_status)
+        picklist.status = new_status
     if "custom_fields" in updates:
         picklist.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
@@ -338,7 +349,6 @@ def delete_picklist(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "inventory.manage")
     return delete_document(db, actor, Picklist, picklist_id)
 
 
@@ -348,7 +358,6 @@ def restore_picklist(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "inventory.manage")
     return restore_document(db, actor, Picklist, picklist_id)
 
 
@@ -417,8 +426,7 @@ def update_picklist_item(
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "inventory.manage")
-    item = get_scoped_or_404(db, PicklistItem, tenant_id, item_id)
-    ensure_document_not_deleted(item)
+    item = get_active_document_or_404(db, PicklistItem, tenant_id, item_id)
     picklist = get_active_document_or_404(db, Picklist, tenant_id, item.picklist_id)
     ensure_document_editable(db, picklist)
     updates = payload.model_dump(exclude_unset=True)
@@ -443,7 +451,7 @@ def delete_picklist_item(
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "inventory.manage")
-    item = get_scoped_or_404(db, PicklistItem, tenant_id, item_id)
+    item = get_active_document_or_404(db, PicklistItem, tenant_id, item_id)
     picklist = get_active_document_or_404(db, Picklist, tenant_id, item.picklist_id)
     ensure_document_editable(db, picklist)
     item.deleted_at = datetime.now(timezone.utc)
@@ -609,20 +617,7 @@ def get_shipment(
     db: Annotated[Session, Depends(get_db)],
 ):
     shipment = get_active_document_or_404(db, Shipment, tenant_id, shipment_id)
-    items = db.scalars(
-        select(ShipmentItem)
-        .where(
-            ShipmentItem.tenant_id == tenant_id,
-            ShipmentItem.shipment_id == shipment.id,
-            ShipmentItem.deleted_at.is_(None),
-        )
-        .order_by(ShipmentItem.line_no.asc(), ShipmentItem.created_at.asc())
-    ).all()
-    data = ShipmentRead.model_validate(shipment).model_dump(by_alias=True)
-    data["items"] = [
-        ShipmentItemRead.model_validate(item).model_dump(by_alias=True) for item in items
-    ]
-    return envelope(data)
+    return envelope(_with_items(db, shipment, ShipmentRead, ShipmentItem, ShipmentItem.shipment_id, ShipmentItemRead))
 
 
 @router.patch("/shipments/{shipment_id}", response_model=ShipmentEnvelope, response_model_exclude_unset=True)
@@ -642,14 +637,16 @@ def update_shipment(
             updates.get("sales_order_id", shipment.sales_order_id),
             updates.get("purchase_order_id", shipment.purchase_order_id),
         )
-    if "status" in updates and updates["status"] != shipment.status:
-        apply_status_change(db, actor, shipment, updates["status"])
+    new_status = updates.pop("status", None)
+    if new_status is not None and new_status != shipment.status:
+        apply_status_change(db, actor, shipment, new_status)
+        shipment.status = new_status
         # lifecycle timestamps are facts of the transition; literal names
         # only, the sales-order convention — renamed states move without
         # stamping and the fact is PATCHed by whoever knows it
-        if updates["status"] == "shipped" and shipment.shipped_at is None:
+        if new_status == "shipped" and shipment.shipped_at is None:
             shipment.shipped_at = datetime.now(timezone.utc)
-        if updates["status"] in ("received", "delivered") and shipment.received_at is None:
+        if new_status in ("received", "delivered") and shipment.received_at is None:
             shipment.received_at = datetime.now(timezone.utc)
     if "custom_fields" in updates:
         shipment.custom_fields_jsonb = updates.pop("custom_fields")
@@ -666,7 +663,6 @@ def delete_shipment(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "inventory.manage")
     return delete_document(db, actor, Shipment, shipment_id)
 
 
@@ -676,8 +672,50 @@ def restore_shipment(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "inventory.manage")
     return restore_document(db, actor, Shipment, shipment_id)
+
+
+def _outstanding_holds(db: Session, shipment: Shipment) -> dict[str, float]:
+    """What the `reserved`/`reservation_released` pair still holds for this
+    shipment's order, per position — one grouped sum, read before the lines."""
+    rows = db.execute(
+        select(
+            InventoryItemDetail.inventory_item_id,
+            func.coalesce(func.sum(InventoryItemDetail.available_to_promise_diff), 0),
+        )
+        .where(
+            InventoryItemDetail.tenant_id == shipment.tenant_id,
+            InventoryItemDetail.sales_order_id == shipment.sales_order_id,
+            InventoryItemDetail.reason.in_(("reserved", "reservation_released")),
+        )
+        .group_by(InventoryItemDetail.inventory_item_id)
+    )
+    return {position_id: -float(total) for position_id, total in rows}
+
+
+def _release_hold(db: Session, actor: Actor, shipment: Shipment, line: ShipmentItem, position: InventoryItem, held: dict[str, float]) -> float | None:
+    """Goods held for this order stop being held as they leave: releasing up
+    to the line's quantity in the same posting keeps ATP from being deducted
+    twice for stock already promised away. `held` is drawn down as lines
+    consume it, so two parcels from one position split one hold."""
+    outstanding = held.get(position.id, 0.0)
+    if outstanding <= 0:
+        return None
+    released = min(float(line.quantity), outstanding)
+    held[position.id] = outstanding - released
+    post_inventory_detail(
+        db,
+        item=position,
+        quantity_on_hand_diff=0,
+        available_to_promise_diff=released,
+        reason="reservation_released",
+        description=f"shipment {shipment.shipment_no} consumes the hold",
+        entity_type="shipment_item",
+        entity_id=line.id,
+        sales_order_id=shipment.sales_order_id,
+        created_by=attributed(actor, None),
+    )
+    return released
 
 
 @router.post("/shipments/{shipment_id}/post-stock", response_model=PostShipmentStockEnvelope)
@@ -703,13 +741,7 @@ def post_shipment_stock(
                 "append-only; corrections are counter-entries, not re-posts"
             ),
         )
-    lines = db.scalars(
-        select(ShipmentItem).where(
-            ShipmentItem.tenant_id == tenant_id,
-            ShipmentItem.shipment_id == shipment.id,
-            ShipmentItem.deleted_at.is_(None),
-        )
-    ).all()
+    lines = _live_lines(db, shipment, ShipmentItem, ShipmentItem.shipment_id)
     sign = 1 if shipment.direction == "inbound" else -1
     # the reason is the ledger's own vocabulary, and a customer return coming
     # back is `returned`, not `received` — otherwise the same semantic event
@@ -724,6 +756,7 @@ def post_shipment_stock(
         elif shipment.purchase_order_id:
             linked = db.get(PurchaseOrder, shipment.purchase_order_id)
         reason = "returned" if linked is not None and linked.order_kind == "return" else "received"
+    held = _outstanding_holds(db, shipment) if sign < 0 and shipment.sales_order_id else {}
     report: list[PostedStockLineRead] = []
     for line in lines:
         if line.inventory_item_id is None:
@@ -731,48 +764,15 @@ def post_shipment_stock(
                 shipment_item_id=line.id, outcome="skipped_no_position",
             ))
             continue
-        position = get_scoped_or_404(db, InventoryItem, tenant_id, line.inventory_item_id)
-        if position.status == "archived":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"inventory item {position.id} is archived — set it active "
-                    "before posting this shipment's stock"
-                ),
-            )
+        position = require_active_row(
+            db, InventoryItem, tenant_id, line.inventory_item_id, "inventory item",
+            detail=(
+                f"inventory item {line.inventory_item_id} is archived — set it active "
+                "before posting this shipment's stock"
+            ),
+        )
         diff = sign * float(line.quantity)
-        released = None
-        if sign < 0 and shipment.sales_order_id:
-            # goods held for this order stop being held as they leave: the
-            # outstanding reservation for (position, order) is what the
-            # `reserved`/`reservation_released` pair sums to, and releasing
-            # up to this line's quantity in the same posting keeps ATP from
-            # being deducted twice for stock already promised away
-            outstanding = -float(db.scalar(
-                select(func.coalesce(func.sum(InventoryItemDetail.available_to_promise_diff), 0))
-                .where(
-                    InventoryItemDetail.tenant_id == tenant_id,
-                    InventoryItemDetail.inventory_item_id == position.id,
-                    InventoryItemDetail.sales_order_id == shipment.sales_order_id,
-                    InventoryItemDetail.reason.in_(("reserved", "reservation_released")),
-                )
-            ))
-            if outstanding > 0:
-                released = min(float(line.quantity), outstanding)
-                post_inventory_detail(
-                    db,
-                    item=position,
-                    quantity_on_hand_diff=0,
-                    available_to_promise_diff=released,
-                    reason="reservation_released",
-                    description=(
-                        f"shipment {shipment.shipment_no} consumes the hold"
-                    ),
-                    entity_type="shipment_item",
-                    entity_id=line.id,
-                    sales_order_id=shipment.sales_order_id,
-                    created_by=attributed(actor, None),
-                )
+        released = _release_hold(db, actor, shipment, line, position, held)
         post_inventory_detail(
             db,
             item=position,

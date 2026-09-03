@@ -731,6 +731,8 @@ ATTACHMENT_FILING_CAPABILITIES = (
     "invoice.manage",          # Invoice
     "payment.record",          # Payment
     "policy.manage",           # Policy
+    "master_data.manage",      # ProductImage — the catalog's pictures
+    "contract.manage",         # ContractDocument — the contract's originals
 )
 
 
@@ -919,6 +921,7 @@ def workspace_setup_report(
     from app.core.permissions import permissions_cover_any_scope
     from app.models import (
         Customer,
+        BillOfMaterials,
         CustomerContact,
         CustomerProduct,
         Facility,
@@ -1022,6 +1025,7 @@ def workspace_setup_report(
     md_facts = {
         "products": count(Product),
         "product_categories": count(ProductCategory),
+        "bills_of_materials": count(BillOfMaterials, BillOfMaterials.status == "active"),
         "customers": count(Customer),
         "customer_contacts": count(CustomerContact),
         "customer_products": count(CustomerProduct),
@@ -1119,19 +1123,23 @@ def workspace_setup_report(
     }
 
     # --- e-commerce (optional — only relevant when selling through platforms)
+    online_stores = count(Store, Store.channel == "online")
     areas["ecommerce"] = {
         "status": "ready" if (
-            count(ExternalProductMap) or count(ExternalDocumentLink)
+            online_stores or count(ExternalProductMap) or count(ExternalDocumentLink)
         ) else "untouched",
         "optional": True,
         "facts": {
+            # an online storefront is the first e-commerce fact; maps and
+            # links follow once orders start arriving through it
+            "online_stores": online_stores,
             "channel_product_maps": count(ExternalProductMap),
             "external_document_links": count(ExternalDocumentLink),
         },
         "next": (
-            "only if you sell through Tmall/JD/Amazon/mini-programs: curate "
-            "the product map ($oryh-master-data), record channel orders "
-            "($oryh-order-submit)"
+            "only if you sell through Tmall/JD/Amazon/mini-programs: register "
+            "the storefront with its channel key and curate the product map "
+            "($oryh-master-data), record channel orders ($oryh-order-submit)"
         ),
     }
 

@@ -42,8 +42,10 @@ oryh:
 - How much, and which way. A movement is a **difference**, signed: goods
   arriving are positive, goods leaving are negative.
 - Why, as one of the ledger's reasons: `received | issued | returned |
-  damaged | transfer | adjustment | other` (`initial`, `import_initial` and
-  `import_override` belong to item creation and the count import).
+  damaged | transfer | adjustment | other` for goods that moved;
+  `reserved` and `reservation_released` are the ATP-only pair (see
+  Reservation below); `initial`, `import_initial` and `import_override`
+  belong to item creation and the count import.
 - Everything else is optional — and that is the point. See below.
 
 ## Steps
@@ -227,7 +229,7 @@ The shipment's own life (`draft → packed → shipped → received`, editable i
 draft/packed, tenant-renamable like every machine) is the freight fact the
 flow admin advances order and return statuses FROM.
 
-### Where Returned Goods Land Is The Tenant's Sentence
+## Where Returned Goods Land Is The Tenant's Sentence
 
 OFBiz forces a schema-level choice here — every return receipt creates its
 own inventory item, and everyone pays the management cost. This system does
@@ -266,32 +268,12 @@ versioned, so past receipts stay traceable to the rule they followed.
 
 ## Stock-Take Import
 
-
-Stock lives on a LEDGER. An inventory item's `quantity_on_hand` /
-`available_to_promise` are running sums of its detail rows — nothing edits
-them directly, and the import obeys the same rule:
-
-```text
-POST /inventory-items/bulk
-{"rows": [
-  {"product_code": "P-001", "facility": "Main warehouse", "lot_id": "B2026-07",
-   "quantity": 120.5, "expire_date": "2027-06-30"}
- ], "dry_run": true, "on_error": "abort"}
-```
-
-- The stock position is (product-or-sku, `facility`, `lot_id`); `sku_code`
-  names a variant, empty facility/lot mean "unspecified". One row per
-  position per file — a duplicate is a per-row error.
-- No item at that position yet → created, opening balance recorded as a
-  ledger detail with reason `import_initial`.
-- Counted `quantity` equals the system count → `unchanged`, no ledger noise.
-- Counted `quantity` DIFFERS → the item is NOT edited: a detail is appended
-  with `quantity_on_hand_diff` = (counted − system), reason
-  `import_override`, its description naming both numbers (import override:
-  system quantity X → imported quantity Y). The row result reports
-  `changed: ["quantity_on_hand"]`.
-- `product_code` (and `sku_code`) must already exist — unknown codes are
-  per-row errors, never invented records.
+A count sheet is `POST /inventory-items/bulk` (`dry_run` first). Stock
+lives on a ledger, so a counted quantity that differs from the system count
+appends an `import_override` movement naming both numbers rather than
+editing the item; a position not yet on file is created with an
+`import_initial` opening; `product_code` (and `sku_code`) must already
+exist. The full row contract is in [references/api.md](references/api.md).
 
 ## What This Skill Never Does
 
@@ -313,5 +295,5 @@ POST /inventory-items/bulk
 
 ## Reference
 
-[references/api.md](references/api.md) — every endpoint, request shape and
-the count-import row contract.
+[references/api.md](references/api.md) — movements, picklists, shipments
+and the count-import row contract.

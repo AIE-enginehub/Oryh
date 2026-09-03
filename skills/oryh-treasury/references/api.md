@@ -62,6 +62,17 @@ POST /fin-account-transactions
   server; the platform's raw ids ride `custom_fields`.
 - `opening` belongs to account creation only — a later one is a 422; the
   fix for a wrong past is a counter-entry with the story in `description`.
+  Importing statements OLDER than the opening date is a restatement — two
+  `adjustment` rows, never a rebuild (SKILL.md step 8 says when and why):
+
+  ```text
+  POST /fin-account-transactions  {"fin_account_id": "…", "trans_type": "adjustment",
+    "amount": {balance at the new start date}, "trans_date": {new start date},
+    "description": "opening restated: balance at …"}
+  POST /fin-account-transactions  {"fin_account_id": "…", "trans_type": "adjustment",
+    "amount": {minus the original opening}, "trans_date": {original opening date},
+    "description": "opening restated: reverses the … opening, which already contained …"}
+  ```
 - Duplicate `reference_no` on one account → 409 (single POST) or
   `unchanged` (bulk, when the amount matches — a changed amount is an error
   row for a person).

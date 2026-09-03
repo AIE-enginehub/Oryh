@@ -28,6 +28,34 @@ GET /type-options?family=customer_type       → the tenant's own customer categ
 Read before a big import when the person asks whether it will duplicate anything — but you do not
 need to: the upsert answers it definitively, and a dry run reports it.
 
+## Product Pictures
+
+```text
+POST   /attachments                 → {filename, content_type: image/* or application/pdf, content_base64}; 10 MB max; returns the attachment id
+GET    /product-images?product_id=&image_type=  → primary first, then sort_order; rows carry filename/content_type/size
+POST   /product-images              → {product_id, attachment_id, image_type, is_primary?, sort_order?, caption?}; not image/* or PDF → 422; unknown image_type → 422 with the options; same pair twice → 409
+PATCH  /product-images/{image_id}   → image_type, is_primary (demotes the old), sort_order, caption
+GET    /type-options?family=product_image_type   → the tenant's picture kinds
+DELETE /product-images/{image_id}   → removes the link; the bytes stay in the store
+GET    /products/{product_id}/attachments/{attachment_id}/content   → the bytes, member-readable
+```
+
+## Bills Of Materials
+
+```text
+GET    /products?product_type=raw_material|semi_finished|finished_good|service
+GET    /bills-of-materials?product_id=&status=&keyword=
+POST   /bills-of-materials      → {product_id, version?, output_quantity?, status?, items: [{component_product_id, quantity, unit?, scrap_rate?}]}
+GET    /bills-of-materials/{bom_id}            → with items
+PATCH  /bills-of-materials/{bom_id}            → status active demotes the old active; output_quantity only while draft
+DELETE /bills-of-materials/{bom_id}            → archive
+GET    /bills-of-materials/{bom_id}/explode?quantity=&with_stock=   → lines by level + leaf_requirements (ATP, shortage)
+POST   /bom-items · PATCH /bom-items/{item_id} · DELETE /bom-items/{item_id}   → draft recipes only (409 otherwise)
+```
+
+A parent that is a raw material or a service → 422; a component that is a
+service, the parent, or anything made from the parent → 422 naming the path.
+
 ## Stores And Facilities
 
 ```text
@@ -143,9 +171,8 @@ What differs is the file, and two optional fields carry it:
   or `company` (an organisation: business, hospital, school, government). A
   fixed pair; the server refuses anything else.
   **Omit it when you do not know.** Null means nobody has stated a kind, which
-  is a true statement; `company` guessed onto a member is a false one, and
-  A sole proprietor genuinely sits on the line — ask the person rather than
-  deciding.
+  is a true statement; `company` guessed onto a member is a false one. A sole proprietor genuinely sits on the line, so ask
+  rather than deciding.
 - `customer_type` — the tenant's own customer category, from the
   `customer_type` vocabulary: shipped values are `retail`, `wholesale`,
   `distributor`, `enterprise`, `institution` (government and public bodies),
@@ -174,10 +201,8 @@ Neither field changes what the system will let anyone do. Pricing, payment terms
 whether a member prepays are judgments for the selling and finance skills, not
 gates on the customer record.
 
-For a retail import, tell the person plainly that `customer_code` is still
-required and ask what to use — the member number if their old system had one,
-otherwise the phone (`M-13800000000`), agreed once and applied to every row so
-the next import updates instead of duplicating.
+`customer_code` is required for retail rows too — SKILL.md says how to
+settle one for the whole batch.
 
 ### Response
 
@@ -263,20 +288,19 @@ existing rows alone, like every omitted field:
 
 ## Type Vocabularies (the tenant may extend these)
 
-`price_type`, `adjustment_type`, `category` and `work_type` are tenant-owned
-vocabularies, not fixed enums. Two calls, and both belong in the agent's
-repertoire:
+The type families below are tenant-owned vocabularies, not fixed enums.
+Two calls, and both belong in the agent's repertoire:
 
 ```text
 GET  /type-options?family={family}&status=active   → what this tenant accepts NOW
 POST /type-options                                 → define a new one (needs object_types.manage)
-PATCH /type-options/{type_option_id}               → retitle/describe an existing one (same gate);
-                                                     a live E2E run watched an agent deny this exists
+PATCH /type-options/{type_option_id}               → retitle/describe an existing one (same gate)
      {"family": "product_price_type", "name": "dealer_tier2", "title": "Tier-2 dealer price"}
 ```
 
 Families: `product_price_type` · `sales_adjustment_type` (quotation AND order
-adjustments) · `expense_category` · `work_type`. `name` is lowercase
+adjustments) · `expense_category` · `work_type` · `customer_type` ·
+`product_image_type` · `facility_type`. `name` is lowercase
 `[a-z][a-z0-9_]*`; colliding with a shipped value is a 409; `DELETE` archives
 a type (existing records keep their value, new writes stop accepting it).
 
@@ -337,17 +361,28 @@ What a platform's product id means in this catalog: Tmall listing 6543… IS
 product X, or IS 2× cup and 1× lid (a bundle = several rows with
 quantities). The channel mirror of supplier-products — that table maps a
 vendor's code for what the tenant buys; this one maps Tmall/JD/Amazon/a
-mini-program's id for what it sells. Order-recording agents READ this map to
-translate channel orders; curation is this desk's work.
+mini-program's id — or its TITLE, since most exports carry no id — for what
+it sells. Order-recording agents READ this map to translate channel orders,
+and order desks may POST title-keyed map rows after a person confirms the candidate; id-keyed rows, edits, effective-date swaps and deletion stay with $oryh-master-data.
 
 ```text
 GET    /external-product-maps?source=&external_product_id=&external_sku_id=&product_id=&status=
 GET    /external-product-maps?source=&external_product_id=&at=2026-08-10
                                     → the map AS OF that date (live rows whose window covers it)
+GET    /external-product-maps?source=&external_name=&at=   → the same by title (matching form:
+                                    fullwidth spacing, case and doubled spaces forgiven)
+GET    /external-product-maps?source=&keyword=             → loose search over titles, for curation
 POST   /external-product-maps       → 409 only if an OPEN-ended live row already pairs this
-                                      (source, listing, product); closed windows never block
+                                      (source, listing, product); closed windows never block;
+                                      omit external_product_id and the TITLE is the identity;
+                                      a row naming neither id nor title is a 422
 PATCH  /external-product-maps/{map_id}   → external_name/sku_id/quantity/effective_from/
-                                           effective_to/status; identity fields are fixed
+                                           effective_to/status; identity fields are fixed, and
+                                           the title is editable only on id-keyed rows (a
+                                           snapshot there) — a title-keyed row swaps via effective_to
+GET    /product-matches?title=&limit=      → active products ranked against a platform title
+                                           (CJK bigrams + words): candidates for a person to
+                                           confirm, never a decision
 DELETE /external-product-maps/{map_id}   → archive = WITHDRAWN (a mistaken pairing);
                                            never how a superseded pairing is recorded
 ```

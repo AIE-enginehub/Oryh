@@ -671,6 +671,56 @@ def test_channel_order_translation_is_taught_where_each_agent_reads() -> None:
         "the warehouse lost the link that names a frozen row later"
 
 
+def test_contracts_are_quoted_never_recalled() -> None:
+    """The contract doctrine in prose: verbatim content with the reading
+    beside it, absence stated as absence, originals never edited (a
+    supplement is a new contract), and the purchasing and payables desks
+    reading the clause before they write. Losing any of these turns the
+    clause table into a paraphrase nobody can trust."""
+    contracts = (PRODUCT_SKILLS_DIR / "oryh-contracts" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Verbatim in `content`, your reading in `summary`" in contracts
+    assert "say it does not say" in contracts
+    assert "The original is never edited" in contracts and "parent_contract_id" in contracts
+    assert "oryh runs no OCR" in contracts, "extraction is the agent's tool, storage is oryh's"
+    purchasing = (PRODUCT_SKILLS_DIR / "oryh-purchase-order" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Contract Manufacturing" in purchasing and "/explode" in purchasing
+    assert "term_type=" in purchasing, "the order follows the contract's words"
+    payables = (PRODUCT_SKILLS_DIR / "oryh-payables" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Paying Under A Contract" in payables and "never a round number" in payables
+    wizard = (PRODUCT_SKILLS_DIR / "oryh-workspace-setup" / "SKILL.md").read_text(encoding="utf-8")
+    assert "$oryh-contracts" in wizard
+
+
+def test_the_channel_import_loop_puts_the_person_in_the_middle() -> None:
+    """The loop's order is the doctrine: dedup, map first, candidates only
+    when the map is silent, the person confirms, THEN the map remembers,
+    then the order and its link. A skill that let the agent pick a
+    look-alike or write a map unconfirmed would turn every import into
+    silent mis-shipments."""
+    orders = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Importing A Channel Order: The Loop" in orders
+    assert "/product-matches" in orders and "It is a shortlist, not" in orders
+    assert "Never pick a look-alike yourself" in orders
+    assert "Writing a map without the person's confirmation" in orders
+    assert orders.index("Dedup by the platform number") < orders.index("Translate each line through the map") \
+        < orders.index("ask the catalog for candidates") < orders.index("Record what the person confirmed") \
+        < orders.index("Create the order"), "reads first, the person in the middle, writes last"
+
+
+def test_the_map_is_taught_to_answer_by_title() -> None:
+    """The lesson from the merchant's own export: it carries titles, not
+    listing ids. The curator learns to key rows by title (verbatim, never
+    tidied; a rename is a swap), and the order desk learns to translate by
+    title with the order's date and to refuse look-alike guessing."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "carry titles, not listing ids" in curator
+    assert 'never "tidy" it' in curator, "copy the title as the export prints it"
+    assert "A renamed listing is a SWAP" in curator
+    orders = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "external_name={title as printed}" in orders
+    assert "never guess a product from a look-alike name" in orders
+
+
 def test_the_rolodex_is_taught_where_the_catalog_desk_reads() -> None:
     """The two rolodex rules live in prose: one primary (demotion is the
     server's, not a two-step), and phone-dedup-per-customer with archiving
@@ -711,6 +761,37 @@ def test_picking_is_a_sentence_the_agents_read_not_a_switch() -> None:
         flow = (flow_dir / "SKILL.md").read_text(encoding="utf-8")
         assert "picklist" in flow and "never a state you move" in flow, \
             "the flow admin corroborates the run; the warehouse advances it"
+
+
+def test_pictures_are_uploaded_then_linked_and_one_is_primary() -> None:
+    """The picture doctrine in prose: upload first, link second (an image
+    is an attachment the catalog points at), one primary per product with
+    demotion in the same write, and removal drops the link, never the
+    bytes. Losing the order turns every gallery into a pile of orphaned
+    uploads; losing the primary rule turns lists into a coin toss."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/product-images" in curator and "Upload first, link second" in curator
+    assert "One primary per product" in curator
+    assert "removes the link, not the bytes" in curator
+    assert "Say what KIND each picture is" in curator and "product_image_type" in curator, \
+        "the kind is a vocabulary the agent reads, never a caption it improvises"
+    assert "orthogonal to the primary" in curator
+    api = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "references" / "api.md").read_text(encoding="utf-8")
+    assert "/products/{product_id}/attachments/{attachment_id}/content" in api
+    assert "image_type=" in api
+
+
+def test_materials_are_a_role_and_requirements_are_a_read() -> None:
+    """The manufacturing lesson in prose: no materials table (a material is
+    a product with a role), one active recipe whose change is a new
+    version, and requirements DERIVED by the explode read — the shortage is
+    said, the purchase is the person's decision, and oryh stores no plan."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "There is no materials table" in curator, "a material is a product with a role"
+    assert "/bills-of-materials" in curator and "One active recipe per product" in curator
+    assert "Requirements are a READ, never a plan" in curator, \
+        "explode derives; buying is the person's decision"
+    assert "/explode" in (PRODUCT_SKILLS_DIR / "oryh-master-data" / "references" / "api.md").read_text(encoding="utf-8")
 
 
 def test_the_storefronts_are_taught_where_orders_are_recorded() -> None:
@@ -778,6 +859,13 @@ def test_the_treasury_doctrine_is_written_where_the_cashier_reads() -> None:
     a second editable ledger — the exact corruption it exists to prevent."""
     treasury = (PRODUCT_SKILLS_DIR / "oryh-treasury" / "SKILL.md").read_text(encoding="utf-8")
     assert "counter-entry" in treasury, "corrections are counter-entries, never edits"
+    # the restatement lesson, found live: an account opened at the month at
+    # hand could not take the earlier months, and the agent proposed a
+    # rebuild that would have lost the rows already reconciled
+    assert "how far back the statements will ever go" in treasury, \
+        "the opening is a balance AS OF a date — ask before opening"
+    assert "Restating the opening" in treasury and "do NOT rebuild the account" in treasury, \
+        "an earlier start is two adjustments, never a rebuild"
     assert "Balances derive" in treasury, "no balance field exists to set — say so"
     assert "unlinked=true" in treasury, "the reconciliation queue is derived, read never remembered"
     assert "own tools" in treasury and "no platform secrets" in treasury.lower() or \
@@ -803,8 +891,12 @@ def test_the_wizard_derives_and_never_stores() -> None:
         "module judgment stays in the agent's context — stored nowhere here"
     assert "re-reading the report" in wizard, \
         "verification is a fresh read, never memory — a live agent once reported rows from recall"
-    for handoff in ("$oryh-access-admin", "$oryh-master-data"):
+    for handoff in ("$oryh-access-admin", "$oryh-master-data", "$oryh-crm",
+                    "$oryh-treasury", "$oryh-inventory"):
         assert handoff in wizard, f"the wizard orchestrates through {handoff}, never re-teaches"
+    assert "NO shipped role" in wizard, "naming the cashier is the admin's first treasury decision"
+    assert "ready` on\n      staffing alone" in wizard or "staffing alone" in wizard, \
+        "approval-free families need no definition — the wizard must not nag for one"
 
 
 def test_returns_as_order_rows_are_taught_where_each_agent_reads() -> None:

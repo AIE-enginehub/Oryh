@@ -40,15 +40,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.api.common import (
-    CENT,
-    DOCUMENT_FAMILIES,
     _run_document_import,
     account_position,
     allocate_document_number,
     allocate_number,
     apply_status_change,
+    CENT,
+    commit_or_conflict,
     delete_document,
     document_approvals,
+    DOCUMENT_FAMILIES,
     ensure_document_editable,
     ensure_document_not_deleted,
     ensure_invoice_not_duplicated,
@@ -72,6 +73,7 @@ from app.api.common import (
     recheck_charged_document,
     record_line_audit,
     register_attachment_source,
+    require_contract_for,
     require_live_line,
     require_machine_state,
     resolve_chargeable_account,
@@ -170,6 +172,26 @@ from app.services.state_machines import (
 )
 
 router = APIRouter()
+
+
+CONTRACT_SIDE_BY_INVOICE_DIRECTION = {"sales": "sales", "purchase": "purchase"}
+CONTRACT_SIDE_BY_PAYMENT_DIRECTION = {"inbound": "sales", "outbound": "purchase"}
+
+
+def _require_contract_side(db, tenant_id: str, contract_id, direction: str, sides: dict, noun: str) -> None:
+    """Invoices and payments name the contract they bill or settle under —
+    on the side their direction implies. Payroll and reimbursement invoices
+    execute no contract: a pointer there is refused, not ignored."""
+    if contract_id is None:
+        return
+    side = sides.get(direction)
+    if side is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"a {direction} {noun} executes no contract — leave contract_id off",
+        )
+    require_contract_for(db, tenant_id, contract_id, side)
+
 
 
 def may_see_invoice(actor: Actor, invoice: Invoice) -> bool:
@@ -737,6 +759,8 @@ def create_invoice(
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "invoice.manage", payload.direction)
+    _require_contract_side(db, tenant_id, payload.contract_id, payload.direction,
+                           CONTRACT_SIDE_BY_INVOICE_DIRECTION, "invoice")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     counterparty, party_name = resolve_invoice_counterparty(
         db, tenant_id, payload.direction,
@@ -795,6 +819,7 @@ def create_invoice(
     invoice = Invoice(
         tenant_id=tenant_id,
         invoice_no=invoice_no,
+        contract_id=payload.contract_id,
         direction=payload.direction,
         invoice_type=invoice_type,
         employee_id=payload.employee_id,
@@ -879,6 +904,9 @@ def update_invoice(
     # check is conditional.
     ensure_invoice_visible(actor, invoice)
     updates = payload.model_dump(exclude_unset=True)
+    if "contract_id" in updates:
+        _require_contract_side(db, tenant_id, updates["contract_id"], invoice.direction,
+                               CONTRACT_SIDE_BY_INVOICE_DIRECTION, "invoice")
     # Only `status` is the flow's to write; the rest of the header is what
     # somebody filed, so changing it takes the capability that filed it. The
     # same line common.py's `ensure_content_edit_allowed` draws for timesheets
@@ -2557,10 +2585,13 @@ def create_payment(
         get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
     initial_status = require_machine_state(db, tenant_id, Payment, payload.status)
     payment_no = payload.payment_no or allocate_number(db, Payment, tenant_id)
+    _require_contract_side(db, tenant_id, payload.contract_id, payload.direction,
+                           CONTRACT_SIDE_BY_PAYMENT_DIRECTION, "payment")
     payment = Payment(
         tenant_id=tenant_id,
         payment_no=payment_no,
         direction=payload.direction,
+        contract_id=payload.contract_id,
         payment_method=payload.payment_method,
         employee_id=payload.employee_id,
         counterparty_name_snapshot=payload.counterparty_name_snapshot or party_name,
@@ -2578,14 +2609,7 @@ def create_payment(
         **counterparty,
     )
     db.add(payment)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"payment_no {payment_no!r} already exists in this workspace",
-        )
+    commit_or_conflict(db, f"payment_no {payment_no!r} already exists in this workspace")
     db.refresh(payment)
     return envelope(PaymentRead.model_validate(payment).model_dump(by_alias=True))
 
@@ -2615,6 +2639,9 @@ def update_payment(
     # exists, and so the two doors give the same answer.
     ensure_payment_visible(db, actor, payment)
     updates = payload.model_dump(exclude_unset=True)
+    if "contract_id" in updates:
+        _require_contract_side(db, tenant_id, updates["contract_id"], payment.direction,
+                               CONTRACT_SIDE_BY_PAYMENT_DIRECTION, "payment")
     # Same split as the invoice above: the flow owns `status`, the filer owns
     # everything else. `apply_status_change` still requires `payment.advance`,
     # the hosted write boundary and a legal transition.

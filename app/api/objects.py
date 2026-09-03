@@ -62,6 +62,7 @@ from app.models import (
     EmployeeLeave,
     ExpenseClaim,
     ExpenseItem,
+    Contract,
     Invoice,
     Lead,
     Picklist,
@@ -784,6 +785,12 @@ def get_object_directory(
         or 0,
         "shipment": db.scalar(
             select(func.count()).select_from(Shipment).where(Shipment.tenant_id == tenant_id)
+        )
+        or 0,
+        "contract": db.scalar(
+            select(func.count()).select_from(Contract).where(
+                Contract.tenant_id == tenant_id
+            )
         )
         or 0,
         "picklist": db.scalar(

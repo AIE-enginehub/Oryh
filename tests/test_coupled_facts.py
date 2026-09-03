@@ -237,7 +237,7 @@ def test_every_family_shares_the_funnel() -> None:
     # they never appear in a flow queue; leaving them out is how they would
     # go unwatched.
     collections = {path.strip("/") for path in BUILTIN_QUEUE_PATHS.values()} | {
-        "purchase-orders", "shipments", "picklists", "leads", "opportunities",
+        "purchase-orders", "shipments", "picklists", "leads", "opportunities", "contracts",
     }
     assert len(collections) == len(DOCUMENT_ENTITY_TYPES), (
         f"{len(collections)} collections for {len(DOCUMENT_ENTITY_TYPES)} document families — "

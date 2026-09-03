@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.emails import outbox
-
-from conftest import make_client, provision_tenant
+from conftest import make_client, provision_tenant, invite_member
 
 
 @pytest.fixture()
@@ -30,18 +28,7 @@ def dock():
         t = provision_tenant(client, company_name="Dock Co", email="admin@dock.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
-        client.post("/api/v1/roles", json={"name": "keeper", "permissions": ["inventory.manage"]},
-                    headers=admin)
-        uid = client.post("/api/v1/auth/invitations",
-                          json={"email": "keeper@dock.example", "role": "keeper"},
-                          headers=admin).json()["data"]["id"]
-        token = next(l.rsplit("token=", 1)[1].strip()
-                     for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-        client.post("/api/v1/auth/invitations/accept",
-                    json={"token": token, "password": "invitee-pass1"})
-        keeper = {"X-API-Key": client.post(
-            "/api/v1/tenant/api-keys", json={"label": "keeper", "user_id": uid},
-            headers=admin).json()["data"]["plain_text_api_key"]}
+        keeper = invite_member(client, admin, "keeper", ["inventory.manage"])
 
         emp = client.post("/api/v1/employees", json={"name": "店长"},
                           headers=admin).json()["data"]["id"]
@@ -259,3 +246,20 @@ def test_a_todo_may_point_at_a_shipment(dock) -> None:
         "entity_type": "shipment", "entity_id": shipment["id"],
         "employee_id": dock["employee"], "title": "打包发货"})
     assert todo.status_code == 201, todo.text
+
+
+def test_post_stock_refuses_an_archived_position(dock) -> None:
+    """An archived shelf takes no goods: the posting names the position and
+    its fix instead of writing a movement nobody can read back."""
+    client, keeper, admin = dock["client"], dock["keeper"], dock["admin"]
+    so = dock["order"]()
+    shipment = client.post("/api/v1/shipments", headers=keeper, json={
+        "direction": "outbound", "sales_order_id": so["id"],
+        "items": [{"product_id": dock["product"], "quantity": 1,
+                   "inventory_item_id": dock["position"]}]}).json()["data"]
+    assert client.delete(f"/api/v1/inventory-items/{dock['position']}",
+                         headers=admin).status_code == 204
+    refused = client.post(f"/api/v1/shipments/{shipment['id']}/post-stock", headers=keeper)
+    assert refused.status_code == 409, refused.text
+    assert "archived" in refused.json()["detail"]
+    assert dock["qoh"]() == 10, "nothing moved"

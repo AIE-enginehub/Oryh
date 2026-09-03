@@ -59,9 +59,10 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 4. **In-flight duplicate check**: `GET /sales-quotations?employee_id={me}&status=submitted` and `?status=sent` — an open quotation for the same customer and scope means revise or wait, not a second number. This is a conversation, not a hard stop.
 
-   **Steps 2, 3 and 4 are one batch — four independent reads, one turn.** The
-   tenant's rules, your open drafts, and both in-flight queries feed nothing
-   into each other; sequencing them quadruples the wait for no reason.
+   **Steps 2, 3 and 4 are one batch: the definition read, the draft query
+   and both in-flight queries are four independent reads — send them in
+   one turn.** They feed nothing into each other; sequencing them
+   quadruples the wait for no reason.
 
 5. **Match master data** (read-only, all optional — and ONE batch: the
    customer lookup and every line's product lookup go out together the moment
@@ -125,7 +126,7 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 ## What Happens Next (so you can answer the principal)
 
-Submitted quotations sit in the flow agent's queue: calibrated against the step-2 requirements first (non-compliant ones come straight back as rework todos), then routed to whatever approvers the tenant's definition names — discount tiers key on the derived line discounts and the header-total gap. Once `approved`, sending is YOURS (step 10) — no one else touches the customer. `GET /approval-records?entity_type=sales_quotation&entity_id={id}` shows progress any time. Quotations past `valid_until` are swept to `expired` by the flow agent; closing the deal before that is step 11.
+Submitted quotations sit in the flow agent's queue: calibrated against the step-2 requirements first (non-compliant ones come straight back as rework todos), then routed to whatever approvers the tenant's definition names — discount tiers key on the derived line discounts and the header-total gap. Once `approved`, sending is YOURS (step 9) — no one else touches the customer. `GET /approval-records?entity_type=sales_quotation&entity_id={id}` shows progress any time. Quotations past `valid_until` are swept to `expired` by the flow agent; closing the deal before that is step 10.
 
 ## What This Skill Never Does
 

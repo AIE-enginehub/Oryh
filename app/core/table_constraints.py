@@ -49,12 +49,13 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
         "approved", "commented", "rejected", "returned", "submitted",
     ),
     ("approval_records", "entity_type"): (
-        "approval_target", "business_object", "employee_leave", "expense_claim",
+        "approval_target", "business_object", "contract", "employee_leave", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",
     ),
     ("billing_accounts", "unit_type"): ("currency", "points"),
+    ("bills_of_materials", "status"): ("active", "archived", "draft"),
     ("purchase_orders", "order_kind"): ("order", "return"),
     ("sales_orders", "order_kind"): ("order", "return"),
     ("capabilities", "kind"): ("custom", "system"),
@@ -82,6 +83,9 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("policies", "visibility"): ("internal", "public", "restricted"),
     ("product_categories", "status"): ("active", "archived"),
     ("product_skus", "status"): ("active", "archived"),
+    ("products", "product_type"): (
+        "finished_good", "raw_material", "semi_finished", "service",
+    ),
     ("products", "status"): ("active", "archived"),
     ("projects", "status"): ("active", "archived"),
     ("resource_bookings", "status"): ("cancelled", "confirmed"),
@@ -102,7 +106,7 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     # `20260813_0054` drops it; `tests/test_table_constraints.py` keeps any
     # extensible family from acquiring one again.
     ("todos", "entity_type"): (
-        "approval_target", "business_object", "employee_leave", "expense_claim",
+        "approval_target", "business_object", "contract", "employee_leave", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist", "project",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",

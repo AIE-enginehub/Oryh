@@ -27,10 +27,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    commit_or_conflict,
     envelope,
     get_scoped_or_404,
     get_tenant_id,
@@ -168,14 +168,7 @@ def create_external_document_link(
         metadata_jsonb=payload.metadata,
     )
     db.add(link)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="this external number is already linked to this document",
-        )
+    commit_or_conflict(db, "this external number is already linked to this document")
     db.refresh(link)
     return envelope(ExternalDocumentLinkRead.model_validate(link).model_dump(by_alias=True))
 

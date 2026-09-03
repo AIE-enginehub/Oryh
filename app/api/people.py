@@ -29,11 +29,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, and_, cast, func, or_, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
     apply_status_change,
+    commit_or_conflict,
     delete_document,
     ensure_content_edit_allowed,
     envelope,
@@ -705,17 +705,10 @@ def create_pay_history(
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(record)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                    f"this employee already has a {payload.component} term starting "
-                f"{payload.effective_from}"
-            ),
-        )
+    commit_or_conflict(db, (
+                            f"this employee already has a {payload.component} term starting "
+                        f"{payload.effective_from}"
+                    ))
     db.refresh(record)
     if superseded is not None:
         db.refresh(superseded)

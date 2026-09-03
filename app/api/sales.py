@@ -25,13 +25,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
-    CENT,
     _run_document_import,
     allocate_number,
     apply_status_change,
     attachments_for_items,
     build_item,
     catalog_list_price,
+    CENT,
+    commit_or_conflict,
     create_adjustment,
     create_item,
     delete_adjustment,
@@ -54,10 +55,13 @@ from app.api.common import (
     list_items,
     list_rows,
     load_item_catalog_context,
+    normalize_customer_context,
     order_billed_on_account,
     recheck_charged_document,
     register_attachment_source,
     requested_pagination,
+    require_active_row,
+    require_contract_for,
     require_machine_state,
     require_original_order,
     resolve_chargeable_account,
@@ -73,7 +77,6 @@ from app.api.common import (
 from app.api.deps import Actor, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
-    Customer,
     Employee,
     Project,
     PurchaseRequest,
@@ -212,38 +215,6 @@ def quote_drift(
         amount=amount,
         percent=round(amount / quote_total * 100, 2) if quote_total else None,
     )
-
-
-def require_active_store(db: Session, tenant_id: str, store_id: str | None) -> None:
-    """An order names the selling front it came through; filing one onto an
-    archived store is refused with the fix, existing orders keep theirs."""
-    if store_id is None:
-        return
-    store = get_scoped_or_404(db, Store, tenant_id, store_id)
-    if store.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"store {store_id} is archived — revive it or pick a live one; "
-                "orders already on it keep their pointer"
-            ),
-        )
-
-
-def normalize_customer_context(
-    db: Session,
-    tenant_id: str,
-    customer_id: str | None,
-    customer_name: str | None,
-) -> tuple[str | None, str | None]:
-    """Same contract as `common.py`'s normalize_vendor_context: a customer_id
-    must be a real record (404 otherwise) and backfills the free-text snapshot;
-    without one, the snapshot stands alone (a prospect not yet in master
-    data)."""
-    if not customer_id:
-        return None, customer_name
-    customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
-    return customer.id, customer_name or customer.name
 
 
 def quotation_item_effective_amount(item: SalesQuotationItem) -> float | None:
@@ -760,14 +731,7 @@ def revise_sales_quotation(
         editable=editable_states(machine, "sales_quotation"),
     )
     source.status = superseded
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="a concurrent revision was created; retry against the live revision",
-        )
+    commit_or_conflict(db, "a concurrent revision was created; retry against the live revision")
     db.refresh(revision)
     return envelope(SalesQuotationRead.model_validate(revision).model_dump(by_alias=True))
 
@@ -1085,7 +1049,8 @@ def create_sales_order(
     customer_id, customer_name_snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
-    require_active_store(db, tenant_id, payload.store_id)
+    require_active_row(db, Store, tenant_id, payload.store_id, "store")
+    require_contract_for(db, tenant_id, payload.contract_id, "sales")
     if payload.project_id:
         get_scoped_or_404(db, Project, tenant_id, payload.project_id)
     charged_account = None
@@ -1113,6 +1078,7 @@ def create_sales_order(
         customer_id=customer_id,
         customer_name_snapshot=customer_name_snapshot,
         store_id=payload.store_id,
+        contract_id=payload.contract_id,
         contact_name=payload.contact_name,
         contact_phone=payload.contact_phone,
         ship_to_address=payload.ship_to_address,
@@ -1188,7 +1154,9 @@ def update_sales_order(
     updates = payload.model_dump(exclude_unset=True)
     ensure_content_edit_allowed(actor, "order", updates)
     if "store_id" in updates:
-        require_active_store(db, tenant_id, updates["store_id"])
+        require_active_row(db, Store, tenant_id, updates["store_id"], "store")
+    if "contract_id" in updates:
+        require_contract_for(db, tenant_id, updates["contract_id"], "sales")
     if "original_order_id" in updates:
         if order.order_kind != "return":
             raise HTTPException(

@@ -251,3 +251,52 @@ def test_an_archived_account_refuses_postings(desk) -> None:
     refused = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": box["id"], "amount": 10.0})
     assert refused.status_code == 409
+
+
+def test_an_earlier_start_is_restated_not_rebuilt(desk) -> None:
+    """The live lesson: an account opened at 8/1 with August's statement at
+    hand, then January through July had to come in. The skill's recipe —
+    import the older lines, then two adjustments (the balance at the new
+    start date, and the reversal of the original opening, dated where it
+    sat) — must leave current_balance exactly where it was and be accepted
+    by the sign rules, or the recipe is a story rather than a fix."""
+    client, cashier, account = desk["client"], desk["cashier"], desk["account"]
+    # August, as it happened
+    august = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account["id"], "trans_date": "2026-08-15",
+        "amount": 250.0, "reference_no": "AUG-1"})
+    assert august.status_code == 201
+    before = desk["balance"]()
+    assert before == 1250.0
+
+    # the older months' net is 1000 - 400 = 600, which the 8/1 opening
+    # already contained: balance at 1/1 was 400
+    older = client.post("/api/v1/fin-account-transactions/bulk", headers=cashier, json={
+        "fin_account_id": account["id"], "rows": [
+            {"trans_date": "2026-03-10", "amount": 900.0, "reference_no": "MAR-1"},
+            {"trans_date": "2026-05-02", "amount": -300.0, "reference_no": "MAY-1"},
+        ]})
+    assert older.status_code == 200, older.text
+    assert desk["balance"]() == before + 600.0, "importing alone double-counts — the restatement is what fixes it"
+
+    at_start = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account["id"], "trans_type": "adjustment",
+        "trans_date": "2026-01-01", "amount": 400.0,
+        "description": "opening restated: balance at 2026-01-01"})
+    reversal = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account["id"], "trans_type": "adjustment",
+        "trans_date": "2026-08-01", "amount": -1000.0,
+        "description": "opening restated: reverses the 2026-08-01 opening"})
+    assert at_start.status_code == 201, at_start.text
+    assert reversal.status_code == 201, reversal.text
+    assert desk["balance"]() == before, "restated: same total, full history, nothing rebuilt"
+
+    rows = client.get("/api/v1/fin-account-transactions",
+                      params={"fin_account_id": account["id"], "date_to": "2026-07-31"},
+                      headers=cashier).json()["data"]
+    assert sum(float(r["amount"]) for r in rows) == 1000.0, \
+        "the balance as of any date inside the back-filled span now reads right"
+    types = [r["trans_type"] for r in client.get(
+        "/api/v1/fin-account-transactions", params={"fin_account_id": account["id"]},
+        headers=cashier).json()["data"]]
+    assert types.count("opening") == 1, "the original opening stays as the history it is"

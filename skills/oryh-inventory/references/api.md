@@ -40,9 +40,13 @@ POST /inventory-item-details
 ```
 
 Details are immutable — no update, no delete, no per-row path; a mistake is
-corrected by a counter-entry. `reason` catalog: `initial | import_initial |
-import_override | received | issued | adjustment | damaged | returned |
-transfer | other`. Posting to an archived item is a 409.
+corrected by a counter-entry. `reason` catalog: `received | issued |
+adjustment | damaged | returned | transfer | other` for goods that moved;
+`reserved | reservation_released` for the ATP-only hold pair
+(`quantity_on_hand_diff` 0, `available_to_promise_diff` negative then
+positive, `sales_order_id` required — 422 otherwise); `initial |
+import_initial | import_override` for item creation and the count import.
+Posting to an archived item is a 409.
 
 **Provenance, in the shape the cause has** — one movement carries at most one
 of the first two:
@@ -109,8 +113,25 @@ linked to a RETURN row, which posts `returned`, so one ledger word answers
 "how much came back" whichever door it entered. Provenance
 `entity_type: "shipment_item"` + the order FK, once only.
 
-## Stock-Take Import
+## Picklists
 
+```text
+GET    /picklists?sales_order_id=&facility_id=&status=&keyword=
+POST   /picklists        → {sales_order_id, facility_id?, items: [{product_id, sku_id?,
+                            inventory_item_id, quantity, picked_quantity?, description?}]}
+                            every line names its stock position, and the position must
+                            hold the line's product (422 otherwise)
+GET    /picklists/{id}   → header + live lines
+PATCH  /picklists/{id}   → fields, or status along the tenant's machine
+                            (default draft → picking → picked → completed; cancelled)
+POST   /picklist-items   → add a line to an editable run;  PATCH /picklist-items/{id}
+                            {picked_quantity} records reality;  DELETE removes the line
+POST   /shipments        → {picklist_id, ...} and NO items: the server copies the picked
+                            lines (picked quantities win, zero picks ship nothing) and
+                            refuses a picklist that picks for a different order
+```
+
+## Stock-Take Import
 
 Stock lives on a LEDGER. An inventory item's `quantity_on_hand` /
 `available_to_promise` are running sums of its detail rows — nothing edits

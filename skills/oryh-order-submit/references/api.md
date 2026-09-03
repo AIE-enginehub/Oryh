@@ -138,6 +138,13 @@ GET /external-product-maps?source=tmall&external_product_id={platform id}&at={or
                                                           ORDER's date, not today. Rows: each
                                                           contributes quantity × line qty of
                                                           product_id; several rows = a bundle
+GET /external-product-maps?source=tmall&external_name={title verbatim}&at={order date}
+                                                        → the same, keyed by the listing's TITLE
+                                                          (the common export); spec in external_sku_id
+GET /product-matches?title={title}&limit=5              → candidates when the map is silent — a
+                                                          shortlist for the person, never a decision
+POST /external-product-maps {source, external_name, external_sku_id?, product_id, quantity?}
+                                                        → what the person confirmed; title-keyed only
 ```
 
 ```json
@@ -158,8 +165,7 @@ return number to whatever recorded the return (`entity_type` also accepts
 `payment`, `business_object`, `inventory_item_detail`, `purchase_order`,
 `invoice` — the capability that governs writing that document governs its
 links). `DELETE /external-document-links/{id}` undoes a mislink; the tuple
-reopens. The map itself is read-only here — curation is catalog work
-($oryh-master-data).
+reopens. Order desks may POST title-keyed map rows after a person confirms the candidate; id-keyed rows, edits, effective-date swaps and deletion stay with $oryh-master-data.
 
 ## Returns
 

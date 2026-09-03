@@ -34,6 +34,7 @@ from app.models import (
     EmployeeLeave,
     ExpenseClaim,
     ExpenseItem,
+    Contract,
     Invoice,
     Lead,
     Picklist,
@@ -62,6 +63,7 @@ from app.models import (
 from app.schemas import (
     EmployeeLeaveRead,
     ExpenseClaimRead,
+    ContractRead,
     InvoiceRead,
     LeadRead,
     PicklistRead,
@@ -385,6 +387,18 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         number_prefix="PO-", number_field="po_number", lock_scope="purchase_order_number",
         machine_type_for=lambda d: "purchase_return" if d.order_kind == "return" else "purchase_order",
     ),
+    Contract: DocumentFamily(
+        # a file and its located clauses: one functional grant files and
+        # advances (signing is a recorded fact; review is the tenant's own
+        # todos), scoped on the side derived from the counterparty
+        "contract", "contract lines", "contract",
+        "contract.manage", ContractRead, "contract",
+        lambda d: {"contract_no": d.contract_no, "title": d.title, "side": d.side},
+        "contract", advance_permission=None,
+        permission_scope=lambda d: d.side,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="CT-", number_field="contract_no", lock_scope="contract_number",
+    ),
     Picklist: DocumentFamily(
         # warehouse work like the shipment: one functional grant files AND
         # advances, no owner, everyone reads
@@ -409,7 +423,8 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
     Lead: DocumentFamily(
         # the pipeline's front door: personal like a quotation (my leads are
         # mine to work), approval-free like a shipment — one grant files AND
-        # advances, and the same grant drives the conversion bridge
+        # advances, and the same grant drives the conversion bridge. No
+        # lines: items_phrase only ever surfaces in the editable-state 409
         "lead", "lead details", "lead",
         "crm.own", LeadRead, "lead",
         lambda d: {
@@ -422,6 +437,8 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         number_prefix="LD-", number_field="lead_no", lock_scope="lead_number",
     ),
     Opportunity: DocumentFamily(
+        # the deal a lead became: the same personal, approval-free shape as
+        # the lead, and no lines either
         "opportunity", "opportunity details", "opportunity",
         "crm.own", OpportunityRead, "opportunity",
         lambda d: {"opportunity_no": d.opportunity_no, "title": d.title},
@@ -463,6 +480,71 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         number_prefix="PAY-", number_field="payment_no", lock_scope="payment_number",
     ),
 }
+
+
+def require_active_row(
+    db: Session, model, tenant_id: str, row_id: str | None, noun: str, *, detail: str | None = None
+):
+    """A pointer at master data must land on a LIVE row: an archived shelf,
+    store, account or category names its fix instead of accepting a new
+    document; rows already pointing at it keep their pointer — history,
+    not a cascade. None passes through, for the nullable pointers. A caller
+    that is posting INTO the row (a ledger, a register) passes its own
+    `detail`, since "pointing anything new at it" is not what it is doing."""
+    if row_id is None:
+        return None
+    row = get_scoped_or_404(db, model, tenant_id, row_id)
+    if row.status != "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail or (
+                f"{noun} {row_id} is archived — set it active (PATCH status active) "
+                "before pointing anything new at it; existing rows keep their pointer"
+            ),
+        )
+    return row
+
+
+def require_entity_uuid(entity_id: str | None) -> None:
+    """`entity_id` promises resolvability — the column is uuid-typed, and a
+    Tmall order number there was a 500 from inside the column type, not an
+    answer. The refusal names where the reference DOES go, because the
+    caller's need is real; only the column is wrong."""
+    if entity_id is None:
+        return
+    try:
+        uuid.UUID(entity_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"entity_id must be the uuid of a record in this system — "
+                f"{entity_id!r} is not one. An external order "
+                "(Tmall, JD, another system) goes in `custom_fields`, e.g. "
+                '{"source": "tmall", "order_no": "..."}'
+            ),
+        )
+
+
+def require_contract_for(db: Session, tenant_id: str, contract_id: str | None, side: str):
+    """A document that names a contract must sit on the contract's SIDE:
+    a purchase order executes a purchase contract, a sales order a sales
+    one, a sales invoice or an inbound payment a sales one, and so on — a
+    crossed pointer is a wrong answer the execution read would repeat."""
+    if contract_id is None:
+        return None
+    contract = get_scoped_or_404(db, Contract, tenant_id, contract_id)
+    if contract.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+    if contract.side != side:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"contract {contract_id} is a {contract.side} contract — this document "
+                f"executes the {side} side; a crossed pointer is a wrong answer"
+            ),
+        )
+    return contract
 
 
 def may_read_payroll(actor: Actor) -> bool:
@@ -1703,6 +1785,17 @@ MASTER_CODE_FIELDS = {
 }
 
 
+def commit_or_conflict(db: Session, detail: str) -> None:
+    """Commit, or turn the unique index's refusal into a 409 that says what
+    collided. The index is the invariant; this is its sentence — every
+    family that owns a "one live X per scope" rule ends its write here."""
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
 def commit_or_code_conflict(db: Session, row) -> None:
     """Commit a master-data write; a duplicate code becomes a 409 that names
     the holder instead of a 500.
@@ -2276,6 +2369,21 @@ def grouped_linked_lines(
             continue
         grouped.setdefault(getattr(line, link_field), []).append(build(line, parent))
     return grouped
+
+
+def normalize_customer_context(
+    db: Session,
+    tenant_id: str,
+    customer_id: str | None,
+    customer_name: str | None,
+) -> tuple[str | None, str | None]:
+    """The vendor twin's contract, sell-side: a customer_id must be a real
+    record (404 otherwise) and backfills the free-text snapshot; without one,
+    the snapshot stands alone (a prospect not yet in master data)."""
+    if not customer_id:
+        return None, customer_name
+    customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
+    return customer.id, customer_name or customer.name
 
 
 def normalize_vendor_context(

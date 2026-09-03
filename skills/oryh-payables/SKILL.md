@@ -108,48 +108,50 @@ ask; do not average them into a decision.
 
 ## Paying
 
-0. **Paying an expense claim? Ask which route this workspace takes.**
-   Two are legitimate and the server picks neither:
+### Before paying an expense claim
 
-   - **Bill it.** `POST /expense-claims/{claim_id}/invoice` first, then treat
-     the invoice as an ordinary bill in every step below. The claim's payable
-     lands in AP, in aging, and in whatever a ledger posts from — what a
-     company that closes books wants.
-   - **Pay it.** Skip the invoice and settle the claim itself at the end
-     (`"applied_to_type": "expense_claim"`). Fewer documents, same money, same
-     guards.
+**Ask which route this workspace takes.** Two are legitimate and the server picks neither:
 
-   **This workspace's answer is written down — read it, do not choose for
-   them.** Two places, in order:
+- **Bill it.** `POST /expense-claims/{claim_id}/invoice` first, then treat
+  the invoice as an ordinary bill in every step below. The claim's payable
+  lands in AP, in aging, and in whatever a ledger posts from — what a
+  company that closes books wants.
+- **Pay it.** Skip the invoice and settle the claim itself at the end
+  (`"applied_to_type": "expense_claim"`). Fewer documents, same money, same
+  guards.
 
-   - the **"Workspace calibration" section at the bottom of this skill** — it
-     is already in your bundle, nothing to fetch. The admin states the route
-     there in a sentence ("pay claims directly, no invoice" / "always bill
-     first").
-   - the claim's workflow definition:
-     `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim`
-     — what happens after approval is that document's subject.
+**This workspace's answer is written down — read it, do not choose for
+them.** Two places, in order:
 
-   When neither says, ask the principal once and say which you used. When they
-   disagree, say so and ask — do not pick.
+- the **"Workspace calibration" section at the bottom of this skill** — the
+  admin's own sentence, appended when your bundle was built, so it is
+  already here, nothing to fetch ("pay claims directly, no invoice" /
+  "always bill first").
+- the claim's workflow definition:
+  `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim`
+  — what happens after approval is that document's subject.
 
-   A single claim may not take both routes: whichever it takes first is the one
-   it keeps, and the other is refused with a 409 naming what already covers it.
-   The two documents keep separate running totals, so paying both would pay the
-   employee twice while each reported itself correctly settled. Reversing the
-   applications releases the claim to the other route.
+When neither says, ask the principal once and say which you used. When they
+disagree, say so and ask — do not pick.
 
-   On the billing route: the company owes the EMPLOYEE, so the invoice names
-   them as payee — the merchant who issued the receipt was already paid, by the
-   employee, out of their own money. It arrives `issued`, not `draft`: the
-   spending was approved on the claim, and a second approval round would ask
-   someone to re-decide it holding none of the receipts. It bills the claim's
-   **unbilled lines**, so a claim may carry several invoices — bill what is
-   agreed now, the disputed lines once they are settled.
-   `GET /expense-claims/{claim_id}/detail` reports `invoices`,
-   `invoiced_amount` and `uninvoiced_amount`; read those, never the status.
+A single claim may not take both routes: whichever it takes first is the one
+it keeps, and the other is refused with a 409 naming what already covers it.
+The two documents keep separate running totals, so paying both would pay the
+employee twice while each reported itself correctly settled. Reversing the
+applications releases the claim to the other route.
 
-   A supplier bill needs none of this; start at 1.
+On the billing route: the company owes the EMPLOYEE, so the invoice names
+them as payee. It arrives `issued`, not `draft`: the
+spending was approved on the claim, and a second approval round would ask
+someone to re-decide it holding none of the receipts. It bills the claim's
+**unbilled lines**, so a claim may carry several invoices — bill what is
+agreed now, the disputed lines once they are settled.
+`GET /expense-claims/{claim_id}/detail` reports `invoices`,
+`invoiced_amount` and `uninvoiced_amount`; read those, never the status.
+
+A supplier bill needs none of this; start at 1.
+### The payment
+
 1. **File the payment.** `POST /payments` with `direction: "outbound"` and the
    `vendor_id` (or `payee_employee_id` when paying an expense claim). Leave it at `draft`.
 2. **Record `counterparty_account`.** The account the money is about to go to.
@@ -241,6 +243,16 @@ the mirror of the receivables transfer, with our OUTBOUND payment as the deposit
 `GET /billing-accounts/{id}/detail` lists the charged POs and invoices and what
 remains drawable. What the deposit does not cover is settled by a fresh
 outbound payment applied directly to the invoice.
+
+## Paying Under A Contract
+
+Before an outbound payment to a vendor with a contract, read the clause:
+`GET /contract-terms?contract_id=&term_type=payment_terms` (and
+`deposit`). A deposit is an outbound payment carrying `contract_id` with
+nothing yet to apply it to; later invoices under the same contract carry
+it too, so `GET /contracts/{id}/execution` shows paid against invoiced.
+Pay what the clause says, on the event it names — never a round number
+because the invoice arrived.
 
 ## What This Skill Never Does
 

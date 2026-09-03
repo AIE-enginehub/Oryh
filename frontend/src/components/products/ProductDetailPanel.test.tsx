@@ -21,6 +21,7 @@ const product: Product = {
   id: "prod-1",
   product_code: "P-1001",
   name: "内窥镜镜头",
+  product_type: "finished_good",
   spec: "4mm 30°",
   unit: "个",
   list_price: 1200,

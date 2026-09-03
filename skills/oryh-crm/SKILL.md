@@ -12,6 +12,15 @@ writes for the employee linked to this key — and there is no approval half:
 qualification is the principal's judgment and a deal is won by the
 customer's signature, so YOU advance the states as the facts happen.
 
+{{include:_common/answer-the-question.md}}
+
+## Trigger Examples
+
+- "Met someone at the fair, added them on WeChat — note it down"
+- "Somebody asked for a quote — log the inquiry"
+- "This one signed: open the customer and the deal"
+- "We won this one" / "Budget was cut, we lost it"
+
 ## Required Inputs
 
 ```yaml
@@ -48,7 +57,9 @@ oryh:
    (and `=opportunity`) — the machine is the tenant's vocabulary; read it
    before assuming state names. Default lead life:
    `new → contacted → qualified → converted / disqualified`; default
-   opportunity life: `open → quoting → negotiating → won / lost`.
+   opportunity life: `open → quoting → negotiating → won / lost`. `won`
+   and `lost` are literal — `closed_at` stamps on those two names whatever
+   else the tenant renames.
 2. **Dedup before create**: `GET /leads?keyword={phone or company}` — the
    same inquiry arriving twice is one lead worked twice, not two. Also
    check `GET /customers?keyword=` — somebody already in master data is
@@ -69,19 +80,14 @@ oryh:
    updates, `remarks` for why. On `won`/`lost`, say the why in `remarks`
    out loud before writing it; `closed_at` stamps itself.
 
-## API quick reference
+## What This Skill Never Does
 
-```text
-GET    /leads?employee_id=&status=&source=&keyword=
-POST   /leads                        → 422 unless it names a company or a person
-PATCH  /leads/{id}                   → fields + status; `converted` only via the bridge
-POST   /leads/{id}/convert           → {customer_id | customer_name?, opportunity_title?, expected_amount?, expected_close_date?}
-DELETE /leads/{id}                   → soft delete; /restore undoes
+- Write `converted` by hand, or create the customer through master data —
+  the bridge is the promotion.
+- Work anyone else's pipeline, or quote and order from here — those are
+  $oryh-quotation-submit and $oryh-order-submit.
+- Treat `expected_amount` as money owed or earned.
 
-GET    /opportunities?employee_id=&customer_id=&lead_id=&status=&keyword=
-POST   /opportunities                → title required; customer matched or snapshot, the quotation convention
-PATCH  /opportunities/{id}           → won/lost stamps closed_at (literal names)
-```
+## Reference
 
-Everyone in the workspace reads the pipeline; only `crm.own` (or an
-admin acting for any employee) writes, and only their own records.
+- [references/api.md](references/api.md): request templates.

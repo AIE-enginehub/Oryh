@@ -22,6 +22,7 @@ from __future__ import annotations
 # Every builtin document family. Kept in step with `state_machines
 # .BUILTIN_MACHINES` and `routes.DOCUMENT_FAMILIES` by test, not by memory.
 DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
+    "contract",
     "employee_leave",
     "expense_claim",
     "invoice",

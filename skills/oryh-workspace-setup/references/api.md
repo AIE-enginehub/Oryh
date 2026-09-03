@@ -18,8 +18,10 @@ Report shape, per area:
     "organization":  {"status": "partial", "facts": {"employees": 3, "active_non_admin_users": 0,
                        "users_linked_to_employees": 0, "custom_roles": 1,
                        "capabilities_reaching_nobody": ["leave.submit_own"]}, "next": "..."},
-    "master_data":   {"status": "ready", "facts": {"products": 120, "customers": 40,
-                       "vendors": 8, "custom_type_options": 2}, "next": "..."},
+    "master_data":   {"status": "ready", "facts": {"products": 120, "product_categories": 9,
+                       "customers": 40, "customer_contacts": 12, "customer_products": 5,
+                       "vendors": 8, "stores": 2, "facilities": 3,
+                       "custom_type_options": 2}, "next": "..."},
     "expense_claim": {"status": "partial",                    // one area per document family,
                       "facts": {"filing_capability": "expense.submit_own",   // derived from the registry
                                 "staffed_by": {"roles": ["clerk", "member"], "active_users": 1},
@@ -27,9 +29,18 @@ Report shape, per area:
                                 "documents": 0}, "next": "publish a workflow definition ..."},
     "sales_order":   {"facts": {"documents": 12, "returns": 2,   // kind-split families count both
                                 "workflow_definitions": {"sales_order": true, "sales_return": false}}},
+    "picklist":      {"status": "ready",                       // approval-free families (shipment,
+                      "facts": {"filing_capability": "inventory.manage",   // picklist, lead, opportunity,
+                                "staffed_by": {"roles": ["keeper"], "active_users": 1},  // purchase_order)
+                                "workflow_definitions": {"picklist": false}, "documents": 0}},  // are ready on staffing alone
     "flow_driving":  {"status": "ready", "facts": {"enabled": ["expense_claim", "..."], "disabled": []}},
+    "treasury":      {"status": "untouched",                  // fin_account.manage reaches nobody
+                      "facts": {"filing_capability": "fin_account.manage",   // until the admin names
+                                "staffed_by": {"roles": [], "active_users": 0},  // the cashier
+                                "fin_accounts": 0, "register_rows": 0}, "next": "grant fin_account.manage ..."},
     "ecommerce":     {"status": "untouched", "optional": true,
-                      "facts": {"channel_product_maps": 0, "external_document_links": 0}}
+                      "facts": {"online_stores": 0, "channel_product_maps": 0,
+                                "external_document_links": 0}}
   }
 }
 ```
@@ -46,7 +57,7 @@ Report shape, per area:
 
 ## Writes This Skill Makes Directly
 
-Only the workflow definitions the admin phrases:
+Exactly two, both in the admin's own words. The workflow definitions:
 
 ```json
 POST /workflow-definitions
@@ -57,8 +68,9 @@ POST /workflow-definitions
 }
 ```
 
-Versions are append-only: publishing again supersedes; history stays. Every
-other write — invitations, roles, master data, machine renames — belongs to
-the skill this one hands off to ($oryh-access-admin, $oryh-master-data),
-plus `PATCH /object-type-definitions/{id}` for state renames as taught in
-the SKILL body.
+Versions are append-only: publishing again supersedes; history stays. And
+the state renames: `PATCH /object-type-definitions/{id}` with a `roles`
+map, as taught in the SKILL body. Every other write — invitations, roles,
+master data — belongs to the skill this one hands off to
+($oryh-access-admin, $oryh-master-data, $oryh-treasury, $oryh-crm,
+$oryh-inventory).

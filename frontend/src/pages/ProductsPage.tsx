@@ -39,6 +39,8 @@ const MAX_PRICE = 9_999_999.99;
 type StatusFilter = "" | "active" | "archived";
 type ActiveStatus = Exclude<StatusFilter, "">;
 
+type ProductType = "finished_good" | "raw_material" | "semi_finished" | "service";
+
 type ProductForm = {
   name: string;
   code: string;
@@ -46,6 +48,7 @@ type ProductForm = {
   unit: string;
   price: string;
   currency: string;
+  product_type: ProductType;
   status: ActiveStatus;
 };
 
@@ -74,6 +77,7 @@ const emptyProductForm: ProductForm = {
   unit: "",
   price: "",
   currency: "CNY",
+  product_type: "finished_good",
   status: "active",
 };
 
@@ -99,6 +103,7 @@ function toProductForm(product?: Product): ProductForm {
     unit: product.unit ?? "",
     price: product.list_price?.toString() ?? "",
     currency: product.currency,
+    product_type: product.product_type,
     status: product.status,
   };
 }
@@ -370,6 +375,7 @@ export function ProductsPage() {
         unit: productForm.unit.trim() || null,
         list_price: price.value,
         currency,
+        product_type: productForm.product_type,
         status: productForm.status,
       },
     });
@@ -610,6 +616,12 @@ export function ProductsPage() {
           <div className="field span-2"><label htmlFor="product-spec">{text("产品规格", "Product specification")}</label><input id="product-spec" maxLength={200} value={productForm.spec} onChange={(event) => setProductForm({ ...productForm, spec: event.target.value })} /></div>
           <div className="field"><label htmlFor="product-unit">{text("计量单位", "Unit of measure")}</label><input id="product-unit" maxLength={50} placeholder={text("件、台、箱", "item, unit, box")} value={productForm.unit} onChange={(event) => setProductForm({ ...productForm, unit: event.target.value })} /></div>
           <div className="field"><label htmlFor="product-currency">{text("币种", "Currency")} <b>*</b></label><input id="product-currency" className="currency-input" maxLength={3} required value={productForm.currency} onChange={(event) => setProductForm({ ...productForm, currency: event.target.value.toUpperCase() })} /></div>
+          <div className="field"><label htmlFor="product-type">{text("产品角色", "Product type")}</label><select id="product-type" value={productForm.product_type} onChange={(event) => setProductForm({ ...productForm, product_type: event.target.value as ProductType })}>
+            <option value="finished_good">{text("成品", "Finished good")}</option>
+            <option value="semi_finished">{text("半成品", "Semi-finished")}</option>
+            <option value="raw_material">{text("原材料", "Raw material")}</option>
+            <option value="service">{text("服务", "Service")}</option>
+          </select></div>
           <div className="field span-2"><label htmlFor="product-price">{text("参考价格", "Reference price")}</label><input id="product-price" inputMode="decimal" placeholder="0.00" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} /><small>{text("用于偏差检查，不作为硬性采购上限。", "Used for variance checks, not as a hard purchasing limit.")}</small></div>
         </div>
       </Drawer>

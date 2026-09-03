@@ -161,6 +161,21 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "资金账户与银行流水",
         "登记资金账户（银行/现金/微信支付宝等第三方支付）与交易流水，导入对账单，链接付款单对账；不含付款单据本身",
     ),
+    # Contracts: a natural-language file plus the clauses located inside it.
+    # One functional grant files, curates and advances (the purchase-order
+    # shape — approval, where a tenant wants one, is todos and approval
+    # facts against the contract, driven by the tenant's own agents), and
+    # it is scopable on the SIDE derived from the counterparty: a buyer's
+    # role holds `contract.manage:purchase` and never sees a sales contract.
+    # Reads are gated by the same grant — a contract carries the prices
+    # negotiated with a factory, not workspace-wide reading.
+    (
+        "contract.manage",
+        True,
+        "合同管理",
+        "录入合同与原件、定位条款、推进状态、挂接订单/发票/付款;可按方向作用域"
+        "(contract.manage:purchase 仅采购侧,:sales 仅销售侧);读取同样需要此能力",
+    ),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用工作空间与个人访问凭证"),

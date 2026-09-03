@@ -238,6 +238,79 @@ products themselves: everyone reads it, this desk writes it.
   the primary shelf; the other axis is usually a `customer_type`-style
   vocabulary or a metadata tag, not a second tree.
 
+## Product Pictures
+
+A picture is an attachment (the receipts' own store — tenant-scoped, 10 MB
+per file, deduplicated by content) linked to a product through
+`/product-images`. Upload first, link second: `POST /attachments` with the
+file's base64 and its real content type — `image/*`, or `application/pdf`
+for a design draft; anything else (a spreadsheet, a CAD source) is refused
+as a picture (422) and belongs on a document. This desk's grant covers
+filing attachments. Then `POST /product-images {"product_id",
+"attachment_id", "image_type", "is_primary"?, "sort_order"?, "caption"?}`.
+
+- **Say what KIND each picture is.** `image_type` is the tenant's
+  `product_image_type` vocabulary (shipped: `main` (the hero shot),
+  `detail` (detail-page shots), `design` (a design draft), `packaging`,
+  `dimension` (a dimension drawing), `other`;
+  `GET /type-options?family=product_image_type` for the current
+  set, and a kind the workspace lacks is a new type option, never a
+  shoehorn). The kind is orthogonal to the primary: the primary says which
+  picture REPRESENTS the product, the kind says what it is — a design
+  draft is rarely the primary. A folder of files usually names the kind
+  (main / detail / design, or their local-language equivalents); confirm
+  the mapping before writing, and
+  never file everything as `other` because it was quicker.
+- **Ask by kind**: `GET /product-images?product_id=&image_type=detail`
+  hands the platform sync every detail shot at once.
+
+- **One primary per product**, and setting a new one demotes the old in
+  the same write — never the two-step. The primary is what lists, quotes
+  and platform listings show; the rest follow `sort_order`.
+- **Everyone reads the pictures** through the product that carries them:
+  `GET /products/{id}/attachments/{attachment_id}/content` (the same shape
+  every document uses for its evidence); product reads carry
+  `primary_image_id` so a list shows thumbnails without a query per row.
+- **Removing a picture removes the link, not the bytes** — a blob two
+  products share is one blob. A folder of images imports as one upload
+  and one link per file, the first (or the one named "main") as
+  primary — confirm which before writing.
+
+## Materials And Bills Of Materials
+
+There is no materials table. A raw material is a product with
+`product_type: raw_material` — one catalog, because everything that HAPPENS
+to a material (stock ledger, supplier links, purchase lines, receipts,
+picks, categories) already keys on the product. The closed roles:
+`finished_good` (default), `semi_finished` (a sub-assembly you make and
+use), `raw_material`, `service`. Classification (materials / auxiliaries /
+packaging) is the category tree, not the role. Bought-or-made is derived:
+supplier links say bought, an active recipe says made — never a flag.
+
+A bill of materials (`/bills-of-materials`) says what a finished or
+semi-finished good is made of: a header with a `version`, an
+`output_quantity` (components are PER that many units — per 1 or per 100,
+however the factory writes it) and lines of component + quantity +
+`scrap_rate` (percent lost making it).
+
+- **One active recipe per product.** Activating a new version archives
+  the old in the same write. An active recipe's lines are frozen — the
+  floor builds to it — so a change is a NEW version (draft, edit,
+  activate), never an edit.
+- **Made of goods, never of itself.** A service line, the parent as its
+  own component, or a component that is made (at any depth) from the
+  parent — all refused, with the path.
+- **A materials sheet imports like every sheet** — but ask which rows are
+  materials, which are sub-assemblies, and map the column to
+  `product_type` before the import; a BOM sheet is then one recipe per
+  parent, created draft, read back line by line, activated on agreement.
+- **Requirements are a READ, never a plan.**
+  `GET /bills-of-materials/{id}/explode?quantity=&with_stock=true` walks
+  every sub-assembly's active recipe, folds in output ratios and scrap,
+  and hands back the leaf requirements with ATP and the shortage. What to
+  buy is the person's decision — say the gap, then hand off to
+  $oryh-purchase-submit; oryh stores no plan.
+
 ## Stores And Facilities: Where You Sell, Where You Ship From
 
 `/stores` are selling fronts (`channel`: offline door or online storefront)
@@ -297,15 +370,31 @@ row per (product, customer).
 
 ## The External Product Map
 
-Tenants selling through Tmall, JD, Amazon or a mini-program keep a
-translation table here: which platform listing means which catalog product,
-with a quantity per row so a bundle listing is several rows ("two-cup set with lid" =
-2× cup + 1× lid). Curating it is catalog work — the same authority as
-products themselves — and the order-recording agents only read it. When a
-salesperson reports an unmapped listing, this is the desk that fixes it:
-`POST /external-product-maps` with `source`, the platform's ids, the catalog
-`product_id`, and the multiplier. Never map by name similarity without the
-person confirming — a wrong mapping ships the wrong goods silently.
+**Most platform exports carry titles, not listing ids.** A Tmall order
+download names each line by title + spec, and the merchant may never see
+a listing id. So a map row may be keyed by its TITLE: omit
+`external_product_id` and give `external_name` (the platform's exact
+title) with the spec text in `external_sku_id` when the platform splits
+it. Matching forgives fullwidth spacing, case and doubled spaces
+(`external_name_norm` is the matching form), so copy the title as the
+export prints it and never "tidy" it. A renamed listing is a SWAP exactly
+like a swapped id: close the old row's window and add a row for the new
+title — the title cannot be edited on a title-keyed row. Bundles work the
+same by title (several rows, one title). When an export DOES carry ids,
+key by id and keep the title as the snapshot; both kinds answer the same
+`external_name` lookup, so one table serves whichever export arrives.
+
+Tenants selling through Tmall, JD, Amazon or a mini-program keep this
+translation table: which platform listing means which catalog product,
+with a quantity per row so a bundle listing is several rows ("two-cup set
+with lid" = 2× cup + 1× lid). Curating it is catalog work — the same
+authority as products themselves — with one shared act: Order desks may POST title-keyed map rows after a person confirms the candidate; id-keyed rows, edits, effective-date swaps and deletion stay with $oryh-master-data
+— the order desk's row is exactly what a curator would write, and it keeps
+the import a one-desk job. When a salesperson reports an unmapped listing,
+this is the desk that fixes it: `POST /external-product-maps` with
+`source`, the platform's ids or title, the catalog `product_id`, and the
+multiplier. Never map by name similarity without the person confirming — a
+wrong mapping ships the wrong goods silently.
 
 **A listing's meaning changes over time, and the map records WHEN.**
 Platforms rank the listing, not its contents, so a merchant who fought for a

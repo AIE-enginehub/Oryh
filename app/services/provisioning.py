@@ -24,6 +24,7 @@ from app.services.state_machines import (
     DEFAULT_PURCHASE_MACHINE,
     DEFAULT_QUOTATION_MACHINE,
     DEFAULT_SALES_RETURN_MACHINE,
+    DEFAULT_CONTRACT_MACHINE,
     DEFAULT_LEAD_MACHINE,
     DEFAULT_PICKLIST_MACHINE,
     DEFAULT_OPPORTUNITY_MACHINE,
@@ -298,6 +299,12 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         "Picklist",
         "Lifecycle of picking runs — which product to take from which stock position, how many. Whether the workspace picks at all is the admin's one sentence where the fulfilment agents read it; 'picked' is the handoff to the shipment, which posts the stock. Edit freely.",
         DEFAULT_PICKLIST_MACHINE,
+    ),
+    (
+        "contract",
+        "Contract",
+        "Lifecycle of contracts — draft, negotiating, signed (signed_at stamps), active, expired/terminated. Review before signing, where wanted, is the workspace's own todos and approval facts against the contract; the server records the signing.",
+        DEFAULT_CONTRACT_MACHINE,
     ),
     (
         "shipment",

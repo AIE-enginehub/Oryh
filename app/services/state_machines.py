@@ -334,6 +334,28 @@ DEFAULT_PICKLIST_MACHINE: dict = {
     "editable_states": ["draft", "picking"],
 }
 
+# Shipped default for contracts. Signing is a fact the desk records, not a
+# review step the server owns: one functional grant files and advances,
+# and a tenant that wants review before signing says so in its workflow
+# definition and works it as todos and approval facts against the
+# contract. `signed` is a literal-name stamp (signed_at), the shipment
+# convention; `active` is when it governs, `expired`/`terminated` how it
+# ends.
+DEFAULT_CONTRACT_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "negotiating", "signed", "active", "expired", "terminated", "cancelled"],
+    "transitions": {
+        "draft": ["negotiating", "signed", "cancelled"],
+        "negotiating": ["draft", "signed", "cancelled"],
+        "signed": ["active", "terminated"],
+        "active": ["expired", "terminated"],
+        "expired": [],
+        "terminated": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft", "negotiating"],
+}
+
 # Fallback statuses for custom business object types without a machine —
 # the pre-existing free mode.
 DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "archived"}
@@ -357,6 +379,7 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "purchase_return": DEFAULT_PURCHASE_RETURN_MACHINE,
     "shipment": DEFAULT_SHIPMENT_MACHINE,
     "picklist": DEFAULT_PICKLIST_MACHINE,
+    "contract": DEFAULT_CONTRACT_MACHINE,
     "lead": DEFAULT_LEAD_MACHINE,
     "opportunity": DEFAULT_OPPORTUNITY_MACHINE,
     "invoice": DEFAULT_INVOICE_MACHINE,
@@ -400,6 +423,9 @@ STATE_ROLES["payment"] = ("submitted", "paid")
 STATE_ROLES["shipment"] = ()
 # picking is warehouse work too: recorded and advanced, never submitted
 STATE_ROLES["picklist"] = ()
+# a contract is never submitted-for-approval by the server: signing is
+# recorded, review is the tenant's own todos and approval facts
+STATE_ROLES["contract"] = ()
 # the pipeline has no submit: the salesperson records and advances their own.
 # The lead keeps one anchor — the conversion bridge writes `converted` — and
 # the opportunity none: won/lost are the salesperson's PATCH, and closed_at

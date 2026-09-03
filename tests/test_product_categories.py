@@ -14,9 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.emails import outbox
-
-from conftest import make_client, provision_tenant
+from conftest import make_client, provision_tenant, invite_member
 
 
 @pytest.fixture()
@@ -25,17 +23,7 @@ def shelving():
         t = provision_tenant(client, company_name="Shelf Co", email="admin@shelf.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
-        client.post("/api/v1/roles", json={"name": "nobody", "permissions": []}, headers=admin)
-        uid = client.post("/api/v1/auth/invitations",
-                          json={"email": "n@shelf.example", "role": "nobody"},
-                          headers=admin).json()["data"]["id"]
-        token = next(l.rsplit("token=", 1)[1].strip()
-                     for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-        client.post("/api/v1/auth/invitations/accept",
-                    json={"token": token, "password": "invitee-pass1"})
-        member = {"X-API-Key": client.post(
-            "/api/v1/tenant/api-keys", json={"label": "nobody", "user_id": uid},
-            headers=admin).json()["data"]["plain_text_api_key"]}
+        member = invite_member(client, admin, "nobody", [])
 
         def shelf(name: str, **extra) -> dict:
             r = client.post("/api/v1/product-categories", headers=admin,

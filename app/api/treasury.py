@@ -19,7 +19,6 @@ agent fetches bills with the tenant's own tools and imports them through
 
 from __future__ import annotations
 
-import uuid as uuid_module
 from datetime import date
 from typing import Annotated
 
@@ -30,10 +29,13 @@ from sqlalchemy.orm import Session
 
 from app.api.common import (
     archive_row,
+    commit_or_conflict,
     envelope,
     get_scoped_or_404,
     list_rows,
     requested_pagination,
+    require_active_row,
+    require_entity_uuid,
 )
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
@@ -62,28 +64,10 @@ def _require_treasury(actor: Actor) -> None:
 
 
 def _require_active_account(db: Session, tenant_id: str, fin_account_id: str) -> FinAccount:
-    account = get_scoped_or_404(db, FinAccount, tenant_id, fin_account_id)
-    if account.status == "archived":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="fin account is archived — set it active before posting to its register",
-        )
-    return account
-
-
-def _require_entity_uuid(entity_id: str | None) -> None:
-    if entity_id is None:
-        return
-    try:
-        uuid_module.UUID(entity_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "entity_id holds uuids of records this system can resolve; an "
-                "external number belongs in custom_fields"
-            ),
-        )
+    return require_active_row(
+        db, FinAccount, tenant_id, fin_account_id, "fin account",
+        detail="fin account is archived — set it active before posting to its register",
+    )
 
 
 def _require_link_coherence(
@@ -233,14 +217,7 @@ def update_fin_account(
         account.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
         setattr(account, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="a fin account with that name already exists",
-        )
+    commit_or_conflict(db, "a fin account with that name already exists")
     db.refresh(account)
     return envelope(FinAccountRead.model_validate(account).model_dump(by_alias=True))
 
@@ -325,7 +302,7 @@ def create_fin_account_trans(
                 "would rewrite history; corrections are counter-entries"
             ),
         )
-    _require_entity_uuid(payload.entity_id)
+    require_entity_uuid(payload.entity_id)
     _require_link_coherence(db, tenant_id, payload.payment_id, payload.amount)
     trans_type = _derived_type(payload.amount, payload.trans_type)
     sign_problem = _sign_error(payload.amount, trans_type)
@@ -393,7 +370,7 @@ def link_fin_account_trans(
     trans = get_scoped_or_404(db, FinAccountTrans, actor.tenant_id, trans_id)
     updates = payload.model_dump(exclude_unset=True)
     if "entity_id" in updates:
-        _require_entity_uuid(updates["entity_id"])
+        require_entity_uuid(updates["entity_id"])
     if "payment_id" in updates and updates["payment_id"] is not None:
         _require_link_coherence(db, actor.tenant_id, updates["payment_id"], float(trans.amount))
     for field, value in updates.items():
@@ -418,26 +395,30 @@ def bulk_import_fin_account_trans(
     tenant_id = actor.tenant_id
     account = _require_active_account(db, tenant_id, payload.fin_account_id)
 
+    # only the batch's own reference numbers can collide — one IN read, not
+    # the account's whole register in memory for a fifty-line statement
+    batch_refs = {row.reference_no for row in payload.rows if row.reference_no}
     existing_by_ref: dict[str, FinAccountTrans] = {
         t.reference_no: t
         for t in db.scalars(
             select(FinAccountTrans).where(
                 FinAccountTrans.tenant_id == tenant_id,
                 FinAccountTrans.fin_account_id == account.id,
-                FinAccountTrans.reference_no.is_not(None),
+                FinAccountTrans.reference_no.in_(batch_refs),
             )
         )
-    }
+    } if batch_refs else {}
     seen_in_batch: set[str] = set()
     results: list[dict] = []
     created = unchanged = failed = 0
     aborted = False
     for index, row in enumerate(payload.rows):
         error: str | None = None
+        trans_type = _derived_type(row.amount, row.trans_type)
         if row.trans_type == "opening":
             error = "`opening` belongs to account creation, not a statement"
-        elif _sign_error(row.amount, _derived_type(row.amount, row.trans_type)):
-            error = _sign_error(row.amount, _derived_type(row.amount, row.trans_type))
+        elif _sign_error(row.amount, trans_type):
+            error = _sign_error(row.amount, trans_type)
         elif row.reference_no and row.reference_no in seen_in_batch:
             error = f"duplicate reference_no {row.reference_no!r} in this batch"
         elif row.reference_no and row.reference_no in existing_by_ref:
@@ -456,7 +437,7 @@ def bulk_import_fin_account_trans(
             post_fin_account_trans(
                 db, account=account,
                 amount=row.amount,
-                trans_type=_derived_type(row.amount, row.trans_type),
+                trans_type=trans_type,
                 trans_date=row.trans_date,
                 gross_amount=row.gross_amount,
                 fee_amount=row.fee_amount,

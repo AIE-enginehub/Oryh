@@ -81,11 +81,19 @@ def channel():
 
 
 def test_map_curation_is_catalog_authority_and_source_is_normalized(channel) -> None:
-    seller = channel["key_holding"]("order.submit_own")
+    """Two desks write the map — the catalog's, and the one that records
+    channel orders, because the person importing an export is the one who
+    confirms what a listing means. Nobody else does: the map is reference
+    data, not a whiteboard."""
+    nobody = channel["key_holding"]()
     body = {"source": "Tmall ", "external_product_id": "TB-6543",
             "product_id": channel["product_a"]}
-    refused = channel["client"].post("/api/v1/external-product-maps", json=body, headers=seller)
-    assert refused.status_code == 403, "the map is catalog curation, not a seller's whiteboard"
+    refused = channel["client"].post("/api/v1/external-product-maps", json=body, headers=nobody)
+    assert refused.status_code == 403, "the map is reference data, not a whiteboard"
+    seller = channel["key_holding"]("order.submit_own")
+    by_seller = channel["client"].post("/api/v1/external-product-maps", json={
+        **body, "external_product_id": "TB-6544"}, headers=seller)
+    assert by_seller.status_code == 201, "the import desk records confirmed listings itself"
 
     created = channel["client"].post("/api/v1/external-product-maps", json=body,
                                      headers=channel["admin"])
@@ -351,3 +359,65 @@ def test_a_mislink_is_deletable_and_the_slot_reopens(channel) -> None:
                          headers=seller).status_code == 204
     again = client.post("/api/v1/external-document-links", headers=seller, json=link)
     assert again.status_code == 201, "deletion reopens the slot — a mislink is not history"
+
+
+# --- the map answers by title -------------------------------------------------
+
+
+def test_a_listing_may_be_keyed_by_its_title_when_the_export_has_no_id(channel) -> None:
+    """Tmall's order export names products by title and spec, not by
+    listing id. A map row may therefore carry no id — then the title is the
+    identity, matched in its normalized form (fullwidth, case, spacing all
+    forgiven), the open-slot rule holds per title, and the title cannot be
+    edited on such a row: a renamed listing is a swap, like a swapped id."""
+    admin, client = channel["admin"], channel["client"]
+    nameless = client.post("/api/v1/external-product-maps", headers=admin, json={
+        "source": "tmall", "product_id": channel["product_a"]})
+    assert nameless.status_code == 422, "a map names the listing by id or by title"
+
+    made = client.post("/api/v1/external-product-maps", headers=admin, json={
+        "source": "tmall", "external_name": "保温杯 500ML 樱花粉",
+        "product_id": channel["product_a"], "quantity": 1})
+    assert made.status_code == 201, made.text
+    row = made.json()["data"]
+    assert row["external_product_id"] == "" and row["external_name_norm"] == "保温杯 500ml 樱花粉"
+
+    sloppy = client.get("/api/v1/external-product-maps", headers=admin,
+                        params={"source": "Tmall", "external_name": "保温杯　500ml  樱花粉"})
+    assert [r["id"] for r in sloppy.json()["data"]] == [row["id"]], \
+        "fullwidth space, case and doubled spaces are one title"
+
+    doubled = client.post("/api/v1/external-product-maps", headers=admin, json={
+        "source": "tmall", "external_name": "保温杯 500ml 樱花粉",
+        "product_id": channel["product_a"]})
+    assert doubled.status_code == 409, "one open assertion per (title, product)"
+    assert row["id"] in doubled.json()["detail"]
+
+    bundle_part = client.post("/api/v1/external-product-maps", headers=admin, json={
+        "source": "tmall", "external_name": "保温杯 500ML 樱花粉",
+        "product_id": channel["product_b"], "quantity": 1})
+    assert bundle_part.status_code == 201, "a title-keyed bundle is several rows too"
+
+    renamed = client.patch(f"/api/v1/external-product-maps/{row['id']}", headers=admin,
+                           json={"external_name": "保温杯 500ML 樱花粉 新款"})
+    assert renamed.status_code == 422, "the title IS the identity here — swap, never bend"
+
+
+def test_an_id_keyed_row_still_answers_by_its_title_snapshot(channel) -> None:
+    """One map serves both exports: the id-keyed row's title snapshot is
+    matched the same way, so a merchant who downloads titles today and ids
+    tomorrow curates one table."""
+    admin, client = channel["admin"], channel["client"]
+    keyed = client.post("/api/v1/external-product-maps", headers=admin, json={
+        "source": "jd", "external_product_id": "JD-77", "external_name": "两杯一盖套装",
+        "product_id": channel["product_a"], "quantity": 2}).json()["data"]
+    by_title = client.get("/api/v1/external-product-maps", headers=admin,
+                          params={"source": "jd", "external_name": "两杯一盖套装"}).json()["data"]
+    assert [r["id"] for r in by_title] == [keyed["id"]]
+    retitled = client.patch(f"/api/v1/external-product-maps/{keyed['id']}", headers=admin,
+                            json={"external_name": "两杯一盖 套装"})
+    assert retitled.status_code == 200, "on an id-keyed row the title is a snapshot, editable"
+    assert retitled.json()["data"]["external_name_norm"] == "两杯一盖 套装"
+    found = client.get("/api/v1/external-product-maps", headers=admin,
+                       params={"source": "jd", "keyword": "套装"}).json()["data"]
+    assert keyed["id"] in {r["id"] for r in found}, "curation searches titles loosely"

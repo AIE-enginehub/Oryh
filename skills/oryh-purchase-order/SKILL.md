@@ -129,6 +129,30 @@ stock through `/receive`, never also `/post-stock` that shipment: one
 physical movement, one ledger entry. The outbound leg of a purchase RETURN
 is where shipments carry the stock too — see $oryh-inventory.
 
+## Contract Manufacturing: Buying From A Factory That Makes Our Goods
+
+Commissioning a factory is purchasing — the vendor happens to make the
+product. What is different is what you bring to the order:
+
+1. **The recipe says how much material.**
+   `GET /bills-of-materials?product_id=&status=active`, then
+   `GET /bills-of-materials/{id}/explode?quantity=&with_stock=true&facility_id=`
+   — the leaf requirements for the run, with the shortage against stock
+   at the named facility. A turnkey factory buys its own
+   materials: hand it the requirement as the order's `remarks` or a
+   contract line, as advice. Where we supply materials, the shortage is
+   what WE buy — that is a separate purchase to the material vendor.
+2. **The contract governs the order.** `GET /contracts?vendor_id=&status=active`
+   → the OEM contract, and `GET /contract-terms?contract_id=&term_type=`
+   for `deposit`, `payment_terms`, `delivery_schedule`, `acceptance`
+   before you write anything — the order's dates and the deposit follow
+   the contract's words, not your defaults. The purchase order carries
+   `contract_id`; the server refuses a sales-side contract.
+3. **Receiving is receiving.** Finished goods arrive as an inbound
+   shipment against the purchase order ($oryh-inventory) and the invoice
+   and the deposit ride the same `contract_id` ($oryh-payables), so
+   `GET /contracts/{id}/execution` answers "how far along is this deal".
+
 ## What This Skill Never Does
 
 - Order without a decided vendor, or invent vendors/products to make a line pass.

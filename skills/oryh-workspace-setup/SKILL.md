@@ -43,37 +43,71 @@ oryh:
    a different first sentence than an empty one.
 2. **Interview, then prioritize**: ask what the company actually does —
    trade, manufacture, services, e-commerce, some mix — and how money and
-   goods move. Map their answers onto the report's areas and propose an
+   goods move. The questions that decide which areas matter:
+   - *Where do you sell?* Shops, platform storefronts (Tmall/JD/...), field
+     sales — stores and the external product map.
+   - *Where are the goods?* Warehouses, shops, an office shelf — facilities;
+     and does the warehouse walk a picking list and hold stock for confirmed
+     orders, or ship straight from the shelf?
+   - *How do deals start?* Leads worked into opportunities, or repeat
+     customers who just order — the sales pipeline.
+   - *Who touches the bank?* The cashier is deliberately nobody until named.
+   Map their answers onto the report's areas and propose an
    order. **Whether an area is "not used" is the administrator's judgment
    and it lives in YOUR context, nowhere else**: oryh deliberately stores no
    module switches and no declared-off registry, so remember what they told
    you, stop proposing what they declined, and expect `untouched` in the
    report to keep meaning only "no data yet".
 3. **The natural order** (each step is a HANDOFF to the owning skill — this
-   one orchestrates and verifies, it never re-teaches):
+   one orchestrates and verifies, it never re-teaches; its own writes are
+   exactly two, steps 6 and 7 below, both in the admin's words):
    1. *People and access*: invite users, create employees and link them,
       shape roles around real desks — $oryh-access-admin. The report's
       `organization.facts` show the gaps, including
       `capabilities_reaching_nobody` — a feature only the admin can touch is
       a feature nobody has.
    2. *Master data*: products / customers / vendors from their spreadsheets
-      — $oryh-master-data. Selling through platforms? The external product
-      map lives there too.
-   3. *Workflow definitions*: for each family the company will run, publish
+      — $oryh-master-data — and the shelving around them: the category
+      TREE (proposed from the sheet's category column, agreed before the
+      import), stores (offline doors and online storefronts with their
+      channel key) and facilities (the registry the stock ledger's
+      free-text facility names must come from), which facilities may ship
+      for which store, customer contacts and per-customer price
+      agreements. Selling through platforms? The external product map
+      lives there too.
+   3. *The sales pipeline*: leads and opportunities run on `crm.own`, which
+      the shipped `member` role already carries — nothing to grant, just
+      tell the salespeople their agents have $oryh-crm. The conversion
+      bridge creates customers without master-data authority, on purpose.
+   4. *Treasury*: `fin_account.manage` is granted to NO shipped role — the
+      report's treasury area names that gap until the admin names the
+      cashier (an $oryh-access-admin grant), after which accounts and
+      statements are $oryh-treasury's work. Naming the cashier is the first
+      treasury decision, and it is theirs.
+   5. *Contracts*, where the company signs with factories, suppliers or
+      customers: `contract.manage` is granted to NO shipped role and is
+      scoped by side (`:purchase` / `:sales`) — name the desk, then
+      $oryh-contracts files the originals and locates the clauses.
+   6. *Workflow definitions*: for each family the company will run, publish
       the tenant's own rules in their own words —
       `POST /workflow-definitions` with plain natural-language
       `definition_text` ("expenses: direct manager approves; above 5000 add finance"). This is the map
       every flow agent reads; a family without one stalls at "todo for the
       admin".
-   4. *State vocabulary*, only where their words differ from the defaults:
+   7. *State vocabulary*, only where their words differ from the defaults:
       one sentence renames any machine's states
       (`GET /object-type-definitions` → PATCH the `state_machine` with a
       `roles` map). E-commerce order states, return flows, invoice wording —
       all the same mechanism.
-   5. *The standing one-sentence policies*, mentioned so the admin knows
+   8. *The standing one-sentence policies*, mentioned so the admin knows
       they exist: reimbursement mode (invoice or direct settle), where
-      returned goods land, calibration lines on any skill. Each is a
-      sentence in a definition or a calibration — never a config screen.
+      returned goods land, whether the warehouse picks before packing and
+      holds stock when an order confirms (one sentence in the sales_order
+      definition — $oryh-inventory reads it), calibration lines on any
+      skill. Each is a sentence in a definition or a calibration — never
+      a config screen. Families with no approval half (shipments,
+      picklists, leads, opportunities, purchase orders) read `ready` on
+      staffing alone; they need no definition to run.
 4. **Verify every step by re-reading the report** — never by memory, never
    by assuming a handoff finished. `partial` with facts tells you exactly
    what is still missing; read it back to the person as progress, not as
@@ -98,5 +132,7 @@ oryh:
 
 ## Reference
 
-- [references/api.md](references/api.md): the report's shape and the reads
-  this skill makes; all writes belong to the skills it hands off to.
+- [references/api.md](references/api.md): the report's shape, the reads
+  this skill makes, and its two writes — `POST /workflow-definitions` and
+  `PATCH /object-type-definitions/{id}` for state renames. Every other
+  write is a handoff.

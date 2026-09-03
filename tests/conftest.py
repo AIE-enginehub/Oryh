@@ -170,6 +170,38 @@ def provision_tenant(
         }
 
 
+def invite_member(
+    client: TestClient,
+    admin: dict,
+    name: str,
+    permissions: list[str],
+    *,
+    employee_id: str | None = None,
+    domain: str = "example.test",
+) -> dict:
+    """A credential holding exactly these capabilities, the way a real
+    member gets one: a role, an invitation (optionally bound to an
+    employee), acceptance, a user-bound key. Returns the auth header.
+
+    Forty test files used to carry this dance inline, twelve lines each,
+    and every one of them differed in something that did not matter."""
+    client.post("/api/v1/roles", json={"name": name, "permissions": permissions},
+                headers=admin)
+    body = {"email": f"{name}@{domain}", "role": name}
+    if employee_id:
+        body["employee_id"] = employee_id
+    invited = client.post("/api/v1/auth/invitations", json=body, headers=admin)
+    assert invited.status_code == 201, invited.text
+    user_id = invited.json()["data"]["id"]
+    token = next(line.rsplit("token=", 1)[1].strip()
+                 for line in outbox.messages[-1].body.splitlines() if "token=" in line)
+    client.post("/api/v1/auth/invitations/accept",
+                json={"token": token, "password": "invitee-pass1"})
+    key = client.post("/api/v1/tenant/api-keys", json={"label": name, "user_id": user_id},
+                      headers=admin).json()["data"]["plain_text_api_key"]
+    return {"X-API-Key": key}
+
+
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
     """App client on an empty database.  A file that needs rows pre-seeded

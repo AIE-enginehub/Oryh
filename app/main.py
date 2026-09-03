@@ -19,6 +19,7 @@ from app.api.people import router as people_router
 from app.api.policies import router as policies_router
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
+from app.api.contracts import router as contracts_router
 from app.api.crm import router as crm_router
 from app.api.shipments import router as shipments_router
 from app.api.sales import router as sales_router
@@ -65,6 +66,7 @@ app.include_router(external_router, prefix=API_PREFIX)
 app.include_router(people_router, prefix=API_PREFIX)
 app.include_router(policies_router, prefix=API_PREFIX)
 app.include_router(resources_router, prefix=API_PREFIX)
+app.include_router(contracts_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(shipments_router, prefix=API_PREFIX)
 app.include_router(treasury_router, prefix=API_PREFIX)

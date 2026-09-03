@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import unicodedata
+
 import hashlib
 import secrets
 from datetime import date, datetime
@@ -493,6 +495,10 @@ class Product(TenantRecord, MetadataJsonbMixin, Base):
     # their code deliberately: re-importing it revives that product instead of
     # silently creating a second one alongside the archived original.
     __table_args__ = (
+        CheckConstraint(
+            "product_type in ('finished_good', 'raw_material', 'semi_finished', 'service')",
+            name="products_product_type_chk",
+        ),
         Index(
             "products_tenant_code_uq",
             "tenant_id", "product_code",
@@ -504,6 +510,13 @@ class Product(TenantRecord, MetadataJsonbMixin, Base):
 
     product_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
+    # The manufacturing ROLE — the closed axis, universal like customer_kind
+    # and not the tenant's to extend, because constraints branch on it: a
+    # bill of materials is built for a finished or semi-finished good, never
+    # for a raw material or a service. Classification (原材料/辅料/包材) is
+    # the category tree's job. Whether something is bought or made is
+    # derived — supplier links say bought, an active BOM says made.
+    product_type: Mapped[str] = mapped_column(String(20), default="finished_good")
     # where this product sits on the catalog's shelving; nullable because a
     # catalog without categories is a legal catalog
     category_id: Mapped[str | None] = mapped_column(
@@ -539,6 +552,139 @@ class ProductSku(TenantRecord, MetadataJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")
 
     product: Mapped[Product] = relationship()
+
+
+class ProductImage(TenantRecord, MetadataJsonbMixin, Base):
+    """A picture of a product: a link from the catalog to the attachment
+    store, which keeps the bytes (tenant-scoped, sha256-deduplicated, the
+    receipts' own mechanism reused). Several per product — the primary for
+    lists and quotes, details and platform shots behind it, `sort_order`
+    saying which first. ONE primary per product (partial unique) and
+    setting a new one demotes the old in the same write, the rolodex rule.
+    Removing an image removes the link; the bytes stay where the attachment
+    store keeps them, because a blob two products share is one blob."""
+
+    __tablename__ = "product_images"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "product_id", "attachment_id",
+            name="product_images_tenant_product_attachment_uk",
+        ),
+        Index(
+            "product_images_primary_uq",
+            "tenant_id", "product_id",
+            unique=True,
+            postgresql_where=text("is_primary"),
+            sqlite_where=text("is_primary"),
+        ),
+    )
+
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    attachment_id: Mapped[str] = mapped_column(ForeignKey("attachments.id"), index=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    # WHAT this picture is — 展示图/详情图/设计图稿/包装图/尺寸图 — the
+    # tenant-extensible `product_image_type` vocabulary. Orthogonal to
+    # is_primary: the primary says which picture represents the product,
+    # the type says what kind of picture it is
+    image_type: Mapped[str] = mapped_column(String(50), default="other")
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    caption: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    attachment: Mapped["Attachment"] = relationship()
+
+    @property
+    def filename(self) -> str | None:
+        return self.attachment.filename if self.attachment is not None else None
+
+    @property
+    def content_type(self) -> str | None:
+        return self.attachment.content_type if self.attachment is not None else None
+
+    @property
+    def size_bytes(self) -> int | None:
+        return self.attachment.size_bytes if self.attachment is not None else None
+
+
+class BillOfMaterials(TenantRecord, MetadataJsonbMixin, Base):
+    """What a finished or semi-finished good is MADE of — OFBiz's
+    ProductAssoc(MANUF_COMPONENT) lifted into a header of its own, because
+    a recipe has a version, an output quantity and a life. Components per
+    `output_quantity` units of the parent (per 1, per 100 — both are how
+    factories write it).
+
+    ONE active recipe per product (partial unique): activating a new
+    version archives the old in the same write, the primary-contact
+    demotion again, because "which recipe do we build to" is one question
+    with one answer. Lines are editable only while `draft` — an active
+    recipe is what the floor builds to, and a change is a new version, not
+    an edit. Multi-level BOMs are DERIVED: a component that has its own
+    active recipe is a sub-assembly, and the explode read walks it; no
+    level column exists to drift."""
+
+    __tablename__ = "bills_of_materials"
+    __table_args__ = (
+        Index(
+            "bills_of_materials_tenant_code_uq",
+            "tenant_id", "bom_code",
+            unique=True,
+            postgresql_where=text("bom_code IS NOT NULL"),
+            sqlite_where=text("bom_code IS NOT NULL"),
+        ),
+        Index(
+            "bills_of_materials_active_product_uq",
+            "tenant_id", "product_id",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+        CheckConstraint(
+            "status in ('active', 'archived', 'draft')",
+            name="bills_of_materials_status_chk",
+        ),
+    )
+
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    bom_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # the recipe yields THIS many units of the parent; lines are per that
+    output_quantity: Mapped[float] = mapped_column(Numeric(14, 4), default=1)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    product: Mapped[Product] = relationship()
+
+    @property
+    def product_name(self) -> str | None:
+        return self.product.name if self.product is not None else None
+
+
+class BomItem(TenantRecord, MetadataJsonbMixin, Base):
+    """One component of a recipe: this product, this much, per the header's
+    output quantity. `scrap_rate` is the percentage the floor loses making
+    it — real in every workshop and folded in by the explode read. A
+    component may itself have a recipe (then it is a sub-assembly) but may
+    never be a service, nor the parent or anything upstream of it."""
+
+    __tablename__ = "bom_items"
+
+    bom_id: Mapped[str] = mapped_column(ForeignKey("bills_of_materials.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    component_product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
+    quantity: Mapped[float] = mapped_column(Numeric(14, 4))
+    unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    scrap_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    bom: Mapped[BillOfMaterials] = relationship()
+    component: Mapped[Product] = relationship()
+
+    @property
+    def component_name(self) -> str | None:
+        return self.component.name if self.component is not None else None
+
+    @property
+    def component_type(self) -> str | None:
+        return self.component.product_type if self.component is not None else None
 
 
 class ProductPrice(TenantRecord, MetadataJsonbMixin, Base):
@@ -788,6 +934,18 @@ class StoreFacility(TenantRecord, MetadataJsonbMixin, Base):
         return self.facility.name if self.facility is not None else None
 
 
+def normalize_external_name(name: str | None) -> str | None:
+    """The matching form of a platform listing title: NFKC (fullwidth →
+    halfwidth, compatibility forms), casefolded, inner whitespace collapsed.
+    An order export carries titles typed by merchants and re-spaced by
+    spreadsheets; "保温杯 500ML" and "保温杯　500ml" are one listing."""
+    if name is None:
+        return None
+    folded = unicodedata.normalize("NFKC", name).casefold()
+    collapsed = " ".join(folded.split())
+    return collapsed or None
+
+
 class ExternalProductMap(TenantRecord, MetadataJsonbMixin, Base):
     """How an external system's product identity translates into ours — AT A
     GIVEN TIME. Tmall listing 6543… IS product X (×1), or IS 2× product A and
@@ -830,22 +988,51 @@ class ExternalProductMap(TenantRecord, MetadataJsonbMixin, Base):
 
     __tablename__ = "external_product_maps"
     __table_args__ = (
+        # id-keyed listings: at most one OPEN live assertion per (listing, product)
         Index(
             "external_product_maps_open_uq",
             "tenant_id", "source", "external_product_id", "external_sku_id", "product_id",
             unique=True,
-            postgresql_where=text("status = 'active' AND effective_to IS NULL"),
-            sqlite_where=text("status = 'active' AND effective_to IS NULL"),
+            postgresql_where=text(
+                "status = 'active' AND effective_to IS NULL AND external_product_id <> ''"
+            ),
+            sqlite_where=text(
+                "status = 'active' AND effective_to IS NULL AND external_product_id <> ''"
+            ),
+        ),
+        # name-keyed listings (the export carried a title and no id): the
+        # normalized title is the identity, the same open-slot rule
+        Index(
+            "external_product_maps_open_name_uq",
+            "tenant_id", "source", "external_name_norm", "external_sku_id", "product_id",
+            unique=True,
+            postgresql_where=text(
+                "status = 'active' AND effective_to IS NULL AND external_product_id = ''"
+            ),
+            sqlite_where=text(
+                "status = 'active' AND effective_to IS NULL AND external_product_id = ''"
+            ),
+        ),
+        CheckConstraint(
+            "external_product_id <> '' OR external_name IS NOT NULL",
+            name="external_product_maps_names_the_listing_check",
         ),
     )
 
     # the external system, lowercased on write: "tmall", "jd", "amazon",
     # a mini-program's name — free text, because tenants' channels are
     source: Mapped[str] = mapped_column(String(50))
-    external_product_id: Mapped[str] = mapped_column(String(128))
+    # '' means "the export carries no listing id" — then the TITLE is the
+    # identity (external_sku_id_convention: NOT NULL, '' for none)
+    external_product_id: Mapped[str] = mapped_column(String(128), default="")
     external_sku_id: Mapped[str] = mapped_column(String(128), default="")
-    # snapshot of the external listing title, for a human checking the map
+    # the external listing title: a human-readable snapshot on id-keyed rows,
+    # THE identity on name-keyed rows. Tmall's order export names products
+    # by title and spec, not by listing id, so the map must answer by name
     external_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # matching form of external_name (NFKC, casefold, whitespace collapsed),
+    # derived on every write — what lookups and the name-keyed index use
+    external_name_norm: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
     sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True)
     quantity: Mapped[float] = mapped_column(Numeric(12, 2), default=1)
@@ -1086,6 +1273,167 @@ class PicklistItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
 
     picklist: Mapped[Picklist] = relationship()
     inventory_item: Mapped["InventoryItem"] = relationship()
+
+
+class Contract(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """A contract as a natural-language file plus the clauses located inside
+    it — deliberately NOT OFBiz's Agreement/AgreementItem/AgreementTerm,
+    which abstract every term into a typed value. Here the originals (PDF,
+    scans, Word) live in the attachment store through ContractDocument
+    rows, the text an agent extracted from each lives beside them, and
+    ContractTerm rows point at the small passages that answer the questions
+    people actually ask — "付款节奏怎样?" is one lookup by term type, never
+    a re-read of forty pages.
+
+    The counterparty is a vendor OR a customer (CHECK, at most one), and the
+    SIDE — purchase or sales — is derived from which one is set; that side
+    is the scope `contract.manage:purchase` / `:sales` is checked against.
+    Signing is a fact the desk records (`signed` stamps signed_at, the
+    shipment convention); review before signing, where a tenant wants it,
+    is todos and approval facts against the contract, not a server-owned
+    approval half. A supplement or renewal is a NEW contract pointing at
+    its parent — the original's text is never edited."""
+
+    __tablename__ = "contracts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "contract_no", name="contracts_contract_no_uk"),
+        CheckConstraint(
+            "vendor_id IS NULL OR customer_id IS NULL",
+            name="contracts_one_counterparty_check",
+        ),
+    )
+
+    contract_no: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(200))
+    # the tenant-extensible contract_type vocabulary (purchase/oem/sales/…)
+    contract_type: Mapped[str] = mapped_column(String(50))
+    vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    counterparty_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    total_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    signed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    our_signatory: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    counterparty_signatory: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # the person responsible on our side; informational, never owner-checked
+    employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    parent_contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
+    )
+    # the agent's one-paragraph reading of the whole file — a convenience
+    # for the list, never the source: the terms and the originals are
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    vendor: Mapped["Vendor | None"] = relationship()
+    customer: Mapped["Customer | None"] = relationship()
+
+    @property
+    def side(self) -> str:
+        """purchase when the counterparty is a vendor, sales when a customer,
+        derived — the scope the filing capability is checked against."""
+        return "purchase" if self.vendor_id else "sales"
+
+    @property
+    def counterparty_name(self) -> str | None:
+        if self.vendor is not None:
+            return self.vendor.name
+        if self.customer is not None:
+            return self.customer.name
+        return self.counterparty_name_snapshot
+
+
+class ContractItem(TenantRecord, MetadataJsonbMixin, Base):
+    """What the contract is FOR: a product (or a described thing), a
+    quantity, a price, a delivery note — what was agreed, as distinct from
+    the purchase or sales orders that execute it."""
+
+    __tablename__ = "contract_items"
+
+    contract_id: Mapped[str] = mapped_column(ForeignKey("contracts.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    product_id: Mapped[str | None] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    quantity: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    delivery_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    product: Mapped["Product | None"] = relationship()
+
+    @property
+    def product_name(self) -> str | None:
+        return self.product.name if self.product is not None else None
+
+
+class ContractDocument(TenantRecord, MetadataJsonbMixin, Base):
+    """One original of the contract — the signed PDF, a scanned page, an
+    annex, a supplement — as a link to the attachment store (any format;
+    the store neither reads nor judges bytes). `extracted_text` is what an
+    agent read out of THIS file with its own tools (OCR for scans, the text
+    layer for PDFs): stored once, so later questions search text instead
+    of re-reading pictures, and terms can point at the file and page they
+    came from. oryh itself runs no OCR."""
+
+    __tablename__ = "contract_documents"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "contract_id", "attachment_id",
+            name="contract_documents_tenant_contract_attachment_uk",
+        ),
+    )
+
+    contract_id: Mapped[str] = mapped_column(ForeignKey("contracts.id"), index=True)
+    attachment_id: Mapped[str] = mapped_column(ForeignKey("attachments.id"), index=True)
+    # the tenant-extensible contract_document_type vocabulary
+    document_type: Mapped[str] = mapped_column(String(50), default="other")
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    caption: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    attachment: Mapped["Attachment"] = relationship()
+
+    @property
+    def filename(self) -> str | None:
+        return self.attachment.filename if self.attachment is not None else None
+
+    @property
+    def content_type(self) -> str | None:
+        return self.attachment.content_type if self.attachment is not None else None
+
+    @property
+    def size_bytes(self) -> int | None:
+        return self.attachment.size_bytes if self.attachment is not None else None
+
+
+class ContractTerm(TenantRecord, MetadataJsonbMixin, Base):
+    """A located passage: the clause about payment, delivery, deposit…
+    `content` is the contract's own words, verbatim — the agent's reading
+    goes in `summary`, and an optional scalar or two it is sure of in
+    metadata. `term_type` is the tenant-extensible vocabulary the lookup
+    runs on; several clauses of one type are several rows. `document_id`
+    and `page_no` say where in which original the words sit, so "快速定位"
+    reaches the page, not just the contract."""
+
+    __tablename__ = "contract_terms"
+
+    contract_id: Mapped[str] = mapped_column(ForeignKey("contracts.id"), index=True)
+    term_type: Mapped[str] = mapped_column(String(50), index=True)
+    clause_ref: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    content: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contract_documents.id"), nullable=True, index=True
+    )
+    page_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
@@ -2044,6 +2392,10 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
     )
 
     po_number: Mapped[str] = mapped_column(String(64))
+    # the purchase (or OEM) contract this order executes, when there is one
+    contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
+    )
     # 'order' or 'return' — a return to the vendor lives in this same table
     # (the user-facing decision: 退单跟订单一张表), splitting only the KIND.
     # The kind picks the row's state machine ('purchase_order' vs
@@ -2194,6 +2546,10 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     # downtown shop. Nullable: an order with no store is a legal fact
     store_id: Mapped[str | None] = mapped_column(
         ForeignKey("stores.id"), nullable=True, index=True
+    )
+    # the sales contract this order executes, when there is one
+    contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
     )
     contact_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -2372,6 +2728,10 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     )
 
     invoice_no: Mapped[str] = mapped_column(String(64))
+    # the contract this invoice bills under, when there is one
+    contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
+    )
     # String(20), not (10): `reimbursement` is 13 characters and the column was
     # sized for the three shorter words that came before it. Postgres refused
     # the insert; SQLite, which the suite runs on, does not enforce VARCHAR
@@ -2556,6 +2916,10 @@ class Payment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     )
 
     payment_no: Mapped[str] = mapped_column(String(64))
+    # the contract this payment settles or prepays (a deposit), when any
+    contract_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contracts.id"), nullable=True, index=True
+    )
     # 'inbound' = 收款, 'outbound' = 付款
     direction: Mapped[str] = mapped_column(String(10), index=True)
     # 银行转账 / 现金 / 支票 / 银行承兑 / 商业承兑 / 微信 / 支付宝 — tenant vocabulary

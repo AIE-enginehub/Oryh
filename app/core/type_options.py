@@ -37,6 +37,14 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("wallet", "第三方支付", "微信支付/支付宝/PayPal 等商户账户余额"),
         ("other", "其他", "其余资金形态"),
     ),
+    "product_image_type": (
+        ("main", "展示图", "对外展示/主图类图片"),
+        ("detail", "详情图", "商品详情页用图"),
+        ("design", "设计图稿", "设计稿/效果图/图纸(可为 PDF)"),
+        ("packaging", "包装图", "包装与外箱"),
+        ("dimension", "尺寸图", "尺寸/规格标注图"),
+        ("other", "其他", "未归类的图片"),
+    ),
     "product_price_type": (
         ("list", "目录价", "对外目录/牌价，报价折扣的比较基准"),
         ("default", "默认售价", "无特殊约定时的默认成交价"),
@@ -55,6 +63,41 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
     # Nothing branches on these names. They are how a workspace segments its own
     # book; what a segment IMPLIES — pricing, 账期, whether a member prepays —
     # is a judgment for an agent or a workflow definition, never for the server.
+    "contract_type": (
+        ("purchase", "采购合同", "向供应商采购的合同"),
+        ("oem", "委托加工合同", "委托第三方工厂生产/加工"),
+        ("sales", "销售合同", "向客户销售的合同"),
+        ("framework", "框架协议", "长期框架/年度协议,具体以订单执行"),
+        ("service", "服务合同", "服务类合同"),
+        ("nda", "保密协议", "保密/竞业等约定"),
+        ("other", "其他", "未归类的合同"),
+    ),
+    "contract_term_type": (
+        ("payment_terms", "付款条件", "付款节奏/账期/比例"),
+        ("deposit", "首付款/预付款", "签约或下单时预付的比例与时点"),
+        ("payment_method", "付款方式", "电汇/承兑/信用证等"),
+        ("delivery_schedule", "交货节奏", "分批交付的时间安排"),
+        ("delivery_terms", "交货条件", "地点、运输、风险转移"),
+        ("acceptance", "验收", "验收标准与期限"),
+        ("quality", "质量", "质量标准与责任"),
+        ("warranty", "质保", "质保期与范围"),
+        ("price", "价格与调价", "定价、调价机制"),
+        ("penalty", "违约责任", "违约金与赔偿"),
+        ("term_period", "合同期限", "起止与续约"),
+        ("confidentiality", "保密", "保密义务"),
+        ("termination", "终止", "解除与终止条件"),
+        ("dispute", "争议解决", "仲裁/诉讼与管辖"),
+        ("other", "其他", "未归类条款"),
+    ),
+    "contract_document_type": (
+        ("signed", "签署版", "双方签署的正式版本"),
+        ("draft", "草稿", "谈判中的版本"),
+        ("annex", "附件/附表", "合同附件、附表、报价单"),
+        ("scan_page", "扫描页", "按页扫描的原件"),
+        ("amendment", "补充协议", "补充/变更协议"),
+        ("translation", "译文", "翻译版本"),
+        ("other", "其他", "未归类文件"),
+    ),
     "customer_type": (
         ("retail", "零售客户", "面向个人消费者的散客或会员"),
         ("wholesale", "批发客户", "批量采购、按批发价成交的客户"),

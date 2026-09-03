@@ -87,6 +87,56 @@ def _validate_nested(prices: list[dict] | None, suppliers: list[dict] | None) ->
     return None
 
 
+def _resolve_categories(db: Session, tenant_id: str, prepared: list, results: list[dict]) -> None:
+    """Category codes join product rows to the shelving tree — the vendor
+    doctrine again: an unknown code is the row's error to take back to the
+    person, never a category to invent, and an archived one names its fix.
+    Explicit null clears the product's category; the code column never
+    reaches the model (products carry category_id)."""
+    wanted = sorted({
+        fields["category_code"]
+        for _i, _c, fields, _p, _s in prepared
+        if fields.get("category_code") is not None
+    })
+    shelves = {
+        code: (category_id, category_status)
+        for code, category_id, category_status in db.execute(
+            select(ProductCategory.category_code, ProductCategory.id, ProductCategory.status).where(
+                ProductCategory.tenant_id == tenant_id,
+                ProductCategory.category_code.in_(wanted),
+            )
+        )
+    } if wanted else {}
+    kept = []
+    for entry in prepared:
+        index, code, fields, _prices, _suppliers = entry
+        if "category_code" not in fields:
+            kept.append(entry)
+            continue
+        value = fields.pop("category_code")
+        if value is None:
+            fields["category_id"] = None
+            kept.append(entry)
+            continue
+        shelf = shelves.get(value)
+        if shelf is None:
+            error = (
+                f"unknown category_code '{value}' — create the category "
+                "first (POST /product-categories), never invent one"
+            )
+        elif shelf[1] != "active":
+            error = (
+                f"category_code '{value}' is archived — revive it "
+                "(PATCH status active) before filing products on it"
+            )
+        else:
+            fields["category_id"] = shelf[0]
+            kept.append(entry)
+            continue
+        results.append({"index": index, "code": code, "outcome": "error", "error": error})
+    prepared[:] = kept
+
+
 def _resolve_vendors(
     db: Session, tenant_id: str, prepared: list, results: list[dict]
 ) -> dict[str, Vendor]:
@@ -254,7 +304,7 @@ def bulk_upsert(
 
     results: list[dict] = []
     seen_codes: dict[str, int] = {}
-    prepared: list[tuple[int, str, dict]] = []
+    prepared: list[tuple[int, str, dict, list | None, list | None]] = []
 
     # Pass 1 — validate row-locally. Nothing touches the session yet, so an
     # abort costs no writes at all.
@@ -301,60 +351,7 @@ def bulk_upsert(
     # vendor to invent.
     vendors_by_code = _resolve_vendors(db, tenant_id, prepared, results)
 
-    # Category codes join product rows to the shelving tree — the vendor
-    # doctrine again: an unknown code is the row's error to take back to the
-    # person, never a category to invent, and an archived one names its fix.
-    # Explicit null clears the product's category; the code column never
-    # reaches the model (products carry category_id).
-    wanted_categories = sorted({
-        fields["category_code"]
-        for _i, _c, fields, _p, _s in prepared
-        if fields.get("category_code") is not None
-    })
-    categories_by_code = {}
-    if wanted_categories:
-        categories_by_code = {
-            c.category_code: c
-            for c in db.scalars(
-                select(ProductCategory).where(
-                    ProductCategory.tenant_id == tenant_id,
-                    ProductCategory.category_code.in_(wanted_categories),
-                )
-            )
-        }
-    if any("category_code" in fields for _i, _c, fields, _p, _s in prepared):
-        kept = []
-        for entry in prepared:
-            index, code, fields, _prices, _suppliers = entry
-            if "category_code" not in fields:
-                kept.append(entry)
-                continue
-            value = fields.pop("category_code")
-            if value is None:
-                fields["category_id"] = None
-                kept.append(entry)
-                continue
-            category = categories_by_code.get(value)
-            if category is None:
-                results.append({
-                    "index": index, "code": code, "outcome": "error",
-                    "error": (
-                        f"unknown category_code '{value}' — create the category "
-                        "first (POST /product-categories), never invent one"
-                    ),
-                })
-            elif category.status != "active":
-                results.append({
-                    "index": index, "code": code, "outcome": "error",
-                    "error": (
-                        f"category_code '{value}' is archived — revive it "
-                        "(PATCH status active) before filing products on it"
-                    ),
-                })
-            else:
-                fields["category_id"] = category.id
-                kept.append(entry)
-        prepared[:] = kept
+    _resolve_categories(db, tenant_id, prepared, results)
 
     # Price types come from the tenant's vocabulary (shipped catalog plus
     # custom entries, minus archived) — an unknown one is the row's error.

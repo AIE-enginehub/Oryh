@@ -61,6 +61,7 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
        for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus", "product-categories",
                  "facilities", "stores", "store-facilities",
+                 "bills-of-materials", "bom-items", "product-images",
                  "product-prices", "supplier-products", "customer-products", "external-product-maps",
                  "type-options")},
     # --- coordination, naming, vocabulary ------------------------------------
@@ -100,6 +101,12 @@ ADMIN_ONLY_READS: tuple[tuple[str, str], ...] = (
     # payout lines) — the cashier's capability gates reads too (钱账分离)
     ("GET", "/api/v1/fin-accounts"),
     ("GET", "/api/v1/fin-account-transactions"),
+    # contracts carry the prices negotiated with a factory or a customer —
+    # the desk that files them reads them; everyone else asks that desk
+    ("GET", "/api/v1/contracts"),
+    ("GET", "/api/v1/contract-items"),
+    ("GET", "/api/v1/contract-terms"),
+    ("GET", "/api/v1/contract-documents"),
 )
 
 

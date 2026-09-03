@@ -1091,6 +1091,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bills-of-materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bills Of Materials */
+        get: operations["list_bills_of_materials_api_v1_bills_of_materials_get"];
+        put?: never;
+        /** Create Bill Of Materials */
+        post: operations["create_bill_of_materials_api_v1_bills_of_materials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bills-of-materials/{bom_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bill Of Materials */
+        get: operations["get_bill_of_materials_api_v1_bills_of_materials__bom_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Bill Of Materials */
+        delete: operations["delete_bill_of_materials_api_v1_bills_of_materials__bom_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Bill Of Materials */
+        patch: operations["update_bill_of_materials_api_v1_bills_of_materials__bom_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/bills-of-materials/{bom_id}/explode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Explode Bill Of Materials
+         * @description The MRP-lite read: walk the recipe (and every sub-assembly's active
+         *     recipe under it), scale each line to the requested quantity of the root
+         *     through its recipe's output quantity, fold in scrap, and sum the leaves
+         *     — what must be bought or already stocked. Derived on every call, stored
+         *     nowhere; comparing it to stock and deciding what to buy is the agent's
+         *     judgment, which is why `with_stock` hands over ATP and a shortage
+         *     instead of a purchase request.
+         */
+        get: operations["explode_bill_of_materials_api_v1_bills_of_materials__bom_id__explode_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bom-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Bom Items */
+        get: operations["list_bom_items_api_v1_bom_items_get"];
+        put?: never;
+        /** Create Bom Item */
+        post: operations["create_bom_item_api_v1_bom_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bom-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Bom Item */
+        delete: operations["delete_bom_item_api_v1_bom_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Bom Item */
+        patch: operations["update_bom_item_api_v1_bom_items__item_id__patch"];
+        trace?: never;
+    };
     "/api/v1/builtin-object-types": {
         parameters: {
             query?: never;
@@ -1334,6 +1433,216 @@ export interface paths {
         get: operations["dashboard_api_v1_console_dashboard_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contract-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Documents */
+        get: operations["list_contract_documents_api_v1_contract_documents_get"];
+        put?: never;
+        /** Create Contract Document */
+        post: operations["create_contract_document_api_v1_contract_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contract-documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contract Document */
+        get: operations["get_contract_document_api_v1_contract_documents__document_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Contract Document
+         * @description Removes the LINK; the attachment store keeps the bytes. Terms that
+         *     pointed at this file keep their words and lose only their page.
+         */
+        delete: operations["delete_contract_document_api_v1_contract_documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Contract Document */
+        patch: operations["update_contract_document_api_v1_contract_documents__document_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contract-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Items */
+        get: operations["list_contract_items_api_v1_contract_items_get"];
+        put?: never;
+        /** Create Contract Item */
+        post: operations["create_contract_item_api_v1_contract_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contract-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Contract Item */
+        delete: operations["delete_contract_item_api_v1_contract_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Contract Item */
+        patch: operations["update_contract_item_api_v1_contract_items__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contract-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contract Terms */
+        get: operations["list_contract_terms_api_v1_contract_terms_get"];
+        put?: never;
+        /** Create Contract Term */
+        post: operations["create_contract_term_api_v1_contract_terms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contract-terms/{term_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Contract Term */
+        delete: operations["delete_contract_term_api_v1_contract_terms__term_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Contract Term */
+        patch: operations["update_contract_term_api_v1_contract_terms__term_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contracts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Contracts */
+        get: operations["list_contracts_api_v1_contracts_get"];
+        put?: never;
+        /** Create Contract */
+        post: operations["create_contract_api_v1_contracts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Contract */
+        get: operations["get_contract_api_v1_contracts__contract_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Contract */
+        delete: operations["delete_contract_api_v1_contracts__contract_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Contract */
+        patch: operations["update_contract_api_v1_contracts__contract_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Contract Attachment
+         * @description An original's bytes, reached through the contract that carries it,
+         *     by the desk that may read the contract.
+         */
+        get: operations["get_contract_attachment_api_v1_contracts__contract_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contract Execution
+         * @description What has happened under the contract — orders placed, invoices
+         *     billed, payments moved, contracted vs ordered quantity by product —
+         *     derived from the documents that point at it, stored nowhere.
+         */
+        get: operations["contract_execution_api_v1_contracts__contract_id__execution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/contracts/{contract_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Contract */
+        post: operations["restore_contract_api_v1_contracts__contract_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3339,6 +3648,70 @@ export interface paths {
         patch: operations["update_product_category_api_v1_product_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/v1/product-images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Images */
+        get: operations["list_product_images_api_v1_product_images_get"];
+        put?: never;
+        /** Create Product Image */
+        post: operations["create_product_image_api_v1_product_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-images/{image_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Product Image
+         * @description Removes the LINK. The bytes stay in the attachment store — a blob two
+         *     products share is one blob, and the store deduplicates by sha256.
+         */
+        delete: operations["delete_product_image_api_v1_product_images__image_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Product Image */
+        patch: operations["update_product_image_api_v1_product_images__image_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/product-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Match Products By Title
+         * @description Candidates for a platform title, ranked by how much of the title's
+         *     vocabulary each active product's name/code/spec shares. A READ that
+         *     hands the agent a shortlist with scores; which one (if any) the title
+         *     means is the person's confirmation, and the map row that records it
+         *     is what makes the next import skip this call.
+         */
+        get: operations["match_products_by_title_api_v1_product_matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/product-prices": {
         parameters: {
             query?: never;
@@ -3468,6 +3841,29 @@ export interface paths {
         head?: never;
         /** Update Product */
         patch: operations["update_product_api_v1_products__product_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/products/{product_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Product Attachment
+         * @description A picture's bytes, reached through the product that carries it —
+         *     everyone in the workspace reads the catalog, so everyone reads its
+         *     pictures. An attachment that is real but not this product's reads as
+         *     404, the same as one that is not real (the shared rule).
+         */
+        get: operations["get_product_attachment_api_v1_products__product_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/products/{product_id}/skus/batch": {
@@ -5545,7 +5941,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -5655,6 +6051,44 @@ export interface components {
             list_price?: number | string | null;
             /** Values */
             values: string[];
+        };
+        /** BillOfMaterialsRead */
+        BillOfMaterialsRead: {
+            /** Bom Code */
+            bom_code?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Items */
+            items?: components["schemas"]["BomItemRead"][] | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Output Quantity */
+            output_quantity: number;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "archived" | "draft";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version?: string | null;
         };
         /** BillingAccountDetailRead */
         BillingAccountDetailRead: {
@@ -5784,6 +6218,116 @@ export interface components {
             valid_until?: string | null;
             /** Vendor Id */
             vendor_id?: string | null;
+        };
+        /** BomExplodeRead */
+        BomExplodeRead: {
+            /** Bom Id */
+            bom_id: string;
+            /** Leaf Requirements */
+            leaf_requirements: components["schemas"]["BomLeafRequirementRead"][];
+            /** Lines */
+            lines: components["schemas"]["BomExplodedLineRead"][];
+            /** Product Id */
+            product_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /**
+         * BomExplodedLineRead
+         * @description One node of the exploded recipe. `level` 1 is the recipe's own line;
+         *     a component with an active recipe of its own is a sub-assembly and its
+         *     components follow at level+1, each tagged with its parent.
+         */
+        BomExplodedLineRead: {
+            /** Available To Promise */
+            available_to_promise?: number | null;
+            /** Component Name */
+            component_name?: string | null;
+            /** Component Product Id */
+            component_product_id: string;
+            /** Component Type */
+            component_type: string;
+            /** Has Bom */
+            has_bom: boolean;
+            /** Level */
+            level: number;
+            /** Parent Product Id */
+            parent_product_id: string;
+            /** Required Quantity */
+            required_quantity: number;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** BomItemBase */
+        BomItemBase: {
+            /** Component Product Id */
+            component_product_id: string;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity: number;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** BomItemRead */
+        BomItemRead: {
+            /** Bom Id */
+            bom_id: string;
+            /** Component Name */
+            component_name?: string | null;
+            /** Component Product Id */
+            component_product_id: string;
+            /** Component Type */
+            component_type?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity: number;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * BomLeafRequirementRead
+         * @description What must be bought or already stocked: one row per product that has
+         *     no recipe of its own, summed across every branch it appears on.
+         */
+        BomLeafRequirementRead: {
+            /** Available To Promise */
+            available_to_promise?: number | null;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name?: string | null;
+            /** Product Type */
+            product_type: string;
+            /** Required Quantity */
+            required_quantity: number;
+            /** Shortage */
+            shortage?: number | null;
+            /** Unit */
+            unit?: string | null;
         };
         /** BrowserCsrfData */
         BrowserCsrfData: {
@@ -6327,6 +6871,12 @@ export interface components {
             prices?: components["schemas"]["BulkProductPriceRow"][];
             /** Product Code */
             product_code: string;
+            /**
+             * Product Type
+             * @default finished_good
+             * @enum {string}
+             */
+            product_type: "finished_good" | "raw_material" | "semi_finished" | "service";
             /** Spec */
             spec?: string | null;
             /**
@@ -7010,6 +7560,251 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** ContractDocumentRead */
+        ContractDocumentRead: {
+            /** Attachment Id */
+            attachment_id: string;
+            /** Caption */
+            caption?: string | null;
+            /** Content Type */
+            content_type?: string | null;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Type */
+            document_type: string;
+            /** Extracted Text */
+            extracted_text?: string | null;
+            /** Filename */
+            filename?: string | null;
+            /**
+             * Has Text
+             * @default false
+             */
+            has_text: boolean;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Size Bytes */
+            size_bytes?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ContractExecutionRead
+         * @description What has happened under the contract, derived on every call: orders
+         *     placed against it, invoices billed, payments moved — never a stored
+         *     progress figure.
+         */
+        ContractExecutionRead: {
+            /** Contract Id */
+            contract_id: string;
+            /** Contracted Amount */
+            contracted_amount?: number | null;
+            /** Invoiced Amount */
+            invoiced_amount: number;
+            /** Invoices */
+            invoices: number;
+            /** Lines */
+            lines: {
+                [key: string]: unknown;
+            }[];
+            /** Ordered Amount */
+            ordered_amount: number;
+            /** Orders */
+            orders: number;
+            /** Paid Amount */
+            paid_amount: number;
+            /** Payments */
+            payments: number;
+            /** Side */
+            side: string;
+        };
+        /** ContractItemBase */
+        ContractItemBase: {
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Delivery Note */
+            delivery_note?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** ContractItemRead */
+        ContractItemRead: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Delivery Note */
+            delivery_note?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name */
+            product_name?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ContractRead */
+        ContractRead: {
+            /** Contract No */
+            contract_no: string;
+            /** Contract Type */
+            contract_type: string;
+            /** Counterparty Name */
+            counterparty_name?: string | null;
+            /** Counterparty Name Snapshot */
+            counterparty_name_snapshot?: string | null;
+            /** Counterparty Signatory */
+            counterparty_signatory?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Documents */
+            documents?: components["schemas"]["ContractDocumentRead"][] | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Id */
+            id: string;
+            /** Items */
+            items?: components["schemas"]["ContractItemRead"][] | null;
+            /** Our Signatory */
+            our_signatory?: string | null;
+            /** Parent Contract Id */
+            parent_contract_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Side */
+            side: string;
+            /** Signed At */
+            signed_at?: string | null;
+            /** Signed Date */
+            signed_date?: string | null;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary?: string | null;
+            /** Terms By Type */
+            terms_by_type?: {
+                [key: string]: components["schemas"]["ContractTermRead"][];
+            } | null;
+            /** Title */
+            title: string;
+            /** Total Amount */
+            total_amount?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Vendor Id */
+            vendor_id?: string | null;
+        };
+        /** ContractTermRead */
+        ContractTermRead: {
+            /** Clause Ref */
+            clause_ref?: string | null;
+            /** Content */
+            content: string;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Id */
+            document_id?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Term Type */
+            term_type: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /**
          * ConvertLeadRequest
          * @description The conversion bridge's one decision: WHICH customer this lead became.
@@ -7068,7 +7863,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -7117,6 +7912,34 @@ export interface components {
             content_type: string;
             /** Filename */
             filename: string;
+        };
+        /** CreateBillOfMaterialsRequest */
+        CreateBillOfMaterialsRequest: {
+            /** Bom Code */
+            bom_code?: string | null;
+            /** Items */
+            items?: components["schemas"]["BomItemBase"][];
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Output Quantity
+             * @default 1
+             */
+            output_quantity: number;
+            /** Product Id */
+            product_id: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "active" | "archived" | "draft";
+            /** Version */
+            version?: string | null;
         };
         /** CreateBillingAccountRequest */
         CreateBillingAccountRequest: {
@@ -7169,6 +7992,23 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /** CreateBomItemRequest */
+        CreateBomItemRequest: {
+            /** Bom Id */
+            bom_id: string;
+            /** Component Product Id */
+            component_product_id: string;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity: number;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
         /** CreateBusinessObjectLinkRequest */
         CreateBusinessObjectLinkRequest: {
             /** Link Type */
@@ -7210,6 +8050,134 @@ export interface components {
             description?: string | null;
             /** Name */
             name: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** CreateContractDocumentRequest */
+        CreateContractDocumentRequest: {
+            /** Attachment Id */
+            attachment_id: string;
+            /** Caption */
+            caption?: string | null;
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Document Type
+             * @default other
+             */
+            document_type: string;
+            /** Extracted Text */
+            extracted_text?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** CreateContractItemRequest */
+        CreateContractItemRequest: {
+            /** Contract Id */
+            contract_id: string;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Delivery Note */
+            delivery_note?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** CreateContractRequest */
+        CreateContractRequest: {
+            /** Contract No */
+            contract_no?: string | null;
+            /**
+             * Contract Type
+             * @default other
+             */
+            contract_type: string;
+            /** Counterparty Name Snapshot */
+            counterparty_name_snapshot?: string | null;
+            /** Counterparty Signatory */
+            counterparty_signatory?: string | null;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Items */
+            items?: components["schemas"]["ContractItemBase"][];
+            /** Our Signatory */
+            our_signatory?: string | null;
+            /** Parent Contract Id */
+            parent_contract_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Signed Date */
+            signed_date?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title: string;
+            /** Total Amount */
+            total_amount?: number | null;
+            /** Vendor Id */
+            vendor_id?: string | null;
+        };
+        /** CreateContractTermRequest */
+        CreateContractTermRequest: {
+            /** Clause Ref */
+            clause_ref?: string | null;
+            /** Content */
+            content: string;
+            /** Contract Id */
+            contract_id: string;
+            /** Document Id */
+            document_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Term Type */
+            term_type: string;
             /** Title */
             title?: string | null;
         };
@@ -7518,7 +8486,10 @@ export interface components {
             effective_to?: string | null;
             /** External Name */
             external_name?: string | null;
-            /** External Product Id */
+            /**
+             * External Product Id
+             * @default
+             */
             external_product_id: string;
             /**
              * External Sku Id
@@ -7790,6 +8761,8 @@ export interface components {
             attachment_id?: string | null;
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -8002,6 +8975,8 @@ export interface components {
             attachment_id?: string | null;
             /** Bank Account */
             bank_account?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Account */
             counterparty_account?: string | null;
             /** Counterparty Name Snapshot */
@@ -8155,6 +9130,31 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** CreateProductImageRequest */
+        CreateProductImageRequest: {
+            /** Attachment Id */
+            attachment_id: string;
+            /** Caption */
+            caption?: string | null;
+            /**
+             * Image Type
+             * @default other
+             */
+            image_type: string;
+            /**
+             * Is Primary
+             * @default false
+             */
+            is_primary: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id: string;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /** CreateProductPriceRequest */
         CreateProductPriceRequest: {
             /**
@@ -8207,6 +9207,12 @@ export interface components {
             name: string;
             /** Product Code */
             product_code?: string | null;
+            /**
+             * Product Type
+             * @default finished_good
+             * @enum {string}
+             */
+            product_type: "finished_good" | "raw_material" | "semi_finished" | "service";
             /** Spec */
             spec?: string | null;
             /**
@@ -8324,6 +9330,8 @@ export interface components {
         CreatePurchaseOrderRequest: {
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -8584,6 +9592,8 @@ export interface components {
             contact_name?: string | null;
             /** Contact Phone */
             contact_phone?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -9034,7 +10044,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -9517,6 +10527,11 @@ export interface components {
             data: components["schemas"]["BatchCreateProductSkusRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[BillOfMaterialsRead] */
+        Envelope_BillOfMaterialsRead_: {
+            data: components["schemas"]["BillOfMaterialsRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[BillingAccountDetailRead] */
         Envelope_BillingAccountDetailRead_: {
             data: components["schemas"]["BillingAccountDetailRead"];
@@ -9525,6 +10540,16 @@ export interface components {
         /** Envelope[BillingAccountRead] */
         Envelope_BillingAccountRead_: {
             data: components["schemas"]["BillingAccountRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[BomExplodeRead] */
+        Envelope_BomExplodeRead_: {
+            data: components["schemas"]["BomExplodeRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[BomItemRead] */
+        Envelope_BomItemRead_: {
+            data: components["schemas"]["BomItemRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[BulkDocumentImportResult] */
@@ -9565,6 +10590,31 @@ export interface components {
         /** Envelope[CapabilityRead] */
         Envelope_CapabilityRead_: {
             data: components["schemas"]["CapabilityRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ContractDocumentRead] */
+        Envelope_ContractDocumentRead_: {
+            data: components["schemas"]["ContractDocumentRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ContractExecutionRead] */
+        Envelope_ContractExecutionRead_: {
+            data: components["schemas"]["ContractExecutionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ContractItemRead] */
+        Envelope_ContractItemRead_: {
+            data: components["schemas"]["ContractItemRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ContractRead] */
+        Envelope_ContractRead_: {
+            data: components["schemas"]["ContractRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ContractTermRead] */
+        Envelope_ContractTermRead_: {
+            data: components["schemas"]["ContractTermRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[CreateApiKeyResponse] */
@@ -9765,6 +10815,11 @@ export interface components {
         /** Envelope[ProductCategoryRead] */
         Envelope_ProductCategoryRead_: {
             data: components["schemas"]["ProductCategoryRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProductImageRead] */
+        Envelope_ProductImageRead_: {
+            data: components["schemas"]["ProductImageRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ProductPriceRead] */
@@ -10155,6 +11210,8 @@ export interface components {
             effective_to?: string | null;
             /** External Name */
             external_name?: string | null;
+            /** External Name Norm */
+            external_name_norm?: string | null;
             /** External Product Id */
             external_product_id: string;
             /** External Sku Id */
@@ -10546,6 +11603,8 @@ export interface components {
             attachment_id?: string | null;
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -10865,6 +11924,8 @@ export interface components {
             attachment_id?: string | null;
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -11063,6 +12124,12 @@ export interface components {
             data: components["schemas"]["ApprovalTargetRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[BillOfMaterialsRead] */
+        ListEnvelope_BillOfMaterialsRead_: {
+            /** Data */
+            data: components["schemas"]["BillOfMaterialsRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[BillingAccountEntryRead] */
         ListEnvelope_BillingAccountEntryRead_: {
             /** Data */
@@ -11073,6 +12140,12 @@ export interface components {
         ListEnvelope_BillingAccountRead_: {
             /** Data */
             data: components["schemas"]["BillingAccountRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[BomItemRead] */
+        ListEnvelope_BomItemRead_: {
+            /** Data */
+            data: components["schemas"]["BomItemRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[BuiltinObjectTypeRead] */
@@ -11091,6 +12164,30 @@ export interface components {
         ListEnvelope_BusinessObjectRead_: {
             /** Data */
             data: components["schemas"]["BusinessObjectRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ContractDocumentRead] */
+        ListEnvelope_ContractDocumentRead_: {
+            /** Data */
+            data: components["schemas"]["ContractDocumentRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ContractItemRead] */
+        ListEnvelope_ContractItemRead_: {
+            /** Data */
+            data: components["schemas"]["ContractItemRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ContractRead] */
+        ListEnvelope_ContractRead_: {
+            /** Data */
+            data: components["schemas"]["ContractRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ContractTermRead] */
+        ListEnvelope_ContractTermRead_: {
+            /** Data */
+            data: components["schemas"]["ContractTermRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[CustomerContactRead] */
@@ -11271,6 +12368,12 @@ export interface components {
         ListEnvelope_ProductCategoryRead_: {
             /** Data */
             data: components["schemas"]["ProductCategoryRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProductImageRead] */
+        ListEnvelope_ProductImageRead_: {
+            /** Data */
+            data: components["schemas"]["ProductImageRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ProductPriceRead] */
@@ -11732,6 +12835,8 @@ export interface components {
             attachment_id?: string | null;
             /** Bank Account */
             bank_account?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Account */
             counterparty_account?: string | null;
             /** Counterparty Name Snapshot */
@@ -12073,6 +13178,43 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ProductImageRead */
+        ProductImageRead: {
+            /** Attachment Id */
+            attachment_id: string;
+            /** Caption */
+            caption?: string | null;
+            /** Content Type */
+            content_type?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Filename */
+            filename?: string | null;
+            /** Id */
+            id: string;
+            /** Image Type */
+            image_type: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Id */
+            product_id: string;
+            /** Size Bytes */
+            size_bytes?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** ProductPriceRead */
         ProductPriceRead: {
             /**
@@ -12139,8 +13281,15 @@ export interface components {
             };
             /** Name */
             name: string;
+            /** Primary Image Id */
+            primary_image_id?: string | null;
             /** Product Code */
             product_code?: string | null;
+            /**
+             * Product Type
+             * @enum {string}
+             */
+            product_type: "finished_good" | "raw_material" | "semi_finished" | "service";
             /**
              * Sku Count
              * @default 0
@@ -12269,6 +13418,8 @@ export interface components {
         PurchaseOrderCreatedRead: {
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -12493,6 +13644,8 @@ export interface components {
         PurchaseOrderRead: {
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -13260,6 +14413,8 @@ export interface components {
             contact_name?: string | null;
             /** Contact Phone */
             contact_phone?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /**
@@ -14213,7 +15368,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -14342,6 +15497,23 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** UpdateBillOfMaterialsRequest */
+        UpdateBillOfMaterialsRequest: {
+            /** Bom Code */
+            bom_code?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Output Quantity */
+            output_quantity?: number | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived" | "draft") | null;
+            /** Version */
+            version?: string | null;
+        };
         /** UpdateBillingAccountRequest */
         UpdateBillingAccountRequest: {
             /** Credit Limit */
@@ -14367,6 +15539,21 @@ export interface components {
             /** Valid Until */
             valid_until?: string | null;
         };
+        /** UpdateBomItemRequest */
+        UpdateBomItemRequest: {
+            /** Component Product Id */
+            component_product_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
         /** UpdateBusinessObjectRequest */
         UpdateBusinessObjectRequest: {
             /** Created By */
@@ -14383,6 +15570,106 @@ export interface components {
             status?: string | null;
             /** Summary */
             summary?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** UpdateContractDocumentRequest */
+        UpdateContractDocumentRequest: {
+            /** Caption */
+            caption?: string | null;
+            /** Document Type */
+            document_type?: string | null;
+            /** Extracted Text */
+            extracted_text?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** UpdateContractItemRequest */
+        UpdateContractItemRequest: {
+            /** Currency */
+            currency?: string | null;
+            /** Delivery Note */
+            delivery_note?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** UpdateContractRequest */
+        UpdateContractRequest: {
+            /** Contract Type */
+            contract_type?: string | null;
+            /** Counterparty Name Snapshot */
+            counterparty_name_snapshot?: string | null;
+            /** Counterparty Signatory */
+            counterparty_signatory?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Our Signatory */
+            our_signatory?: string | null;
+            /** Parent Contract Id */
+            parent_contract_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Signed Date */
+            signed_date?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Total Amount */
+            total_amount?: number | null;
+        };
+        /** UpdateContractTermRequest */
+        UpdateContractTermRequest: {
+            /** Clause Ref */
+            clause_ref?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Document Id */
+            document_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Term Type */
+            term_type?: string | null;
             /** Title */
             title?: string | null;
         };
@@ -14709,6 +15996,8 @@ export interface components {
             attachment_id?: string | null;
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /** Currency */
@@ -14860,6 +16149,8 @@ export interface components {
             attachment_id?: string | null;
             /** Bank Account */
             bank_account?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Counterparty Account */
             counterparty_account?: string | null;
             /** Counterparty Name Snapshot */
@@ -14970,6 +16261,21 @@ export interface components {
             /** Status */
             status?: ("active" | "archived") | null;
         };
+        /** UpdateProductImageRequest */
+        UpdateProductImageRequest: {
+            /** Caption */
+            caption?: string | null;
+            /** Image Type */
+            image_type?: string | null;
+            /** Is Primary */
+            is_primary?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /** UpdateProductPriceRequest */
         UpdateProductPriceRequest: {
             /** Metadata */
@@ -15004,6 +16310,12 @@ export interface components {
             name?: string | null;
             /** Product Code */
             product_code?: string | null;
+            /**
+             * Product Type
+             * @default finished_good
+             * @enum {string}
+             */
+            product_type: "finished_good" | "raw_material" | "semi_finished" | "service";
             /** Spec */
             spec?: string | null;
             /**
@@ -15111,6 +16423,8 @@ export interface components {
         UpdatePurchaseOrderRequest: {
             /** Billing Account Id */
             billing_account_id?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /** Currency */
@@ -15317,6 +16631,8 @@ export interface components {
             contact_name?: string | null;
             /** Contact Phone */
             contact_phone?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
             /** Currency */
@@ -18215,6 +19531,405 @@ export interface operations {
             };
         };
     };
+    list_bills_of_materials_api_v1_bills_of_materials_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BillOfMaterialsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bill_of_materials_api_v1_bills_of_materials_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBillOfMaterialsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BillOfMaterialsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bill_of_materials_api_v1_bills_of_materials__bom_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                bom_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BillOfMaterialsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_bill_of_materials_api_v1_bills_of_materials__bom_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                bom_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_bill_of_materials_api_v1_bills_of_materials__bom_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                bom_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBillOfMaterialsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BillOfMaterialsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    explode_bill_of_materials_api_v1_bills_of_materials__bom_id__explode_get: {
+        parameters: {
+            query?: {
+                quantity?: number;
+                with_stock?: boolean;
+                facility_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                bom_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BomExplodeRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bom_items_api_v1_bom_items_get: {
+        parameters: {
+            query?: {
+                bom_id?: string | null;
+                component_product_id?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BomItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bom_item_api_v1_bom_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBomItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BomItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_bom_item_api_v1_bom_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_bom_item_api_v1_bom_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBomItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BomItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_builtin_object_types_api_v1_builtin_object_types_get: {
         parameters: {
             query?: never;
@@ -18888,6 +20603,841 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsoleDashboardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contract_documents_api_v1_contract_documents_get: {
+        parameters: {
+            query?: {
+                contract_id?: string | null;
+                document_type?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ContractDocumentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_document_api_v1_contract_documents_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContractDocumentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractDocumentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contract_document_api_v1_contract_documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractDocumentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_document_api_v1_contract_documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_document_api_v1_contract_documents__document_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContractDocumentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractDocumentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contract_items_api_v1_contract_items_get: {
+        parameters: {
+            query?: {
+                contract_id?: string | null;
+                product_id?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ContractItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_item_api_v1_contract_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContractItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_item_api_v1_contract_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_item_api_v1_contract_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContractItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contract_terms_api_v1_contract_terms_get: {
+        parameters: {
+            query?: {
+                contract_id?: string | null;
+                term_type?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ContractTermRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_term_api_v1_contract_terms_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContractTermRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractTermRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_term_api_v1_contract_terms__term_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                term_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_term_api_v1_contract_terms__term_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                term_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContractTermRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractTermRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_contracts_api_v1_contracts_get: {
+        parameters: {
+            query?: {
+                side?: string | null;
+                contract_type?: string | null;
+                vendor_id?: string | null;
+                customer_id?: string | null;
+                parent_contract_id?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ContractRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_contract_api_v1_contracts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contract_api_v1_contracts__contract_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_contract_api_v1_contracts__contract_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_contract_api_v1_contracts__contract_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContractRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contract_attachment_api_v1_contracts__contract_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    contract_execution_api_v1_contracts__contract_id__execution_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContractExecutionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_contract_api_v1_contracts__contract_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -20913,8 +23463,10 @@ export interface operations {
             query?: {
                 source?: string | null;
                 external_product_id?: string | null;
+                external_name?: string | null;
                 external_sku_id?: string | null;
                 product_id?: string | null;
+                keyword?: string | null;
                 /** @description Resolve the map AS OF this date — rows whose [effective_from, effective_to) window covers it, null bounds open. This is THE translation query: pass the ORDER's date, because a listing that swapped products means different things on different days. Without an explicit status filter, `at` returns live rows only — an archived (withdrawn) pairing never described the listing. */
                 at?: string | null;
                 status?: string | null;
@@ -25363,6 +27915,204 @@ export interface operations {
             };
         };
     };
+    list_product_images_api_v1_product_images_get: {
+        parameters: {
+            query?: {
+                product_id?: string | null;
+                image_type?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProductImageRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_image_api_v1_product_images_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductImageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductImageRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_image_api_v1_product_images__image_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                image_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_product_image_api_v1_product_images__image_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                image_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductImageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductImageRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    match_products_by_title_api_v1_product_matches_get: {
+        parameters: {
+            query: {
+                title: string;
+                limit?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_product_prices_api_v1_product_prices_get: {
         parameters: {
             query?: {
@@ -25766,6 +28516,7 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 category_id?: string | null;
+                product_type?: string | null;
                 status?: string | null;
                 page?: number | null;
                 size?: number;
@@ -25986,6 +28737,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ProductRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_attachment_api_v1_products__product_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                product_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

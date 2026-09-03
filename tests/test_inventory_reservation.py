@@ -150,3 +150,24 @@ def test_a_cancelled_order_gives_its_hold_back_by_hand(stockroom) -> None:
         "sales_order_id": so, "description": "订单取消,释放占货"})
     assert released.status_code == 201, released.text
     assert stockroom["sums"]() == (10.0, 10.0), "the hold came back, nothing moved"
+
+
+def test_two_lines_on_one_position_split_one_hold_inside_a_posting(stockroom) -> None:
+    """One hold, one parcel, two lines from the same shelf. The hold is
+    drawn down line by line WITHIN the posting — a derivation that read the
+    outstanding hold once per line would hand it out twice."""
+    client, admin = stockroom["client"], stockroom["admin"]
+    so = stockroom["order"]()
+    stockroom["reserve"](so, 8)
+    assert stockroom["sums"]() == (10.0, 2.0)
+    shipment = client.post("/api/v1/shipments", headers=admin, json={
+        "direction": "outbound", "sales_order_id": so,
+        "items": [{"product_id": stockroom["product"], "quantity": 5,
+                   "inventory_item_id": stockroom["position"]},
+                  {"product_id": stockroom["product"], "quantity": 5,
+                   "inventory_item_id": stockroom["position"]}]}).json()["data"]
+    posted = client.post(f"/api/v1/shipments/{shipment['id']}/post-stock", headers=admin)
+    assert posted.status_code == 200, posted.text
+    assert [line["reservation_released"] for line in posted.json()["data"]["lines"]] == [5.0, 3.0], \
+        "the second line consumes what the first left, never the whole hold again"
+    assert stockroom["sums"]() == (0.0, 0.0), "at rest the two sums agree again"

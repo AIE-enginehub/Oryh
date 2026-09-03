@@ -17,7 +17,9 @@ Three facts shape everything here:
   be over-applied, to settle across currencies, or to apply an inbound payment
   to a supplier's bill. It does NOT gate settlement on either document's status —
   state names belong to the workspace, so which of them mean "collectable" is
-  your judgment, read from the workflow definition.
+  your judgment, read from the tenant's invoice machine
+  (`GET /object-type-definitions?entity_kind=builtin&object_type=invoice`);
+  the workflow definition holds the policy, the machine holds the names.
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
   Matched the wrong invoice? Apply a negative amount and then apply it right.
 

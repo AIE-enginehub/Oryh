@@ -20,34 +20,43 @@ router.
 
 from __future__ import annotations
 
-import uuid
-
 from datetime import date
 from typing import Annotated
 
+import re
+import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
     _finish_bulk_import,
     archive_row,
     commit_or_code_conflict,
+    commit_or_conflict,
     envelope,
     get_scoped_or_404,
     get_tenant_id,
     list_rows,
     page_only_pagination,
+    register_attachment_source,
+    require_active_row,
+    require_entity_uuid,
     require_master_data_manage,
+    serve_document_attachment,
 )
-from app.api.deps import Actor, attributed, get_actor, require_permission
+from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
+    Attachment,
+    BillOfMaterials,
+    BomItem,
     Customer,
     CustomerContact,
     CustomerProduct,
     ExternalProductMap,
+    normalize_external_name,
     Facility,
     InventoryItem,
     InventoryItemDetail,
@@ -57,6 +66,7 @@ from app.models import (
     SalesOrder,
     Product,
     ProductCategory,
+    ProductImage,
     ProductPrice,
     ProductSku,
     SupplierProduct,
@@ -87,6 +97,23 @@ from app.schemas import (
     FacilityListEnvelope,
     FacilityRead,
     ExternalProductMapRead,
+    BillOfMaterialsEnvelope,
+    BillOfMaterialsListEnvelope,
+    BillOfMaterialsRead,
+    BomExplodeEnvelope,
+    BomExplodeRead,
+    BomExplodedLineRead,
+    BomItemEnvelope,
+    BomItemListEnvelope,
+    BomItemRead,
+    BomLeafRequirementRead,
+    CreateBillOfMaterialsRequest,
+    CreateBomItemRequest,
+    CreateProductImageRequest,
+    ProductImageEnvelope,
+    ProductImageListEnvelope,
+    ProductImageRead,
+    UpdateProductImageRequest,
     CreateCustomerContactRequest,
     CreateCustomerProductRequest,
     CustomerContactEnvelope,
@@ -119,6 +146,8 @@ from app.schemas import (
     SupplierProductEnvelope,
     SupplierProductListEnvelope,
     SupplierProductRead,
+    UpdateBillOfMaterialsRequest,
+    UpdateBomItemRequest,
     UpdateCustomerContactRequest,
     UpdateCustomerProductRequest,
     UpdateCustomerRequest,
@@ -271,13 +300,27 @@ def product_sku_stats(
 def product_reads_with_sku_stats(db: Session, tenant_id: str, products) -> list[dict]:
     """Product reads carrying their variant counts — one stats query however
     many rows the page has."""
-    stats = product_sku_stats(db, tenant_id, [product.id for product in products])
+    ids = [product.id for product in products]
+    stats = product_sku_stats(db, tenant_id, ids)
+    primaries: dict[str, str] = {}
+    if ids:
+        primaries = {
+            product_id: image_id
+            for product_id, image_id in db.execute(
+                select(ProductImage.product_id, ProductImage.id).where(
+                    ProductImage.tenant_id == tenant_id,
+                    ProductImage.product_id.in_(ids),
+                    ProductImage.is_primary.is_(True),
+                )
+            ).all()
+        }
     data = []
     for product in products:
         read = ProductRead.model_validate(product)
         total, active = stats.get(product.id, (0, 0))
         read.sku_count = total
         read.has_skus = active > 0
+        read.primary_image_id = primaries.get(product.id)
         data.append(read.model_dump(by_alias=True))
     return data
 
@@ -497,16 +540,6 @@ def delete_customer(
 # --- stores and facilities: where you sell, and where you ship from ---------
 
 
-def _require_active_row(db: Session, tenant_id: str, model, row_id: str, noun: str):
-    row = get_scoped_or_404(db, model, tenant_id, row_id)
-    if row.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{noun} {row_id} is archived — revive it (PATCH status active) first",
-        )
-    return row
-
-
 @router.get("/facilities", response_model=FacilityListEnvelope, response_model_exclude_unset=True)
 def list_facilities(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
@@ -550,17 +583,10 @@ def create_facility(
         metadata_jsonb=payload.metadata,
     )
     db.add(facility)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"an active facility named {payload.name!r} already exists — the "
-                "stock ledger joins on this name, so two live facilities cannot share it"
-            ),
-        )
+    commit_or_conflict(db, (
+                        f"an active facility named {payload.name!r} already exists — the "
+                        "stock ledger joins on this name, so two live facilities cannot share it"
+                    ))
     db.refresh(facility)
     return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
 
@@ -599,14 +625,7 @@ def update_facility(
         facility.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(facility, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active facility with this name already exists",
-        )
+    commit_or_conflict(db, "an active facility with this name already exists")
     db.refresh(facility)
     return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
 
@@ -668,14 +687,7 @@ def create_store(
         metadata_jsonb=payload.metadata,
     )
     db.add(store)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"an active store named {payload.name!r} already exists",
-        )
+    commit_or_conflict(db, f"an active store named {payload.name!r} already exists")
     db.refresh(store)
     return envelope(StoreRead.model_validate(store).model_dump(by_alias=True))
 
@@ -724,14 +736,7 @@ def update_store(
         store.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(store, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active store with this name already exists",
-        )
+    commit_or_conflict(db, "an active store with this name already exists")
     db.refresh(store)
     return envelope(StoreRead.model_validate(store).model_dump(by_alias=True))
 
@@ -783,23 +788,10 @@ def create_store_facility(
 ):
     require_master_data_manage(actor)
     tenant_id = actor.tenant_id
-    _require_active_row(db, tenant_id, Store, payload.store_id, "store")
-    _require_active_row(db, tenant_id, Facility, payload.facility_id, "facility")
-    existing = db.scalar(
-        select(StoreFacility).where(
-            StoreFacility.tenant_id == tenant_id,
-            StoreFacility.store_id == payload.store_id,
-            StoreFacility.facility_id == payload.facility_id,
-        )
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"link {existing.id} already exists for this (store, facility) — "
-                "PATCH it; an archived link revives by setting status active"
-            ),
-        )
+    require_active_row(db, Store, tenant_id, payload.store_id, "store")
+    require_active_row(db, Facility, tenant_id, payload.facility_id, "facility")
+    _require_pair_free(db, StoreFacility, tenant_id,
+                       {"store_id": payload.store_id, "facility_id": payload.facility_id}, "link")
     link = StoreFacility(
         tenant_id=tenant_id,
         store_id=payload.store_id,
@@ -810,14 +802,7 @@ def create_store_facility(
         metadata_jsonb=payload.metadata,
     )
     db.add(link)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="a link for this (store, facility) already exists",
-        )
+    commit_or_conflict(db, "a link for this (store, facility) already exists")
     db.refresh(link)
     return envelope(StoreFacilityRead.model_validate(link).model_dump(by_alias=True))
 
@@ -849,6 +834,561 @@ def delete_store_facility(
     db: Annotated[Session, Depends(get_db)],
 ):
     return archive_row(db, actor, StoreFacility, link_id)
+
+
+# --- product images: the catalog's pictures, bytes in the attachment store --
+
+
+@router.get("/product-images", response_model=ProductImageListEnvelope,
+            response_model_exclude_unset=True)
+def list_product_images(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    product_id: str | None = None,
+    image_type: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db, select(ProductImage).where(ProductImage.tenant_id == tenant_id),
+        filters={ProductImage.product_id: product_id, ProductImage.image_type: image_type},
+        # the primary first, then the curated order, then arrival
+        order_by=(
+            ProductImage.is_primary.desc(),
+            ProductImage.sort_order.asc().nulls_last(),
+            ProductImage.created_at.asc(),
+        ),
+        pagination=page_only_pagination(page, size),
+        read_model=ProductImageRead,
+    )
+
+
+@router.post("/product-images", response_model=ProductImageEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_product_image(
+    payload: CreateProductImageRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    get_scoped_or_404(db, Product, tenant_id, payload.product_id)
+    require_type_option(db, tenant_id, "product_image_type", payload.image_type)
+    attachment = get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
+    # pictures are image/*; a design draft is often a PDF and belongs in the
+    # gallery too. Source files (DWG/AI/PSD) are document management, not a
+    # product's pictures, and stay refused
+    content_type = attachment.content_type.lower()
+    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"attachment {payload.attachment_id} is {attachment.content_type} — a "
+                "product picture is image/* (or a PDF design draft); a spreadsheet or a "
+                "CAD source belongs in a document, not the gallery"
+            ),
+        )
+    if payload.is_primary:
+        _demote_others(db, ProductImage, tenant_id, {"product_id": payload.product_id},
+                      (ProductImage.is_primary, True, False))
+    image = ProductImage(
+        tenant_id=tenant_id,
+        product_id=payload.product_id,
+        attachment_id=payload.attachment_id,
+        is_primary=payload.is_primary,
+        image_type=payload.image_type,
+        sort_order=payload.sort_order,
+        caption=payload.caption,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(image)
+    commit_or_conflict(db, "this picture is already on this product — PATCH that row")
+    db.refresh(image)
+    return envelope(ProductImageRead.model_validate(image).model_dump(by_alias=True))
+
+
+@router.patch("/product-images/{image_id}", response_model=ProductImageEnvelope,
+              response_model_exclude_unset=True)
+def update_product_image(
+    image_id: str,
+    payload: UpdateProductImageRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    image = get_scoped_or_404(db, ProductImage, tenant_id, image_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "image_type" in updates:
+        require_type_option(db, tenant_id, "product_image_type", updates["image_type"])
+    if updates.get("is_primary") and not image.is_primary:
+        _demote_others(db, ProductImage, tenant_id, {"product_id": image.product_id},
+                      (ProductImage.is_primary, True, False), keep_id=image.id)
+    if "metadata" in updates:
+        image.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(image, field, value)
+    db.commit()
+    db.refresh(image)
+    return envelope(ProductImageRead.model_validate(image).model_dump(by_alias=True))
+
+
+@router.delete("/product-images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product_image(
+    image_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Removes the LINK. The bytes stay in the attachment store — a blob two
+    products share is one blob, and the store deduplicates by sha256."""
+    require_master_data_manage(actor)
+    image = get_scoped_or_404(db, ProductImage, actor.tenant_id, image_id)
+    db.delete(image)
+    db.commit()
+    return None
+
+
+# the catalog is one more attachment source: a product's pictures are the
+# attachments its product_images rows point at, served through the product
+register_attachment_source(Product, ProductImage, "product_id")
+
+
+@router.get("/products/{product_id}/attachments/{attachment_id}/content")
+def get_product_attachment(
+    product_id: str,
+    attachment_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """A picture's bytes, reached through the product that carries it —
+    everyone in the workspace reads the catalog, so everyone reads its
+    pictures. An attachment that is real but not this product's reads as
+    404, the same as one that is not real (the shared rule)."""
+    product = get_scoped_or_404(db, Product, tenant_id, product_id)
+    return serve_document_attachment(db, tenant_id, product, attachment_id)
+
+
+# --- bills of materials: what a good is made of ------------------------------
+
+
+MAKEABLE_TYPES = ("finished_good", "semi_finished")
+
+
+def _require_makeable_parent(db: Session, tenant_id: str, product_id: str) -> Product:
+    product = get_scoped_or_404(db, Product, tenant_id, product_id)
+    if product.product_type not in MAKEABLE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"product {product_id} is a {product.product_type} — a bill of "
+                "materials is built for a finished or semi-finished good; set "
+                "product_type first if this thing is in fact made"
+            ),
+        )
+    return product
+
+
+def _active_bom_for(db: Session, tenant_id: str, product_id: str) -> BillOfMaterials | None:
+    return db.scalar(
+        select(BillOfMaterials).where(
+            BillOfMaterials.tenant_id == tenant_id,
+            BillOfMaterials.product_id == product_id,
+            BillOfMaterials.status == "active",
+        )
+    )
+
+
+def _bom_lines(db: Session, tenant_id: str, bom_id: str) -> list[BomItem]:
+    return list(db.scalars(
+        select(BomItem)
+        .options(selectinload(BomItem.component))
+        .where(BomItem.tenant_id == tenant_id, BomItem.bom_id == bom_id)
+        .order_by(BomItem.line_no.asc(), BomItem.created_at.asc())
+    ))
+
+
+def _require_component(
+    db: Session, tenant_id: str, parent_product_id: str, component_product_id: str,
+    *, recipes: dict[str, list[BomItem]] | None = None,
+) -> Product:
+    """A component may be anything but a service, the parent itself, or a
+    product whose own active recipe (at any depth) contains the parent —
+    one walk down the derived tree refuses the loop with its path. A
+    caller checking many lines shares `recipes`, so a sub-tree ten lines
+    reach is read once, not ten times."""
+    if recipes is None:
+        recipes = {}
+    if component_product_id == parent_product_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="a product cannot be a component of itself",
+        )
+    component = get_scoped_or_404(db, Product, tenant_id, component_product_id)
+    if component.product_type == "service":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"product {component_product_id} is a service — a recipe is made of goods",
+        )
+    seen: set[str] = set()
+    stack = [component_product_id]
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        if current not in recipes:
+            recipe = _active_bom_for(db, tenant_id, current)
+            recipes[current] = [] if recipe is None else _bom_lines(db, tenant_id, recipe.id)
+        for line in recipes[current]:
+            if line.component_product_id == parent_product_id:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"component {component_product_id} is made (through "
+                        f"{current}) from {parent_product_id} itself — a recipe "
+                        "cannot contain its own ancestor"
+                    ),
+                )
+            stack.append(line.component_product_id)
+    return component
+
+
+def _require_bom_editable(bom: BillOfMaterials) -> None:
+    if bom.status != "draft":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"this recipe is {bom.status} — lines change only while draft; "
+                "an active recipe is what the floor builds to, so a change is a "
+                "NEW version (POST another bill of materials, then activate it)"
+            ),
+        )
+
+
+def _bom_read(db: Session, tenant_id: str, bom: BillOfMaterials, *, with_items: bool) -> dict:
+    data = BillOfMaterialsRead.model_validate(bom).model_dump(by_alias=True)
+    if with_items:
+        data["items"] = [
+            BomItemRead.model_validate(line).model_dump(by_alias=True)
+            for line in _bom_lines(db, tenant_id, bom.id)
+        ]
+    return data
+
+
+@router.get("/bills-of-materials", response_model=BillOfMaterialsListEnvelope,
+            response_model_exclude_unset=True)
+def list_bills_of_materials(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    product_id: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
+):
+    return list_rows(
+        db,
+        select(BillOfMaterials)
+        .options(selectinload(BillOfMaterials.product))
+        .where(BillOfMaterials.tenant_id == tenant_id),
+        filters={BillOfMaterials.product_id: product_id, BillOfMaterials.status: status_filter},
+        keyword=keyword,
+        keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
+        order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
+        pagination=page_only_pagination(page, size),
+        read_model=BillOfMaterialsRead,
+    )
+
+
+@router.post("/bills-of-materials", response_model=BillOfMaterialsEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_bill_of_materials(
+    payload: CreateBillOfMaterialsRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    _require_makeable_parent(db, tenant_id, payload.product_id)
+    ensure_code_available(db, BillOfMaterials, tenant_id, "bom_code", payload.bom_code)
+    recipes: dict[str, list[BomItem]] = {}
+    for line in payload.items:
+        _require_component(db, tenant_id, payload.product_id, line.component_product_id,
+                           recipes=recipes)
+    bom = BillOfMaterials(
+        tenant_id=tenant_id,
+        product_id=payload.product_id,
+        bom_code=payload.bom_code,
+        version=payload.version,
+        output_quantity=payload.output_quantity,
+        status=payload.status,
+        remarks=payload.remarks,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(bom)
+    try:
+        db.flush()
+        if payload.status == "active":
+            _demote_others(db, BillOfMaterials, tenant_id, {"product_id": payload.product_id},
+                          (BillOfMaterials.status, "active", "archived"), keep_id=bom.id)
+        db.add_all([
+            BomItem(
+                tenant_id=tenant_id,
+                bom_id=bom.id,
+                line_no=line.line_no if line.line_no is not None else index,
+                component_product_id=line.component_product_id,
+                quantity=line.quantity,
+                unit=line.unit,
+                scrap_rate=line.scrap_rate,
+                description=line.description,
+            )
+            for index, line in enumerate(payload.items, start=1)
+        ])
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="this product already has an active recipe, or the bom_code is taken",
+        )
+    db.refresh(bom)
+    return envelope(_bom_read(db, tenant_id, bom, with_items=True))
+
+
+@router.get("/bills-of-materials/{bom_id}", response_model=BillOfMaterialsEnvelope,
+            response_model_exclude_unset=True)
+def get_bill_of_materials(
+    bom_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, bom_id)
+    return envelope(_bom_read(db, tenant_id, bom, with_items=True))
+
+
+@router.patch("/bills-of-materials/{bom_id}", response_model=BillOfMaterialsEnvelope,
+              response_model_exclude_unset=True)
+def update_bill_of_materials(
+    bom_id: str,
+    payload: UpdateBillOfMaterialsRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, bom_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "bom_code" in updates:
+        ensure_code_available(
+            db, BillOfMaterials, tenant_id, "bom_code", updates["bom_code"], exclude_id=bom.id
+        )
+    if "output_quantity" in updates and updates["output_quantity"] != float(bom.output_quantity):
+        _require_bom_editable(bom)
+    if updates.get("status") == "active" and bom.status != "active":
+        _demote_others(db, BillOfMaterials, tenant_id, {"product_id": bom.product_id},
+                      (BillOfMaterials.status, "active", "archived"), keep_id=bom.id)
+    if "metadata" in updates:
+        bom.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(bom, field, value)
+    commit_or_conflict(db, "this product already has an active recipe, or the bom_code is taken")
+    db.refresh(bom)
+    return envelope(_bom_read(db, tenant_id, bom, with_items=False))
+
+
+@router.delete("/bills-of-materials/{bom_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_bill_of_materials(
+    bom_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, BillOfMaterials, bom_id)
+
+
+def _atp_by_product(
+    db: Session, tenant_id: str, product_ids: set[str], facility_id: str | None = None
+) -> dict[str, float]:
+    if not product_ids:
+        return {}
+    stmt = (
+        select(InventoryItem.product_id, func.sum(InventoryItem.available_to_promise))
+        .where(
+            InventoryItem.tenant_id == tenant_id,
+            InventoryItem.product_id.in_(product_ids),
+            InventoryItem.status == "active",
+        )
+    )
+    if facility_id is not None:
+        # "what is at THAT place" — a contract manufacturer's floor, one of
+        # several warehouses — rather than the workspace-wide sum
+        stmt = stmt.where(InventoryItem.facility_id == facility_id)
+    rows = db.execute(stmt.group_by(InventoryItem.product_id)).all()
+    return {product_id: float(total or 0) for product_id, total in rows}
+
+
+@router.get("/bills-of-materials/{bom_id}/explode", response_model=BomExplodeEnvelope,
+            response_model_exclude_unset=True)
+def explode_bill_of_materials(
+    bom_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    quantity: Annotated[float, Query(gt=0, le=99_999_999)] = 1,
+    with_stock: bool = False,
+    # restrict the stock view to one registered facility (the factory's,
+    # a specific warehouse); omitted = every active position
+    facility_id: str | None = None,
+):
+    """The MRP-lite read: walk the recipe (and every sub-assembly's active
+    recipe under it), scale each line to the requested quantity of the root
+    through its recipe's output quantity, fold in scrap, and sum the leaves
+    — what must be bought or already stocked. Derived on every call, stored
+    nowhere; comparing it to stock and deciding what to buy is the agent's
+    judgment, which is why `with_stock` hands over ATP and a shortage
+    instead of a purchase request."""
+    root = get_scoped_or_404(db, BillOfMaterials, tenant_id, bom_id)
+    lines: list[dict] = []
+    leaves: dict[str, dict] = {}
+
+    def walk(bom: BillOfMaterials, needed_of_parent: float, level: int, path: tuple[str, ...]) -> None:
+        ratio = needed_of_parent / float(bom.output_quantity)
+        for line in _bom_lines(db, tenant_id, bom.id):
+            scrap = float(line.scrap_rate) if line.scrap_rate is not None else 0.0
+            required = float(line.quantity) * ratio * (1 + scrap / 100)
+            component = line.component
+            sub = (
+                None if line.component_product_id in path
+                else _active_bom_for(db, tenant_id, line.component_product_id)
+            )
+            lines.append({
+                "level": level,
+                "parent_product_id": bom.product_id,
+                "component_product_id": line.component_product_id,
+                "component_name": component.name if component else None,
+                "component_type": component.product_type if component else "finished_good",
+                "unit": line.unit,
+                "required_quantity": round(required, 4),
+                "scrap_rate": line.scrap_rate,
+                "has_bom": sub is not None,
+            })
+            if sub is not None:
+                walk(sub, required, level + 1, path + (line.component_product_id,))
+            else:
+                leaf = leaves.setdefault(line.component_product_id, {
+                    "product_id": line.component_product_id,
+                    "product_name": component.name if component else None,
+                    "product_type": component.product_type if component else "finished_good",
+                    "unit": line.unit,
+                    "required_quantity": 0.0,
+                })
+                leaf["required_quantity"] = round(leaf["required_quantity"] + required, 4)
+
+    walk(root, quantity, 1, (root.product_id,))
+    if with_stock:
+        if facility_id is not None:
+            get_scoped_or_404(db, Facility, tenant_id, facility_id)
+        atp = _atp_by_product(
+            db, tenant_id,
+            {row["component_product_id"] for row in lines} | set(leaves),
+            facility_id,
+        )
+        for row in lines:
+            row["available_to_promise"] = atp.get(row["component_product_id"], 0.0)
+        for leaf in leaves.values():
+            leaf["available_to_promise"] = atp.get(leaf["product_id"], 0.0)
+            leaf["shortage"] = round(
+                max(0.0, leaf["required_quantity"] - leaf["available_to_promise"]), 4
+            )
+    return envelope(BomExplodeRead(
+        bom_id=root.id, product_id=root.product_id, quantity=quantity,
+        lines=[BomExplodedLineRead(**row) for row in lines],
+        leaf_requirements=[BomLeafRequirementRead(**leaf) for leaf in leaves.values()],
+    ).model_dump(by_alias=True))
+
+
+@router.get("/bom-items", response_model=BomItemListEnvelope, response_model_exclude_unset=True)
+def list_bom_items(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    bom_id: str | None = None,
+    component_product_id: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db,
+        select(BomItem).options(selectinload(BomItem.component)).where(BomItem.tenant_id == tenant_id),
+        filters={BomItem.bom_id: bom_id, BomItem.component_product_id: component_product_id},
+        order_by=(BomItem.line_no.asc(), BomItem.created_at.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=BomItemRead,
+    )
+
+
+@router.post("/bom-items", response_model=BomItemEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_bom_item(
+    payload: CreateBomItemRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, payload.bom_id)
+    _require_bom_editable(bom)
+    _require_component(db, tenant_id, bom.product_id, payload.component_product_id)
+    item = BomItem(
+        tenant_id=tenant_id,
+        bom_id=bom.id,
+        line_no=payload.line_no,
+        component_product_id=payload.component_product_id,
+        quantity=payload.quantity,
+        unit=payload.unit,
+        scrap_rate=payload.scrap_rate,
+        description=payload.description,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return envelope(BomItemRead.model_validate(item).model_dump(by_alias=True))
+
+
+@router.patch("/bom-items/{item_id}", response_model=BomItemEnvelope,
+              response_model_exclude_unset=True)
+def update_bom_item(
+    item_id: str,
+    payload: UpdateBomItemRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    item = get_scoped_or_404(db, BomItem, tenant_id, item_id)
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, item.bom_id)
+    _require_bom_editable(bom)
+    updates = payload.model_dump(exclude_unset=True)
+    if updates.get("component_product_id"):
+        _require_component(db, tenant_id, bom.product_id, updates["component_product_id"])
+    for field, value in updates.items():
+        setattr(item, field, value)
+    db.commit()
+    db.refresh(item)
+    return envelope(BomItemRead.model_validate(item).model_dump(by_alias=True))
+
+
+@router.delete("/bom-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_bom_item(
+    item_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    item = get_scoped_or_404(db, BomItem, tenant_id, item_id)
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, item.bom_id)
+    _require_bom_editable(bom)
+    db.delete(item)
+    db.commit()
+    return None
 
 
 # --- product categories: the catalog's shelving -----------------------------
@@ -896,22 +1436,6 @@ def _require_usable_parent(
         node = (
             get_scoped_or_404(db, ProductCategory, tenant_id, node.parent_id)
             if node.parent_id else None
-        )
-
-
-def require_active_category(db: Session, tenant_id: str, category_id: str | None) -> None:
-    """Products file onto ACTIVE shelves only; existing products on a shelf
-    that later archives keep their pointer — history, not a cascade."""
-    if category_id is None:
-        return
-    category = get_scoped_or_404(db, ProductCategory, tenant_id, category_id)
-    if category.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"category {category_id} is archived — revive it or pick a "
-                "live one; products already on it keep their pointer"
-            ),
         )
 
 
@@ -971,18 +1495,11 @@ def create_product_category(
         metadata_jsonb=payload.metadata,
     )
     db.add(category)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"an active category named {payload.name!r} already exists at "
-                "this level — two live folders with one name is a filing "
-                "error, not a second shelf"
-            ),
-        )
+    commit_or_conflict(db, (
+                        f"an active category named {payload.name!r} already exists at "
+                        "this level — two live folders with one name is a filing "
+                        "error, not a second shelf"
+                    ))
     db.refresh(category)
     return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
 
@@ -1021,14 +1538,7 @@ def update_product_category(
         category.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(category, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active category with this name already exists at the target level",
-        )
+    commit_or_conflict(db, "an active category with this name already exists at the target level")
     db.refresh(category)
     return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
 
@@ -1051,13 +1561,18 @@ def list_products(
     db: Annotated[Session, Depends(get_db)],
     keyword: str | None = None,
     category_id: str | None = None,
+    product_type: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
-        filters={Product.status: status_filter, Product.category_id: category_id},
+        filters={
+            Product.status: status_filter,
+            Product.category_id: category_id,
+            Product.product_type: product_type,
+        },
         keyword=keyword,
         # agents paste full codes ("E2E-20260801-001") into keyword — a
         # search that finds the product by name but not by its own code reads
@@ -1067,6 +1582,98 @@ def list_products(
         pagination=page_only_pagination(page, size),
         render=lambda products: product_reads_with_sku_stats(db, tenant_id, products),
     )
+
+
+def _demote_others(db: Session, model, tenant_id: str, scope: dict, flag, *, keep_id: str | None = None) -> None:
+    """One winner per scope: setting the new primary contact, primary
+    picture or active recipe DEMOTES the previous one in the same write —
+    "which one" is one question with one answer, and a two-step dance
+    stops after step one half the time. `flag` is (column, on, off); the
+    partial unique index backstops the race this cannot see."""
+    column, on_value, off_value = flag
+    stmt = (
+        update(model)
+        .where(model.tenant_id == tenant_id, column == on_value,
+               *[getattr(model, key) == value for key, value in scope.items()])
+        .values({column.key: off_value})
+        .execution_options(synchronize_session=False)
+    )
+    if keep_id is not None:
+        stmt = stmt.where(model.id != keep_id)
+    db.execute(stmt)
+
+
+def _require_pair_free(db: Session, model, tenant_id: str, scope: dict, noun: str, *, revives: str = "link") -> None:
+    """A (a, b) pair is one row whose lapse is status: the refusal hands over
+    the existing row — PATCH it, revive it, never fork it."""
+    existing = db.scalar(select(model).where(
+        model.tenant_id == tenant_id,
+        *[getattr(model, key) == value for key, value in scope.items()],
+    ))
+    if existing is not None:
+        pair = ", ".join(key.removesuffix("_id") for key in scope)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{noun} {existing.id} already exists for this ({pair}) — "
+                f"PATCH it; an archived {revives} revives by setting status active"
+            ),
+        )
+
+
+def _title_terms(text_value: str) -> set[str]:
+    """Matching terms of a platform title: ASCII words/numbers lowercased,
+    and CJK bigrams — 保温杯500ml樱花粉 → {保温, 温杯, 500ml, 樱花, 花粉}.
+    Bigrams survive the punctuation and marketing prefixes that keep a
+    substring search from ever seeing the product name."""
+    folded = unicodedata.normalize("NFKC", text_value).casefold()
+    terms: set[str] = set(re.findall(r"[a-z0-9]+", folded))
+    runs = re.findall(r"[\u4e00-\u9fff]+", folded)
+    for run in runs:
+        if len(run) == 1:
+            terms.add(run)
+        terms.update(run[i:i + 2] for i in range(len(run) - 1))
+    return terms
+
+
+@router.get("/product-matches", response_model_exclude_unset=True)
+def match_products_by_title(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    title: Annotated[str, Query(min_length=1, max_length=300)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+):
+    """Candidates for a platform title, ranked by how much of the title's
+    vocabulary each active product's name/code/spec shares. A READ that
+    hands the agent a shortlist with scores; which one (if any) the title
+    means is the person's confirmation, and the map row that records it
+    is what makes the next import skip this call."""
+    wanted = _title_terms(title)
+    if not wanted:
+        return envelope([])
+    scored = []
+    for product_id, name, code, spec in db.execute(
+        select(Product.id, Product.name, Product.product_code, Product.spec)
+        .where(Product.tenant_id == tenant_id, Product.status == "active")
+    ):
+        have = _title_terms(" ".join(part for part in (name, code, spec) if part))
+        hit = len(wanted & have)
+        if hit:
+            scored.append((hit / len(wanted), hit, name, product_id))
+    scored.sort(key=lambda row: (-row[0], -row[1], row[2]))
+    shortlist = scored[:limit]
+    products = {
+        product.id: product
+        for product in db.scalars(select(Product).where(Product.id.in_([row[3] for row in shortlist])))
+    }
+    return envelope([
+        {
+            **ProductRead.model_validate(products[product_id]).model_dump(by_alias=True),
+            "match_score": round(score, 3),
+            "matched_terms": hit,
+        }
+        for score, hit, _name, product_id in shortlist
+    ])
 
 
 @router.post(
@@ -1082,11 +1689,12 @@ def create_product(
 ):
     require_master_data_manage(actor)
     ensure_code_available(db, Product, actor.tenant_id, "product_code", payload.product_code)
-    require_active_category(db, actor.tenant_id, payload.category_id)
+    require_active_row(db, ProductCategory, actor.tenant_id, payload.category_id, "category")
     product = Product(
         tenant_id=actor.tenant_id,
         product_code=payload.product_code,
         name=payload.name,
+        product_type=payload.product_type,
         category_id=payload.category_id,
         spec=payload.spec,
         unit=payload.unit,
@@ -1242,7 +1850,7 @@ def update_product(
     product = get_scoped_or_404(db, Product, actor.tenant_id, product_id)
     updates = payload.model_dump(exclude_unset=True)
     if "category_id" in updates:
-        require_active_category(db, actor.tenant_id, updates["category_id"])
+        require_active_row(db, ProductCategory, actor.tenant_id, updates["category_id"], "category")
     if "product_code" in updates:
         ensure_code_available(
             db, Product, actor.tenant_id, "product_code", updates["product_code"],
@@ -1477,14 +2085,7 @@ def create_product_price(
         metadata_jsonb=payload.metadata,
     )
     db.add(row)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active price for this (product, sku, type, currency) already exists",
-        )
+    commit_or_conflict(db, "an active price for this (product, sku, type, currency) already exists")
     db.refresh(row)
     return envelope(ProductPriceRead.model_validate(row).model_dump(by_alias=True))
 
@@ -1522,14 +2123,7 @@ def update_product_price(
         row.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(row, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active price for this (product, sku, type, currency) already exists",
-        )
+    commit_or_conflict(db, "an active price for this (product, sku, type, currency) already exists")
     db.refresh(row)
     return envelope(ProductPriceRead.model_validate(row).model_dump(by_alias=True))
 
@@ -1589,21 +2183,8 @@ def create_supplier_product(
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Product, tenant_id, payload.product_id)
     get_scoped_or_404(db, Vendor, tenant_id, payload.vendor_id)
-    existing = db.scalar(
-        select(SupplierProduct).where(
-            SupplierProduct.tenant_id == tenant_id,
-            SupplierProduct.product_id == payload.product_id,
-            SupplierProduct.vendor_id == payload.vendor_id,
-        )
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"supplier link {existing.id} already exists for this (product, vendor) — "
-                "PATCH it; an archived link revives by setting status active"
-            ),
-        )
+    _require_pair_free(db, SupplierProduct, tenant_id,
+                       {"product_id": payload.product_id, "vendor_id": payload.vendor_id}, "supplier link")
     link = SupplierProduct(
         tenant_id=tenant_id,
         product_id=payload.product_id,
@@ -1620,14 +2201,7 @@ def create_supplier_product(
         metadata_jsonb=payload.metadata,
     )
     db.add(link)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="a supplier link for this (product, vendor) already exists",
-        )
+    commit_or_conflict(db, "a supplier link for this (product, vendor) already exists")
     db.refresh(link)
     return envelope(SupplierProductRead.model_validate(link).model_dump(by_alias=True))
 
@@ -1723,21 +2297,9 @@ def create_customer_product(
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Product, tenant_id, payload.product_id)
     get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
-    existing = db.scalar(
-        select(CustomerProduct).where(
-            CustomerProduct.tenant_id == tenant_id,
-            CustomerProduct.product_id == payload.product_id,
-            CustomerProduct.customer_id == payload.customer_id,
-        )
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"agreement {existing.id} already exists for this (product, customer) — "
-                "PATCH it; an archived agreement revives by setting status active"
-            ),
-        )
+    _require_pair_free(db, CustomerProduct, tenant_id,
+                       {"product_id": payload.product_id, "customer_id": payload.customer_id},
+                       "agreement", revives="agreement")
     agreement = CustomerProduct(
         tenant_id=tenant_id,
         product_id=payload.product_id,
@@ -1752,14 +2314,7 @@ def create_customer_product(
         metadata_jsonb=payload.metadata,
     )
     db.add(agreement)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an agreement for this (product, customer) already exists",
-        )
+    commit_or_conflict(db, "an agreement for this (product, customer) already exists")
     db.refresh(agreement)
     return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
 
@@ -1813,24 +2368,6 @@ def delete_customer_product(
 # --- customer contacts: the rolodex behind a B2B account --------------------
 
 
-def _demote_current_primary(db: Session, tenant_id: str, customer_id: str) -> None:
-    """Setting a new primary DEMOTES the old one in the same write — the
-    rolodex semantic: "the" contact is one question with one answer, and
-    making callers un-set the old primary first would turn every change into
-    a two-step dance that half the time stops after step one. The partial
-    unique index stays as the backstop for the race this cannot see."""
-    db.execute(
-        update(CustomerContact)
-        .where(
-            CustomerContact.tenant_id == tenant_id,
-            CustomerContact.customer_id == customer_id,
-            CustomerContact.is_primary.is_(True),
-        )
-        .values(is_primary=False)
-        .execution_options(synchronize_session=False)
-    )
-
-
 @router.get("/customer-contacts", response_model=CustomerContactListEnvelope,
             response_model_exclude_unset=True)
 def list_customer_contacts(
@@ -1878,7 +2415,7 @@ def create_customer_contact(
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
     if payload.is_primary:
-        _demote_current_primary(db, tenant_id, payload.customer_id)
+        _demote_others(db, CustomerContact, tenant_id, {"customer_id": payload.customer_id}, (CustomerContact.is_primary, True, False))
     contact = CustomerContact(
         tenant_id=tenant_id,
         customer_id=payload.customer_id,
@@ -1893,18 +2430,11 @@ def create_customer_contact(
         metadata_jsonb=payload.metadata,
     )
     db.add(contact)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "an active contact with this phone already exists at this "
-                "customer — the same number twice is a duplicate person; "
-                "PATCH that row, or archive it first"
-            ),
-        )
+    commit_or_conflict(db, (
+                        "an active contact with this phone already exists at this "
+                        "customer — the same number twice is a duplicate person; "
+                        "PATCH that row, or archive it first"
+                    ))
     db.refresh(contact)
     return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
 
@@ -1932,19 +2462,13 @@ def update_customer_contact(
     contact = get_scoped_or_404(db, CustomerContact, actor.tenant_id, contact_id)
     updates = payload.model_dump(exclude_unset=True)
     if updates.get("is_primary") and not contact.is_primary:
-        _demote_current_primary(db, actor.tenant_id, contact.customer_id)
+        _demote_others(db, CustomerContact, actor.tenant_id, {"customer_id": contact.customer_id},
+                      (CustomerContact.is_primary, True, False))
     if "metadata" in updates:
         contact.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(contact, field, value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an active contact with this phone already exists at this customer",
-        )
+    commit_or_conflict(db, "an active contact with this phone already exists at this customer")
     db.refresh(contact)
     return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
 
@@ -1969,6 +2493,18 @@ def delete_customer_contact(
 # hard-unique per tuple while multiple map rows per external id are the point.
 
 
+def require_map_curation(actor: Actor) -> None:
+    """Map rows are written by the catalog desk — and by the desk that
+    records channel orders. The person importing a Tmall export is the one
+    who confirms "this title is our product"; sending them to the catalog
+    desk for every new listing would make the import a two-desk job, and
+    the row they write is exactly what a curator would write. Products
+    themselves stay catalog work; deleting a map does too."""
+    if has_permission(actor, "order.submit_own"):
+        return
+    require_master_data_manage(actor)
+
+
 @router.get(
     "/external-product-maps",
     response_model=ExternalProductMapListEnvelope,
@@ -1979,8 +2515,13 @@ def list_external_product_maps(
     db: Annotated[Session, Depends(get_db)],
     source: str | None = None,
     external_product_id: str | None = None,
+    # exact match on the listing title's matching form (NFKC, casefold,
+    # whitespace collapsed) — the translation query when the platform
+    # export names products by title, not id
+    external_name: str | None = None,
     external_sku_id: str | None = None,
     product_id: str | None = None,
+    keyword: str | None = None,
     at: Annotated[
         date | None,
         Query(description=(
@@ -2013,12 +2554,15 @@ def list_external_product_maps(
             ExternalProductMap.external_product_id: (
                 external_product_id.strip() if external_product_id else None
             ),
+            ExternalProductMap.external_name_norm: normalize_external_name(external_name),
             ExternalProductMap.external_sku_id: (
                 external_sku_id.strip() if external_sku_id is not None else None
             ),
             ExternalProductMap.product_id: product_id,
             ExternalProductMap.status: status_filter,
         },
+        keyword=keyword,
+        keyword_columns=(ExternalProductMap.external_name, ExternalProductMap.external_product_id),
         order_by=(
             ExternalProductMap.source.asc(),
             ExternalProductMap.external_product_id.asc(),
@@ -2041,7 +2585,7 @@ def create_external_product_map(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    require_map_curation(actor)
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Product, tenant_id, payload.product_id)
     if payload.sku_id is not None:
@@ -2055,12 +2599,18 @@ def create_external_product_map(
     # is history (the listing meant this product until the swap), so a
     # listing may swap BACK to a product it meant before, and closed-window
     # rows for back-dated imports never conflict with the current pairing.
+    name_norm = normalize_external_name(payload.external_name)
     if payload.status == "active" and payload.effective_to is None:
+        # the listing's identity is its id, or — when the export carries
+        # none — its normalized title; the open slot is claimed per that
+        identity = [ExternalProductMap.external_product_id == payload.external_product_id]
+        if not payload.external_product_id:
+            identity.append(ExternalProductMap.external_name_norm == name_norm)
         existing = db.scalar(
             select(ExternalProductMap).where(
                 ExternalProductMap.tenant_id == tenant_id,
                 ExternalProductMap.source == payload.source,
-                ExternalProductMap.external_product_id == payload.external_product_id,
+                *identity,
                 ExternalProductMap.external_sku_id == payload.external_sku_id,
                 ExternalProductMap.product_id == payload.product_id,
                 ExternalProductMap.status == "active",
@@ -2082,6 +2632,7 @@ def create_external_product_map(
         external_product_id=payload.external_product_id,
         external_sku_id=payload.external_sku_id,
         external_name=payload.external_name,
+        external_name_norm=name_norm,
         product_id=payload.product_id,
         sku_id=payload.sku_id,
         quantity=payload.quantity,
@@ -2091,14 +2642,7 @@ def create_external_product_map(
         metadata_jsonb=payload.metadata,
     )
     db.add(row)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an open-ended map for this (source, external listing, product) already exists",
-        )
+    commit_or_conflict(db, "an open-ended map for this (source, external listing, product) already exists")
     db.refresh(row)
     return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
 
@@ -2128,7 +2672,7 @@ def update_external_product_map(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    require_map_curation(actor)
     row = get_scoped_or_404(db, ExternalProductMap, actor.tenant_id, map_id)
     updates = payload.model_dump(exclude_unset=True)
     if "sku_id" in updates and updates["sku_id"] is not None:
@@ -2138,6 +2682,20 @@ def update_external_product_map(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"sku {updates['sku_id']} belongs to product {sku.product_id}, not {row.product_id}",
             )
+    if "external_name" in updates:
+        if not row.external_product_id:
+            # on a name-keyed row the title IS the identity — the same rule
+            # that keeps ids uneditable: close the window and add the row
+            # the platform now shows, never bend this one
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "this map is keyed by its title (no external_product_id); the "
+                    "title is its identity. A renamed listing is a swap: close this "
+                    "row's window (effective_to) and create a row for the new title"
+                ),
+            )
+        row.external_name_norm = normalize_external_name(updates["external_name"])
     if "metadata" in updates:
         row.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
@@ -2154,17 +2712,10 @@ def update_external_product_map(
                 "[from, to), and a zero-length window asserts nothing"
             ),
         )
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "reopening this pairing collides with an open-ended map for the "
-                "same (source, external listing, product) — close that one first"
-            ),
-        )
+    commit_or_conflict(db, (
+                        "reopening this pairing collides with an open-ended map for the "
+                        "same (source, external listing, product) — close that one first"
+                    ))
     db.refresh(row)
     return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
 
@@ -2338,14 +2889,7 @@ def update_inventory_item(
         item.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(item, field, value.strip() if field in ("facility", "lot_id") else value)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="an inventory item for this (product, sku, facility, lot) already exists",
-        )
+    commit_or_conflict(db, "an inventory item for this (product, sku, facility, lot) already exists")
     db.refresh(item)
     return envelope(InventoryItemRead.model_validate(item).model_dump(by_alias=True))
 
@@ -2411,66 +2955,7 @@ def create_inventory_item_detail(
     DELETE; a mistake is corrected by a counter-entry. The item's totals move
     here and only here."""
     require_inventory_manage(actor)
-    item = get_scoped_or_404(db, InventoryItem, actor.tenant_id, payload.inventory_item_id)
-    if item.status != "active":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="inventory item is archived — set it active before posting movement",
-        )
-    # `entity_id` promises resolvability — it is uuid-typed, and before this
-    # check a Tmall order number here was a 500 from the ValueError inside the
-    # column type, not an answer. The refusal has to name where the reference
-    # DOES go, because the caller's need is real; only the column is wrong.
-    if payload.entity_id is not None:
-        try:
-            uuid.UUID(payload.entity_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"entity_id must be the uuid of a record in this system — "
-                    f"{payload.entity_id!r} is not one. An external order "
-                    "(Tmall, JD, another system) goes in `custom_fields`, e.g. "
-                    '{"source": "tmall", "order_no": "..."}'
-                ),
-            )
-    # A movement fulfils at most one of OUR orders. Two at once is not a
-    # transfer — it is two movements — and an external order (Tmall, JD) is
-    # neither: its number is not a uuid this database can vouch for, so it
-    # belongs in `custom_fields`, not in a column that promises resolvability.
-    if payload.sales_order_id and payload.purchase_order_id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "a movement fulfils at most one order — record two movements if "
-                "stock genuinely moved twice"
-            ),
-        )
-    if payload.sales_order_id:
-        get_scoped_or_404(db, SalesOrder, actor.tenant_id, payload.sales_order_id)
-    if payload.purchase_order_id:
-        get_scoped_or_404(db, PurchaseOrder, actor.tenant_id, payload.purchase_order_id)
-    if payload.reason in ("reserved", "reservation_released"):
-        # the reservation pair moves AVAILABILITY only: goods held for an
-        # order have not moved, they have stopped being promisable. And a
-        # hold must say whose it is, or nothing can ever consume it.
-        atp = payload.available_to_promise_diff
-        wrong_shape = (
-            payload.quantity_on_hand_diff != 0
-            or atp is None
-            or (payload.reason == "reserved" and atp >= 0)
-            or (payload.reason == "reservation_released" and atp <= 0)
-        )
-        if wrong_shape or not payload.sales_order_id:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    "a reservation row moves availability only: quantity_on_hand_diff 0, "
-                    "available_to_promise_diff negative for `reserved` (占货) and positive "
-                    "for `reservation_released`, and sales_order_id naming whose goods "
-                    "are held — goods that actually moved are `issued`/`received`"
-                ),
-            )
+    item = _require_movement_shape(db, actor.tenant_id, payload)
     detail = post_inventory_detail(
         db,
         item=item,
@@ -2490,6 +2975,56 @@ def create_inventory_item_detail(
     db.commit()
     db.refresh(detail)
     return envelope(InventoryItemDetailRead.model_validate(detail).model_dump(by_alias=True))
+
+
+def _require_movement_shape(db: Session, tenant_id: str, payload: CreateInventoryItemDetailRequest) -> InventoryItem:
+    """Everything a movement must get right before the ledger takes it: a
+    live position, a resolvable entity, at most one of OUR orders, and the
+    reservation pair's availability-only shape."""
+    item = require_active_row(
+        db, InventoryItem, tenant_id, payload.inventory_item_id, "inventory item",
+        detail="inventory item is archived — set it active before posting movement",
+    )
+    require_entity_uuid(payload.entity_id)
+    # A movement fulfils at most one of OUR orders. Two at once is not a
+    # transfer — it is two movements — and an external order (Tmall, JD) is
+    # neither: its number is not a uuid this database can vouch for, so it
+    # belongs in `custom_fields`, not in a column that promises resolvability.
+    if payload.sales_order_id and payload.purchase_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "a movement fulfils at most one order — record two movements if "
+                "stock genuinely moved twice"
+            ),
+        )
+    if payload.sales_order_id:
+        get_scoped_or_404(db, SalesOrder, tenant_id, payload.sales_order_id)
+    if payload.purchase_order_id:
+        get_scoped_or_404(db, PurchaseOrder, tenant_id, payload.purchase_order_id)
+    if payload.reason in ("reserved", "reservation_released"):
+        # the reservation pair moves AVAILABILITY only: goods held for an
+        # order have not moved, they have stopped being promisable. And a
+        # hold must say whose it is, or nothing can ever consume it.
+        atp = payload.available_to_promise_diff
+        wrong_shape = (
+            payload.quantity_on_hand_diff != 0
+            or atp is None
+            or (payload.reason == "reserved" and atp >= 0)
+            or (payload.reason == "reservation_released" and atp <= 0)
+            or not payload.sales_order_id
+        )
+        if wrong_shape:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "a reservation row moves availability only: quantity_on_hand_diff 0, "
+                    "available_to_promise_diff negative for `reserved` (占货) and positive "
+                    "for `reservation_released`, and sales_order_id naming whose goods "
+                    "are held — goods that actually moved are `issued`/`received`"
+                ),
+            )
+    return item
 
 
 @router.post(

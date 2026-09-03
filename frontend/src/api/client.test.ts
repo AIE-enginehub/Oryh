@@ -621,8 +621,8 @@ describe("console API client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await createProduct({ name: "显示器", status: "active", currency: "CNY" });
-    await updateProduct("product/1", { unit: "台", currency: "CNY", status: "active" });
+    await createProduct({ name: "显示器", status: "active", currency: "CNY", product_type: "finished_good" });
+    await updateProduct("product/1", { unit: "台", currency: "CNY", status: "active", product_type: "finished_good" });
     await createProductSku({
       product_id: "product/1",
       sku_code: "27-IN",

@@ -38,7 +38,8 @@ POST /purchase-orders
   "promised_date": "2026-08-05",
   "currency": "CNY",
   "payment_terms": "net 30",
-  "contract_no": "HT-2026-102"
+  "contract_no": "HT-2026-102",
+  "contract_id": "contract-id"
 }
 ```
 
@@ -48,10 +49,23 @@ POST /purchase-orders
   tenant's numbering; a duplicate is 409.
 - `status` defaults to the machine's initial (`draft`); any other value must
   be a state of the tenant's machine (422).
+- `contract_id` (optional) must name a PURCHASE contract (422 for a sales
+  one); `GET /contracts/{id}/execution` then sums this order under it.
+  `contract_no` stays the free-text number for paper without a filed
+  contract.
 
 `PATCH /purchase-orders/{po_id}` updates header fields any time; a `status`
 change must be a legal transition of the tenant's machine (409 otherwise) and
 is audited. `DELETE` soft-deletes.
+
+## Returns To A Vendor
+
+A return is a row in the same collection: `POST /purchase-orders` with
+`order_kind: "return"` and `original_order_id` naming the PO being reversed
+(an order, never another return — 422). The server allocates `PR-NNNNNN`,
+the row runs the return machine (default `draft → submitted → approved →
+shipped → refunded`), and `GET /purchase-orders?order_kind=return` lists
+them. A return never charges the billing account (422).
 
 ## Items — editable only while the order is in an editable state (default: draft)
 

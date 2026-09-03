@@ -122,8 +122,9 @@ POST /sales-quotation-adjustments
 - `/revise` copies adjustments to the new revision (line-pinned ones follow
   the copied line), so the negotiation continues from the same facts.
 - Detail math: `adjusted_total = computed_total + adjustments_total`. Record
-  adjustments and the declared `total_amount` should EQUAL `adjusted_total`;
-  a residual gap is undocumented and the approval side will ask about it.
+  the adjustments, and the declared `total_amount` should then equal
+  `adjusted_total`; a residual gap is undocumented and the approval side
+  will ask about it.
 - A per-line price concession is still `unit_price` vs `list_price_snapshot`
   — that is where a unit-price discount lives. Adjustments are for amounts that sit
   BESIDE the line prices, not a second way to discount a unit price.
@@ -217,7 +218,9 @@ POST /sales-quotations/{id}/revise
 
 `approved/sent → superseded` on the old revision; returns a fresh `draft` with `revision_no + 1`, same `quote_number`, lines copied, catalog snapshots refreshed to today's truth. Adjust, read back, submit again. Revise is NOT retry-idempotent: retrying after success returns 409 "already superseded" — recover the new draft via `GET /sales-quotations?quote_number={n}` (highest `revision_no`).
 
-## Submitted Fact (only if the role has approval.record)
+## Submitted Fact (recorded by `/submit`; shown for reference only)
+
+Do not post it — `/submit` already did. The shape, for reading the trail:
 
 ```json
 POST /approval-records
@@ -231,7 +234,7 @@ POST /approval-records
 }
 ```
 
-403 here is expected in tenants whose member role is fact-free — the workflow admin backfills it. After a return, resubmit with `round_no` incremented. Each revision is its own record with its own trail.
+After a return, a resubmit records the next `round_no` the same way. Each revision is its own record with its own trail.
 
 ## Correcting The Quotation Header Before Submitting
 
