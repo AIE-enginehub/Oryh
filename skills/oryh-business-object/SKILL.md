@@ -12,6 +12,8 @@ Store tenant-specific business facts when the object is not a built-in module (t
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/custom-object-is-never-silent.md}}
+
 ## Trigger Examples
 
 - "Record a warranty-card application"
@@ -37,16 +39,21 @@ The rest is business context from the conversation or the calling customer skill
    collection with the words that mean it, so "create a product object for me" is recognisable
    as `products` before anything is written.
 
-   **The server will not stop you.** It states the fact and leaves the reading
-   to you, because whether this company's "product" is our `products` is a question
-   about their business, and you are the one who can ask them. A 409 could not.
+   **The server stops the exact names.** A generic object — a row or a type
+   definition — named `customer`, `product`, `quote`, `sales_order`, `supplier`
+   or any other word in that list is refused (422) and the refusal names the
+   real collection and its import route. That guard exists because a
+   workspace once loaded 150,000 legacy customers, products and quotes into
+   generic objects named exactly that, beside empty builtin tables.
 
-   So the judgement is yours, and it is not only exact matches: `goods`,
-   `merchandise`, `product catalog` are the same thing under another name, and the
-   endpoint will not say so. When it matches — exactly or in meaning — **say so
+   The judgement beyond exact words is still yours: `merchandise`,
+   `product catalog`, `stock items` are the same thing under another name, and the
+   server will not say so. When it matches — exactly or in meaning — **say so
    and stop**: name the real collection, say what is already in it, and ask
    whether that is what they meant. Fields it lacks belong in `custom_fields` on
-   the real record.
+   the real record. A legacy sheet of customers, products or past documents is
+   never generic objects: it is $oryh-master-data (`/customers/bulk`,
+   `/products/bulk`) and $oryh-data-migration.
 
    **Never resolve a collision by renaming** to `product_2` or `product_new`. That
    is the same two-sources-of-truth with a worse name, and once the shadow has

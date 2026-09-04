@@ -215,7 +215,20 @@ not work for anyone but the workspace administrator, by design.
 
 One payment per person, all sharing a `reference_no` as the bank batch number.
 That is the whole of a "payroll batch" — a group of payments sharing one
-reference, with no extra object.
+reference, with no extra object. Use the bank's own batch number from the
+bank disbursement receipt: the treasury desk links the single bank debit to the batch by
+that reference (`payment_reference_no` on the register line), and the
+server checks the members sum to the debit — so the number must be the one
+the bank prints, spelled the same on every payment.
+
+**The person never has to know this field exists.** Ask once, in their
+words: "does the bank's disbursement receipt carry a batch number?" If it
+does, use it verbatim. If there is none yet — the payout is being filed
+before the bank run — derive one from the period, `PAYROLL-2026-08`, use it
+on every payment of the batch, and say it in the read-back: "this batch is
+PAYROLL-2026-08; the cashier matches the bank debit to it". Never let two
+payments of one run carry two spellings, and never reuse a batch number
+across periods.
 
 ```json
 POST /payments

@@ -79,7 +79,10 @@ Under the master-data screens, or in bulk through an agent with
 | Projects | What time and cost get booked against |
 | Customers | Retail and B2B on one table |
 | Vendors | Who you buy from |
-| Products & SKUs | What you sell and stock |
+| Products & SKUs | What you sell and stock — with a category tree, pictures by kind, and materials as products of type `raw_material` |
+| Bills of materials | What a made good is made of; one active recipe per product, exploded to a shortage when you plan a run |
+| Customer contacts, price agreements | The people at a B2B customer, and the price you agreed with them per product |
+| Sales channels, stores, facilities | Where you sell (a channel's code is the key platform orders arrive under; a store hangs under it) and where you ship from |
 | Resources | Meeting rooms, vehicles, equipment — anything bookable |
 
 Load only what the first real documents need. This is not a system that wants
@@ -101,6 +104,16 @@ cover the common ones; a warranty card, a site survey or an equipment handover
 is yours to define — a JSON schema for the fields, a state machine for the
 lifecycle, in your own vocabulary. `oryh-business-object` then records and
 queries them like anything else.
+
+Two guards stand in front of that door, and they are the same in every
+workspace. The server refuses a custom object named after something it
+already ships — `customer`, `product`, `quote`, `sales_order`, `supplier` and
+their kin — and points at the real screen instead. And an agent about to
+create any custom object must first say so plainly: what it will be called,
+how many rows are about to go there, and what shipped collection could hold
+them instead; when a shipped twin exists it asks you for the reason and
+records it on the type. Legacy customers and products are never custom
+objects — they are the Customers and Products screens, loaded in bulk.
 
 ## Historical data
 

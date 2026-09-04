@@ -340,7 +340,7 @@ The current implementation already fits this architecture well:
 
 - timesheets are recorded as business facts; approvals as append-only, idempotent events
 - todos represent work waiting on a person, with due dates for escalation
-- business objects + links handle tenant-specific records without dedicated tables; type definitions add optional schema and lifecycle guards
+- business objects + links handle tenant-specific records without dedicated tables; type definitions add optional schema and lifecycle guards — and, since a production tenant loaded 150,000 legacy customers and products into generic objects named exactly that, the server refuses a generic object named after a shipped collection, and every skill that can create one carries the same iron rule: warn the person before the first row, and take a stated reason when a shipped twin exists
 - workflow definitions make routing rules durable, versioned tenant data
 - roles/capabilities make the permission surface tenant-configurable, with scoped grants extending automatically to new object types
 - skills are tenant data with capability gates — including object-type-scoped gates (`business_object.write:daily_report`), matched by the same grammar the API enforces — authorable in the React console (`/console/skills`) and delivered as credential-embedded personal bundles that self-update via per-user manifest sync (no credential rotation, no push channel)

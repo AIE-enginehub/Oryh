@@ -41,8 +41,11 @@ oryh:
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
 3. **From the won quotation** (the normal path): `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array rides `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when a delivery date was promised). `POST /sales-order-items` remains for adding a line to an existing draft. An order with no quotation behind it is also legal — snapshots stand alone.
    - **The storefront**: a channel order names the front it came through —
-     `GET /stores?source=tmall` (the platform key, lowercase) finds it and
-     its id goes in `store_id`; an offline sale names the shop the same way.
+     `GET /stores?source=tmall` (the channel's code, lowercase) lists the
+     stores under that channel and the right one's id goes in `store_id`.
+     Two stores under one channel is normal (two Amazon storefronts): the
+     export's shop name or account says which; when it does not, ask —
+     never pick the first. An offline sale names the shop the same way.
    - **The lines**: a channel line names its product by whatever the export
      carried — `GET /external-product-maps?source=tmall&external_product_id=…&at={order date}`
      when it has an id, `…&external_name={title as printed}&at=` when it has
@@ -138,7 +141,8 @@ the middle, writes last:
    stay with $oryh-master-data. The one thing this step must never do:
    Writing a map without the person's confirmation.
 5. **Create the order** with the translated lines, `store_id` from
-   `GET /stores?source=tmall`, the buyer in `customer_name_snapshot`, and
+   `GET /stores?source=tmall` (several stores under one channel → the
+   export says which, or you ask), the buyer in `customer_name_snapshot`, and
    the platform's own facts — buyer nickname, platform status, platform
    line ids — in `custom_fields`, where a claim this database cannot check
    belongs. Then **link the platform number**: `POST /external-document-links`

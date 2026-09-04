@@ -215,6 +215,30 @@ direction and currency guards that are the only reason the ledger can be
 trusted — and a wrong opening balance is the migration error nobody catches for
 months.
 
+## Bank reconciliation
+
+The register (`fin_account_transactions`) is the bank's truth; reconciliation
+is a link set on a frozen row, never a status. Three shapes:
+
+- **One line, one payment** — `payment_id`. The signs must agree (an outbound
+  payment lands as a negative line); amounts may differ.
+- **One line, a batch of payments** — `payment_reference_no`, the reference
+  the payments share, which the payroll skill already teaches IS the batch:
+  ten salaries leave the bank as one debit. The server accepts the link only
+  when every member moves money the same way and they sum to the line
+  exactly, and refuses with the count, the sum and the difference otherwise.
+  A line links one payment or one batch, never both.
+- **Bank charges are register facts** — a standalone charge is a `fee` row
+  that explains itself and never waits in the reconciliation queue; a charge
+  the bank nets out of a receipt rides that receipt's line as
+  `gross_amount` / `fee_amount` / `amount` and the line links to the full
+  payment. No payment document, no vendor row for the bank — the same
+  answer OFBiz gives with a `FinAccountTrans` posted to a fee account.
+
+The queue itself is derived: `?unlinked=true` lists rows with no link that are
+not self-explaining by type (`fee`, `interest`, `opening`, `adjustment`,
+transfers between our own accounts).
+
 ## Deliberately still out of scope
 
 - **General ledger and period close.** Journal entries, a chart of accounts and

@@ -101,7 +101,7 @@ def test_one_active_recipe_and_lines_frozen_once_active(workshop) -> None:
     assert activated.status_code == 200, activated.text
     statuses = {r["version"]: r["status"] for r in client.get(
         "/api/v1/bills-of-materials", headers=admin,
-        params={"product_id": valve}).json()["data"]}
+        params={"product_id": valve, "status": "all"}).json()["data"]}
     assert statuses == {"v1": "archived", "v2": "active"}, \
         "activating the new version archives the old in the same write"
 

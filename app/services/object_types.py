@@ -40,19 +40,24 @@ BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
 )
 
 
-# What ORYH already ships, stated so an agent can judge — never enforced here.
+# What ORYH already ships — stated so an agent can judge, and, for the EXACT
+# names, enforced at creation.
 #
 # Asked to "建一个 Product 自定义对象", an agent would define one, and the
 # workspace would then have two answers to "有多少产品": the real catalogue, and
 # a shadow of it that no order line, price row or inventory item can ever point
-# at. Nothing stopped a custom `invoice` beside the invoice document family
-# either.
+# at. This was doctrine-by-judgement until a production tenant's admin agent
+# loaded 150,000 legacy customers, products, quotes and sales orders into
+# generic objects named exactly that, beside empty builtin tables. Judgement
+# did not fire once in 150,000 writes; the person was never asked.
 #
-# The server does not refuse it. Whether a company's "product" is our product is
-# a reading of their business, and a records layer that decides that is deciding
-# what their words mean. What the server owes is the FACT — here is what already
-# exists, in the words people would reach for — and the agent, which has the
-# person in front of it, does the rest. It can ask; this cannot.
+# So the server now refuses a generic object — a row or a type definition —
+# whose name IS a shipped collection or one of its listed synonyms
+# (`shipped_collection_for`). Only exact words: whether "merchandise" or
+# "货品" means our products is still a reading of the business, and the agent
+# with the person in front of it still does that part. The refusal names the
+# real collection and its import route, so the same sheet lands in the right
+# place on the next try.
 #
 # DERIVED from the REST surface, never listed. A collection a tenant can already
 # GET is a thing ORYH ships, so a concept added next month appears here the day
@@ -72,6 +77,10 @@ _IRREGULAR_ALIASES: dict[str, str] = {
     "supplier": "vendors",
     "staff": "employees",
     "goods": "products",
+    "quote": "sales_quotations",
+    "quotation": "sales_quotations",
+    "order": "sales_orders",
+    "sku": "product_skus",
 }
 
 
@@ -121,6 +130,39 @@ def builtin_object_names() -> dict[str, str]:
         for entry in builtin_object_vocabulary()
         for name in (entry["object_type"], *entry["also_called"])
     }
+
+
+@lru_cache(maxsize=1)
+def _shipped_names() -> dict[str, str]:
+    names = builtin_object_names()
+    for object_type in BUILTIN_OBJECT_TYPES:
+        names.setdefault(object_type, object_type)
+    return names
+
+
+def shipped_collection_for(object_type: str) -> str | None:
+    """The shipped collection a generic-object name would shadow, or None.
+
+    Exact words only — the collection's own name, its singular, and the
+    short synonym list — never a semantic guess."""
+    return _shipped_names().get(object_type.strip().lower())
+
+
+def refuse_shadow_of_shipped(object_type: str) -> None:
+    """A generic object may not be named after what ORYH already ships."""
+    collection = shipped_collection_for(object_type)
+    if collection is None:
+        return
+    path = "/" + collection.replace("_", "-")
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail=(
+            f"{object_type!r} is what ORYH already ships as {path} — record it there "
+            f"(POST {path}, or {path}/bulk for a sheet where the collection has one); "
+            "a generic object may not shadow a shipped collection. If this company's "
+            f"{object_type} genuinely means something else, name it after what makes it different"
+        ),
+    )
 
 
 def ensure_valid_json_schema(schema: dict) -> None:

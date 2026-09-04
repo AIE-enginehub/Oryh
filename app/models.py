@@ -853,14 +853,45 @@ class Facility(TenantRecord, MetadataJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")
 
 
+class SalesChannel(TenantRecord, MetadataJsonbMixin, Base):
+    """A sales channel: the KEY external orders arrive under (tmall / jd /
+    amazon / a mini-program / the offline network), kept as master data so
+    that "which channels do we sell through" has an answer, a channel's own
+    facts (commission, settlement cycle — in metadata until they earn a
+    column) have a home, and several stores can hang under one channel.
+    `channel_code` is the join key the external product map and document
+    links carry as `source` — lowercase, immutable, unique per tenant
+    regardless of status: an archived channel REVIVES, never forks."""
+
+    __tablename__ = "sales_channels"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "channel_code", name="sales_channels_tenant_code_uk"),
+        Index(
+            "sales_channels_tenant_name_uq",
+            "tenant_id", "name",
+            unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
+
+    channel_code: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(String(100))
+    # the tenant's `sales_channel_kind` vocabulary: marketplace / own_site /
+    # offline / wholesale / live_stream / …
+    channel_kind: Mapped[str] = mapped_column(String(50))
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+
 class Store(TenantRecord, MetadataJsonbMixin, Base):
     """A selling front, on OFBiz ProductStore's footprint reduced to the
     agent-native core: WHERE the company sells, offline or online —
     `channel` is the closed pair, universal like customer_kind and not the
-    tenant's to extend. An online store may carry `source`: the lowercase
-    channel key external orders arrive under (tmall/jd/…) — the SAME join
-    key the external product map and document links use, so "which store
-    did this Tmall order belong to" is answerable by equality.
+    tenant's to extend. A store may hang under a SalesChannel: the channel's
+    code is the `source` external orders, product maps and document links
+    carry, so "which store did this Tmall order belong to" is answerable by
+    equality, and two Amazon stores are two rows under one channel.
 
     Which facilities may SHIP for this store lives in StoreFacility rows,
     not a column: several stores can share a warehouse and a store can
@@ -891,12 +922,24 @@ class Store(TenantRecord, MetadataJsonbMixin, Base):
     store_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(100))
     channel: Mapped[str] = mapped_column(String(10))
-    # the external channel key this store's orders arrive under; lowercase,
-    # the external-map convention. Offline stores simply leave it null.
-    source: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # the channel this store sells through; its code is the `source` key
+    # external orders arrive under. A store with no channel is simply a door.
+    sales_channel_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_channels.id"), nullable=True, index=True
+    )
+    sales_channel: Mapped[SalesChannel | None] = relationship()
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
+
+    @property
+    def source(self) -> str | None:
+        """The channel key, read off the channel — one truth, never a copy."""
+        return self.sales_channel.channel_code if self.sales_channel is not None else None
+
+    @property
+    def sales_channel_name(self) -> str | None:
+        return self.sales_channel.name if self.sales_channel is not None else None
 
 
 class StoreFacility(TenantRecord, MetadataJsonbMixin, Base):
@@ -1207,6 +1250,12 @@ class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJson
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     item: Mapped[InventoryItem] = relationship()
+
+    @property
+    def item_status(self) -> str | None:
+        """The position's status, on the movement — an archived position's
+        history says so on every row, so nobody sums it as live stock."""
+        return self.item.status if self.item is not None else None
 
 
 class Picklist(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
@@ -1697,11 +1746,21 @@ class FinAccountTrans(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJsonbMix
     payment_id: Mapped[str | None] = mapped_column(
         ForeignKey("payments.id"), nullable=True, index=True
     )
+    # one bank debit settling MANY payments (a payroll batch, a supplier
+    # payment run): the payments' shared reference_no, which IS the batch —
+    # there is no batch object. Set only when the members sum to this line.
+    payment_reference_no: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     entity_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     entity_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     account: Mapped[FinAccount] = relationship()
+
+    @property
+    def account_status(self) -> str | None:
+        """The account's status, on the line: an archived account's register
+        is history, and every row of it says so."""
+        return self.account.status if self.account is not None else None
 
 
 class Resource(TenantRecord, MetadataJsonbMixin, Base):

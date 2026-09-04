@@ -18,6 +18,8 @@ not mean starting over, and one departed customer must not stop the run.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/custom-object-is-never-silent.md}}
+
 ## Trigger Examples
 
 - "Import the historical quotations from the old system"
@@ -35,6 +37,16 @@ oryh:
 ```
 
 Plus the workbook(s), on the person's machine — read them where they are.
+
+## History Lands In The Shipped Collections, Never In Generic Objects
+
+Historical customers are `/customers`, products `/products`, quotations
+`/sales-quotations`, orders `/sales-orders` — the same collections today's
+work uses, so a past quotation is one an agent can still read beside this
+year's. A generic object named `customer`, `product`, `quote` or
+`sales_order` is refused by the server (422 naming the real route); a
+generic object named anything else for this data is worse, because it is
+allowed. Generic objects are for what oryh has no shape for.
 
 ## The Order Is Not Optional
 

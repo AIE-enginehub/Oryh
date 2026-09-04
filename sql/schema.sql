@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260902_0080
+-- Alembic revision: 20260903_0082
 --
 
 --
@@ -728,6 +728,7 @@ CREATE TABLE oryh.fin_account_transactions (
     created_by character varying(100),
     custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    payment_reference_no character varying(100),
     CONSTRAINT fin_account_trans_amount_nonzero_ck CHECK ((amount <> (0)::numeric)),
     CONSTRAINT fin_account_trans_net_ck CHECK (((gross_amount IS NULL) OR (fee_amount IS NULL) OR (amount = (gross_amount - fee_amount)))),
     CONSTRAINT fin_account_trans_sign_ck CHECK (((((trans_type)::text <> ALL ((ARRAY['deposit'::character varying, 'interest'::character varying, 'transfer_in'::character varying])::text[])) OR (amount > (0)::numeric)) AND (((trans_type)::text <> ALL ((ARRAY['withdrawal'::character varying, 'fee'::character varying, 'transfer_out'::character varying])::text[])) OR (amount < (0)::numeric)))),
@@ -1604,6 +1605,25 @@ CREATE TABLE oryh.roles (
 
 
 --
+-- Name: sales_channels; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.sales_channels (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    channel_code character varying(50) NOT NULL,
+    name character varying(100) NOT NULL,
+    channel_kind character varying(50) NOT NULL,
+    remarks text,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sales_channels_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
 -- Name: sales_order_adjustments; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1887,13 +1907,13 @@ CREATE TABLE oryh.stores (
     store_code character varying(64),
     name character varying(100) NOT NULL,
     channel character varying(10) NOT NULL,
-    source character varying(50),
     address character varying(500),
     remarks text,
     status character varying(20) DEFAULT 'active'::character varying NOT NULL,
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    sales_channel_id uuid,
     CONSTRAINT stores_channel_chk CHECK (((channel)::text = ANY ((ARRAY['offline'::character varying, 'online'::character varying])::text[]))),
     CONSTRAINT stores_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
 );
@@ -2867,6 +2887,22 @@ ALTER TABLE ONLY oryh.roles
 
 
 --
+-- Name: sales_channels sales_channels_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_channels
+    ADD CONSTRAINT sales_channels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sales_channels sales_channels_tenant_code_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_channels
+    ADD CONSTRAINT sales_channels_tenant_code_uk UNIQUE (tenant_id, channel_code);
+
+
+--
 -- Name: sales_order_adjustments sales_order_adjustments_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3747,6 +3783,13 @@ CREATE INDEX fin_account_transactions_fin_account_id_idx ON oryh.fin_account_tra
 --
 
 CREATE INDEX fin_account_transactions_payment_id_idx ON oryh.fin_account_transactions USING btree (payment_id);
+
+
+--
+-- Name: fin_account_transactions_payment_reference_no_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX fin_account_transactions_payment_reference_no_idx ON oryh.fin_account_transactions USING btree (payment_reference_no);
 
 
 --
@@ -4639,6 +4682,20 @@ CREATE INDEX roles_tenant_idx ON oryh.roles USING btree (tenant_id);
 
 
 --
+-- Name: sales_channels_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_channels_tenant_idx ON oryh.sales_channels USING btree (tenant_id);
+
+
+--
+-- Name: sales_channels_tenant_name_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX sales_channels_tenant_name_uq ON oryh.sales_channels USING btree (tenant_id, name) WHERE ((status)::text = 'active'::text);
+
+
+--
 -- Name: sales_order_adjustments_item_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4839,6 +4896,13 @@ CREATE INDEX store_facilities_store_id_idx ON oryh.store_facilities USING btree 
 --
 
 CREATE INDEX store_facilities_tenant_idx ON oryh.store_facilities USING btree (tenant_id);
+
+
+--
+-- Name: stores_sales_channel_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX stores_sales_channel_id_idx ON oryh.stores USING btree (sales_channel_id);
 
 
 --
@@ -6249,6 +6313,14 @@ ALTER TABLE ONLY oryh.store_facilities
 
 
 --
+-- Name: stores stores_sales_channel_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.stores
+    ADD CONSTRAINT stores_sales_channel_id_fkey FOREIGN KEY (sales_channel_id) REFERENCES oryh.sales_channels(id);
+
+
+--
 -- Name: supplier_products supplier_products_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -6715,6 +6787,12 @@ ALTER TABLE oryh.resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.roles ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: sales_channels; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.sales_channels ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: sales_order_adjustments; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -7163,6 +7241,13 @@ CREATE POLICY tenant_isolation ON oryh.resources USING ((((tenant_id)::text = cu
 --
 
 CREATE POLICY tenant_isolation ON oryh.roles USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: sales_channels tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.sales_channels USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

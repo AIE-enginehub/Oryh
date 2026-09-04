@@ -482,6 +482,18 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
 }
 
 
+def status_scope(status_filter: str | None) -> str | None:
+    """What a master-data list answers by default: the ACTIVE rows. An
+    archived row is history — a bank account entered by mistake, a product
+    nobody sells — and history mixed into the everyday answer is how an
+    agent sums a dead account into the cash position. `status=archived`
+    asks for the history, `status=all` for both; the equality filter
+    treats None as "no clause"."""
+    if status_filter == "all":
+        return None
+    return status_filter or "active"
+
+
 def require_active_row(
     db: Session, model, tenant_id: str, row_id: str | None, noun: str, *, detail: str | None = None
 ):

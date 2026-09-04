@@ -131,6 +131,11 @@ POST   /shipments        → {picklist_id, ...} and NO items: the server copies 
                             refuses a picklist that picks for a different order
 ```
 
+`GET /inventory-item-details` answers with movements of ACTIVE positions
+unless `inventory_item_id` names one or `include_archived_items=true` is
+passed; every row carries `item_status`. `GET /inventory-items` lists active
+positions by default (`status=archived` / `status=all` to widen).
+
 ## Stock-Take Import
 
 Stock lives on a LEDGER. An inventory item's `quantity_on_hand` /

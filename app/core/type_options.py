@@ -45,6 +45,16 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("dimension", "尺寸图", "尺寸/规格标注图"),
         ("other", "其他", "未归类的图片"),
     ),
+    # 销售渠道类型 — what KIND of channel a sales channel is; the channel
+    # itself (its code, its stores) is master data, this is only its label
+    "sales_channel_kind": (
+        ("marketplace", "平台商城", "天猫/京东/亚马逊等第三方平台店铺"),
+        ("own_site", "自营线上", "官网/小程序/自建商城"),
+        ("live_stream", "直播带货", "抖音/快手/视频号等直播渠道"),
+        ("offline", "线下", "门店/专柜/展会等线下销售"),
+        ("wholesale", "批发分销", "经销商/分销商渠道"),
+        ("other", "其他", "其余销售渠道"),
+    ),
     "product_price_type": (
         ("list", "目录价", "对外目录/牌价，报价折扣的比较基准"),
         ("default", "默认售价", "无特殊约定时的默认成交价"),

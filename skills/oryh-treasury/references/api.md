@@ -59,7 +59,9 @@ POST /fin-account-transactions
   refund | adjustment`. The database itself refuses a negative deposit, a
   positive fee, and any zero.
 - Platform lines: `gross_amount` − `fee_amount` = `amount`, held by the
-  server; the platform's raw ids ride `custom_fields`.
+  server; the platform's raw ids ride `custom_fields`. A bank line works
+  the same when the bank netted its charge out of a receipt — one row,
+  the charge in `fee_amount`, never a payment or a vendor for the bank.
 - `opening` belongs to account creation only — a later one is a 422; the
   fix for a wrong past is a counter-entry with the story in `description`.
   Importing statements OLDER than the opening date is a restatement — two
@@ -106,9 +108,27 @@ PATCH /fin-account-transactions/{trans_id}
 {"payment_id": "payment-id"}
 ```
 
+```json
+PATCH /fin-account-transactions/{trans_id}
+{"payment_reference_no": "PAYROLL-2026-08"}
+```
+
+`GET /fin-account-transactions` answers with lines of ACTIVE accounts unless
+`fin_account_id` names an account or `include_archived_accounts=true` is
+passed; every line carries `account_status`. `GET /fin-accounts` lists
+active accounts by default (`status=archived` / `status=all` to widen).
+
+The batch form: one debit settling every payment sharing that
+`reference_no`. 422 unless they sum to the line exactly and move money the
+same way; the response carries `payments_settled` and `payments_total`. A
+line links one payment OR one batch, never both.
+
 The linked payment must move money the same WAY: outbound documents land as
 negative lines, inbound as positive — a backwards link is a 422. Amounts
-may differ (fees); say the difference to the person. `{"payment_id": null}`
+may differ (a netted charge belongs in `fee_amount`); say the difference to
+the person. `?unlinked=true` never lists `opening | fee | interest |
+adjustment | transfer_in | transfer_out` rows — their type is their
+explanation. `{"payment_id": null}`
 unlinks. The entity pair (`entity_type` + uuid `entity_id`) points a retail
 line at its order or a refund at the RETURN row; an external number in
 `entity_id` is a 422 pointing you to `custom_fields`.

@@ -926,6 +926,7 @@ def workspace_setup_report(
         CustomerProduct,
         Facility,
         ProductCategory,
+        SalesChannel,
         Store,
         Employee,
         ExternalDocumentLink,
@@ -1030,6 +1031,7 @@ def workspace_setup_report(
         "customer_contacts": count(CustomerContact),
         "customer_products": count(CustomerProduct),
         "vendors": count(Vendor),
+        "sales_channels": count(SalesChannel),
         "stores": count(Store),
         "facilities": count(Facility),
         "custom_type_options": count(TypeOption, TypeOption.kind == "custom"),
@@ -1132,13 +1134,14 @@ def workspace_setup_report(
         "facts": {
             # an online storefront is the first e-commerce fact; maps and
             # links follow once orders start arriving through it
+            "sales_channels": count(SalesChannel),
             "online_stores": online_stores,
             "channel_product_maps": count(ExternalProductMap),
             "external_document_links": count(ExternalDocumentLink),
         },
         "next": (
             "only if you sell through Tmall/JD/Amazon/mini-programs: register "
-            "the storefront with its channel key and curate the product map "
+            "the channel, then its storefronts, and curate the product map "
             "($oryh-master-data), record channel orders ($oryh-order-submit)"
         ),
     }

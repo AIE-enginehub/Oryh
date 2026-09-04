@@ -99,7 +99,7 @@ def test_price_crud_and_one_active_slot_per_key(client: TestClient) -> None:
     assert revive.status_code == 409
 
     listed = client.get(
-        f"/api/v1/product-prices?product_id={product_id}&price_type=wholesale&currency=CNY",
+        f"/api/v1/product-prices?product_id={product_id}&price_type=wholesale&currency=CNY&status=all",
         headers=headers,
     ).json()["data"]
     # live slot holds the replacement; the archived original is the history
@@ -237,7 +237,7 @@ def test_bulk_rows_carry_prices_and_suppliers(client: TestClient) -> None:
     moved = third["results"][0]
     assert moved["outcome"] == "updated" and moved["changed"] == ["prices"]
     wholesale = client.get(
-        f"/api/v1/product-prices?product_id={product_id}&price_type=wholesale", headers=headers
+        f"/api/v1/product-prices?product_id={product_id}&price_type=wholesale&status=all", headers=headers
     ).json()["data"]
     # set, not order: rows born in the same second tie on created_at
     assert {(p["price"], p["status"]) for p in wholesale} == {(14.8, "active"), (15.5, "archived")}

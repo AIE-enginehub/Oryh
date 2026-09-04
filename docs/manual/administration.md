@@ -29,9 +29,11 @@ claims about itself.
 
 ## Master data
 
-Projects, vendors, products and SKUs, resources — each with filtering and
-paging. Customers have their own screen. These are reference screens; bulk
-loading belongs to `oryh-master-data`.
+Projects, vendors, products and SKUs (with their category tree, pictures and
+bills of materials), sales channels, stores, facilities, resources — each
+with filtering and paging. Customers have their own screen, with their
+contacts and price agreements. These are reference screens; bulk loading
+belongs to `oryh-master-data`.
 
 ## Objects & rules
 
@@ -43,7 +45,9 @@ loading belongs to `oryh-master-data`.
 Built-in entities require a state-machine definition; your own types need a
 field schema and a lifecycle in your own vocabulary. Both are administrator
 territory, and both are gated: an account without workspace-configuration
-permission is told so rather than shown a broken screen.
+permission is told so rather than shown a broken screen. A custom type may
+not take the name of something shipped (`customer`, `product`, `quote`…);
+the server refuses it and names the real collection.
 
 ## Activity records
 

@@ -28,6 +28,8 @@ def shop():
         emp = client.post("/api/v1/employees", json={"name": "运营小李"},
                           headers=admin).json()["data"]["id"]
         ops = invite_member(client, admin, "channel_ops", ["order.submit_own"], employee_id=emp)
+        client.post("/api/v1/sales-channels", headers=admin, json={
+            "channel_code": "tmall", "name": "天猫", "channel_kind": "marketplace"})
 
         store = client.post("/api/v1/stores", headers=admin, json={
             "name": "天猫旗舰店", "channel": "online", "source": "tmall"}).json()["data"]["id"]

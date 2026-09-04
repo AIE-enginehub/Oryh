@@ -18,6 +18,8 @@ that ledger at the moment it happens, with whatever is known at that moment.
 
 {{include:_common/stay-current.md}}
 
+{{include:_common/archived-is-history.md}}
+
 ## Trigger Examples
 
 - "A carton arrived from SF Express, no idea which order" (record it now)

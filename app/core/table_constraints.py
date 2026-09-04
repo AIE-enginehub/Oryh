@@ -91,6 +91,7 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("resource_bookings", "status"): ("cancelled", "confirmed"),
     ("resources", "booking_mode"): ("exclusive", "shared"),
     ("resources", "status"): ("active", "archived", "inactive"),
+    ("sales_channels", "status"): ("active", "archived"),
     ("store_facilities", "status"): ("active", "archived"),
     ("stores", "channel"): ("offline", "online"),
     ("stores", "status"): ("active", "archived"),

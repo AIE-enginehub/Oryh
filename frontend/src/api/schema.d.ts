@@ -1207,7 +1207,8 @@ export interface paths {
          *     and a shadow of it that no order line, price or inventory row can ever point
          *     at. Once the shadow has data the two cannot be merged back.
          *
-         *     This endpoint states the fact and stops there. Whether a company's "product"
+         *     The exact names listed here (the collection, its singular, its synonyms)
+         *     are REFUSED as generic-object names at creation. Whether a company's "product"
          *     is our product is a reading of THEIR business, and the agent is the one with
          *     the person in front of it — it can ask, and the server cannot. So there is no
          *     409 here and none on the create paths: read this first, and if it matches,
@@ -4453,6 +4454,43 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sales Channels */
+        get: operations["list_sales_channels_api_v1_sales_channels_get"];
+        put?: never;
+        /** Create Sales Channel */
+        post: operations["create_sales_channel_api_v1_sales_channels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-channels/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sales Channel */
+        get: operations["get_sales_channel_api_v1_sales_channels__channel_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Sales Channel */
+        delete: operations["delete_sales_channel_api_v1_sales_channels__channel_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Sales Channel */
+        patch: operations["update_sales_channel_api_v1_sales_channels__channel_id__patch"];
         trace?: never;
     };
     "/api/v1/sales-order-adjustments": {
@@ -9523,6 +9561,27 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CreateSalesChannelRequest */
+        CreateSalesChannelRequest: {
+            /** Channel Code */
+            channel_code: string;
+            /** Channel Kind */
+            channel_kind: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
         /** CreateSalesOrderAdjustmentRequest */
         CreateSalesOrderAdjustmentRequest: {
             /** Adjustment Type */
@@ -9868,6 +9927,8 @@ export interface components {
             name: string;
             /** Remarks */
             remarks?: string | null;
+            /** Sales Channel Id */
+            sales_channel_id?: string | null;
             /** Source */
             source?: string | null;
             /**
@@ -10902,6 +10963,11 @@ export interface components {
             data: components["schemas"]["RoleRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[SalesChannelRead] */
+        Envelope_SalesChannelRead_: {
+            data: components["schemas"]["SalesChannelRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[SalesOrderAdjustmentRead] */
         Envelope_SalesOrderAdjustmentRead_: {
             data: components["schemas"]["SalesOrderAdjustmentRead"];
@@ -11312,6 +11378,8 @@ export interface components {
         };
         /** FinAccountTransRead */
         FinAccountTransRead: {
+            /** Account Status */
+            account_status?: string | null;
             /** Amount */
             amount: number;
             /** Counterparty */
@@ -11343,6 +11411,12 @@ export interface components {
             id: string;
             /** Payment Id */
             payment_id?: string | null;
+            /** Payment Reference No */
+            payment_reference_no?: string | null;
+            /** Payments Settled */
+            payments_settled?: number | null;
+            /** Payments Total */
+            payments_total?: number | null;
             /** Reference No */
             reference_no?: string | null;
             /** Trans Date */
@@ -11475,6 +11549,8 @@ export interface components {
             id: string;
             /** Inventory Item Id */
             inventory_item_id: string;
+            /** Item Status */
+            item_status?: string | null;
             /** Purchase Order Id */
             purchase_order_id?: string | null;
             /** Quantity On Hand Diff */
@@ -12059,6 +12135,8 @@ export interface components {
             entity_type?: string | null;
             /** Payment Id */
             payment_id?: string | null;
+            /** Payment Reference No */
+            payment_reference_no?: string | null;
         };
         /**
          * LinkedPurchaseItemRead
@@ -12440,6 +12518,12 @@ export interface components {
         ListEnvelope_RoleRead_: {
             /** Data */
             data: components["schemas"]["RoleRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[SalesChannelRead] */
+        ListEnvelope_SalesChannelRead_: {
+            /** Data */
+            data: components["schemas"]["SalesChannelRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[SalesOrderAdjustmentRead] */
@@ -14248,6 +14332,35 @@ export interface components {
              */
             user_count: number;
         };
+        /** SalesChannelRead */
+        SalesChannelRead: {
+            /** Channel Code */
+            channel_code: string;
+            /** Channel Kind */
+            channel_kind: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** SalesOrderAdjustmentRead */
         SalesOrderAdjustmentRead: {
             /** Adjustment Type */
@@ -15048,6 +15161,10 @@ export interface components {
             name: string;
             /** Remarks */
             remarks?: string | null;
+            /** Sales Channel Id */
+            sales_channel_id?: string | null;
+            /** Sales Channel Name */
+            sales_channel_name?: string | null;
             /** Source */
             source?: string | null;
             /** Status */
@@ -16569,6 +16686,21 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** UpdateSalesChannelRequest */
+        UpdateSalesChannelRequest: {
+            /** Channel Kind */
+            channel_kind?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateSalesOrderAdjustmentRequest */
         UpdateSalesOrderAdjustmentRequest: {
             /** Adjustment Type */
@@ -16842,6 +16974,8 @@ export interface components {
             name?: string | null;
             /** Remarks */
             remarks?: string | null;
+            /** Sales Channel Id */
+            sales_channel_id?: string | null;
             /** Source */
             source?: string | null;
             /** Status */
@@ -23868,6 +24002,7 @@ export interface operations {
                 payment_id?: string | null;
                 reference_no?: string | null;
                 unlinked?: boolean;
+                include_archived_accounts?: boolean;
                 date_from?: string | null;
                 date_to?: string | null;
                 keyword?: string | null;
@@ -24485,6 +24620,7 @@ export interface operations {
                 entity_id?: string | null;
                 sales_order_id?: string | null;
                 purchase_order_id?: string | null;
+                include_archived_items?: boolean;
                 page?: number | null;
                 size?: number;
             };
@@ -31007,6 +31143,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_SkillReachRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sales_channels_api_v1_sales_channels_get: {
+        parameters: {
+            query?: {
+                channel_kind?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_SalesChannelRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_sales_channel_api_v1_sales_channels_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSalesChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SalesChannelRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sales_channel_api_v1_sales_channels__channel_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                channel_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SalesChannelRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_sales_channel_api_v1_sales_channels__channel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                channel_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_sales_channel_api_v1_sales_channels__channel_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                channel_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSalesChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SalesChannelRead_"];
                 };
             };
             /** @description Validation Error */

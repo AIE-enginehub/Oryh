@@ -1384,10 +1384,59 @@ FacilityListEnvelope = ListEnvelope[FacilityRead]
 FacilityEnvelope = Envelope[FacilityRead]
 
 
+class SalesChannelBase(RequestModel):
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateSalesChannelRequest(SalesChannelBase):
+    # the join key: lowercased like every `source`, immutable once written
+    channel_code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=100)
+    channel_kind: str = Field(min_length=1, max_length=50)
+
+    @field_validator("channel_code", mode="before")
+    @classmethod
+    def _normalize_code(cls, v: object) -> object:
+        return v.strip().lower() if isinstance(v, str) else v
+
+
+class UpdateSalesChannelRequest(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    channel_kind: str | None = Field(default=None, min_length=1, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class SalesChannelRead(APIModel):
+    id: str
+    channel_code: str
+    name: str
+    channel_kind: str
+    remarks: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+SalesChannelListEnvelope = ListEnvelope[SalesChannelRead]
+
+
+SalesChannelEnvelope = Envelope[SalesChannelRead]
+
+
 class StoreBase(_NormalizesSource):
     store_code: str | None = Field(default=None, max_length=64)
-    # the external channel key this store's orders arrive under — lowercased
-    # by the same normalizer the product map uses; offline stores omit it
+    # the channel this store sells through: by id, or by its code as
+    # `source` (lowercased like every source); both must name a registered
+    # channel — the server never invents one. Offline doors may omit both.
+    sales_channel_id: str | None = None
     source: str | None = Field(default=None, max_length=50)
     address: str | None = Field(default=None, max_length=500)
     remarks: str | None = Field(default=None, max_length=2000)
@@ -1404,6 +1453,7 @@ class UpdateStoreRequest(_NormalizesSource):
     store_code: str | None = Field(default=None, max_length=64)
     name: str | None = Field(default=None, min_length=1, max_length=100)
     channel: StoreChannel | None = None
+    sales_channel_id: str | None = None
     source: str | None = Field(default=None, max_length=50)
     address: str | None = Field(default=None, max_length=500)
     remarks: str | None = Field(default=None, max_length=2000)
@@ -1416,6 +1466,9 @@ class StoreRead(APIModel):
     store_code: str | None = None
     name: str
     channel: StoreChannel
+    sales_channel_id: str | None = None
+    sales_channel_name: str | None = None
+    # the channel's code — the key orders, maps and links carry
     source: str | None = None
     address: str | None = None
     remarks: str | None = None
@@ -1709,6 +1762,8 @@ class CreateInventoryItemDetailRequest(RequestModel):
 class InventoryItemDetailRead(APIModel):
     id: str
     inventory_item_id: str
+    # the position's status: `archived` marks the movement as history
+    item_status: str | None = None
     quantity_on_hand_diff: float
     available_to_promise_diff: float
     reason: InventoryMovementReason
@@ -2482,6 +2537,9 @@ class LinkFinAccountTransRequest(RequestModel):
     strict-request rule, which is the immutability teaching itself."""
 
     payment_id: str | None = None
+    # a batch: the reference_no the settled payments share (payroll run,
+    # payment run) — the members must sum to this line exactly
+    payment_reference_no: str | None = Field(default=None, max_length=100)
     entity_type: str | None = Field(default=None, max_length=50)
     entity_id: str | None = None
 
@@ -2498,6 +2556,13 @@ class FinAccountTransRead(APIModel):
     description: str | None = None
     reference_no: str | None = None
     payment_id: str | None = None
+    payment_reference_no: str | None = None
+    # the account's status: `archived` marks the line as history
+    account_status: str | None = None
+    # derived on the link write: how many payments the batch link settles,
+    # and what they sum to (equal to |amount| by construction)
+    payments_settled: int | None = None
+    payments_total: float | None = None
     entity_type: str | None = None
     entity_id: str | None = None
     created_by: str | None = None

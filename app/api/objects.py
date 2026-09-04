@@ -135,6 +135,7 @@ from app.services.object_types import (
     BUILTIN_OBJECT_TYPES,
     builtin_object_vocabulary,
     ensure_valid_json_schema,
+    refuse_shadow_of_shipped,
     validate_business_object_payload,
 )
 from app.services.state_machines import (
@@ -686,7 +687,8 @@ def get_builtin_object_types(
     and a shadow of it that no order line, price or inventory row can ever point
     at. Once the shadow has data the two cannot be merged back.
 
-    This endpoint states the fact and stops there. Whether a company's "product"
+    The exact names listed here (the collection, its singular, its synonyms)
+    are REFUSED as generic-object names at creation. Whether a company's "product"
     is our product is a reading of THEIR business, and the agent is the one with
     the person in front of it — it can ask, and the server cannot. So there is no
     409 here and none on the create paths: read this first, and if it matches,
@@ -829,10 +831,13 @@ def get_object_directory(
         )
         or 0,
     }
+    # live rows only: a type whose every row was deleted is not a type the
+    # workspace still has — a legacy dump archived out of the way must
+    # leave the directory too, or every agent keeps seeing it
     custom_counts = dict(
         db.execute(
             select(BusinessObject.object_type, func.count())
-            .where(BusinessObject.tenant_id == tenant_id)
+            .where(BusinessObject.tenant_id == tenant_id, BusinessObject.deleted_at.is_(None))
             .group_by(BusinessObject.object_type)
         ).all()
     )
@@ -899,6 +904,8 @@ def create_object_type_definition(
     db: Annotated[Session, Depends(get_db)],
 ):
     require_permission(actor, "object_types.manage")
+    if payload.entity_kind == "business_object":
+        refuse_shadow_of_shipped(payload.object_type)
     ensure_valid_json_schema(payload.json_schema)
     if payload.state_machine is not None:
         ensure_valid_state_machine(
@@ -1106,6 +1113,7 @@ def create_business_object(
     db: Annotated[Session, Depends(get_db)],
 ):
     require_permission(actor, "business_object.write", payload.object_type)
+    refuse_shadow_of_shipped(payload.object_type)
     validate_business_object_payload(db, actor.tenant_id, payload.object_type, payload.payload)
     validate_business_object_status(
         db, actor.tenant_id, payload.object_type, current=None, new=payload.status

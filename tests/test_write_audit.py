@@ -105,6 +105,8 @@ UNAUDITED: dict[str, str] = {
     "master_data.py DELETE /bom-items/{item_id}": "recipe line removal while draft — the recipe is the record",
     "master_data.py POST /facilities": "master data write unaudited — known gap",
     "master_data.py PATCH /facilities/{facility_id}": "master data write unaudited — known gap",
+    "master_data.py POST /sales-channels": "master data write unaudited — known gap",
+    "master_data.py PATCH /sales-channels/{channel_id}": "master data write unaudited — known gap",
     "master_data.py POST /stores": "master data write unaudited — known gap",
     "master_data.py PATCH /stores/{store_id}": "master data write unaudited — known gap",
     "master_data.py POST /store-facilities": "master data write unaudited — known gap",

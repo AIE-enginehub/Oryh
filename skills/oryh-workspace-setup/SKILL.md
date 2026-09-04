@@ -32,6 +32,8 @@ oryh:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/custom-object-is-never-silent.md}}
+
 {{include:_common/read-before-you-decide.md}}
 
 1. **Read before you speak**: `GET /workspace/setup-report` — every area
@@ -69,8 +71,9 @@ oryh:
    2. *Master data*: products / customers / vendors from their spreadsheets
       — $oryh-master-data — and the shelving around them: the category
       TREE (proposed from the sheet's category column, agreed before the
-      import), stores (offline doors and online storefronts with their
-      channel key) and facilities (the registry the stock ledger's
+      import), sales channels (the keys orders arrive under — registered
+      before the stores that hang under them), stores (offline doors and
+      online storefronts) and facilities (the registry the stock ledger's
       free-text facility names must come from), which facilities may ship
       for which store, customer contacts and per-customer price
       agreements. Selling through platforms? The external product map

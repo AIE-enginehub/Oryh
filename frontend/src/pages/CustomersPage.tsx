@@ -58,7 +58,7 @@ export function CustomersPage() {
 
   const customers = useQuery({
     queryKey: ["master-data", "customers", { keyword, status, page }],
-    queryFn: () => listCustomers({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || undefined }),
+    queryFn: () => listCustomers({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || "all" }),
     placeholderData: keepPreviousData,
   });
   const save = useMutation({

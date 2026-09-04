@@ -67,7 +67,7 @@ export function ResourcesPage() {
 
   const resources = useQuery({
     queryKey: ["master-data", "resources", { keyword, status, page }],
-    queryFn: () => listResources({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || undefined }),
+    queryFn: () => listResources({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || "all" }),
     placeholderData: keepPreviousData,
   });
   const save = useMutation({

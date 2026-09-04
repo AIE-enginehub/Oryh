@@ -13,6 +13,7 @@ grows between releases.
 | Ask for | Skill |
 |---|---|
 | "What do I need to do?" | `oryh-my-work` |
+| "How does oryh work?" / "what does this permission mean?" / "do I need admin for that?" | `oryh-help` |
 | "Book meeting room B for Thursday" | `oryh-resource-booking` |
 | "How much was I paid this month?" | `oryh-payslip` |
 | "Connect me" / "my key stopped working" | `oryh-connect` |
@@ -67,13 +68,15 @@ see [operations](operations.md).
 | Ask for | Skill |
 |---|---|
 | Capture and advance leads, convert one into a customer and an opportunity | `oryh-crm` |
+| Record orders from Tmall, JD or another platform — dedup by the platform number, translate listings through the product map, confirm the unmapped ones once | `oryh-order-submit` |
 
 ## Procurement and stock
 
 | Ask for | Skill |
 |---|---|
-| Place and maintain purchase orders, receive against them | `oryh-purchase-order` |
-| Goods in, goods out, counts, adjustments | `oryh-inventory` |
+| Place and maintain purchase orders, receive against them; hand an OEM factory the material advice from the bill of materials | `oryh-purchase-order` |
+| File a contract's original and its key terms, then ask "what is the payment schedule on this one" | `oryh-contracts` |
+| Goods in, goods out, counts, adjustments; reservations, picklists, shipments and their stock posting | `oryh-inventory` |
 
 ## Finance
 
@@ -82,7 +85,7 @@ see [operations](operations.md).
 | Bill a customer, register receipts, settle | `oryh-receivables` |
 | Book what a supplier billed, check it against the PO, pay it | `oryh-payables` |
 | Customer deposits and credit lines | `oryh-billing-account` |
-| Where the money sits and moves — bank and platform accounts, statement import, reconciliation | `oryh-treasury` |
+| Where the money sits and moves — bank and platform accounts, statement import, bank charges as register facts, reconciliation of a line to a payment or to a whole payroll batch | `oryh-treasury` |
 
 Settlement is a ledger, not a status field — an invoice is not "paid" because
 somebody set it to paid, it is paid because payments were matched against it.

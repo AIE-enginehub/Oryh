@@ -399,25 +399,27 @@ def test_every_shipped_machine_passes_the_validation_tenant_edits_face() -> None
 # --- ORYH states what it ships; the agent decides ---------------------------
 
 
-def test_the_server_does_not_decide_what_a_company_word_means(client: TestClient) -> None:
-    """A custom object named `product` is allowed through.
-
-    Whether a company's "product" is our product is a reading of THEIR business.
-    A records layer that refuses the word has decided what their vocabulary
-    means, which is the one thing this layer does not do — the same reason it
-    computes no payroll figure and interprets no workflow definition.
-
-    The judgement is real and still has to happen. It happens where the person
-    is: the agent reads `/builtin-object-types`, sees the collision, and says so
-    — and can ask "你说的产品是不是目录里那个", which no 409 can.
-    """
+def test_the_server_refuses_the_exact_word_and_leaves_the_reading_to_the_agent(client: TestClient) -> None:
+    """The doctrine used to let `product` through, on the argument that whether
+    a company's product is our product is a reading of THEIR business. Then a
+    production tenant's admin agent wrote 150,000 legacy customers, products,
+    quotes and sales orders into generic objects named exactly that, beside
+    empty builtin tables — judgement never fired once. So the EXACT shipped
+    words are now the server's to refuse; the reading beyond them ("merchandise",
+    "货品") is still the agent's, and still allowed through here."""
     for object_type in ("product", "invoice", "customer"):
         response = client.post(
             "/api/v1/object-type-definitions",
             json={"object_type": object_type, "json_schema": {}},
             headers=HEADERS,
         )
-        assert response.status_code == 201, f"{object_type}: {response.text}"
+        assert response.status_code == 422, f"{object_type}: {response.text}"
+    near_miss = client.post(
+        "/api/v1/object-type-definitions",
+        json={"object_type": "merchandise", "json_schema": {}},
+        headers=HEADERS,
+    )
+    assert near_miss.status_code == 201, "the semantic call stays where the person is"
 
 
 def test_what_the_agent_needs_to_judge_with(client: TestClient) -> None:
@@ -469,7 +471,8 @@ def test_the_vocabulary_is_derived_from_the_rest_surface(client: TestClient) -> 
 
 def test_the_alias_list_stays_a_hint_not_a_policy() -> None:
     """These are words people reach for, not a claim to have thought of
-    everything. A long list of guesses is noise dressed as knowledge, and the
+    everything. Now that the exact words are REFUSED, a wrong entry costs a
+    legitimate custom type its name, so the list stays short, and the
     ambiguous ones belong to the agent — "account" could be a customer or a
     billing account, and only the person knows which."""
     from app.services.object_types import _IRREGULAR_ALIASES, builtin_object_names
@@ -486,3 +489,48 @@ def test_a_genuine_custom_object_is_untouched(client: TestClient) -> None:
             headers=HEADERS,
         )
         assert response.status_code == 201, f"{object_type}: {response.text}"
+
+
+def test_a_deleted_legacy_dump_leaves_the_directory(client: TestClient) -> None:
+    """A workspace that once dumped its legacy customers into generic rows
+    and then archived them must not keep a ghost 'customer' type in the
+    directory with a five-digit count: live rows only, and a type with no
+    live rows and no definition is gone."""
+    made = [
+        client.post("/api/v1/business-objects",
+                    json={"object_type": "legacy_customer", "title": f"客户 {n}"},
+                    headers=HEADERS).json()["data"]["id"]
+        for n in range(3)
+    ]
+    keys = lambda: {  # noqa: E731
+        (e["entity_kind"], e["object_type"]): e["count"]
+        for e in client.get("/api/v1/object-directory", headers=HEADERS).json()["data"]
+    }
+    assert keys()[("business_object", "legacy_customer")] == 3
+    for object_id in made[:2]:
+        assert client.delete(f"/api/v1/business-objects/{object_id}", headers=HEADERS).status_code == 204
+    assert keys()[("business_object", "legacy_customer")] == 1, "the directory counts live rows"
+    assert client.delete(f"/api/v1/business-objects/{made[2]}", headers=HEADERS).status_code == 204
+    assert ("business_object", "legacy_customer") not in keys(), \
+        "no live rows and no definition — the type is gone from the directory"
+
+
+def test_a_generic_object_may_not_shadow_a_shipped_collection(client: TestClient) -> None:
+    """The exact names ORYH ships — the collection, its singular, its listed
+    synonyms — are refused as generic-object names, for rows and for type
+    definitions alike, and the refusal names the real route. Anything else
+    stays free: the judgement beyond exact words is the agent's."""
+    for shadow, real in (("customer", "/customers"), ("product", "/products"),
+                         ("quote", "/sales-quotations"), ("sales_order", "/sales-orders"),
+                         ("supplier", "/vendors"), ("Client", "/customers")):
+        refused = client.post("/api/v1/business-objects", headers=HEADERS,
+                              json={"object_type": shadow, "title": "legacy row"})
+        assert refused.status_code == 422, (shadow, refused.text)
+        assert real in refused.json()["detail"] and "bulk" in refused.json()["detail"]
+    definition = client.post("/api/v1/object-type-definitions", headers=HEADERS, json={
+        "entity_kind": "business_object", "object_type": "product", "title": "Product",
+        "json_schema": {"type": "object"}})
+    assert definition.status_code == 422 and "/products" in definition.json()["detail"]
+    allowed = client.post("/api/v1/business-objects", headers=HEADERS,
+                          json={"object_type": "product_recall", "title": "召回 2026-09"})
+    assert allowed.status_code == 201, "a name that is not a shipped word stays free"

@@ -6,6 +6,8 @@ required_capability: contract.manage
 
 # Oryh Contracts
 
+{{include:_common/answer-the-question.md}}
+
 A contract in oryh is a natural-language file plus the clauses located
 inside it. The originals — PDF, scanned pages, Word — live in the
 attachment store, linked to the contract with the text you extracted from

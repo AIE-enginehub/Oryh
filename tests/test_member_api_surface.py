@@ -60,7 +60,7 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
        for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus", "product-categories",
-                 "facilities", "stores", "store-facilities",
+                 "facilities", "sales-channels", "stores", "store-facilities",
                  "bills-of-materials", "bom-items", "product-images",
                  "product-prices", "supplier-products", "customer-products", "external-product-maps",
                  "type-options")},

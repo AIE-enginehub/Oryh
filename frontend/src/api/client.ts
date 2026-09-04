@@ -105,7 +105,7 @@ type CommonListFilters<Status extends string> = {
   page?: number;
   size?: number;
   keyword?: string;
-  status?: Status;
+  status?: Status | "all";
 };
 
 export type ProjectListFilters = CommonListFilters<ProjectRead["status"]>;
@@ -130,7 +130,7 @@ export type ProductSkuListFilters = {
   size?: number;
   product_id?: string;
   sku_code?: string;
-  status?: ProductSkuRead["status"];
+  status?: ProductSkuRead["status"] | "all";
 };
 
 export type EmployeeListFilters = CommonListFilters<EmployeeRead["status"]>;

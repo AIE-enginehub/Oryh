@@ -39,6 +39,9 @@ def channel():
         t = provision_tenant(client, company_name="Channel Co", email="admin@channel.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
         seq = {"n": 0}
+        for code, name in (("tmall", "天猫"), ("jd", "京东"), ("amazon", "亚马逊")):
+            client.post("/api/v1/sales-channels", headers=admin, json={
+                "channel_code": code, "name": name, "channel_kind": "marketplace"})
 
         def key_holding(*permissions: str) -> dict:
             seq["n"] += 1

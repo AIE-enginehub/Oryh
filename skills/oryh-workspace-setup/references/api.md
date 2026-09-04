@@ -20,7 +20,7 @@ Report shape, per area:
                        "capabilities_reaching_nobody": ["leave.submit_own"]}, "next": "..."},
     "master_data":   {"status": "ready", "facts": {"products": 120, "product_categories": 9,
                        "customers": 40, "customer_contacts": 12, "customer_products": 5,
-                       "vendors": 8, "stores": 2, "facilities": 3,
+                       "vendors": 8, "sales_channels": 2, "stores": 2, "facilities": 3,
                        "custom_type_options": 2}, "next": "..."},
     "expense_claim": {"status": "partial",                    // one area per document family,
                       "facts": {"filing_capability": "expense.submit_own",   // derived from the registry
@@ -39,7 +39,7 @@ Report shape, per area:
                                 "staffed_by": {"roles": [], "active_users": 0},  // the cashier
                                 "fin_accounts": 0, "register_rows": 0}, "next": "grant fin_account.manage ..."},
     "ecommerce":     {"status": "untouched", "optional": true,
-                      "facts": {"online_stores": 0, "channel_product_maps": 0,
+                      "facts": {"sales_channels": 0, "online_stores": 0, "channel_product_maps": 0,
                                 "external_document_links": 0}}
   }
 }

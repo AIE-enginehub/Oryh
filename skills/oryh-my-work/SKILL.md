@@ -23,6 +23,28 @@ oryh:
   api_key: "{{ORYH_API_KEY}}"          # the principal's user-bound key
 ```
 
+## One Question, One Call
+
+Most of the time the person is not asking for a check-in. "My todos" /
+"what do I have to do" / "anything overdue" is ONE read, answered as a
+list, and the turn ends:
+
+```text
+GET /todos?employee_id={me}&status=open&include=target
+```
+
+One line per todo — title, what it points at (`target.title`, its status),
+due date — most overdue first, then due today, then the rest. Nothing else:
+no approval trails, no in-flight submissions, no deals, no skill-version
+check, no "I noticed". Ten todos are ten lines; zero is one line. The
+person who wants more says which item, and only that item gets a second
+read (`/detail`, its trail).
+
+The full check-in below runs only when asked for one — session start on a
+runtime with hooks, "walk me through my day" / "how do things stand" /
+"check-in" — never as
+the answer to a question that named one thing.
+
 ## The Check-in
 
 {{include:_common/answer-the-question.md}}
@@ -112,6 +134,10 @@ is empty, say so in one line.
 If the principal confirms an item is done (non-approval todos like follow-ups), complete it: `PATCH /todos/{todo_id}` with `{"status": "completed"}`. For approval todos, hand over to `$oryh-approve` instead — approving has its own contract, whatever the document type.
 
 ## What This Skill Never Does
+
+- Turn "my todos" into an investigation: no document behind a todo is
+  opened, no trail is read, no finding is reported, unless the person points
+  at that item or asked for the check-in.
 
 - Submit or modify timesheets, expense claims, purchase requests, quotations, or orders (that is `$oryh-timesheet-submit` / `$oryh-expense-submit` / `$oryh-purchase-submit` / `$oryh-quotation-submit` / `$oryh-order-submit`).
 - Record approval facts (that is the `*-approve` skills).

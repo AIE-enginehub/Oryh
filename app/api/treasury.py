@@ -25,7 +25,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
     archive_row,
@@ -36,6 +36,7 @@ from app.api.common import (
     requested_pagination,
     require_active_row,
     require_entity_uuid,
+    status_scope,
 )
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
@@ -57,6 +58,11 @@ from app.services.treasury import post_fin_account_trans
 from app.services.type_options import require_type_option
 
 router = APIRouter()
+
+
+# register rows that explain themselves by type: nothing of ours will ever
+# link to them, so the reconciliation queue never shows them
+SELF_EXPLAINING_TYPES = ("opening", "fee", "interest", "adjustment", "transfer_in", "transfer_out")
 
 
 def _require_treasury(actor: Actor) -> None:
@@ -91,6 +97,50 @@ def _require_link_coherence(
                 f"not {amount}"
             ),
         )
+
+
+def _require_batch_coherence(
+    db: Session, tenant_id: str, reference_no: str, amount: float
+) -> tuple[int, float]:
+    """One bank line settling a BATCH: every live payment sharing this
+    reference_no must move money the way the line does, and they must sum
+    to the line exactly — a payroll run or a payment run leaves the bank as
+    one debit of the batch total, and the bank's own charge for it is a
+    separate `fee` line. A mismatch is a person's question: the refusal
+    names the count, the sum and the difference."""
+    members = db.scalars(
+        select(Payment).where(
+            Payment.tenant_id == tenant_id,
+            Payment.reference_no == reference_no,
+            Payment.deleted_at.is_(None),
+        )
+    ).all()
+    if not members:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"no payments share reference_no {reference_no!r} — a batch link names the payments' own batch number",
+        )
+    wanted = -1 if members[0].direction == "outbound" else 1
+    if any((-1 if m.direction == "outbound" else 1) != wanted for m in members) or amount * wanted <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"the {len(members)} payments under {reference_no!r} must all move money "
+                f"the way this line does ({'out' if amount < 0 else 'in'})"
+            ),
+        )
+    total = round(sum(float(m.amount) for m in members), 2)
+    if abs(total - abs(amount)) > 0.005:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{len(members)} payments under {reference_no!r} sum to {total}, this line is "
+                f"{abs(amount)} — a difference of {round(abs(amount) - total, 2)}. A batch settles "
+                "exactly; a bank charge is its own `fee` line, a bounced member is voided and "
+                "reissued, never absorbed here"
+            ),
+        )
+    return len(members), total
 
 
 POSITIVE_TYPES = frozenset({"deposit", "interest", "transfer_in"})
@@ -132,7 +182,7 @@ def list_fin_accounts(
         select(FinAccount).where(FinAccount.tenant_id == actor.tenant_id),
         filters={
             FinAccount.account_type: account_type,
-            FinAccount.status: status_filter,
+            FinAccount.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(FinAccount.name, FinAccount.institution, FinAccount.account_number),
@@ -244,6 +294,7 @@ def list_fin_account_transactions(
     payment_id: str | None = None,
     reference_no: str | None = None,
     unlinked: bool = False,
+    include_archived_accounts: bool = False,
     date_from: Annotated[date | None, Query()] = None,
     date_to: Annotated[date | None, Query()] = None,
     keyword: str | None = None,
@@ -251,12 +302,28 @@ def list_fin_account_transactions(
     size: Annotated[int | None, Query(ge=1, le=200)] = None,
 ):
     _require_treasury(actor)
-    stmt = select(FinAccountTrans).where(FinAccountTrans.tenant_id == actor.tenant_id)
+    stmt = (
+        select(FinAccountTrans)
+        .options(selectinload(FinAccountTrans.account))
+        .where(FinAccountTrans.tenant_id == actor.tenant_id)
+    )
+    if fin_account_id is None and not include_archived_accounts:
+        # an archived account's register is history: it answers only when
+        # that account is named, or when history is asked for explicitly —
+        # never inside "show me this month's lines" or the reconciliation queue
+        stmt = stmt.where(FinAccountTrans.account.has(FinAccount.status == "active"))
     if unlinked:
         # the reconciliation queue, derived: no payment, no entity — nothing
-        # of ours yet explains this bank fact
+        # of ours yet explains this bank fact. Rows whose TYPE is the
+        # explanation stay out of it: a bank fee, interest, the opening, an
+        # adjustment or a transfer between our own accounts is a fact about
+        # the account, not a payment waiting to be found — there is no
+        # document, and the bank is not a counterparty we pay.
         stmt = stmt.where(
-            FinAccountTrans.payment_id.is_(None), FinAccountTrans.entity_id.is_(None)
+            FinAccountTrans.payment_id.is_(None),
+            FinAccountTrans.payment_reference_no.is_(None),
+            FinAccountTrans.entity_id.is_(None),
+            FinAccountTrans.trans_type.not_in(SELF_EXPLAINING_TYPES),
         )
     if date_from is not None:
         stmt = stmt.where(FinAccountTrans.trans_date >= date_from)
@@ -373,11 +440,25 @@ def link_fin_account_trans(
         require_entity_uuid(updates["entity_id"])
     if "payment_id" in updates and updates["payment_id"] is not None:
         _require_link_coherence(db, actor.tenant_id, updates["payment_id"], float(trans.amount))
+    settled = None
+    if updates.get("payment_reference_no") is not None:
+        settled = _require_batch_coherence(
+            db, actor.tenant_id, updates["payment_reference_no"], float(trans.amount)
+        )
+    if (updates.get("payment_id", trans.payment_id) is not None
+            and updates.get("payment_reference_no", trans.payment_reference_no) is not None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="a line settles one payment or one batch, not both — clear the other link first",
+        )
     for field, value in updates.items():
         setattr(trans, field, value)
     db.commit()
     db.refresh(trans)
-    return envelope(FinAccountTransRead.model_validate(trans).model_dump(by_alias=True))
+    data = FinAccountTransRead.model_validate(trans).model_dump(by_alias=True)
+    if settled is not None:
+        data["payments_settled"], data["payments_total"] = settled
+    return envelope(data)
 
 
 @router.post("/fin-account-transactions/bulk")

@@ -124,3 +124,20 @@ through it — leaving every document FK and every agent-visible field alone. Th
 uuid-primary-key convention is not an obstacle either way (OFBiz's shared-PK
 one-to-one maps onto it directly); the migration surface is, which is precisely
 why it should be paid for by a feature that needs it.
+
+## What hangs off the customer today
+
+Three things grew beside the table since this was written, none of them a
+reason to revisit Party:
+
+- **The rolodex** — `customer_contacts`: the people at a B2B customer, one row
+  each, one primary per customer (setting a new one demotes the old in the
+  same write), phone unique per customer. Documents keep their free-text
+  contact snapshot; the rolodex is what an agent consults when writing one.
+- **Price agreements** — `customer_products`: the customer's own item code and
+  agreed price per product, the sell-side mirror of `supplier_products`. One
+  row per (product, customer); a lapsed agreement revives rather than forks.
+- **The pipeline's bridge** — `POST /leads/{id}/convert` creates the customer
+  from a lead, carries the lead's person into the rolodex, and optionally
+  opens the opportunity, in one transaction. A salesperson's `crm.own` does
+  not carry master-data authority; the promotion is what the bridge means.

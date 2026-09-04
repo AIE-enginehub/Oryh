@@ -9,6 +9,10 @@ Use with:
 
 ## Reads
 
+Every list here answers with ACTIVE rows by default; `status=archived` asks
+for the history, `status=all` for both. An archived row is never a quieter
+kind of live row.
+
 ```text
 GET /auth/me                                  → permissions; confirm master_data.manage
 GET /products?keyword=&status=active&size=200 → what the catalog already holds
@@ -63,8 +67,14 @@ GET    /facilities?facility_type=&status=&keyword=
 POST   /facilities               → {name, facility_type, facility_code?, address?}; type from the facility_type vocabulary; duplicate active name → 409
 PATCH  /facilities/{facility_id} · DELETE → archive (frees the name)
 
-GET    /stores?channel=&source=&status=&keyword=
-POST   /stores                   → {name, channel: offline|online, source?, store_code?, address?}
+GET    /sales-channels?channel_kind=&status=&keyword=
+POST   /sales-channels           → {channel_code, name, channel_kind, remarks?}; code lowercased and
+                                   immutable; same code again → 409 naming the row (revive it)
+PATCH  /sales-channels/{id} · DELETE → archive; stores and maps keep their pointer
+GET    /stores?channel=&source=&status=&keyword=   → source= lists every store under that channel
+POST   /stores                   → {name, channel: offline|online, sales_channel_id? | source?, store_code?, address?}
+                                   an unregistered source → 422 "register it first"; reads carry
+                                   sales_channel_id, sales_channel_name and source (the code)
 GET    /stores/{store_id}        → includes fulfilment_facilities, preferred first
 PATCH  /stores/{store_id} · DELETE → archive; orders keep their pointer
 
@@ -300,7 +310,7 @@ PATCH /type-options/{type_option_id}               → retitle/describe an exist
 
 Families: `product_price_type` · `sales_adjustment_type` (quotation AND order
 adjustments) · `expense_category` · `work_type` · `customer_type` ·
-`product_image_type` · `facility_type`. `name` is lowercase
+`product_image_type` · `facility_type` · `sales_channel_kind`. `name` is lowercase
 `[a-z][a-z0-9_]*`; colliding with a shipped value is a 409; `DELETE` archives
 a type (existing records keep their value, new writes stop accepting it).
 
@@ -400,8 +410,8 @@ POST /external-product-maps
 ```
 
 - `source` is the platform, lowercased by the server — "Tmall" and "tmall"
-  must not split the mapping space. Free text: any system a tenant sells
-  or buys through.
+  must not split the mapping space — and it must be a registered
+  `/sales-channels` code (422 otherwise: register the channel first).
 - `quantity` is the bundle multiplier: one unit of the listing = N of this
   product. A bundle is SEVERAL rows for the same (source, listing), one per
   component. A wrong pairing is deleted and re-created — identity fields

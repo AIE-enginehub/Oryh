@@ -29,6 +29,10 @@ Both are resolved the same way: **ask the person**. They have the file open.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/archived-is-history.md}}
+
+{{include:_common/custom-object-is-never-silent.md}}
+
 ## The Code Is The Identity
 
 Every row needs the tenant's own code — `product_code`, `vendor_code`, or
@@ -311,6 +315,30 @@ however the factory writes it) and lines of component + quantity +
   buy is the person's decision — say the gap, then hand off to
   $oryh-purchase-submit; oryh stores no plan.
 
+## Sales Channels: The Keys Orders Arrive Under
+
+`/sales-channels` is the registry of where the company sells: Tmall, JD,
+Amazon, a mini-program, the offline network — one row each, and the row's
+`channel_code` IS the `source` key that stores, the external product map
+and document links carry. Register the channel FIRST; a store or a map row
+naming a code nobody registered is refused with its fix ("register it
+first"), never invented, so one misspelt "Tmall" cannot split a channel
+in two.
+
+- **The code is the identity** (lowercase, immutable): an archived channel
+  with the same code REVIVES (PATCH status active), never forks. `name` is
+  unique among active channels; `channel_kind` is the tenant's
+  `sales_channel_kind` vocabulary (marketplace / own_site / live_stream /
+  offline / wholesale / other).
+- **One channel, many stores.** Two Amazon stores are two `/stores` rows
+  under one channel; `GET /stores?source=amazon` lists them together, and
+  which store an export belongs to is the shop name or account on the
+  export — the order desk asks when it cannot tell.
+- **Channel facts live on the channel**: commission rate, settlement
+  cycle, the platform account — in `metadata` until they earn a column.
+  Nothing here routes or switches; a channel is a fact about the
+  business, not a setting.
+
 ## Stores And Facilities: Where You Sell, Where You Ship From
 
 `/stores` are selling fronts (`channel`: offline door or online storefront)
@@ -321,9 +349,10 @@ desk's to curate.
 - **The facility NAME is a join key.** The stock ledger and freight legs
   carry facility as free text — register the facility FIRST and use its
   exact name there, which is why two live facilities cannot share one.
-- **An online store's `source` is the channel key** external orders arrive
-  under (tmall/jd/…, lowercased) — the same key the external product map
-  uses, so "which store did this order belong to" is answerable.
+- **A store hangs under a channel**: `sales_channel_id`, or the channel's
+  code as `source` (tmall/jd/…, lowercased) — the same key the external
+  product map uses, so "which store did this order belong to" is
+  answerable. The code must already be registered under `/sales-channels`.
 - **Fulfilment is a standing answer, not a router.** `/store-facilities`
   rows say which facilities MAY ship for a store (priority ranks them, one
   row per pair, archived pairs revive); which facility a given order

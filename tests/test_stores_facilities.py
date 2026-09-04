@@ -25,6 +25,8 @@ def town():
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
         member = invite_member(client, admin, "nobody", [])
+        client.post("/api/v1/sales-channels", headers=admin, json={
+            "channel_code": "tmall", "name": "天猫", "channel_kind": "marketplace"})
 
         yield {"client": client, "admin": admin, "member": member}
 

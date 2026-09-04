@@ -45,6 +45,7 @@ from app.api.common import (
     require_entity_uuid,
     require_master_data_manage,
     serve_document_attachment,
+    status_scope,
 )
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -61,6 +62,7 @@ from app.models import (
     InventoryItem,
     InventoryItemDetail,
     PurchaseOrder,
+    SalesChannel,
     Store,
     StoreFacility,
     SalesOrder,
@@ -155,16 +157,21 @@ from app.schemas import (
     UpdateInventoryItemRequest,
     UpdateProductPriceRequest,
     CreateStoreFacilityRequest,
+    CreateSalesChannelRequest,
     CreateStoreRequest,
     StoreEnvelope,
     StoreFacilityEnvelope,
     StoreFacilityListEnvelope,
     StoreFacilityRead,
+    SalesChannelEnvelope,
+    SalesChannelListEnvelope,
+    SalesChannelRead,
     StoreListEnvelope,
     StoreRead,
     UpdateFacilityRequest,
     UpdateProductCategoryRequest,
     UpdateStoreFacilityRequest,
+    UpdateSalesChannelRequest,
     UpdateStoreRequest,
     UpdateProductRequest,
     UpdateProductSkuRequest,
@@ -344,7 +351,7 @@ def list_vendors(
 ):
     return list_rows(
         db, select(Vendor).where(Vendor.tenant_id == tenant_id),
-        filters={Vendor.tax_id: tax_id, Vendor.status: status_filter},
+        filters={Vendor.tax_id: tax_id, Vendor.status: status_scope(status_filter)},
         keyword=keyword,
         keyword_columns=(Vendor.name,),
         order_by=(Vendor.created_at.desc(), Vendor.id.desc()),
@@ -447,7 +454,7 @@ def list_customers(
             Customer.phone: phone,
             Customer.customer_kind: customer_kind,
             Customer.customer_type: customer_type,
-            Customer.status: status_filter,
+            Customer.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(Customer.name,),
@@ -552,7 +559,7 @@ def list_facilities(
 ):
     return list_rows(
         db, select(Facility).where(Facility.tenant_id == tenant_id),
-        filters={Facility.facility_type: facility_type, Facility.status: status_filter},
+        filters={Facility.facility_type: facility_type, Facility.status: status_scope(status_filter)},
         keyword=keyword,
         keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
         order_by=(Facility.name.asc(), Facility.id.asc()),
@@ -639,6 +646,146 @@ def delete_facility(
     return archive_row(db, actor, Facility, facility_id)
 
 
+# --- sales channels: the keys orders arrive under, as master data ----------
+
+
+def require_sales_channel(db: Session, tenant_id: str, *, source: str | None = None,
+                          channel_id: str | None = None) -> SalesChannel | None:
+    """The channel a store or a map row names, by id or by its code. An
+    unregistered code is the row's error to take back to the person —
+    never a channel to invent — and an archived one names its fix."""
+    if channel_id is not None:
+        return require_active_row(db, SalesChannel, tenant_id, channel_id, "sales channel")
+    if source is None:
+        return None
+    channel = db.scalar(select(SalesChannel).where(
+        SalesChannel.tenant_id == tenant_id, SalesChannel.channel_code == source,
+    ))
+    if channel is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"no sales channel with code {source!r} — register it first "
+                "(POST /sales-channels), never invent one"
+            ),
+        )
+    return require_active_row(db, SalesChannel, tenant_id, channel.id, "sales channel")
+
+
+def _resolve_store_channel(db: Session, tenant_id: str, fields: dict) -> None:
+    """A store names its channel by `sales_channel_id` or by `source`; both
+    collapse to the FK before the row is written."""
+    source = fields.pop("source", None)
+    if "sales_channel_id" in fields or source is not None:
+        channel = require_sales_channel(
+            db, tenant_id, source=source, channel_id=fields.get("sales_channel_id"),
+        )
+        fields["sales_channel_id"] = channel.id if channel is not None else None
+
+
+@router.get("/sales-channels", response_model=SalesChannelListEnvelope,
+            response_model_exclude_unset=True)
+def list_sales_channels(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+    channel_kind: str | None = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return list_rows(
+        db, select(SalesChannel).where(SalesChannel.tenant_id == tenant_id),
+        filters={SalesChannel.channel_kind: channel_kind, SalesChannel.status: status_scope(status_filter)},
+        keyword=keyword,
+        keyword_columns=(SalesChannel.channel_code, SalesChannel.name),
+        order_by=(SalesChannel.channel_code.asc(), SalesChannel.id.asc()),
+        pagination=page_only_pagination(page, size),
+        read_model=SalesChannelRead,
+    )
+
+
+@router.post("/sales-channels", response_model=SalesChannelEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_sales_channel(
+    payload: CreateSalesChannelRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    require_type_option(db, tenant_id, "sales_channel_kind", payload.channel_kind)
+    existing = db.scalar(select(SalesChannel).where(
+        SalesChannel.tenant_id == tenant_id, SalesChannel.channel_code == payload.channel_code,
+    ))
+    if existing is not None:
+        # the code is the key three tables join on: a lapsed channel and a
+        # new one with the same code are the same channel, so it revives
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"sales channel {existing.id} already carries code {payload.channel_code!r} "
+                f"({existing.status}) — PATCH it; an archived channel revives by setting status active"
+            ),
+        )
+    channel = SalesChannel(
+        tenant_id=tenant_id,
+        channel_code=payload.channel_code,
+        name=payload.name,
+        channel_kind=payload.channel_kind,
+        remarks=payload.remarks,
+        status=payload.status,
+        metadata_jsonb=payload.metadata,
+    )
+    db.add(channel)
+    commit_or_conflict(db, f"an active sales channel named {payload.name!r} already exists")
+    db.refresh(channel)
+    return envelope(SalesChannelRead.model_validate(channel).model_dump(by_alias=True))
+
+
+@router.get("/sales-channels/{channel_id}", response_model=SalesChannelEnvelope,
+            response_model_exclude_unset=True)
+def get_sales_channel(
+    channel_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    channel = get_scoped_or_404(db, SalesChannel, tenant_id, channel_id)
+    return envelope(SalesChannelRead.model_validate(channel).model_dump(by_alias=True))
+
+
+@router.patch("/sales-channels/{channel_id}", response_model=SalesChannelEnvelope,
+              response_model_exclude_unset=True)
+def update_sales_channel(
+    channel_id: str,
+    payload: UpdateSalesChannelRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    channel = get_scoped_or_404(db, SalesChannel, tenant_id, channel_id)
+    updates = payload.model_dump(exclude_unset=True)
+    if "channel_kind" in updates:
+        require_type_option(db, tenant_id, "sales_channel_kind", updates["channel_kind"])
+    if "metadata" in updates:
+        channel.metadata_jsonb = updates.pop("metadata")
+    for field, value in updates.items():
+        setattr(channel, field, value)
+    commit_or_conflict(db, "an active sales channel with this name already exists")
+    db.refresh(channel)
+    return envelope(SalesChannelRead.model_validate(channel).model_dump(by_alias=True))
+
+
+@router.delete("/sales-channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_sales_channel(
+    channel_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return archive_row(db, actor, SalesChannel, channel_id)
+
+
 @router.get("/stores", response_model=StoreListEnvelope, response_model_exclude_unset=True)
 def list_stores(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
@@ -650,13 +797,12 @@ def list_stores(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 100,
 ):
+    stmt = select(Store).options(selectinload(Store.sales_channel)).where(Store.tenant_id == tenant_id)
+    if source:
+        stmt = stmt.where(Store.sales_channel.has(SalesChannel.channel_code == source.strip().lower()))
     return list_rows(
-        db, select(Store).where(Store.tenant_id == tenant_id),
-        filters={
-            Store.channel: channel,
-            Store.source: source.strip().lower() if source else None,
-            Store.status: status_filter,
-        },
+        db, stmt,
+        filters={Store.channel: channel, Store.status: status_scope(status_filter)},
         keyword=keyword,
         keyword_columns=(Store.name, Store.store_code, Store.address),
         order_by=(Store.name.asc(), Store.id.asc()),
@@ -675,12 +821,14 @@ def create_store(
     require_master_data_manage(actor)
     tenant_id = actor.tenant_id
     ensure_code_available(db, Store, tenant_id, "store_code", payload.store_code)
+    channel_fields = {"sales_channel_id": payload.sales_channel_id, "source": payload.source}
+    _resolve_store_channel(db, tenant_id, channel_fields)
     store = Store(
         tenant_id=tenant_id,
         store_code=payload.store_code,
         name=payload.name,
         channel=payload.channel,
-        source=payload.source,
+        sales_channel_id=channel_fields["sales_channel_id"],
         address=payload.address,
         remarks=payload.remarks,
         status=payload.status,
@@ -727,6 +875,7 @@ def update_store(
     require_master_data_manage(actor)
     store = get_scoped_or_404(db, Store, actor.tenant_id, store_id)
     updates = payload.model_dump(exclude_unset=True)
+    _resolve_store_channel(db, actor.tenant_id, updates)
     if "store_code" in updates:
         ensure_code_available(
             db, Store, actor.tenant_id, "store_code", updates["store_code"],
@@ -766,7 +915,7 @@ def list_store_facilities(
         filters={
             StoreFacility.store_id: store_id,
             StoreFacility.facility_id: facility_id,
-            StoreFacility.status: status_filter,
+            StoreFacility.status: status_scope(status_filter),
         },
         # preferred shippers first; unranked trail in arrival order
         order_by=(
@@ -1091,7 +1240,7 @@ def list_bills_of_materials(
         select(BillOfMaterials)
         .options(selectinload(BillOfMaterials.product))
         .where(BillOfMaterials.tenant_id == tenant_id),
-        filters={BillOfMaterials.product_id: product_id, BillOfMaterials.status: status_filter},
+        filters={BillOfMaterials.product_id: product_id, BillOfMaterials.status: status_scope(status_filter)},
         keyword=keyword,
         keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
         order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
@@ -1458,7 +1607,7 @@ def list_product_categories(
         db, stmt,
         filters={
             ProductCategory.parent_id: parent_id,
-            ProductCategory.status: status_filter,
+            ProductCategory.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(ProductCategory.name, ProductCategory.category_code),
@@ -1569,7 +1718,7 @@ def list_products(
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
         filters={
-            Product.status: status_filter,
+            Product.status: status_scope(status_filter),
             Product.category_id: category_id,
             Product.product_type: product_type,
         },
@@ -1889,7 +2038,7 @@ def list_product_skus(
         filters={
             ProductSku.product_id: product_id,
             ProductSku.sku_code: sku_code,
-            ProductSku.status: status_filter,
+            ProductSku.status: status_scope(status_filter),
         },
         order_by=(ProductSku.created_at.asc(), ProductSku.sku_code.asc(), ProductSku.id.asc()),
         pagination=page_only_pagination(page, size),
@@ -2029,7 +2178,7 @@ def list_product_prices(
             ProductPrice.sku_id: sku_id,
             ProductPrice.price_type: price_type,
             ProductPrice.currency: currency,
-            ProductPrice.status: status_filter,
+            ProductPrice.status: status_scope(status_filter),
         },
         # newest first: the live price and its history read top-down
         order_by=(ProductPrice.created_at.desc(), ProductPrice.id.desc()),
@@ -2155,7 +2304,7 @@ def list_supplier_products(
         filters={
             SupplierProduct.product_id: product_id,
             SupplierProduct.vendor_id: vendor_id,
-            SupplierProduct.status: status_filter,
+            SupplierProduct.status: status_scope(status_filter),
         },
         # preferred sources first; unranked trail in arrival order
         order_by=(
@@ -2274,7 +2423,7 @@ def list_customer_products(
             CustomerProduct.product_id: product_id,
             CustomerProduct.customer_id: customer_id,
             CustomerProduct.customer_product_code: customer_product_code,
-            CustomerProduct.status: status_filter,
+            CustomerProduct.status: status_scope(status_filter),
         },
         order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
         pagination=page_only_pagination(page, size),
@@ -2385,7 +2534,7 @@ def list_customer_contacts(
         filters={
             CustomerContact.customer_id: customer_id,
             CustomerContact.phone: phone,
-            CustomerContact.status: status_filter,
+            CustomerContact.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(
@@ -2559,7 +2708,7 @@ def list_external_product_maps(
                 external_sku_id.strip() if external_sku_id is not None else None
             ),
             ExternalProductMap.product_id: product_id,
-            ExternalProductMap.status: status_filter,
+            ExternalProductMap.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(ExternalProductMap.external_name, ExternalProductMap.external_product_id),
@@ -2587,6 +2736,7 @@ def create_external_product_map(
 ):
     require_map_curation(actor)
     tenant_id = actor.tenant_id
+    require_sales_channel(db, tenant_id, source=payload.source)
     get_scoped_or_404(db, Product, tenant_id, payload.product_id)
     if payload.sku_id is not None:
         sku = get_scoped_or_404(db, ProductSku, tenant_id, payload.sku_id)
@@ -2769,7 +2919,7 @@ def list_inventory_items(
         filters={
             InventoryItem.product_id: product_id,
             InventoryItem.sku_id: sku_id,
-            InventoryItem.status: status_filter,
+            InventoryItem.status: status_scope(status_filter),
         },
         order_by=(InventoryItem.created_at.desc(), InventoryItem.id.desc()),
         pagination=page_only_pagination(page, size),
@@ -2917,11 +3067,22 @@ def list_inventory_item_details(
     entity_id: str | None = None,
     sales_order_id: str | None = None,
     purchase_order_id: str | None = None,
+    include_archived_items: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
+    stmt = (
+        select(InventoryItemDetail)
+        .options(selectinload(InventoryItemDetail.item))
+        .where(InventoryItemDetail.tenant_id == tenant_id)
+    )
+    if inventory_item_id is None and not include_archived_items:
+        # an archived position's movements are history — answered when the
+        # position is named or history is asked for, never inside "what
+        # moved this week"
+        stmt = stmt.where(InventoryItemDetail.item.has(InventoryItem.status == "active"))
     return list_rows(
-        db, select(InventoryItemDetail).where(InventoryItemDetail.tenant_id == tenant_id),
+        db, stmt,
         filters={
             InventoryItemDetail.inventory_item_id: inventory_item_id,
             InventoryItemDetail.reason: reason,

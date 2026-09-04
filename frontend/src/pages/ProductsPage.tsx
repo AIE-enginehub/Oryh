@@ -222,7 +222,7 @@ export function ProductsPage() {
 
   const products = useQuery({
     queryKey: ["master-data", "products", { keyword, status, page }],
-    queryFn: () => listProducts({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || undefined }),
+    queryFn: () => listProducts({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || "all" }),
     placeholderData: keepPreviousData,
   });
 
@@ -233,7 +233,7 @@ export function ProductsPage() {
       page: skuPage,
       size: PAGE_SIZE,
       sku_code: skuCode || undefined,
-      status: skuStatus || undefined,
+      status: skuStatus || "all",
     }),
     enabled: selectedProduct !== null,
   });

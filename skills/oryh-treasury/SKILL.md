@@ -43,6 +43,8 @@ oryh:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/archived-is-history.md}}
+
 {{include:_common/read-before-you-decide.md}}
 
 1. **Accounts**: one row per place money sits — a bank account, the cash
@@ -77,7 +79,14 @@ oryh:
    `custom_fields`; the platform's line id is still `reference_no`.
 4. **Hand entries**: fees, interest, cash drawer movements — one POST each,
    type stated (`fee`, `interest`, `adjustment`, `refund`); omitted type
-   derives from the sign (in = deposit, out = withdrawal). Signs are held by
+   derives from the sign (in = deposit, out = withdrawal). **A bank charge
+   is a register fact, not a payment**: no payment document, no vendor row
+   for the bank — the `fee` type IS the explanation, and such rows never
+   enter the reconciliation queue. A charge the bank nets out of a receipt
+   (the customer paid 10,000, 9,985 arrived) is NOT a separate row: put
+   `gross_amount: 10000`, `fee_amount: 15`, `amount: 9985` on that one
+   line and link it to the 10,000 payment — the charge is on the line that
+   carried it. Signs are held by
    the database itself: money in is positive, out is negative.
 5. **Transfers between own accounts** — a payout from the WeChat merchant balance to the bank,
    moving cash between banks, currency conversion: TWO rows, `transfer_out`
@@ -88,9 +97,31 @@ oryh:
    clue.
 6. **Reconciliation, the loop**:
    - `GET /fin-account-transactions?unlinked=true` — bank facts nothing of
-     ours explains yet. For each, find the paid payment it settles (the
-     amount signs must agree; amounts may differ by fees — say the
-     difference out loud) and `PATCH {"payment_id": ...}`.
+     ours explains yet (fees, interest, the opening, adjustments and
+     transfers explain themselves by type and are never listed). For each,
+     find the paid payment it settles (the amount signs must agree; when
+     the bank netted a charge, record it as `fee_amount` on the line and
+     say the difference out loud) and `PATCH {"payment_id": ...}`.
+   - **One debit, many payments** — payroll, a supplier payment run: the
+     payments share a `reference_no` (the bank batch number), and that IS
+     the batch. Link the line to it, not to any one member:
+     `PATCH {"payment_reference_no": "PAYROLL-2026-08"}`. The server
+     accepts only when the members sum to the line exactly; a 422 names
+     the count, the sum and the difference — take it to the person. The
+     bank's charge for the batch is its own `fee` line; a member the bank
+     bounced comes back as its own inbound line linked to THAT payment,
+     which is voided and reissued.
+   - **Finding the batch when nobody names it.** The person says "this one
+     is the salaries" or nothing at all; they do not know a batch number
+     exists. For an outbound line no single payment explains — or any line
+     whose counterparty or description says payroll, disbursement or salaries —
+     read the paid outbound payments (`GET /payments?direction=outbound&status=paid`,
+     page through the period), group them by `reference_no`, sum each group,
+     and the group whose sum equals the line's amount IS the batch. Propose
+     it with its count ("12 salary payments under PAYROLL-2026-08 sum to
+     exactly this debit — link them?"), link on a yes, and say the batch
+     number in the read-back. No group sums to it → say which group came
+     closest and by how much, never link the nearest.
    - Retail platform lines have NO payment document — that is normal, not a
      gap. Their reconciliation is the daily aggregate: sum the day's lines
      against the platform's settlement summary and against order totals;

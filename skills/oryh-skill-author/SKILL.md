@@ -22,6 +22,8 @@ A requirement usually decomposes across several of these. "a discount over 10% n
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/custom-object-is-never-silent.md}}
+
 ## Trigger Examples
 
 - "I want every salesperson's agent to quote by our rules"

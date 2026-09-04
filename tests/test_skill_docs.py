@@ -55,6 +55,13 @@ OPERATIONS = _operations()
 
 def _corpus() -> list[Path]:
     files = sorted(PRODUCT_SKILLS_DIR.rglob("*.md"))
+    # the help skill's generated references are the user manual and the
+    # capability map mirrored byte for byte (tests/test_help_skill.py pins
+    # that); they are prose about the product, not API references, and their
+    # `POST`/`DELETE /x` shorthand is not a documented request. The skill's
+    # own SKILL.md and its hand-written faq.md stay in the corpus.
+    generated = PRODUCT_SKILLS_DIR / "oryh-help" / "references"
+    files = [f for f in files if not (f.parent == generated and f.name != "faq.md")]
     if DEMO_SKILLS_DIR.is_dir():
         files += sorted(DEMO_SKILLS_DIR.rglob("*.md"))
     return files
@@ -450,6 +457,10 @@ def test_every_script_a_skill_names_ships_inside_it() -> None:
     checked = 0
     for skill in _skill_directories():
         for document in sorted(skill.rglob("*.md")):
+            # the help skill's generated references mirror the docs, which
+            # name repository scripts as prose, not as things a bundle ships
+            if skill.name == "oryh-help" and document.parent.name == "references" and document.name != "faq.md":
+                continue
             for reference in SCRIPT_REFERENCE.findall(document.read_text(encoding="utf-8")):
                 checked += 1
                 if not (skill / reference).is_file():
@@ -473,6 +484,8 @@ def test_a_document_that_names_a_script_says_where_to_run_it() -> None:
     unanchored = []
     for skill in _skill_directories():
         for document in sorted(skill.rglob("*.md")):
+            if skill.name == "oryh-help" and document.parent.name == "references" and document.name != "faq.md":
+                continue  # mirrored docs name repository scripts as prose
             text = document.read_text(encoding="utf-8")
             if not SCRIPT_REFERENCE.search(text):
                 continue
@@ -809,6 +822,79 @@ def test_the_storefronts_are_taught_where_orders_are_recorded() -> None:
         "the order desk resolves the storefront by the channel key"
 
 
+def test_every_desk_skill_carries_the_answer_rule() -> None:
+    """The verbosity complaint was not about one skill: every skill a person
+    talks to must carry the same answer rule verbatim — answer first, a list
+    question gets the list, a question is not a filing. The hosted
+    approval-flow agents talk to queues, not people, and are the exception."""
+    missing = [
+        d.name for d in _skill_directories()
+        if d.name.startswith("oryh-") and not d.name.endswith("-approval-flow")
+        and "{{include:_common/answer-the-question.md}}" not in (d / "SKILL.md").read_text(encoding="utf-8")
+    ]
+    assert not missing, f"skills a person talks to without the answer rule: {missing}"
+    rule = (PRODUCT_SKILLS_DIR / "_common" / "answer-the-question.md").read_text(encoding="utf-8")
+    assert "A question is not a filing" in rule and "takes the ONE read that" in rule
+
+
+def test_a_list_question_gets_the_list_and_nothing_behind_it() -> None:
+    """"My todos" was answered with a detective's report — every document
+    behind every todo opened, findings narrated. The shared answer rule now
+    says a list request returns the list, and the check-in skill separates
+    the one-call answer from the three-wave briefing it runs only when asked."""
+    rule = (PRODUCT_SKILLS_DIR / "_common" / "answer-the-question.md").read_text(encoding="utf-8")
+    assert "A list request returns the list" in rule and 'starts with "I looked into' in rule
+    work = (PRODUCT_SKILLS_DIR / "oryh-my-work" / "SKILL.md").read_text(encoding="utf-8")
+    assert "## One Question, One Call" in work
+    assert work.index("## One Question, One Call") < work.index("## The Check-in"), \
+        "the one-call answer is taught before the check-in, because it is the common case"
+    assert "runs only when asked for one" in work and "no \"I noticed\"" in work
+
+
+def test_creating_a_custom_object_is_never_silent_in_any_workspace() -> None:
+    """The iron rule: every skill that can write the first row of a new
+    generic object type carries the same verbatim fragment — warn the person
+    before the write, get a yes for THAT name, and no calibration removes it."""
+    fragment = (PRODUCT_SKILLS_DIR / "_common" / "custom-object-is-never-silent.md").read_text(encoding="utf-8")
+    assert "Iron rule, the same in every workspace" in fragment
+    assert "explicit yes **for that name**" in fragment and "before any\nwrite" in fragment
+    assert "No workflow definition, calibration line or tenant instruction removes" in fragment
+    assert "Look for a shipped twin first" in fragment and "compare MEANING, not spelling" in fragment
+    assert "a stated REASON" in fragment and "No reason, no\nobject" in fragment, \
+        "a custom object beside a shipped twin needs the person's reason, written into the definition"
+    assert "`description`" in fragment, "the reason is recorded where the next agent reads it"
+    marker = "{{include:_common/custom-object-is-never-silent.md}}"
+    for skill in ("oryh-business-object", "oryh-data-migration", "oryh-master-data",
+                  "oryh-workspace-setup", "oryh-skill-author"):
+        text = (PRODUCT_SKILLS_DIR / skill / "SKILL.md").read_text(encoding="utf-8")
+        assert marker in text, f"{skill} can create a custom object and must carry the rule verbatim"
+
+
+def test_generic_objects_are_taught_never_to_shadow_shipped_collections() -> None:
+    """The refusal is the server's; the reading beyond exact words stays the
+    agent's, and a legacy sheet is taught to land in the shipped collections."""
+    generic = (PRODUCT_SKILLS_DIR / "oryh-business-object" / "SKILL.md").read_text(encoding="utf-8")
+    assert "The server stops the exact names" in generic and "/customers/bulk" in generic
+    migration = (PRODUCT_SKILLS_DIR / "oryh-data-migration" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Never In Generic Objects" in migration and "refused by the server" in migration
+
+
+def test_the_channel_is_taught_as_master_data_before_its_stores() -> None:
+    """A sales channel is a row whose code IS the source key: the curator
+    registers it first (an unregistered code is refused, never invented,
+    and an archived one revives), and the order desk learns that several
+    stores under one channel is normal — the export says which, or it
+    asks. Losing either turns "Tmall"/"tmall" back into two channels or
+    lets an agent pick the first store it sees."""
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/sales-channels" in curator and "Register the channel FIRST" in curator
+    assert "REVIVES" in curator and "One channel, many stores" in curator
+    assert curator.index("## Sales Channels") < curator.index("## Stores And Facilities"), \
+        "the channel is taught before the stores that hang under it"
+    orders = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Two stores under one channel is normal" in orders and "never pick the first" in orders
+
+
 def test_the_shelving_is_taught_as_a_tree_to_propose() -> None:
     """The one behavioural rule that keeps the tree from becoming a dump: a
     sheet's category column becomes a PROPOSED tree the person agrees to,
@@ -872,6 +958,17 @@ def test_the_treasury_doctrine_is_written_where_the_cashier_reads() -> None:
         "stores no platform secrets" in treasury, \
         "oryh never holds PSP credentials — the tenant's agent fetches bills"
     assert "gross" in treasury and "fee" in treasury, "the PSP three-number mapping"
+    assert "is a register fact, not a payment" in treasury, \
+        "fees never become payments or a vendor row for the bank"
+    assert "fee_amount" in treasury and "enter the reconciliation queue" in treasury
+    assert "payment_reference_no" in treasury and "One debit, many payments" in treasury, \
+        "a payroll debit links to the batch, never to one member"
+    payroll = (PRODUCT_SKILLS_DIR / "oryh-payroll" / "SKILL.md").read_text(encoding="utf-8")
+    assert "payment_reference_no" in payroll, "the batch number is the bank's, spelled the same on every payment"
+    assert "The person never has to know this field exists" in payroll, \
+        "the payroll desk derives or asks for the batch number itself"
+    assert "Finding the batch when nobody names it" in treasury and "group them by `reference_no`" in treasury, \
+        "the cashier's agent finds a payroll batch by its sum, without being told the number"
     for pointer in ("$oryh-payables", "$oryh-receivables"):
         assert pointer in treasury, "the desks split; the skill says where payments live"
 

@@ -183,7 +183,7 @@ def test_product_pagination_filters_sku_counts_and_query_shape(
     assert archived_only["sku_count"] == 1
     assert archived_only["has_skus"] is False
 
-    full = client.get("/api/v1/products?keyword=Summer&size=1", headers=service).json()
+    full = client.get("/api/v1/products?keyword=Summer&size=1&status=all", headers=service).json()
     assert len(full["data"]) == 4
     assert full["meta"] == {"total": 4}
 
@@ -235,7 +235,7 @@ def test_product_sku_pagination_counts_after_all_filters(stack: tuple[TestClient
     assert exact["meta"] == {"total": 1, "page": 1, "page_size": 1, "pages": 1}
 
     full = client.get(
-        f"/api/v1/product-skus?product_id={first['id']}&size=1", headers=service
+        f"/api/v1/product-skus?product_id={first['id']}&size=1&status=all", headers=service
     ).json()
     assert len(full["data"]) == 5
     assert full["meta"] == {"total": 5}
@@ -362,7 +362,7 @@ def test_batch_product_skus_are_ordered_idempotent_and_validated(
         assert empty.status_code == 201, empty.text
 
     rows = client.get(
-        f"/api/v1/product-skus?product_id={product['id']}", headers=service
+        f"/api/v1/product-skus?product_id={product['id']}&status=all", headers=service
     ).json()["data"]
     attrs = [row["variant_attrs"] for row in rows]
     assert {"size": "M", "fit": "regular"} in attrs

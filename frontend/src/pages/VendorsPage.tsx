@@ -56,7 +56,7 @@ export function VendorsPage() {
 
   const vendors = useQuery({
     queryKey: ["master-data", "vendors", { keyword, status, page }],
-    queryFn: () => listVendors({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || undefined }),
+    queryFn: () => listVendors({ page, size: PAGE_SIZE, keyword: keyword || undefined, status: status || "all" }),
     placeholderData: keepPreviousData,
   });
   const save = useMutation({

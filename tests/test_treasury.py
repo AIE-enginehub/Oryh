@@ -197,6 +197,101 @@ def test_the_reconciliation_link_moves_money_the_same_way(desk) -> None:
     assert inflow["id"] in {r["id"] for r in queue}
 
 
+def test_one_debit_settles_a_batch_of_payments(desk) -> None:
+    """Payroll leaves the bank as one debit for many payments. The line links
+    to the BATCH — the reference_no the payments share — and only when the
+    members sum to it exactly; the refusal names the difference, the batch
+    line leaves the queue, and a line never settles a payment and a batch
+    at once."""
+    client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
+    account = desk["account"]["id"]
+    officer = client.post("/api/v1/employees", json={"name": "出纳"},
+                          headers=admin).json()["data"]["id"]
+    for name, net in (("周", 300.0), ("吴", 200.0), ("郑", 150.0)):
+        person = client.post("/api/v1/employees", json={"name": name},
+                             headers=admin).json()["data"]["id"]
+        r = client.post("/api/v1/payments", headers=admin, json={
+            "direction": "outbound", "employee_id": officer, "payee_employee_id": person,
+            "amount": net, "reference_no": "PAYROLL-2026-08"})
+        assert r.status_code == 201, r.text
+
+    short = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account, "amount": -640.0, "description": "代发工资"}).json()["data"]
+    refused = client.patch(f"/api/v1/fin-account-transactions/{short['id']}",
+                           headers=cashier, json={"payment_reference_no": "PAYROLL-2026-08"})
+    assert refused.status_code == 422 and "difference of -10.0" in refused.json()["detail"], \
+        "a batch settles exactly — the refusal names the gap for a person"
+
+    debit = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account, "amount": -650.0, "description": "代发工资"}).json()["data"]
+    unknown = client.patch(f"/api/v1/fin-account-transactions/{debit['id']}",
+                           headers=cashier, json={"payment_reference_no": "PAYROLL-2026-09"})
+    assert unknown.status_code == 422, "a batch link names a batch that exists"
+    linked = client.patch(f"/api/v1/fin-account-transactions/{debit['id']}",
+                          headers=cashier, json={"payment_reference_no": "PAYROLL-2026-08"})
+    assert linked.status_code == 200, linked.text
+    assert linked.json()["data"]["payments_settled"] == 3
+    assert float(linked.json()["data"]["payments_total"]) == 650.0
+
+    queue = {r["id"] for r in client.get(
+        "/api/v1/fin-account-transactions", params={"unlinked": True, "fin_account_id": account},
+        headers=cashier).json()["data"]}
+    assert debit["id"] not in queue and short["id"] in queue, "the batch line is explained"
+
+    credit = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account, "amount": 650.0}).json()["data"]
+    backwards = client.patch(f"/api/v1/fin-account-transactions/{credit['id']}",
+                             headers=cashier, json={"payment_reference_no": "PAYROLL-2026-08"})
+    assert backwards.status_code == 422, "an outbound batch cannot land as a credit"
+
+    one = client.get("/api/v1/payments", params={"reference_no": "PAYROLL-2026-08"},
+                     headers=admin).json()["data"][0]["id"]
+    both = client.patch(f"/api/v1/fin-account-transactions/{debit['id']}",
+                        headers=cashier, json={"payment_id": one})
+    assert both.status_code == 422, "one payment or one batch, never both"
+
+
+def test_bank_fees_are_register_facts_not_payments(desk) -> None:
+    """A bank charge needs no payment and no vendor: a standalone fee is a
+    `fee` row that explains itself and never sits in the reconciliation
+    queue; a fee the bank nets out of a receipt rides the receipt's own
+    line as gross/fee/net, and that line links to the full payment."""
+    client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
+    account = desk["account"]["id"]
+    for body in ({"amount": -1.5, "trans_type": "fee", "description": "monthly account fee"},
+                 {"amount": 0.8, "trans_type": "interest"},
+                 {"amount": -50.0, "trans_type": "transfer_out", "description": "to the cash box"}):
+        r = client.post("/api/v1/fin-account-transactions", headers=cashier,
+                        json={"fin_account_id": account, **body})
+        assert r.status_code == 201, r.text
+    queue = client.get("/api/v1/fin-account-transactions",
+                       params={"unlinked": True, "fin_account_id": account},
+                       headers=cashier).json()["data"]
+    assert queue == [], "rows whose type is the explanation never wait for a document"
+    assert desk["balance"]() == 1000.0 - 1.5 + 0.8 - 50.0, "they still move the balance"
+
+    emp = client.post("/api/v1/employees", json={"name": "会计"},
+                      headers=admin).json()["data"]["id"]
+    customer = client.post("/api/v1/customers", json={"name": "大客户"},
+                           headers=admin).json()["data"]["id"]
+    payment = client.post("/api/v1/payments", headers=admin, json={
+        "direction": "inbound", "employee_id": emp, "customer_id": customer,
+        "amount": 10000.0}).json()["data"]
+    netted = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
+        "fin_account_id": account, "gross_amount": 10000.0, "fee_amount": 15.0,
+        "amount": 9985.0, "counterparty": "大客户"})
+    assert netted.status_code == 201, netted.text
+    row = netted.json()["data"]
+    assert row["id"] in {r["id"] for r in client.get(
+        "/api/v1/fin-account-transactions", params={"unlinked": True, "fin_account_id": account},
+        headers=cashier).json()["data"]}, "a receipt still waits for its payment"
+    linked = client.patch(f"/api/v1/fin-account-transactions/{row['id']}",
+                          headers=cashier, json={"payment_id": payment["id"]})
+    assert linked.status_code == 200, linked.text
+    assert float(linked.json()["data"]["fee_amount"]) == 15.0, \
+        "the netted charge stays on the receipt's line — no second row, no vendor"
+
+
 def test_a_retail_refund_line_names_the_return_row(desk) -> None:
     client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
     emp = client.post("/api/v1/employees", json={"name": "店长"},
