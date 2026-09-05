@@ -668,7 +668,12 @@ def require_hosted_write_scope(
     for field_name, expected in queue_filter.items():
         if field_name in ignore:
             continue
-        if getattr(row, field_name, None) != expected:
+        actual = getattr(row, field_name, None)
+        # the derived queue filter says `status: [a, b]` when a family has
+        # several landing states; the boundary reads it as membership, the
+        # same way the queue query does (review R10)
+        matches = actual in expected if isinstance(expected, (list, tuple, set, frozenset)) else actual == expected
+        if not matches:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(

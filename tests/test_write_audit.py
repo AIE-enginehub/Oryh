@@ -39,6 +39,9 @@ UNAUDITED: dict[str, str] = {
     "auth.py POST /password-reset-email": "sends mail; the reset itself is audited",
     "auth.py POST /users/{user_id}/password-reset-email": "sends mail; the reset is audited",
     "device.py POST /start": "issues a device code, not a business record",
+    "oauth.py POST /oauth/authorize": "the consent yields a code; the token exchange that mints the key IS audited (oauth.authorized)",
+    "oauth.py POST /oauth/device_authorization": "issues a device code, not a business record",
+    "mcp.py POST /mcp": "a transport: every write it carries runs the REST endpoint, which audits it",
     "auth.py POST /token/refresh": (
         "the rotation IS audited — by the ORM trail, as api_key.updated with both"
         " hashes redacted, and the replay-revocation branch as is_active"

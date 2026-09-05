@@ -318,6 +318,7 @@ def send_invitation_email(*, to: str, tenant_name: str, token: str) -> None:
 
 NOTIFICATION_SUBJECTS = {
     "assigned": "有一项工作需要你处理：{title}",
+    "assigned_many": "有 {count} 项工作需要你处理",
     "returned": "你的单据被退回，请修改后重新提交：{title}",
     "approved": "你的单据已通过：{title}",
     "rejected": "你的单据已被驳回：{title}",
@@ -333,16 +334,24 @@ def send_work_notification(
     detail: str | None,
     actor_name: str | None,
     link: str,
+    items: list[str] | None = None,
 ) -> None:
     """One work event, to the person it concerns.
 
-    `detail` is carried verbatim — for a return it is the approver's own
-    comment, which is the instruction for what to fix. Summarising it would
-    make it a different instruction, so nothing here reformats it.
+    `items` is the list of what one run assigned to this person — one mail per
+    recipient per run, each item on its own line, because the link below goes
+    to their queue and not to any one item. `detail` is carried verbatim — for
+    a return it is the approver's own comment, which is the instruction for
+    what to fix. Summarising it would make it a different instruction, so
+    nothing here reformats it.
     """
     subject = NOTIFICATION_SUBJECTS.get(event, "工作通知：{title}").format(title=title)
     lines = [f"{recipient_name}：", ""]
-    if event == "assigned":
+    if event == "assigned" and items:
+        subject = NOTIFICATION_SUBJECTS["assigned_many"].format(count=len(items))
+        lines.append(f"有 {len(items)} 项工作分配给你：")
+        lines += [f"- {item}" for item in items]
+    elif event == "assigned":
         lines.append(f"有一项工作分配给你：{title}")
     elif event == "returned":
         lines.append(f"你提交的《{title}》被退回，需要修改后重新提交。")

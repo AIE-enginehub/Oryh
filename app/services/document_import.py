@@ -216,6 +216,19 @@ class _References:
             ).all()
             return {getattr(obj, column.key): obj for obj in found}
 
+        # explicit ids are checked the same way codes are: an id that is not
+        # this tenant's is a missing reference, never a silent cross-tenant
+        # pointer (review R06)
+        def by_id(model, ids):
+            if not ids:
+                return set()
+            return set(db.scalars(select(model.id).where(model.tenant_id == tenant_id, model.id.in_(ids))))
+
+        employee_ids = {r.employee_id for r in rows if getattr(r, "employee_id", None)}
+        employee_ids |= {r.payee_employee_id for r in rows if getattr(r, "payee_employee_id", None)}
+        self.employee_ids = by_id(Employee, employee_ids)
+        self.vendor_ids = by_id(Vendor, {r.vendor_id for r in rows if getattr(r, "vendor_id", None)})
+        self.customer_ids = by_id(Customer, {r.customer_id for r in rows if getattr(r, "customer_id", None)})
         self.employees = by_code(Employee, Employee.employee_code, employee_codes)
         self.customers = by_code(Customer, Customer.customer_code, customer_codes)
         self.projects = by_code(Project, Project.project_code, project_codes)
@@ -239,7 +252,10 @@ def _resolve_row(
     missing: list[str] = []
 
     if row.employee_id:
-        resolved["employee_id"] = row.employee_id
+        if row.employee_id in refs.employee_ids:
+            resolved["employee_id"] = row.employee_id
+        else:
+            missing.append(f"employee_id {row.employee_id} (not in this workspace)")
     elif row.employee_code:
         employee = refs.employees.get(row.employee_code.strip())
         if employee is None:
@@ -250,7 +266,10 @@ def _resolve_row(
             resolved["employee_id"] = employee.id
 
     if getattr(row, "vendor_id", None):
-        resolved["vendor_id"] = row.vendor_id
+        if row.vendor_id in refs.vendor_ids:
+            resolved["vendor_id"] = row.vendor_id
+        else:
+            missing.append(f"vendor_id {row.vendor_id} (not in this workspace)")
     elif getattr(row, "vendor_code", None):
         vendor = refs.vendors.get(row.vendor_code.strip())
         if vendor is None:
@@ -265,7 +284,10 @@ def _resolve_row(
                 resolved[field] = vendor.name
 
     if getattr(row, "customer_id", None):
-        resolved["customer_id"] = row.customer_id
+        if row.customer_id in refs.customer_ids:
+            resolved["customer_id"] = row.customer_id
+        else:
+            missing.append(f"customer_id {row.customer_id} (not in this workspace)")
     elif getattr(row, "customer_code", None):
         customer = refs.customers.get(row.customer_code.strip())
         if customer is None:
@@ -403,7 +425,10 @@ def bulk_import_documents(
         if family == "payment":
             # exactly one counterparty, same rule the live endpoint keeps
             if row.payee_employee_id:
-                resolved["payee_employee_id"] = row.payee_employee_id
+                if row.payee_employee_id in refs.employee_ids:
+                    resolved["payee_employee_id"] = row.payee_employee_id
+                else:
+                    missing.append(f"payee_employee_id {row.payee_employee_id} (not in this workspace)")
             elif row.payee_employee_code:
                 payee = refs.employees.get(row.payee_employee_code.strip())
                 if payee is None:
@@ -453,6 +478,17 @@ def bulk_import_documents(
         values.update(resolved)
         values["custom_fields_jsonb"] = row.custom_fields
 
+        if document is not None:
+            frozen = _why_not_rewritable(db, document)
+            if frozen:
+                # the importer follows the same rule every other entrance does:
+                # a settled, posted or issued document is corrected by a
+                # counter-entry, a void or a credit note — never rewritten
+                # under its own number (review R01)
+                results.append({"index": index, "number": number, "outcome": "error",
+                                "id": document.id, "error": frozen})
+                continue
+
         if document is None:
             document = model(tenant_id=tenant_id, **{number_field: number}, **values)
             db.add(document)
@@ -483,6 +519,39 @@ def bulk_import_documents(
         })
 
     return _payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
+
+
+def _why_not_rewritable(db: Session, document) -> str | None:
+    """A historical document may be corrected by re-import — that is what a
+    migration is — right up to the point where something else stands on it.
+    Money applied to or from it, an order written from it, a shipment or a
+    stock posting that names it: from then on the document is the baseline
+    those facts are measured against, and a rewrite would leave them
+    contradicting it. The importer used to skip this and rewrote a
+    fully-settled payment's amount to 1 while its 100 of applications stood
+    (review R01). Corrections past this point are counter-entries, voids and
+    credit notes — the same answer every other entrance gives."""
+    from fastapi import HTTPException
+
+    from app.api.common import ensure_not_consumed_by_an_order
+    from app.models import Shipment
+
+    applied = float(getattr(document, "applied_amount", 0) or 0)
+    if applied > 0:
+        return (
+            f"{applied} is already applied to this document — a settled document is "
+            "corrected by a counter-entry or a void, never rewritten by re-import"
+        )
+    try:
+        ensure_not_consumed_by_an_order(db, document)
+    except HTTPException as exc:
+        return f"{exc.detail} — not rewritable by re-import"
+    order_column = {"SalesOrder": Shipment.sales_order_id, "PurchaseOrder": Shipment.purchase_order_id}.get(type(document).__name__)
+    if order_column is not None and db.scalar(
+        select(Shipment.id).where(order_column == document.id, Shipment.deleted_at.is_(None)).limit(1)
+    ):
+        return "a shipment already names this order — its lines are what the warehouse shipped against; correct by a return or a counter-entry, not by re-import"
+    return None
 
 
 def _replace_children(

@@ -562,7 +562,12 @@ def update_approval_target(
     tenant_id = actor.tenant_id
     approval_target = get_active_approval_target_or_404(db, tenant_id, approval_target_id)
     updates = payload.model_dump(exclude_unset=True)
-    final_type = updates.get("target_type", approval_target.object_type)
+    if updates.get("target_type", approval_target.object_type) != approval_target.object_type:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"target_type is the record's identity and cannot change ({approval_target.object_type!r} stays)",
+        )
+    final_type = approval_target.object_type
     require_permission(actor, "business_object.write", final_type)
     final_payload = updates.get("payload", approval_target.payload_jsonb)
     validate_business_object_payload(db, tenant_id, final_type, final_payload)
@@ -1281,8 +1286,23 @@ def update_business_object(
     tenant_id = actor.tenant_id
     business_object = get_active_business_object_or_404(db, tenant_id, business_object_id)
     updates = payload.model_dump(exclude_unset=True)
-    final_type = updates.get("object_type", business_object.object_type)
-    require_permission(actor, "business_object.write", final_type)
+    if updates.get("object_type", business_object.object_type) != business_object.object_type:
+        # the type is the record's identity and the key its write permission
+        # is scoped by: re-typing a record was a way to edit it under a type
+        # one may write and the original may not (review R07)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"object_type is the record's identity and cannot change ({business_object.object_type!r} stays) — "
+                "record the fact under the right type and archive this one"
+            ),
+        )
+    final_type = business_object.object_type
+    # content and status are two grants: the hosted flow agent holds
+    # `advance` and deliberately not `write`, and a status-only PATCH is
+    # exactly what it sends (review R10). Anything but status needs `write`.
+    if set(updates) - {"status"}:
+        require_permission(actor, "business_object.write", final_type)
     # custom-type subscriptions advance through this PATCH, not
     # common.py's apply_status_change — same wall, same pre-write match
     require_hosted_write_scope(actor, business_object.object_type, business_object)

@@ -30065,9 +30065,16 @@
             "type": "string"
           },
           "title": {
-            "maxLength": 200,
-            "title": "Title",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "todo_id": {
             "anyOf": [
@@ -30079,12 +30086,26 @@
               }
             ],
             "title": "Todo Id"
+          },
+          "todo_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Todo Ids"
           }
         },
         "required": [
           "employee_id",
-          "event",
-          "title"
+          "event"
         ],
         "title": "SendNotificationRequest",
         "type": "object"
@@ -31741,16 +31762,25 @@
       },
       "TenantUpdateFlowSubscriptionRequest": {
         "additionalProperties": false,
-        "description": "What a tenant may change about a service the platform runs for them:\nwhether it runs at all. Everything else is the subscription's terms.",
+        "description": "What a tenant may change about a service the platform runs for them:\nwhether it runs at all, and \"the cause is fixed, try again\" when the runner\nhas parked it. Everything else is the subscription's terms.",
         "properties": {
-          "enabled": {
-            "title": "Enabled",
+          "clear_park": {
+            "default": false,
+            "title": "Clear Park",
             "type": "boolean"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
           }
         },
-        "required": [
-          "enabled"
-        ],
         "title": "TenantUpdateFlowSubscriptionRequest",
         "type": "object"
       },
@@ -63322,7 +63352,7 @@
     },
     "/api/v1/flow-subscriptions/{subscription_id}": {
       "patch": {
-        "description": "The tenant's lever on a service someone else operates: on or off.\n\nTerms — which skill drives, how often, what the queue query is — are the\nsubscription's, and change through the platform. Switching off is immediate\nand needs no one's agreement; switching back on is allowed here because,\nunlike reviving a deactivated credential, it grants no access the tenant has\nnot already got a live hosted key for.",
+        "description": "The tenant's lever on a service someone else operates: on or off, and\n\"try again\" once a parked queue's cause has been dealt with.\n\nTerms — which skill drives, how often, what the queue query is — are the\nsubscription's, and change through the platform. Switching off is immediate\nand needs no one's agreement; switching back on is allowed here because,\nunlike reviving a deactivated credential, it grants no access the tenant has\nnot already got a live hosted key for.",
         "operationId": "update_flow_subscription_api_v1_flow_subscriptions__subscription_id__patch",
         "parameters": [
           {
@@ -68005,7 +68035,7 @@
     },
     "/api/v1/notifications": {
       "post": {
-        "description": "Email one employee about one work event.\n\n202, not 201: nothing is stored, and SMTP acceptance is not delivery. The\nresponse says what was attempted and to whom, so a flow agent can report\n\"told 张三\" or \"李四 has no address on file\" rather than guessing.",
+        "description": "Email one employee about one work event — or about everything one run\nassigned to them, as one message.\n\n202, not 201: nothing is stored, and SMTP acceptance is not delivery. The\nresponse says what was attempted and to whom, so a flow agent can report\n\"told 张三\" or \"李四 has no address on file\" rather than guessing.",
         "operationId": "send_notification_api_v1_notifications_post",
         "parameters": [
           {

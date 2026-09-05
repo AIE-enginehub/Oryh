@@ -37,6 +37,7 @@ from app.api.common import (
     get_scoped_or_404,
     get_tenant_id,
     list_rows,
+    may_read_payroll,
     page_only_pagination,
     requested_pagination,
     require_master_data_manage,
@@ -665,6 +666,32 @@ def require_audit_scope(
         )
 
 
+def _require_audited_record_visible(db: Session, caller: Actor, entity_type: str | None, entity_id: str | None) -> None:
+    """Knowing a record's id is not reading it. The trail of a payslip, a
+    payslip line or a payout carries the same net pay the record does, so
+    the record's own visibility rule answers first (review R05); 404, like
+    the record, so the id confirms nothing."""
+    if entity_id is None or entity_type is None:
+        return
+    from app.api.billing import ensure_invoice_visible, ensure_payment_visible
+    from app.models import Invoice, InvoiceItem, Payment
+
+    if entity_type in ("invoice", "payslip"):
+        row = db.get(Invoice, entity_id)
+        if row is not None and row.tenant_id == caller.tenant_id:
+            ensure_invoice_visible(caller, row)
+    elif entity_type == "invoice_item":
+        line = db.get(InvoiceItem, entity_id)
+        if line is not None and line.tenant_id == caller.tenant_id:
+            ensure_invoice_visible(caller, db.get(Invoice, line.invoice_id))
+    elif entity_type == "payment":
+        row = db.get(Payment, entity_id)
+        if row is not None and row.tenant_id == caller.tenant_id:
+            ensure_payment_visible(db, caller, row)
+    elif entity_type in ("pay_history", "employee_pay") and not may_read_payroll(caller):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
+
+
 @router.get("/audit-logs")
 def list_audit_logs(
     caller: Annotated[Actor, Depends(get_actor)],
@@ -684,6 +711,7 @@ def list_audit_logs(
     asking about — see `require_audit_scope`."""
     require_audit_scope(caller, entity_type=entity_type, entity_id=entity_id, actor=actor)
     tenant_id = caller.tenant_id
+    _require_audited_record_visible(db, caller, entity_type, entity_id)
     limit = max(1, min(limit, 500))
     stmt = select(AuditLog).where(AuditLog.tenant_id == tenant_id)
     if action:
@@ -1093,13 +1121,29 @@ def workspace_setup_report(
     subscriptions = list(db.scalars(
         select(FlowSubscription).where(FlowSubscription.tenant_id == tenant_id)
     ))
+    # a parked subscription is enabled and going nowhere: the runner stopped
+    # after runs that found work and moved nothing, and waits for a person
+    parked = {
+        s.entity_type: s.parked_reason
+        for s in subscriptions if s.enabled and s.parked_at is not None
+    }
     areas["flow_driving"] = {
-        "status": "ready" if any(s.enabled for s in subscriptions) else "untouched",
+        "status": (
+            "partial" if parked
+            else "ready" if any(s.enabled for s in subscriptions)
+            else "untouched"
+        ),
         "facts": {
             "enabled": sorted(s.entity_type for s in subscriptions if s.enabled),
             "disabled": sorted(s.entity_type for s in subscriptions if not s.enabled),
+            "parked": dict(sorted(parked.items())),
         },
-        "next": "subscriptions provision automatically; switch off what your own agents drive",
+        "next": (
+            "parked: " + ", ".join(sorted(parked)) + " — fix the cause (usually the "
+            "workflow definition), then PATCH the subscription with clear_park"
+            if parked
+            else "subscriptions provision automatically; switch off what your own agents drive"
+        ),
     }
 
     # --- treasury: the cash side, split from the accounting desk ------------

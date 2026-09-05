@@ -3,8 +3,8 @@
 >
 > | The definition says | You |
 > |---|---|
-> | notify on assignment (however the tenant phrased it) | run `$approval-notifier` after each todo you create |
-> | notify on return / rejection | run it for that outcome, carrying the approver's comment |
+> | notify on assignment (however the tenant phrased it) | at the END of the run, run `$approval-notifier` **once per person**, passing every todo you created for them in `todo_ids` |
+> | notify on return / rejection | run it for that outcome, one document at a time, carrying the approver's comment |
 > | nothing about notifying | **do not notify** — and say so in your note |
 > | explicitly no notifications | do not notify, and do not raise it again |
 >
@@ -20,6 +20,14 @@
 > `POST /notifications`, which resolves the address from the employee record
 > and assembles the wording. You supply who, which event, the title, and the
 > approver's comment verbatim.
+>
+> **One mail per person per run, and the server writes the list.** Collect the
+> todos you created, group them by assignee, and send one `assigned` call per
+> assignee with all of their `todo_ids`; the server lists each todo's title in
+> the message and links to their queue. Thirteen payslips to one approver is
+> one message that says "13 items", never thirteen — and never one message
+> with the other twelve squeezed into `title`, which loses their trail. A
+> return, rejection or approval is about one document and stays one message.
 >
 > Notifying also needs `notification.send` and `todos.assign`, which ordinary
 > members deliberately do not carry — assigning work is routing, the flow

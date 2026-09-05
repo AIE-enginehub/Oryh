@@ -36,6 +36,7 @@ from app.schemas import (
     TenantUpdateFlowSubscriptionRequest,
 )
 from app.services.audit import record_audit
+from app.services.flow_subscriptions import clear_park
 
 router = APIRouter()
 
@@ -123,7 +124,8 @@ def update_flow_subscription(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """The tenant's lever on a service someone else operates: on or off.
+    """The tenant's lever on a service someone else operates: on or off, and
+    "try again" once a parked queue's cause has been dealt with.
 
     Terms — which skill drives, how often, what the queue query is — are the
     subscription's, and change through the platform. Switching off is immediate
@@ -132,25 +134,29 @@ def update_flow_subscription(
     not already got a live hosted key for."""
     require_permission(actor, "keys.manage")
     subscription = subscription_or_404(db, actor.tenant_id, subscription_id)
-    if subscription.enabled == payload.enabled:
+    toggled = payload.enabled is not None and subscription.enabled != payload.enabled
+    # Un-parking is a deliberate gesture, never a side effect of an unrelated
+    # edit: `clear_park` says it outright, and switching a parked subscription
+    # back on has always meant the same thing ("I fixed it, try again"). Either
+    # is enough; a rule that un-parked on any PATCH would silently resume spending.
+    unparked = subscription.parked_at is not None and (
+        payload.clear_park or (toggled and payload.enabled)
+    )
+    if not toggled and not unparked:
         return envelope(FlowSubscriptionRead.model_validate(subscription).model_dump(by_alias=True))
-    subscription.enabled = payload.enabled
     detail = {"entity_type": subscription.entity_type}
-    if payload.enabled and subscription.parked_at is not None:
-        # Switching a parked subscription back on IS the "I fixed it, try again"
-        # gesture — the cause is nearly always on the tenant's side (a definition
-        # that routes nowhere, an approver with no employee record), so the
-        # person who fixed it is the person who clears the stop. Made explicit
-        # here rather than derived from a timestamp, because a rule that says
-        # "any edit un-parks" would silently resume spending.
+    if unparked:
         detail["cleared_park"] = subscription.parked_reason
-        subscription.parked_at = None
-        subscription.parked_reason = None
-        subscription.unmoved_runs = 0
+        clear_park(subscription)
+    if toggled:
+        subscription.enabled = payload.enabled
+        action = "flow_subscription.enabled" if payload.enabled else "flow_subscription.disabled"
+    else:
+        action = "flow_subscription.unparked"
     record_audit(
         db,
         tenant_id=actor.tenant_id,
-        action="flow_subscription.enabled" if payload.enabled else "flow_subscription.disabled",
+        action=action,
         entity_type="flow_subscription",
         entity_id=subscription.id,
         actor=actor.label,

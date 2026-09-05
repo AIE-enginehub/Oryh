@@ -254,9 +254,18 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
     "quotation.advance",
     "order.advance",
     "invoice.advance",
+    # A payslip is a `direction=payroll` invoice, and the read gate on payroll
+    # hides it from anyone without this. Without it the hosted agent's invoice
+    # queue silently omitted every payslip — thirteen sat in `submitted` for a
+    # day in one workspace while the run log read "queue 0". The product
+    # decision (2026-09-05): the hosted agent drives payslips like any other
+    # invoice, and therefore reads pay. That is the whole cost, stated plainly.
+    "payroll.read",
     "payment.advance",
-    # the hosted agent runs the points-expiry sweep, which is a ledger write
-    "billing_account.post:*",
+    # the hosted agent runs the points-expiry sweep, which is a ledger write —
+    # on POINTS accounts only. A `:*` here once let a hosted key with no
+    # subscription at all deposit money on a currency account (review R04).
+    "billing_account.post:points",
     "business_object.advance:*",
     "approval.record",
     "todos.assign",

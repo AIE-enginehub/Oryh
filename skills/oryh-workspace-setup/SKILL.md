@@ -96,7 +96,15 @@ oryh:
       `POST /workflow-definitions` with plain natural-language
       `definition_text` ("expenses: direct manager approves; above 5000 add finance"). This is the map
       every flow agent reads; a family without one stalls at "todo for the
-      admin".
+      admin". A family whose map routes nowhere stalls differently: the
+      runner **parks** its subscription after a few runs that found work
+      and moved nothing, and the report lists it under
+      `flow_driving.facts.parked` with the reason. Publishing the next
+      version of that family's definition lifts the park by itself; when
+      the cause was elsewhere (an approver with no employee record, say),
+      `PATCH /flow-subscriptions/{id}` with `{"clear_park": true}` says
+      "fixed, try again" — needs `keys.manage`, which the admin has. Never
+      clear a park without naming what was fixed.
    7. *State vocabulary*, only where their words differ from the defaults:
       one sentence renames any machine's states
       (`GET /object-type-definitions` → PATCH the `state_machine` with a

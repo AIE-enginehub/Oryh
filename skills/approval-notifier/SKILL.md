@@ -115,6 +115,26 @@ POST /notifications
    202 {"delivered": false, "reason": "no email address on the employee record", …}
 ```
 
+**Assignments: one call per person per run, all their todos in it.** The
+server writes "N items await you" and lists each todo's own title; `title` is
+optional then, and every id must be an open todo of that same person or the
+whole call is refused (404) — so a message never names fewer items than you
+think it does. Do not send one call per todo when the run assigned several
+to the same approver, and do not squeeze several documents into `title`.
+
+```json
+POST /notifications
+{
+  "employee_id": "the approver",
+  "event": "assigned",
+  "todo_ids": ["…", "…", "…"],
+  "entity_type": "invoice"
+}
+```
+
+Returns, rejections and approvals concern one document each and stay one
+call each, carrying the approver's comment.
+
 **You do not pass an address and you do not write the body.** The server
 resolves the recipient from the employee record and assembles the wording. That
 is deliberate: an agent that cannot choose an address cannot send to a guessed

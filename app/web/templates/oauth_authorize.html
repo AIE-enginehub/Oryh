@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Authorize an agent{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Authorize an agent</h1>
+  <p><strong>{{ client_host }}</strong> is asking to work in oryh as <strong>{{ user.name or user.email }}</strong>.</p>
+  <p class="muted">Approving gives this agent its own expiring access credential with your role's permissions. It will receive the credential at <code>{{ redirect_host }}</code>. Only approve if you started this from your own agent just now.</p>
+  <div class="row">
+    <form method="post" action="/oauth/authorize">
+      {% for key, value in params.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <input type="hidden" name="consent" value="{{ consent }}">
+      <input type="hidden" name="decision" value="approve">
+      <button type="submit">Authorize</button>
+    </form>
+    <form method="post" action="/oauth/authorize">
+      {% for key, value in params.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+      <input type="hidden" name="consent" value="{{ consent }}">
+      <input type="hidden" name="decision" value="deny">
+      <button type="submit" class="plain">Deny</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -248,3 +248,55 @@ __all__ = [
 
 assert set(HOSTED_ADVANCE_VERBS) == set(HOSTED_DRIVABLE_ENTITY_TYPES)
 assert set(HOSTED_ADVANCE_VERBS.values()) <= set(HOSTED_FLOW_AGENT_PERMISSIONS)
+
+
+def clear_park(subscription: FlowSubscription) -> None:
+    """Forget that a queue would not drain. The caller says why, in its audit row.
+
+    The park is the runner's stop: `dispatcher.due` reads `parked_at` from the
+    row on every pass, so clearing it here is the whole gesture — no runner
+    restart, no in-memory counter to reset.
+    """
+    subscription.parked_at = None
+    subscription.parked_reason = None
+    subscription.unmoved_runs = 0
+
+
+def unpark_on_new_definition(
+    db: Session, tenant_id: str, entity_type: str, *, version: int, actor: str
+) -> int:
+    """A parked queue whose workflow definition just changed gets its retry.
+
+    Nearly every park is a definition that routes nowhere; publishing the next
+    version IS the fix. Left alone, the new text would wait for someone to
+    notice a stop recorded under the old one — which is how twenty invoices sat
+    in `submitted` for a day after their admin had written how to move them.
+    """
+    from app.services.audit import record_audit  # noqa: PLC0415 — audit imports models
+
+    row = db.scalar(
+        select(FlowSubscription).where(
+            FlowSubscription.tenant_id == tenant_id,
+            FlowSubscription.entity_type == entity_type,
+            FlowSubscription.parked_at.is_not(None),
+        )
+    )
+    if row is None:
+        return 0
+    reason = row.parked_reason
+    clear_park(row)
+    record_audit(
+        db,
+        tenant_id=tenant_id,
+        action="flow_subscription.unparked",
+        entity_type="flow_subscription",
+        entity_id=row.id,
+        actor=actor,
+        detail={
+            "entity_type": entity_type,
+            "cleared_park": reason,
+            "cause": "workflow.published",
+            "version": version,
+        },
+    )
+    return 1

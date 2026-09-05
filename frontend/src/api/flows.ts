@@ -90,6 +90,15 @@ export async function setFlowSubscriptionEnabled(
   });
 }
 
+/** "The cause is dealt with, try again" — the tenant's own word for lifting a park. */
+export async function clearFlowSubscriptionPark(id: string): Promise<FlowSubscription> {
+  return apiRequest<FlowSubscription>(`/api/v1/flow-subscriptions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clear_park: true }),
+  });
+}
+
 export async function listFlowRuns(
   filters: { page?: number; size?: number; entity_type?: string; status?: FlowRunStatus } = {},
 ): Promise<FlowRunPage> {

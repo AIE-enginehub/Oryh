@@ -85,6 +85,17 @@ the flow's marker.
 document family, in the company's own words. The hosted flow agent reads it;
 the server never interprets it.
 
+**"Documents are sitting in submitted and the flow agent is not moving
+them."** Read `GET /workspace/setup-report` → `flow_driving.facts.parked`.
+If the family is listed, the runner parked its subscription after several
+runs that found work and moved nothing — nearly always a workflow definition
+that does not say where those documents go. Publishing the next version of
+that family's definition lifts the park by itself; if the definition was
+already right and the cause was elsewhere, `PATCH /flow-subscriptions/{id}`
+with `{"clear_park": true}` (needs `keys.manage`). If nothing is parked,
+check the definition exists (`GET /workflow-definitions?entity_kind=builtin&object_type=…`)
+and read the latest `GET /flow-runs` row for that family.
+
 **"Can the system be configured to skip a step?"** There are no switches.
 Whether a workspace picks before shipping, needs a second approver, or bills
 expense claims before paying them is a sentence in a workflow definition or

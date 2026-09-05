@@ -146,3 +146,31 @@ def test_the_report_is_the_administrators_read(office) -> None:
         "the report exposes the access topology — roles, who holds what, "
         "what reaches nobody — which the member surface deliberately withholds"
     )
+
+
+def test_a_parked_subscription_shows_up_where_the_admin_looks(office) -> None:
+    """Parked is enabled-and-stuck. Hidden inside `enabled`, it read as ready
+    while nothing moved; the report now names it and says what to do."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from app.db.session import get_db
+    from app.main import app
+    from app.models import FlowSubscription
+
+    if not (PRODUCT_SKILLS_DIR / "oryh-expense-approval-flow").is_dir():
+        pytest.skip("open-core tree provisions no hosted subscriptions")
+    db = next(app.dependency_overrides[get_db]())
+    row = db.scalars(select(FlowSubscription).where(
+        FlowSubscription.entity_type == "invoice")).first()
+    row.parked_at = datetime.now(timezone.utc)
+    row.parked_reason = "3 run(s) found work and moved nothing (queue 4)"
+    db.commit()
+    db.close()
+
+    area = office["report"]()["flow_driving"]
+    assert area["status"] == "partial"
+    assert area["facts"]["parked"] == {"invoice": "3 run(s) found work and moved nothing (queue 4)"}
+    assert "invoice" in area["next"] and "clear_park" in area["next"]
+

@@ -12,7 +12,7 @@ three weeks later to notice.
 ```json
 {
   "entity_type": "…", "entity_id": "…",
-  "round_no": 2, "sequence_no": 1,
+  "round_no": 1, "sequence_no": 2,
   "action": "returned",
   "approver_role": "workflow-admin",
   "comment": "why it is being returned, in the definition's own words",
@@ -25,6 +25,13 @@ three weeks later to notice.
   }
 }
 ```
+
+`round_no` is the round being decided — the CURRENT one, read off the trail —
+and `sequence_no` is the next free sequence in it: sequence 1 of every round
+is the submission and the server refuses a decision there (422), so read the
+round's records (`GET /approval-records?entity_type=…&entity_id=…`) and take
+one more than the highest `sequence_no` you see. The values above are what a
+first-round return looks like; never copy them into a later round.
 
 **Nothing about the decision moved to the server.** Which status, and whose
 queue — still yours, still read off the workspace's own definition. Every guard

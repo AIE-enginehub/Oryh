@@ -247,6 +247,30 @@ class DeviceAuthorization(IdMixin, CreatedAtMixin, Base):
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class OAuthAuthorizationCode(IdMixin, CreatedAtMixin, Base):
+    """One OAuth 2.1 authorization code: the browser consent's receipt, spent
+    exactly once at the token endpoint against its PKCE challenge. A platform
+    row like the device grant — it exists before a tenant context does."""
+
+    __tablename__ = "oauth_authorization_codes"
+
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    client_id: Mapped[str] = mapped_column(String(500))
+    redirect_uri: Mapped[str] = mapped_column(String(1000))
+    code_challenge: Mapped[str] = mapped_column(String(128))
+    resource: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    scope: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tenant_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    # `consent`: the nonce the consent page was rendered with, bound to the
+    # browser session that saw it; `code`: the authorization code itself.
+    # A consent row never redeems as a code (review R08).
+    stage: Mapped[str] = mapped_column(String(10), default="code")
+    session_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Project(TenantRecord, MetadataJsonbMixin, Base):
     __tablename__ = "projects"
     # The baseline migration has enforced this on postgres since day one
@@ -1227,6 +1251,17 @@ class InventoryItemDetail(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJson
     editing the item."""
 
     __tablename__ = "inventory_item_details"
+    __table_args__ = (
+        # one effect of one kind per source line: the shipment posting's
+        # last line of defence against a double posting (review R02)
+        Index(
+            "inventory_item_details_source_effect_uq",
+            "tenant_id", "entity_type", "entity_id", "reason",
+            unique=True,
+            postgresql_where=text("entity_type = 'shipment_item'"),
+            sqlite_where=text("entity_type = 'shipment_item'"),
+        ),
+    )
 
     inventory_item_id: Mapped[str] = mapped_column(ForeignKey("inventory_items.id"), index=True)
     quantity_on_hand_diff: Mapped[float] = mapped_column(Numeric(12, 2))

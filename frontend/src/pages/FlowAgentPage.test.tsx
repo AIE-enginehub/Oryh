@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   listFlowSubscriptions: vi.fn(),
   listFlowRuns: vi.fn(),
   setFlowSubscriptionEnabled: vi.fn(),
+  clearFlowSubscriptionPark: vi.fn(),
 }));
 
 vi.mock("../api/flows", async () => {
@@ -77,6 +78,7 @@ describe("FlowAgentPage", () => {
     api.listFlowSubscriptions.mockReset();
     api.listFlowRuns.mockReset();
     api.setFlowSubscriptionEnabled.mockReset();
+    api.clearFlowSubscriptionPark.mockReset();
   });
   afterEach(cleanup);
 
@@ -137,7 +139,11 @@ describe("FlowAgentPage", () => {
     page([], [{ ...subscription, parked_at: "2026-07-29T11:00:00Z", parked_reason: "3 run(s) found work and moved nothing", unmoved_runs: 3 }]);
     expect(await screen.findByText("有流程没有在推进")).toBeInTheDocument();
     expect(screen.getByText("3 run(s) found work and moved nothing")).toBeInTheDocument();
-    expect(screen.getByText(/关掉再打开/)).toBeInTheDocument();
+    expect(screen.getByText(/发布下一版定义后会自动恢复/)).toBeInTheDocument();
+
+    api.clearFlowSubscriptionPark.mockResolvedValue({ ...subscription, parked_at: null, parked_reason: null });
+    await userEvent.click(screen.getByRole("button", { name: "重试" }));
+    await waitFor(() => expect(api.clearFlowSubscriptionPark).toHaveBeenCalledWith("sub-1"));
   });
 
   it("warns before switching driving off, and says what stops", async () => {

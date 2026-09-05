@@ -18,6 +18,7 @@ from app.schemas import (
     WorkflowDefinitionRead,
 )
 from app.services.audit import record_audit
+from app.services.flow_subscriptions import unpark_on_new_definition
 from app.services.state_machines import BUILTIN_MACHINES
 
 router = APIRouter(prefix="/workflow-definitions")
@@ -246,6 +247,11 @@ def publish_workflow_definition(
     )
     db.add(definition)
     db.flush()
+    if payload.entity_kind == "builtin":
+        # the family whose routing just changed gets another go at its queue
+        unpark_on_new_definition(
+            db, actor.tenant_id, payload.object_type, version=next_version, actor=actor.label
+        )
     record_audit(
         db,
         tenant_id=actor.tenant_id,

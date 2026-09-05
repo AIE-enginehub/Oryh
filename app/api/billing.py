@@ -29,6 +29,10 @@ router.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
+CENT_D = Decimal("0.01")
+
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
@@ -198,6 +202,17 @@ def may_see_invoice(actor: Actor, invoice: Invoice) -> bool:
     if invoice.direction != "payroll" or may_read_payroll(actor):
         return True
     return own_employee_id(actor) is not None and invoice.payee_employee_id == own_employee_id(actor)
+
+
+def hide_payroll_lines(stmt, actor: Actor):
+    """The SQL form of `may_see_invoice`, for a statement already joined to
+    Invoice: everything but payroll, plus one's own payslips."""
+    if may_read_payroll(actor):
+        return stmt
+    own = own_employee_id(actor)
+    if own is None:
+        return stmt.where(Invoice.direction != "payroll")
+    return stmt.where(or_(Invoice.direction != "payroll", Invoice.payee_employee_id == own))
 
 
 def ensure_invoice_visible(actor: Actor, invoice: Invoice) -> None:
@@ -1295,13 +1310,14 @@ def ensure_invoice_item_order_link(
 
 @router.get("/invoice-items", response_model=InvoiceItemListEnvelope, response_model_exclude_unset=True)
 def list_invoice_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
     invoice_id: str | None = None,
     product_id: str | None = None,
     sales_order_item_id: str | None = None,
     purchase_order_item_id: str | None = None,
 ):
+    tenant_id = actor.tenant_id
     stmt = (
         select(InvoiceItem)
         .join(Invoice, InvoiceItem.invoice_id == Invoice.id)
@@ -1311,6 +1327,9 @@ def list_invoice_items(
             Invoice.deleted_at.is_(None),
         )
     )
+    # a payslip's lines are the payslip: the parent's visibility rule is the
+    # line's (review R05 — the lines used to answer where the header said 404)
+    stmt = hide_payroll_lines(stmt, actor)
     return list_rows(
         db, stmt,
         filters={
@@ -1426,10 +1445,12 @@ def create_invoice_item(
 @router.get("/invoice-items/{item_id}", response_model=InvoiceItemEnvelope, response_model_exclude_unset=True)
 def get_invoice_item(
     item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    tenant_id = actor.tenant_id
     item = require_live_line(db, tenant_id, InvoiceItem, Invoice, "invoice_id", item_id)
+    ensure_invoice_visible(actor, db.get(Invoice, item.invoice_id))
     return envelope(InvoiceItemRead.model_validate(item).model_dump(by_alias=True))
 
 
@@ -1582,7 +1603,7 @@ def post_account_entries(
                 "reactivate it before recording movement"
             ),
         )
-    delta = 0.0
+    delta = Decimal("0")
     for line in lines:
         if abs(line.amount) < CENT:
             raise HTTPException(
@@ -1595,12 +1616,12 @@ def post_account_entries(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="expires_at only means something on a points account",
             )
-        delta += line.amount
+        delta += Decimal(str(line.amount)).quantize(CENT_D)
 
-    balance = float(account.balance or 0)
-    floor = -float(account.credit_limit or 0)
+    balance = Decimal(str(account.balance or 0)).quantize(CENT_D)
+    floor = -Decimal(str(account.credit_limit or 0))
     after = balance + delta
-    if after < floor - CENT:
+    if after < floor:
         available = balance - floor
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1631,7 +1652,9 @@ def post_account_entries(
             entry.effective_at = effective_at
         db.add(entry)
         written.append(entry)
-    account.balance = round(after, 2)
+    # the same quantised figures the rows carry, summed in Decimal: the
+    # balance IS the sum of the ledger, by construction rather than by luck
+    account.balance = float(after)
     record_audit(
         db,
         tenant_id=tenant_id,

@@ -370,6 +370,7 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "jsonschema" },
     { name = "psycopg", extra = ["binary"] },
@@ -390,6 +391,7 @@ dev = [
 requires-dist = [
     { name = "alembic", specifier = ">=1.15.0,<2.0.0" },
     { name = "fastapi", specifier = ">=0.116.0,<1.0.0" },
+    { name = "httpx", specifier = ">=0.28.1,<1.0.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1,<1.0.0" },
     { name = "jinja2", specifier = ">=3.1.0,<4.0.0" },
     { name = "jsonschema", specifier = ">=4.21.0,<5.0.0" },

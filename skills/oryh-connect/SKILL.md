@@ -175,6 +175,25 @@ without a browser: `POST <api_base_url>/auth/token/refresh` with the saved
 refresh token; save the NEW refresh token it returns over the old one. Only
 when refresh itself is refused does anyone need this connect flow again.
 
+## If Your Runtime Speaks MCP
+
+Some runtimes (Claude Code, Codex and others that implement the Model
+Context Protocol) can connect without any skill files at all: add oryh as
+an MCP server at `{{ORYH_BASE_URL}}/mcp`. The runtime discovers the
+authorization server from `{{ORYH_BASE_URL}}/.well-known/oauth-authorization-server`,
+opens the browser for the person to sign in and approve (authorization
+code with PKCE), and holds an expiring access token it refreshes itself —
+no key is ever written to disk. Behind that door the same three layers
+arrive: tools are the REST contract bound one-to-one, **prompts are these
+very skills** (read the desk's prompt before calling tools — the judgement
+is there, not in the tool descriptions), and resources are their reference
+files. The door is the same door: capabilities, permissions and the audit
+trail are exactly what a skills-only agent gets.
+
+Both paths coexist. A runtime without MCP installs the bundle exactly as
+above; a runtime with MCP may skip the bundle. Nothing about the company's
+side changes either way.
+
 ## A Legacy Unprefixed `oryh-skills/` Directory
 
 Bundles used to install into a single `oryh-skills/` with unprefixed skill

@@ -534,3 +534,27 @@ def test_a_generic_object_may_not_shadow_a_shipped_collection(client: TestClient
     allowed = client.post("/api/v1/business-objects", headers=HEADERS,
                           json={"object_type": "product_recall", "title": "召回 2026-09"})
     assert allowed.status_code == 201, "a name that is not a shipped word stays free"
+
+
+def test_a_record_cannot_change_type_to_borrow_another_types_write_grant(client: TestClient) -> None:
+    """Review R07: `business_object.write:review_allowed` could not edit a
+    `review_record` — until the PATCH also changed its object_type, after
+    which the same person edited it under the type they may write. A record's
+    type is its identity now: changing it is refused, for anyone."""
+    from conftest import invite_member, provision_tenant
+
+    t = provision_tenant(client, company_name="Retype Co", email="admin@retype.example")
+    admin = {"X-API-Key": t["plain_text_api_key"]}
+    scoped = invite_member(client, admin, "reviewer", ["business_object.write:review_allowed"])
+    record = client.post("/api/v1/business-objects", headers=admin,
+                         json={"object_type": "review_record", "title": "评审记录"}).json()["data"]
+    assert client.patch(f"/api/v1/business-objects/{record['id']}", headers=scoped,
+                        json={"title": "改标题"}).status_code == 403
+    retyped = client.patch(f"/api/v1/business-objects/{record['id']}", headers=scoped,
+                           json={"object_type": "review_allowed", "title": "改标题"})
+    assert retyped.status_code in (403, 422), retyped.text
+    as_admin = client.patch(f"/api/v1/business-objects/{record['id']}", headers=admin,
+                            json={"object_type": "review_allowed"})
+    assert as_admin.status_code == 422 and "identity" in as_admin.json()["detail"], "not even an admin re-types a record"
+    still = client.get(f"/api/v1/business-objects/{record['id']}", headers=admin).json()["data"]
+    assert still["object_type"] == "review_record" and still["title"] == "评审记录"

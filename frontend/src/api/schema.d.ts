@@ -2475,7 +2475,8 @@ export interface paths {
         head?: never;
         /**
          * Update Flow Subscription
-         * @description The tenant's lever on a service someone else operates: on or off.
+         * @description The tenant's lever on a service someone else operates: on or off, and
+         *     "try again" once a parked queue's cause has been dealt with.
          *
          *     Terms — which skill drives, how often, what the queue query is — are the
          *     subscription's, and change through the platform. Switching off is immediate
@@ -2973,7 +2974,8 @@ export interface paths {
         put?: never;
         /**
          * Send Notification
-         * @description Email one employee about one work event.
+         * @description Email one employee about one work event — or about everything one run
+         *     assigned to them, as one message.
          *
          *     202, not 201: nothing is stored, and SMTP acceptance is not delivery. The
          *     response says what was attempted and to whom, so a flow agent can report
@@ -14839,9 +14841,11 @@ export interface components {
             /** Event */
             event: string;
             /** Title */
-            title: string;
+            title?: string | null;
             /** Todo Id */
             todo_id?: string | null;
+            /** Todo Ids */
+            todo_ids?: string[] | null;
         };
         /** SendSalesQuotationRequest */
         SendSalesQuotationRequest: {
@@ -15369,11 +15373,17 @@ export interface components {
         /**
          * TenantUpdateFlowSubscriptionRequest
          * @description What a tenant may change about a service the platform runs for them:
-         *     whether it runs at all. Everything else is the subscription's terms.
+         *     whether it runs at all, and "the cause is fixed, try again" when the runner
+         *     has parked it. Everything else is the subscription's terms.
          */
         TenantUpdateFlowSubscriptionRequest: {
+            /**
+             * Clear Park
+             * @default false
+             */
+            clear_park: boolean;
             /** Enabled */
-            enabled: boolean;
+            enabled?: boolean | null;
         };
         /** TimesheetEntryBase */
         TimesheetEntryBase: {

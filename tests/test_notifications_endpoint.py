@@ -254,3 +254,90 @@ def test_a_key_without_the_permission_is_refused(client, workspace):
     assert response.status_code == 403, response.text
     assert "notification.send" in response.json()["detail"]
     assert not mailbox.messages, "a refused caller must not have sent anything"
+
+
+def assigned_todos(client, headers, employee_id, count):
+    ids = []
+    for n in range(count):
+        header = client.post(
+            "/api/v1/timesheet-headers",
+            headers=headers,
+            json={"employee_id": employee_id,
+                  "period_start": f"2026-0{n + 1}-05", "period_end": f"2026-0{n + 1}-09"},
+        )
+        assert header.status_code == 201, header.text
+        todo = client.post(
+            "/api/v1/todos",
+            headers=headers,
+            json={"employee_id": employee_id, "entity_type": "timesheet_header",
+                  "entity_id": header.json()["data"]["id"],
+                  "title": f"审批 第{n + 1}周工时", "todo_type": "approval"},
+        )
+        assert todo.status_code == 201, todo.text
+        ids.append(todo.json()["data"]["id"])
+    outbox.clear()
+    return ids
+
+
+def test_one_run_one_person_one_mail_listing_every_todo(client, workspace):
+    """Enginehub saw both shapes — 8 todos / 8 mails one day, 21 todos / 1 mail
+    another, the other twenty squeezed into a title. The rule is now the
+    server's: the todos are the message, one message per recipient."""
+    headers, employee_id, _ = workspace
+    ids = assigned_todos(client, headers, employee_id, 3)
+
+    response = client.post(
+        "/api/v1/notifications",
+        headers=headers,
+        json={"employee_id": employee_id, "event": "assigned", "todo_ids": ids},
+    )
+    assert response.status_code == 202, response.text
+    assert response.json()["data"]["delivered"] is True
+    assert len(outbox.messages) == 1
+    mail = outbox.messages[0]
+    assert "3 项" in mail.subject
+    for n in (1, 2, 3):
+        assert f"- 审批 第{n}周工时" in mail.body
+    assert "/console/todos" in mail.body
+
+    trail = client.get(
+        "/api/v1/audit-logs", headers=headers, params={"action": "notification.sent"}
+    ).json()["data"][0]["detail"]
+    assert trail["todo_ids"] == ids and trail["title"] == "3 项工作"
+
+
+def test_a_single_todo_needs_no_title_and_reads_as_one_item(client, workspace):
+    headers, employee_id, _ = workspace
+    (todo_id,) = assigned_todos(client, headers, employee_id, 1)
+    response = client.post(
+        "/api/v1/notifications",
+        headers=headers,
+        json={"employee_id": employee_id, "event": "assigned", "todo_ids": [todo_id]},
+    )
+    assert response.status_code == 202, response.text
+    assert outbox.messages[0].subject == "有一项工作需要你处理：审批 第1周工时"
+
+
+def test_the_list_is_refused_whole_when_one_item_is_somebody_elses(client, workspace):
+    headers, employee_id, silent_id = workspace
+    mine = assigned_todos(client, headers, employee_id, 1)
+    theirs = assigned_todos(client, headers, silent_id, 1)
+    response = client.post(
+        "/api/v1/notifications",
+        headers=headers,
+        json={"employee_id": employee_id, "event": "assigned", "todo_ids": mine + theirs},
+    )
+    assert response.status_code == 404
+    assert not outbox.messages
+
+
+def test_a_notification_must_name_its_work(client, workspace):
+    headers, employee_id, _ = workspace
+    response = client.post(
+        "/api/v1/notifications",
+        headers=headers,
+        json={"employee_id": employee_id, "event": "assigned"},
+    )
+    assert response.status_code == 422
+    assert "title is required unless todo_ids" in response.text
+

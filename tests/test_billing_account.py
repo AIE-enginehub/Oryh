@@ -567,3 +567,21 @@ def scoped_client() -> Generator[tuple[dict, dict], None, None]:
             headers=service["headers"],
         ).json()["data"]["plain_text_api_key"]
         yield service, {"client": test_client, "headers": {"X-API-Key": key}}
+
+
+def test_the_ledger_and_the_balance_are_quantised_once(client: TestClient) -> None:
+    """Review R09: two lines of 0.015 left the balance at 0.03 and the rows
+    summing to 0.04 — the total rounded once, the rows once each. Amounts now
+    carry at most two decimals, and the balance is the Decimal sum of exactly
+    the figures the rows carry."""
+    acct = money_account(client)
+    refused = client.post(f"/api/v1/billing-accounts/{acct['id']}/entries", headers=HEADERS,
+                          json={"lines": [{"amount": 0.015, "reason": "deposit"}]})
+    assert refused.status_code == 422 and "two decimals" in refused.text
+    ok = client.post(f"/api/v1/billing-accounts/{acct['id']}/entries", headers=HEADERS,
+                     json={"lines": [{"amount": 0.1, "reason": "deposit"}, {"amount": 0.2, "reason": "deposit"},
+                                     {"amount": 0.7, "reason": "deposit"}, {"amount": -0.3, "reason": "charge"}]})
+    assert ok.status_code == 200, ok.text
+    balance = float(client.get(f"/api/v1/billing-accounts/{acct['id']}", headers=HEADERS).json()["data"]["balance"])
+    rows = client.get("/api/v1/billing-account-entries", params={"billing_account_id": acct["id"]}, headers=HEADERS).json()["data"]
+    assert balance == 0.7 and round(sum(float(r["amount"]) for r in rows), 2) == 0.7, (balance, rows)

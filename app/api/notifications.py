@@ -57,7 +57,8 @@ def send_notification(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Email one employee about one work event.
+    """Email one employee about one work event — or about everything one run
+    assigned to them, as one message.
 
     202, not 201: nothing is stored, and SMTP acceptance is not delivery. The
     response says what was attempted and to whom, so a flow agent can report
@@ -92,24 +93,41 @@ def send_notification(
             "meta": {},
         }
 
-    if payload.todo_id is not None:
+    todos: list[Todo] = []
+    if payload.todo_ids:
         # A link to a todo that is gone, or that belongs to somebody else, sends
         # the reader somewhere confusing. Cheap to check, and it keeps the
-        # endpoint from being a way to probe other tenants' ids.
-        todo = db.scalar(
-            select(Todo).where(Todo.tenant_id == actor.tenant_id, Todo.id == payload.todo_id)
-        )
-        if todo is None or todo.employee_id != employee.id:
+        # endpoint from being a way to probe other tenants' ids. All-or-nothing:
+        # a list with one stranger's item in it is refused whole, so the message
+        # never quietly names fewer items than the caller believes it does.
+        wanted = list(dict.fromkeys(payload.todo_ids))
+        found = {
+            todo.id: todo
+            for todo in db.scalars(
+                select(Todo).where(
+                    Todo.tenant_id == actor.tenant_id,
+                    Todo.employee_id == employee.id,
+                    Todo.id.in_(wanted),
+                )
+            )
+        }
+        if len(found) != len(wanted):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="todo not found for this employee",
             )
+        todos = [found[todo_id] for todo_id in wanted]
 
+    # the todos are the message: their titles, in the order the caller named
+    # them, with `title` as the one-line summary only when the caller gave one
+    items = [todo.title for todo in todos]
+    title = payload.title or (items[0] if len(items) == 1 else f"{len(items)} 项工作")
     send_work_notification(
         to=employee.email,
         recipient_name=employee.name,
         event=payload.event,
-        title=payload.title,
+        title=title,
+        items=items if len(items) > 1 else None,
         detail=payload.detail,
         actor_name=payload.actor_name,
         link=f"{resolved_base_url()}/console/todos",
@@ -126,7 +144,8 @@ def send_notification(
         detail={
             "event": payload.event,
             "employee_id": employee.id,
-            "title": payload.title,
+            "title": title,
+            "todo_ids": [todo.id for todo in todos],
         },
     )
     db.commit()

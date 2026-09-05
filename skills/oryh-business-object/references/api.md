@@ -188,7 +188,7 @@ POST /approval-records
   "entity_type": "business_object",
   "entity_id": "business-object-id",
   "round_no": 1,
-  "sequence_no": 1,
+  "sequence_no": 2,
   "action": "approved",
   "approver_id": "employee-id",   // service keys only; user keys are attributed server-side
   "approver_role": "manager",

@@ -26,6 +26,8 @@ from app.api.sales import router as sales_router
 from app.api.skills import router as skills_router
 from app.api.treasury import router as treasury_router
 from app.api.workspace import router as workspace_router
+from app.api.oauth import router as oauth_router
+from app.api.mcp import router as mcp_router
 from app.api.bundles import router as bundles_router
 from app.api.console import router as console_router
 from app.api.roles import router as roles_router
@@ -94,6 +96,8 @@ if settings.resolved_edition == "cloud":
 # other /web contributor, the saas registration pages included, must land
 # before the catch-all or it answers 404 for them.
 app.include_router(web_router)
+app.include_router(oauth_router)
+app.include_router(mcp_router)
 
 
 @app.get("/", include_in_schema=False)

@@ -2862,7 +2862,9 @@ class SendNotificationRequest(RequestModel):
 
     employee_id: str
     event: str = Field(max_length=20)
-    title: str = Field(max_length=200)
+    # Optional once `todo_ids` name the work: the todos' own titles are the
+    # message then, and the caller has nothing to add that they do not say.
+    title: str | None = Field(default=None, max_length=200)
     # The approver's own words, carried verbatim. Optional because an approval
     # rarely needs one and a return always does.
     detail: str | None = Field(default=None, max_length=4000)
@@ -2873,6 +2875,20 @@ class SendNotificationRequest(RequestModel):
     # Checked to belong to this employee when given, so a link never points at
     # somebody else's queue item.
     todo_id: str | None = None
+    # Everything one run assigned to this person, in one message. The rule is
+    # one mail per recipient per run: the link goes to their queue, not to an
+    # item, so thirteen payslips are one "13 items await you", never thirteen
+    # mails — and never one mail with twelve of them squeezed into `title`,
+    # which is what an agent improvised before this list existed.
+    todo_ids: list[str] | None = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def name_the_work(self):
+        if self.todo_id and self.todo_ids is None:
+            self.todo_ids = [self.todo_id]
+        if not self.title and not self.todo_ids:
+            raise ValueError("title is required unless todo_ids name the work")
+        return self
 
 
 class TokenRefreshRequest(RequestModel):
@@ -3605,9 +3621,11 @@ class ReportDriverStateRequest(RequestModel):
 
 class TenantUpdateFlowSubscriptionRequest(RequestModel):
     """What a tenant may change about a service the platform runs for them:
-    whether it runs at all. Everything else is the subscription's terms."""
+    whether it runs at all, and "the cause is fixed, try again" when the runner
+    has parked it. Everything else is the subscription's terms."""
 
-    enabled: bool
+    enabled: bool | None = None
+    clear_park: bool = False
 
 
 class FlowRunRead(APIModel):
@@ -6043,8 +6061,20 @@ BillingAccountEntryListEnvelope = ListEnvelope[BillingAccountEntryRead]
 
 
 class PostBillingAccountEntryLine(RequestModel):
-    # signed: positive adds, negative spends or reverses
+    # signed: positive adds, negative spends or reverses — at most two
+    # decimals, the ledger's own precision: a half-cent that the running
+    # balance rounds one way and the row another is how the sum and the
+    # total parted company (review R09)
     amount: float = Field(ge=-9_999_999_999.99, le=9_999_999_999.99)
+
+    @field_validator("amount")
+    @classmethod
+    def _two_decimals(cls, v: float) -> float:
+        from decimal import Decimal
+
+        if Decimal(str(v)).as_tuple().exponent < -2:
+            raise ValueError("amount carries more than two decimals — the ledger records cents, quantise before posting")
+        return v
     reason: BillingAccountEntryReason
     description: str | None = Field(default=None, max_length=500)
     # what caused this movement, when it is a record in the system

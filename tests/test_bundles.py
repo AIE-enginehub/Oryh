@@ -1457,3 +1457,23 @@ def test_the_write_then_decide_skills_are_told_to_re_read_first() -> None:
     # that does not say "from the response" is what failed
     expense = (PRODUCT_SKILLS_DIR / "oryh-expense-submit" / "SKILL.md").read_text(encoding="utf-8")
     assert "/detail` and echo the complete claim **from that response**" in expense
+
+
+def test_a_scoped_grant_receives_the_skill_gated_on_the_bare_verb(client: TestClient) -> None:
+    """Review R12: `contract.manage:purchase` did not satisfy oryh-contracts'
+    bare `contract.manage`, so the purchase-contract desk never received the
+    skill the API lets them use. A bare gate now reaches any scope of the
+    verb; the API still keeps each holder to their own scope."""
+    from conftest import invite_member, provision_tenant
+
+    ctx = provision_tenant(client, company_name="Scope Co", email="admin@scope-co.example")
+    admin = {"X-API-Key": ctx["plain_text_api_key"]}
+    purchasing = invite_member(client, admin, "purchase_contracts", ["contract.manage:purchase"])
+    names = {row["name"] for row in client.get("/api/v1/my/skills/manifest", headers=purchasing).json()["data"]}
+    assert "oryh-contracts" in names
+    loyalty = invite_member(client, admin, "loyalty", ["billing_account.post:points"])
+    names = {row["name"] for row in client.get("/api/v1/my/skills/manifest", headers=loyalty).json()["data"]}
+    assert "oryh-billing-account" in names
+    nobody = invite_member(client, admin, "nobody", [])
+    names = {row["name"] for row in client.get("/api/v1/my/skills/manifest", headers=nobody).json()["data"]}
+    assert "oryh-contracts" not in names and "oryh-billing-account" not in names

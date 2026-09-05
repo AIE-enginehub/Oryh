@@ -106,6 +106,22 @@ def _resolve_session_actor(db: Session, token: str) -> Actor:
     return _actor_from_user(db, user, session.id)
 
 
+def _resolve_bearer_actor(db: Session, token: str) -> Actor:
+    """`Authorization: Bearer` carries either a browser session token or an
+    API key — the OAuth 2.1 access token IS the interactive api key the
+    device flow mints, and MCP clients present it as a bearer. A session
+    wins when one matches; otherwise the token is read as a key, whose own
+    refusal (invalid / expired) is the answer."""
+    session = db.scalar(
+        select(UserSession).where(
+            UserSession.token_hash == hash_token(token), UserSession.revoked_at.is_(None)
+        )
+    )
+    if session is not None:
+        return _resolve_session_actor(db, token)
+    return _resolve_api_key_actor(db, token)
+
+
 def _resolve_api_key_actor(db: Session, api_key_value: str) -> Actor:
     api_key = db.scalar(
         select(ApiKey).where(ApiKey.key_hash == hash_api_key(api_key_value), ApiKey.is_active.is_(True))
@@ -193,7 +209,7 @@ def _authenticate(
     csrf_header: str | None,
 ) -> Actor:
     if authorization and authorization.lower().startswith("bearer "):
-        return _resolve_session_actor(db, authorization[7:].strip())
+        return _resolve_bearer_actor(db, authorization[7:].strip())
     if x_api_key:
         return _resolve_api_key_actor(db, x_api_key)
     if session_token:

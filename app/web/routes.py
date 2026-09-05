@@ -102,6 +102,8 @@ def safe_next_url(next_url: str) -> str:
     # crafted external or legacy-management targets cannot bounce the session.
     if next_url == "/web/device" or next_url.startswith("/web/device?"):
         return next_url
+    if next_url.startswith("/oauth/authorize?"):
+        return next_url
     return "/console/dashboard"
 
 
@@ -225,6 +227,20 @@ def device_approve(request: Request, actor: WebActor, db: Db, code: Annotated[st
             error="This code is no longer pending — it may have expired or already been used.",
         )
     user = db.get(User, actor.user_id)
+    from sqlalchemy import update as _update
+    from app.models import DeviceAuthorization
+
+    claimed = db.execute(
+        _update(DeviceAuthorization)
+        .where(DeviceAuthorization.id == auth.id, DeviceAuthorization.status == "pending")
+        .values(status="approved")
+    ).rowcount
+    if claimed != 1:
+        db.rollback()
+        return render_device(
+            request, actor, db, code=code, auth=None,
+            error="This code was just approved elsewhere — nothing more to do.",
+        )
     # one key per connected device; other devices' keys stay untouched
     plaintext = generate_api_key()
     api_key = ApiKey(

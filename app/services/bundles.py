@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.permissions import ALL_PERMISSIONS, SYSTEM_CAPABILITY_NAMES, permissions_cover
+from app.core.permissions import ALL_PERMISSIONS, SYSTEM_CAPABILITY_NAMES, permissions_cover, permissions_cover_any_scope
 from app.core.request_context import resolved_api_base_url, resolved_base_url
 from app.models import Role, Tenant, TenantSkill, TenantSkillAssignment, User
 from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
@@ -59,7 +59,14 @@ def capability_covers(permissions: frozenset[str], required: str) -> bool:
     custom capability (exact grant, scope-less by grammar)."""
     verb, _, scope = required.partition(":")
     if verb in SYSTEM_CAPABILITY_NAMES:
-        return permissions_cover(permissions, verb, scope or None)
+        if scope:
+            return permissions_cover(permissions, verb, scope)
+        # a skill gated on the BARE verb teaches the operations the API
+        # allows under any scope of it: the purchase-contract desk holding
+        # `contract.manage:purchase` must receive oryh-contracts, and the
+        # API — not the bundle — is what keeps them to their scope
+        # (review R12). Nobody is handed `:*` to make a download work.
+        return permissions_cover_any_scope(permissions, verb)
     return required in permissions
 
 

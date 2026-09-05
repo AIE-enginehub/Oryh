@@ -34,8 +34,10 @@ from sqlalchemy.orm import Session
 from app.api.common import (
     allocate_number,
     apply_status_change,
+    commit_or_conflict,
     delete_document,
     ensure_document_editable,
+    ensure_document_not_deleted,
     envelope,
     get_active_document_or_404,
     get_scoped_or_404,
@@ -731,7 +733,17 @@ def post_shipment_stock(
     goods, and the stamp is what makes the second call a loud 409 instead."""
     tenant_id = actor.tenant_id
     require_permission(actor, "inventory.manage")
-    shipment = get_active_document_or_404(db, Shipment, tenant_id, shipment_id)
+    # the source row is LOCKED before the posted stamp is read: two postings
+    # of one shipment that both read "not yet posted" is how stock left the
+    # ledger twice (review R02). The second waits, then sees the stamp.
+    shipment = db.scalar(
+        select(Shipment)
+        .where(Shipment.tenant_id == tenant_id, Shipment.id == shipment_id)
+        .with_for_update()
+    )
+    if shipment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shipment not found")
+    ensure_document_not_deleted(shipment)
     if shipment.stock_posted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -793,7 +805,10 @@ def post_shipment_stock(
             outcome="posted",
         ))
     shipment.stock_posted_at = datetime.now(timezone.utc)
-    db.commit()
+    commit_or_conflict(db, (
+        "this shipment's stock effect is already on the ledger (a concurrent posting "
+        "won) — the ledger is append-only; corrections are counter-entries, not re-posts"
+    ))
     db.refresh(shipment)
     return envelope(PostShipmentStockRead(
         shipment_id=shipment.id,

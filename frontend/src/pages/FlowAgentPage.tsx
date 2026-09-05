@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useState } from "react";
 
 import {
+  clearFlowSubscriptionPark,
   driverState,
   isStalled,
   listFlowRuns,
@@ -127,6 +128,14 @@ export function FlowAgentPage() {
     },
   });
 
+  const clearPark = useMutation({
+    mutationFn: (id: string) => clearFlowSubscriptionPark(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["flow-subscriptions"] });
+      void queryClient.invalidateQueries({ queryKey: ["flow-runs"] });
+    },
+  });
+
   const rows = subscriptions.data ?? [];
   // Both mean "enabled, and yet nothing is being driven" — the one case that has
   // to interrupt the reader, because only a person resolves either.
@@ -157,10 +166,23 @@ export function FlowAgentPage() {
                 <span>{row.parked_reason}</span>
                 <small>
                   {text(
-                    "原因处理完后，把下面的开关关掉再打开，即可恢复。",
-                    "Once the cause is fixed, switch it off and on again below to resume.",
+                    "通常是该单据的流程定义没写清往哪走：发布下一版定义后会自动恢复。原因在别处的，处理完后点「重试」。",
+                    "Usually the workflow definition for this family does not say where these go: publishing its next version resumes driving by itself. If the cause was elsewhere, fix it and press Try again.",
                   )}
                 </small>
+                {row.enabled && (
+                  <button
+                    className="text-action"
+                    type="button"
+                    disabled={clearPark.isPending}
+                    onClick={() => clearPark.mutate(row.id)}
+                  >
+                    {text("重试", "Try again")}
+                  </button>
+                )}
+                {clearPark.isError && clearPark.variables === row.id && (
+                  <span className="form-error">{apiErrorMessage(clearPark.error)}</span>
+                )}
               </li>
             ))}
             {silent.map((row) => (

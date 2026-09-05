@@ -82,7 +82,11 @@ def reconcile(
     to do with them.
     """
     try:
-        tenants = load_credentials(config.credentials_file) if config.credentials_file else ()
+        # the file wins where it speaks; without one, the inline credentials
+        # `load_config` parsed are the operator's word (review R13 — they
+        # used to be read at boot and ignored here, so an inline-only runner
+        # served nobody)
+        tenants = load_credentials(config.credentials_file) if config.credentials_file else config.tenants
     except (OSError, ValueError, KeyError) as exc:
         # A half-written or malformed file must not take the runner down: keep
         # driving whoever we were already driving and try again next pass.

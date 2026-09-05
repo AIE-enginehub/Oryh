@@ -323,3 +323,24 @@ def test_a_tenant_service_key_reads_payroll_by_design(workspace: dict) -> None:
     # and a user-bound key without the grant does not, which is the gate working
     outsider = ids(client.get("/api/v1/invoices?direction=payroll", headers=workspace["outsider"]))
     assert outsider == {slips["Alice"]["id"]}
+
+
+def test_the_lines_and_the_trail_inherit_the_payslips_visibility(workspace: dict) -> None:
+    """Review R05: the header answered 404 while its LINES listed and read
+    with amounts, and the audit trail by line id told the same story. Lines,
+    the single-line read and the audit trail now answer the way the parent
+    does — and 404, so the id confirms nothing."""
+    client, slips, outsider = workspace["client"], workspace["slips"], workspace["outsider"]
+    hr = workspace["hr"]
+    bob_lines = client.get("/api/v1/invoice-items", params={"invoice_id": slips["Bob"]["id"]}, headers=hr).json()["data"]
+    assert bob_lines, "the fixture filed Bob's line"
+    listed = client.get("/api/v1/invoice-items", headers=outsider).json()["data"]
+    assert all(row["invoice_id"] != slips["Bob"]["id"] for row in listed), "Bob's lines never list for Alice"
+    assert any(row["invoice_id"] == slips["Alice"]["id"] for row in listed), "her own lines still do"
+    assert client.get(f"/api/v1/invoice-items/{bob_lines[0]['id']}", headers=outsider).status_code == 404
+    for entity_type, entity_id in (("invoice", slips["Bob"]["id"]), ("invoice_item", bob_lines[0]["id"]),
+                                   ("payment", slips["Bob"]["payment_id"])):
+        trail = client.get("/api/v1/audit-logs", params={"entity_type": entity_type, "entity_id": entity_id}, headers=outsider)
+        assert trail.status_code == 404, f"{entity_type}: knowing the id is not reading the record"
+    own = client.get("/api/v1/audit-logs", params={"entity_type": "invoice", "entity_id": slips["Alice"]["id"]}, headers=outsider)
+    assert own.status_code == 200, "her own payslip's trail is hers to read"

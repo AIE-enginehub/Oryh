@@ -375,6 +375,7 @@ class Dispatcher:
             # nowhere, an approver with no employee record.
             log.error(
                 "tenant %s: parked %s after %d run(s) that moved nothing (queue %d) — "
-                "switch the subscription off and on again once the cause is fixed",
+                "publish the next definition, or PATCH the subscription with clear_park, "
+                "once the cause is fixed",
                 self.tenant_id, entity_type, unmoved, queue_size,
             )

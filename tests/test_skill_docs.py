@@ -822,6 +822,33 @@ def test_the_storefronts_are_taught_where_orders_are_recorded() -> None:
         "the order desk resolves the storefront by the channel key"
 
 
+def test_no_shared_example_records_a_decision_at_sequence_one() -> None:
+    """Review R11: the round-transition fragment (and eight flow skills through
+    it) showed `round_no: 2, sequence_no: 1, action: returned` — which the
+    server refuses, since sequence 1 of a round is the submission. Examples are
+    contracts: none may pair a decision with sequence 1, and the fragment says
+    how the sequence is found."""
+    fragment = (PRODUCT_SKILLS_DIR / "_common" / "one-call-round-transition.md").read_text(encoding="utf-8")
+    assert "next free sequence" in fragment and "one more than the highest" in fragment
+    offenders = []
+    for path in sorted(PRODUCT_SKILLS_DIR.rglob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        for block in re.findall(r"```json\n(.*?)```", text, re.S):
+            if re.search(r'"sequence_no":\s*1\b', block) and re.search(r'"action":\s*"(approved|returned|rejected)"', block):
+                offenders.append(str(path.relative_to(PRODUCT_SKILLS_DIR.parent)))
+    assert not offenders, f"decision examples at sequence 1: {offenders}"
+
+
+def test_the_connect_skill_teaches_the_mcp_door_as_the_same_door() -> None:
+    """A runtime that speaks MCP connects with no skill files; the connect
+    skill says so, says the prompts ARE the skills, and says nothing on the
+    company's side changes — both paths coexist."""
+    connect = (PRODUCT_SKILLS_DIR / "oryh-connect" / "SKILL.md").read_text(encoding="utf-8")
+    assert "## If Your Runtime Speaks MCP" in connect
+    assert "{{ORYH_BASE_URL}}/mcp" in connect and ".well-known/oauth-authorization-server" in connect
+    assert "prompts are these\nvery skills" in connect and "Both paths coexist" in connect
+
+
 def test_every_desk_skill_carries_the_answer_rule() -> None:
     """The verbosity complaint was not about one skill: every skill a person
     talks to must carry the same answer rule verbatim — answer first, a list

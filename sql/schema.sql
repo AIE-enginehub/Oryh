@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260903_0082
+-- Alembic revision: 20260905_0084
 --
 
 --
@@ -957,6 +957,28 @@ CREATE TABLE oryh.leads (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT leads_names_somebody_check CHECK (((company_name IS NOT NULL) OR (contact_name IS NOT NULL)))
+);
+
+
+--
+-- Name: oauth_authorization_codes; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.oauth_authorization_codes (
+    id uuid NOT NULL,
+    code_hash character varying(64) NOT NULL,
+    client_id character varying(500) NOT NULL,
+    redirect_uri character varying(1000) NOT NULL,
+    code_challenge character varying(128) NOT NULL,
+    resource character varying(500),
+    scope character varying(500),
+    tenant_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    consumed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    stage character varying(10) DEFAULT 'code'::character varying NOT NULL,
+    session_id uuid
 );
 
 
@@ -2599,6 +2621,22 @@ ALTER TABLE ONLY oryh.leads
 
 
 --
+-- Name: oauth_authorization_codes oauth_authorization_codes_code_hash_key; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.oauth_authorization_codes
+    ADD CONSTRAINT oauth_authorization_codes_code_hash_key UNIQUE (code_hash);
+
+
+--
+-- Name: oauth_authorization_codes oauth_authorization_codes_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.oauth_authorization_codes
+    ADD CONSTRAINT oauth_authorization_codes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: object_type_definitions object_type_definitions_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3846,6 +3884,13 @@ CREATE INDEX flow_subscriptions_tenant_idx ON oryh.flow_subscriptions USING btre
 --
 
 CREATE INDEX inventory_item_details_item_idx ON oryh.inventory_item_details USING btree (inventory_item_id);
+
+
+--
+-- Name: inventory_item_details_source_effect_uq; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX inventory_item_details_source_effect_uq ON oryh.inventory_item_details USING btree (tenant_id, entity_type, entity_id, reason) WHERE ((entity_type)::text = 'shipment_item'::text);
 
 
 --
