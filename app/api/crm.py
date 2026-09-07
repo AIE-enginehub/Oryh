@@ -31,6 +31,7 @@ from sqlalchemy import String, cast, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
     commit_or_conflict,
@@ -86,7 +87,7 @@ def list_leads(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "lead", status_filter)
     stmt = select(Lead).where(Lead.tenant_id == tenant_id)
@@ -323,7 +324,7 @@ def list_opportunities(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "opportunity", status_filter)
     stmt = select(Opportunity).where(Opportunity.tenant_id == tenant_id)

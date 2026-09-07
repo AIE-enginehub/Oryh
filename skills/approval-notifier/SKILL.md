@@ -24,6 +24,8 @@ This skill should trigger for user intents like:
 - "Tell the filer the outcome"
 - "Notify the next approver"
 
+{{include:_common/api-conventions.md}}
+
 ## Required Inputs
 
 ```yaml

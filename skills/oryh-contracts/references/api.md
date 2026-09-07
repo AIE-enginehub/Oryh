@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 Reads and writes both require `contract.manage`, scoped by side:
 `contract.manage:purchase` reaches contracts whose counterparty is a
 vendor, `:sales` those with a customer; the unscoped grant reaches both.

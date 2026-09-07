@@ -5,6 +5,8 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 There is no balance endpoint. That is deliberate and permanent: see the balance
 section in SKILL.md. The three reads below are what a balance is computed from.
 
+{{include:_common/api-conventions.md}}
+
 ## The three reads a balance needs
 
 | Call | Gives |

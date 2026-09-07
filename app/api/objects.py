@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     DOCUMENT_FAMILIES,
     apply_status_change,
     archive_row,
@@ -465,7 +466,7 @@ def list_approval_targets(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
     if not include_deleted:
@@ -659,7 +660,7 @@ def list_object_type_definitions(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(ObjectTypeDefinition).where(ObjectTypeDefinition.tenant_id == tenant_id),
@@ -1068,7 +1069,7 @@ def list_business_objects(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_business_object_status_filter(db, tenant_id, object_type, status_filter)
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
@@ -1409,7 +1410,7 @@ def list_business_object_links(
     link_type: str | None = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(BusinessObjectLink).where(BusinessObjectLink.tenant_id == tenant_id),
@@ -1530,7 +1531,7 @@ def list_approval_records(
     action_filter: Annotated[str | None, Query(alias="action")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     pagination = requested_pagination(page, size)
     return list_rows(
@@ -1774,7 +1775,7 @@ def list_todos(
     include: Literal["target"] | None = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(Todo).where(Todo.tenant_id == tenant_id)
     if due_before is not None:
@@ -2332,6 +2333,7 @@ def create_approval_record(
     )
     db.add(record)
     db.flush()
+    closed_todo_id: str | None = None
     if record.action == "returned":
         # The round this approval work belonged to is over: a returned document
         # goes back to its submitter, and nobody should still be holding an open
@@ -2357,7 +2359,9 @@ def create_approval_record(
         #
         # `commented` is deliberately outside: an objection that settles nothing
         # leaves the node — and the todo asking about it — exactly where it was.
-        complete_own_approval_todo(db, actor, payload.entity_type, payload.entity_id)
+        closed_todo_id = complete_own_approval_todo(
+            db, actor, payload.entity_type, payload.entity_id
+        )
     # After the sweeps, never before: a handoff opened here must survive
     # `cancel_todos_for`, and the round it belongs to is the new one.
     apply_round_transition(db, actor, payload, target)
@@ -2379,7 +2383,16 @@ def create_approval_record(
     )
     db.commit()
     db.refresh(record)
-    return envelope(ApprovalRecordRead.model_validate(record).model_dump(by_alias=True))
+    # The response says what the decision did besides record itself, so the
+    # caller has nothing to go back and check: an approver's agent used to
+    # re-read the todo list and the trail after every decision "to verify",
+    # three calls for a fact this transaction already guaranteed.
+    data = envelope(ApprovalRecordRead.model_validate(record).model_dump(by_alias=True))
+    data["meta"] = {
+        "completed_todo_ids": [closed_todo_id] if closed_todo_id else [],
+        "document_status": getattr(target, "status", None),
+    }
+    return data
 
 
 @router.get(

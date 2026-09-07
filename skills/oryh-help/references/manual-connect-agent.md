@@ -8,7 +8,7 @@ credential of its own. Both arrive through one bootstrap.
 
 ## Why it is not a copy-pasted API key
 
-`oryh-connect` is the only oryh skill that works before login, and it carries
+`oryh-connect` is the only Oryh skill that works before login, and it carries
 **no credential** — only this deployment's address, rendered in at the moment
 you downloaded it. The agent installs it, opens an approval page, you sign in
 and approve there, and only then does the agent receive its own device-bound
@@ -39,17 +39,17 @@ who is not going to run `curl`.
 | Hermes | `~/.hermes/skills` |
 | OpenClaw | `openclaw skills install ./oryh-connect --global` |
 
-`oryh-connect` is installed once per machine, unprefixed. Every other oryh
+`oryh-connect` is installed once per machine, unprefixed. Every other Oryh
 skill belongs to exactly one employer and is named after it, which is how one
 person can work for two companies from the same laptop.
 
 ## 3. Ask the agent to connect
 
 `/oryh-connect` in runtimes that take slash commands; plain words in the ones
-that do not — "connect me to the company's oryh" works.
+that do not — "connect me to the company's Oryh" works.
 
 The agent shows a link and an eight-character code. Open the link **yourself**,
-in your own browser. Sign in with your oryh account, check that the code and
+in your own browser. Sign in with your Oryh account, check that the code and
 the device name on the page match what the agent showed you, and approve.
 
 The link works even when the agent is running over SSH, in WSL, or inside a
@@ -72,7 +72,7 @@ its own key.
 - **Skills change.** Ask the agent to sync; `oryh-skill-sync` checks whether
   the installed bundle for this company is still current and reinstalls it if
   not. Agents that support session-start hooks do this on their own.
-- **A key stops working.** Any oryh skill returning `401 invalid API key`
+- **A key stops working.** Any Oryh skill returning `401 invalid API key`
   means reconnect: run `oryh-connect` again. It is also the skill for adding a
   second employer.
 - **The address must not be reused.** A bundle carries the address of the

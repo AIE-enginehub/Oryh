@@ -7,6 +7,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.api.common import PAGE_SIZE_DOC, envelope, paginated_envelope, requested_pagination
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.api.roles import custom_capability_names
 from app.db.session import get_db
@@ -38,31 +39,6 @@ MAX_FILE_COUNT = 32
 
 def get_tenant_id(actor: Annotated[Actor, Depends(get_actor)]) -> str:
     return actor.tenant_id
-
-
-def envelope(data, total: int | None = None) -> dict:
-    meta: dict[str, int] = {}
-    if total is not None:
-        meta["total"] = total
-    return {"data": data, "meta": meta}
-
-
-def paginated_envelope(data, *, total: int, page: int, page_size: int) -> dict:
-    return {
-        "data": data,
-        "meta": {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "pages": max(1, (total + page_size - 1) // page_size),
-        },
-    }
-
-
-def requested_pagination(page: int | None, size: int | None) -> tuple[int, int] | None:
-    if page is None and size is None:
-        return None
-    return page or 1, size or 50
 
 
 def validate_files(files: dict[str, str]) -> None:
@@ -133,7 +109,7 @@ def list_skills(
     kind: Literal["product", "custom"] | None = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """The registry, whole: every skill's text, gate and audience — the skill
     MANAGER's view, not an agent's. An agent's own surface is /my/skill-bundle

@@ -4,6 +4,8 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 
 Read-only. Every call here is a GET; nothing in this reference writes.
 
+{{include:_common/api-conventions.md}}
+
 ## What each key sees
 
 | Path | With `payroll.read` | Without it |

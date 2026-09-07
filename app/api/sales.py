@@ -25,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     _run_document_import,
     allocate_number,
     apply_status_change,
@@ -288,7 +289,7 @@ def list_sales_quotations(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "sales_quotation", status_filter)
     stmt = select(SalesQuotation).where(SalesQuotation.tenant_id == tenant_id)
@@ -955,7 +956,7 @@ def list_sales_orders(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     # the status vocabulary follows the kind: a kind-scoped list is checked
     # against that kind's machine, an unscoped one against the union of both

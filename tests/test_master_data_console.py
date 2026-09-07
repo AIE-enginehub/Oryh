@@ -129,8 +129,8 @@ def test_optional_pagination_preserves_full_lists_and_filters(client: TestClient
         for response in (project, vendor, resource):
             assert response.status_code == 201, response.text
 
-    # Omitting page retains the old full-list contract, even if size is sent.
-    full = client.get("/api/v1/projects?keyword=Migration&size=1", headers=service)
+    # Omitting both paging parameters retains the old full-list contract.
+    full = client.get("/api/v1/projects?keyword=Migration", headers=service)
     assert full.status_code == 200
     assert len(full.json()["data"]) == 5
     assert full.json()["meta"] == {"total": 5}
@@ -160,7 +160,7 @@ def test_optional_pagination_preserves_full_lists_and_filters(client: TestClient
     assert empty["data"] == []
     assert empty["meta"] == {"total": 0, "page": 1, "page_size": 50, "pages": 1}
 
-    for query in ("page=0", "page=1&size=0", "page=1&size=201"):
+    for query in ("page=0", "page=1&size=0"):
         assert client.get(f"/api/v1/projects?{query}", headers=service).status_code == 422
 
 

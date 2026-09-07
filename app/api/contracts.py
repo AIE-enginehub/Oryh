@@ -28,6 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
     commit_or_conflict,
@@ -186,7 +187,7 @@ def list_contracts(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     visible = _require_reader(actor)
     tenant_id = actor.tenant_id
@@ -467,7 +468,7 @@ def list_contract_items(
     contract_id: str | None = None,
     product_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -559,7 +560,7 @@ def list_contract_documents(
     # "翻到那一条"; rows come back with their text when a keyword is given
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -676,7 +677,7 @@ def list_contract_terms(
     term_type: str | None = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:

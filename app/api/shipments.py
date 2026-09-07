@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
     commit_or_conflict,
@@ -202,7 +203,7 @@ def list_picklists(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "picklist", status_filter)
     stmt = select(Picklist).where(Picklist.tenant_id == tenant_id)
@@ -371,7 +372,7 @@ def list_picklist_items(
     picklist_id: str | None = None,
     inventory_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -474,7 +475,7 @@ def list_shipments(
     include_deleted: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "shipment", status_filter)
     stmt = select(Shipment).where(Shipment.tenant_id == tenant_id)
@@ -828,7 +829,7 @@ def list_shipment_items(
     product_id: str | None = None,
     inventory_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db,

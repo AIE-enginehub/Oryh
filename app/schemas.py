@@ -172,6 +172,11 @@ class EnvelopeMeta(BaseModel):
     page: int | None = None
     page_size: int | None = None
     pages: int | None = None
+    # what a decision did besides record itself (POST /approval-records): the
+    # caller's own approval todo it closed, and the document's status after
+    # any inline round transition — so nothing has to be re-read to verify
+    completed_todo_ids: list[str] | None = None
+    document_status: str | None = None
 
 
 class ListEnvelope(BaseModel, Generic[T]):

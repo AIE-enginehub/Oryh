@@ -7,6 +7,8 @@ Use with:
 
 Both endpoints reject web sessions and tenant-level service keys — only a personal bundle key works. The key decides the company: there is no tenant parameter, and none is needed.
 
+{{include:_common/api-conventions.md}}
+
 ## Am I Current?
 
 ```text

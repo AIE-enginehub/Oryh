@@ -7,6 +7,8 @@ Use with:
 - capability: `master_data.manage` (the bundle only carries this skill when
   the principal's role has it)
 
+{{include:_common/api-conventions.md}}
+
 ## Reads
 
 Every list here answers with ACTIVE rows by default; `status=archived` asks

@@ -23,6 +23,7 @@ from sqlalchemy import String, cast, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     archive_row,
     envelope,
     get_scoped_or_404,
@@ -162,7 +163,7 @@ def list_resources(
     booking_mode: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Resource).where(Resource.tenant_id == tenant_id),
@@ -174,7 +175,7 @@ def list_resources(
         keyword=keyword,
         keyword_columns=(Resource.name,),
         order_by=(Resource.created_at.desc(), Resource.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=ResourceRead,
     )
 
@@ -278,7 +279,7 @@ def list_resource_bookings(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(ResourceBooking).where(ResourceBooking.tenant_id == tenant_id),

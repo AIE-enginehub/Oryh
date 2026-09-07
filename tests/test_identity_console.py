@@ -218,8 +218,8 @@ def test_user_list_optional_pagination_and_filters(client: TestClient) -> None:
         headers=service,
     ).status_code == 200
 
-    # Supplying size without page keeps the historical full-list response.
-    full = client.get("/api/v1/auth/users?size=1", headers=service).json()
+    # Omitting both paging parameters keeps the historical full-list response.
+    full = client.get("/api/v1/auth/users", headers=service).json()
     assert len(full["data"]) == 6  # tenant admin + five invitees
     assert full["meta"] == {"total": 6}
     assert all("invitation_url" not in row for row in full["data"])
@@ -255,7 +255,7 @@ def test_user_list_optional_pagination_and_filters(client: TestClient) -> None:
     assert empty["data"] == []
     assert empty["meta"] == {"total": 0, "page": 1, "page_size": 50, "pages": 1}
 
-    for query in ("page=0", "page=1&size=0", "page=1&size=201", "status=unknown&page=1"):
+    for query in ("page=0", "page=1&size=0", "status=unknown&page=1"):
         assert client.get(f"/api/v1/auth/users?{query}", headers=service).status_code == 422
 
 

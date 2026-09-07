@@ -871,6 +871,8 @@ def test_a_list_question_gets_the_list_and_nothing_behind_it() -> None:
     the one-call answer from the three-wave briefing it runs only when asked."""
     rule = (PRODUCT_SKILLS_DIR / "_common" / "answer-the-question.md").read_text(encoding="utf-8")
     assert "A list request returns the list" in rule and 'starts with "I looked into' in rule
+    # "how many products" was answered by downloading the products
+    assert "A count is `meta.total`" in rule and "page=1&size=1" in rule
     work = (PRODUCT_SKILLS_DIR / "oryh-my-work" / "SKILL.md").read_text(encoding="utf-8")
     assert "## One Question, One Call" in work
     assert work.index("## One Question, One Call") < work.index("## The Check-in"), \

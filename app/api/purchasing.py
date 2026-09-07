@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     require_contract_for,
     CENT,
     _run_document_import,
@@ -204,7 +205,7 @@ def list_purchase_requests(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "purchase_request", status_filter)
     stmt = select(PurchaseRequest).where(PurchaseRequest.tenant_id == tenant_id)
@@ -529,7 +530,7 @@ def list_purchase_orders(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(
         db, tenant_id,
@@ -560,7 +561,7 @@ def list_purchase_orders(
             PurchaseOrder.contract_no,
         ),
         order_by=(PurchaseOrder.created_at.desc(), PurchaseOrder.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=PurchaseOrderRead,
     )
 

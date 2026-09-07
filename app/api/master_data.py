@@ -31,6 +31,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     _finish_bulk_import,
     archive_row,
     commit_or_code_conflict,
@@ -347,7 +348,7 @@ def list_vendors(
     tax_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Vendor).where(Vendor.tenant_id == tenant_id),
@@ -355,7 +356,7 @@ def list_vendors(
         keyword=keyword,
         keyword_columns=(Vendor.name,),
         order_by=(Vendor.created_at.desc(), Vendor.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=VendorRead,
     )
 
@@ -443,7 +444,7 @@ def list_customers(
     customer_type: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Customer).where(Customer.tenant_id == tenant_id),
@@ -459,7 +460,7 @@ def list_customers(
         keyword=keyword,
         keyword_columns=(Customer.name,),
         order_by=(Customer.created_at.desc(), Customer.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=CustomerRead,
     )
 
@@ -555,7 +556,7 @@ def list_facilities(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Facility).where(Facility.tenant_id == tenant_id),
@@ -563,7 +564,7 @@ def list_facilities(
         keyword=keyword,
         keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
         order_by=(Facility.name.asc(), Facility.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=FacilityRead,
     )
 
@@ -692,7 +693,7 @@ def list_sales_channels(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(SalesChannel).where(SalesChannel.tenant_id == tenant_id),
@@ -700,7 +701,7 @@ def list_sales_channels(
         keyword=keyword,
         keyword_columns=(SalesChannel.channel_code, SalesChannel.name),
         order_by=(SalesChannel.channel_code.asc(), SalesChannel.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=SalesChannelRead,
     )
 
@@ -795,7 +796,7 @@ def list_stores(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(Store).options(selectinload(Store.sales_channel)).where(Store.tenant_id == tenant_id)
     if source:
@@ -806,7 +807,7 @@ def list_stores(
         keyword=keyword,
         keyword_columns=(Store.name, Store.store_code, Store.address),
         order_by=(Store.name.asc(), Store.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=StoreRead,
     )
 
@@ -908,7 +909,7 @@ def list_store_facilities(
     facility_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(StoreFacility).where(StoreFacility.tenant_id == tenant_id),
@@ -923,7 +924,7 @@ def list_store_facilities(
             StoreFacility.created_at.asc(),
             StoreFacility.id.asc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=StoreFacilityRead,
     )
 
@@ -996,7 +997,7 @@ def list_product_images(
     product_id: str | None = None,
     image_type: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductImage).where(ProductImage.tenant_id == tenant_id),
@@ -1007,7 +1008,7 @@ def list_product_images(
             ProductImage.sort_order.asc().nulls_last(),
             ProductImage.created_at.asc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=ProductImageRead,
     )
 
@@ -1233,7 +1234,7 @@ def list_bills_of_materials(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -1244,7 +1245,7 @@ def list_bills_of_materials(
         keyword=keyword,
         keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
         order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=BillOfMaterialsRead,
     )
 
@@ -1461,14 +1462,14 @@ def list_bom_items(
     bom_id: str | None = None,
     component_product_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 100,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db,
         select(BomItem).options(selectinload(BomItem.component)).where(BomItem.tenant_id == tenant_id),
         filters={BomItem.bom_id: bom_id, BomItem.component_product_id: component_product_id},
         order_by=(BomItem.line_no.asc(), BomItem.created_at.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=100),
         read_model=BomItemRead,
     )
 
@@ -1598,7 +1599,7 @@ def list_product_categories(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 200,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
     if root_only:
@@ -1612,7 +1613,7 @@ def list_product_categories(
         keyword=keyword,
         keyword_columns=(ProductCategory.name, ProductCategory.category_code),
         order_by=(ProductCategory.name.asc(), ProductCategory.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=200),
         read_model=ProductCategoryRead,
     )
 
@@ -1713,7 +1714,7 @@ def list_products(
     product_type: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
@@ -1728,7 +1729,7 @@ def list_products(
         # as "the import failed" (observed in a live E2E run)
         keyword_columns=(Product.name, Product.product_code),
         order_by=(Product.created_at.desc(), Product.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         render=lambda products: product_reads_with_sku_stats(db, tenant_id, products),
     )
 
@@ -2031,7 +2032,7 @@ def list_product_skus(
     sku_code: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductSku).where(ProductSku.tenant_id == tenant_id),
@@ -2041,7 +2042,7 @@ def list_product_skus(
             ProductSku.status: status_scope(status_filter),
         },
         order_by=(ProductSku.created_at.asc(), ProductSku.sku_code.asc(), ProductSku.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=ProductSkuRead,
     )
 
@@ -2169,7 +2170,7 @@ def list_product_prices(
     currency: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductPrice).where(ProductPrice.tenant_id == tenant_id),
@@ -2182,7 +2183,7 @@ def list_product_prices(
         },
         # newest first: the live price and its history read top-down
         order_by=(ProductPrice.created_at.desc(), ProductPrice.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=ProductPriceRead,
     )
 
@@ -2297,7 +2298,7 @@ def list_supplier_products(
     vendor_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(SupplierProduct).where(SupplierProduct.tenant_id == tenant_id),
@@ -2312,7 +2313,7 @@ def list_supplier_products(
             SupplierProduct.created_at.asc(),
             SupplierProduct.id.asc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=SupplierProductRead,
     )
 
@@ -2415,7 +2416,7 @@ def list_customer_products(
     customer_product_code: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(CustomerProduct).where(CustomerProduct.tenant_id == tenant_id),
@@ -2426,7 +2427,7 @@ def list_customer_products(
             CustomerProduct.status: status_scope(status_filter),
         },
         order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=CustomerProductRead,
     )
 
@@ -2527,7 +2528,7 @@ def list_customer_contacts(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(CustomerContact).where(CustomerContact.tenant_id == tenant_id),
@@ -2548,7 +2549,7 @@ def list_customer_contacts(
             CustomerContact.created_at.asc(),
             CustomerContact.id.asc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=CustomerContactRead,
     )
 
@@ -2684,7 +2685,7 @@ def list_external_product_maps(
     ] = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(ExternalProductMap).where(ExternalProductMap.tenant_id == tenant_id)
     if at is not None:
@@ -2718,7 +2719,7 @@ def list_external_product_maps(
             ExternalProductMap.created_at.asc(),
             ExternalProductMap.id.asc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=ExternalProductMapRead,
     )
 
@@ -2905,7 +2906,7 @@ def list_inventory_items(
     lot_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)
     # "" is a real position ("" is the default lot, and a facility may be
@@ -2922,7 +2923,7 @@ def list_inventory_items(
             InventoryItem.status: status_scope(status_filter),
         },
         order_by=(InventoryItem.created_at.desc(), InventoryItem.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=InventoryItemRead,
     )
 
@@ -3069,7 +3070,7 @@ def list_inventory_item_details(
     purchase_order_id: str | None = None,
     include_archived_items: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     stmt = (
         select(InventoryItemDetail)
@@ -3096,7 +3097,7 @@ def list_inventory_item_details(
             InventoryItemDetail.created_at.desc(),
             InventoryItemDetail.id.desc(),
         ),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=InventoryItemDetailRead,
     )
 

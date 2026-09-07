@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.api.common import envelope, get_tenant_id, list_rows, requested_pagination
+from app.api.common import PAGE_SIZE_DOC, envelope, get_tenant_id, list_rows, requested_pagination
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
 from app.models import BusinessObject, ObjectTypeDefinition, WorkflowDefinition
@@ -141,7 +141,7 @@ def list_workflow_definitions(
     ] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """Active versions by default (what the flow agent should follow now);
     history=true returns every published version, newest first."""

@@ -15,7 +15,7 @@ grows between releases.
 | Ask for | Skill |
 |---|---|
 | "What do I need to do?" | `oryh-my-work` |
-| "How does oryh work?" / "what does this permission mean?" / "do I need admin for that?" | `oryh-help` |
+| "How does Oryh work?" / "what does this permission mean?" / "do I need admin for that?" | `oryh-help` |
 | "Book meeting room B for Thursday" | `oryh-resource-booking` |
 | "How much was I paid this month?" | `oryh-payslip` |
 | "Connect me" / "my key stopped working" | `oryh-connect` |
@@ -54,6 +54,10 @@ for spellings or substitutes; that is what used to make a two-minute filing
 take ten. Whole-document creates (timesheets, expense claims) also accept
 `?validate_only=true`, which runs every server check and writes nothing, so
 "would this land as sent" is one call.
+
+"How many products do we have", "how many orders this month" is one call
+too: any list with `page=1&size=1` and the filters that define the set
+answers in `meta.total`. Nothing is downloaded to be counted.
 
 ## Approving
 

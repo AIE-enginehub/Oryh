@@ -7,6 +7,8 @@ sees only the records of the employee it is linked to, and someone else's
 payslip is a **404, not a 403** — 403 would confirm the document exists, which
 is most of what the gate protects.
 
+{{include:_common/api-conventions.md}}
+
 ## Pay records
 
 | Call | Purpose |

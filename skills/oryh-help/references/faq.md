@@ -45,6 +45,17 @@ for what oryh has no shape for — and creating one is never silent: the agent
 says what it is about to create and, when a shipped twin exists, asks for
 the reason.
 
+**"How do lists page?"** The same way everywhere: `page` (from 1) or `size`
+(1–200; larger is clamped to 200 and `meta.page_size` says so). Either one
+turns paging on; the response then carries `meta.total`, `meta.page`,
+`meta.page_size`. Omit both for the complete list.
+
+**"How do I count things — products, orders, open claims?"** Any list with
+`page=1&size=1` and the filters that define the set answers in `meta.total`;
+nothing is downloaded. `GET /object-directory` counts every document
+collection and custom type at once; an admin's `GET /workspace/setup-report`
+counts the master data.
+
 **"Is a material a product?"** Yes — `product_type: raw_material`. There is
 no materials table; the same catalogue, stock ledger, supplier links and
 purchase lines apply.

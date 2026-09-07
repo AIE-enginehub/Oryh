@@ -31,6 +31,8 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    MAX_PAGE_SIZE,
+    PAGE_SIZE_DOC,
     archive_row,
     commit_or_code_conflict,
     envelope,
@@ -170,7 +172,7 @@ def list_api_keys(
     status_filter: Annotated[Literal["active", "inactive", "all"] | None, Query(alias="status")] = None,
     is_active: bool | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     require_permission(actor, "keys.manage")
     stmt = select(ApiKey).where(ApiKey.tenant_id == actor.tenant_id)
@@ -261,7 +263,7 @@ def list_api_key_owners(
     db: Annotated[Session, Depends(get_db)],
     keyword: str | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int, Query(ge=1, description=PAGE_SIZE_DOC)] = 50,
 ):
     """Search active users eligible to own a user-bound API key.
 
@@ -278,7 +280,7 @@ def list_api_key_owners(
         keyword=keyword,
         keyword_columns=(User.name, User.email),
         order_by=(User.name.asc(), User.email.asc(), User.id.asc()),
-        pagination=(page, size),
+        pagination=(page, min(size, MAX_PAGE_SIZE)),
         read_model=ApiKeyOwnerRead, by_alias=False,
     )
 
@@ -380,7 +382,7 @@ def list_projects(
     keyword: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db, select(Project).where(Project.tenant_id == tenant_id),
@@ -388,7 +390,7 @@ def list_projects(
         keyword=keyword,
         keyword_columns=(Project.project_name,),
         order_by=(Project.created_at.desc(), Project.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=ProjectRead,
     )
 

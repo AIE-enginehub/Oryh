@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     apply_status_change,
     attachments_for_items,
     delete_document,
@@ -152,7 +153,7 @@ def list_timesheet_headers(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "timesheet_header", status_filter)
     stmt = select(TimesheetHeader).where(TimesheetHeader.tenant_id == tenant_id)
@@ -559,7 +560,7 @@ def list_expense_claims(
     without_open_todo: bool = False,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "expense_claim", status_filter)
     stmt = select(ExpenseClaim).where(ExpenseClaim.tenant_id == tenant_id)

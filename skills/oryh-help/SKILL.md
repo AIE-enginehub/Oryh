@@ -25,6 +25,8 @@ oryh:
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 ## The One Rule
 
 **Documentation first, API only for live facts, never research the API
@@ -57,6 +59,7 @@ role"), name the skill and the desk that does it; do not do it from here.
 | Connecting an agent, keys, bundles, keeping skills current | `references/manual-connect-agent.md` |
 | Sign-in, credentials, the first start | `references/manual-first-boot.md` |
 | A question that has been asked before | `references/faq.md` |
+| The exact parameters of an endpoint a skill uses | that skill's `references/api-contract.md` — generated from the server's contract, every query parameter and body field with type and required/optional |
 
 ## What This Skill Never Does
 

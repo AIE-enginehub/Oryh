@@ -1,7 +1,9 @@
 # User manual
 
-This manual is for the person who deployed oryh from the public repository and
-now has to make it useful to a company. It covers the self-hosted product end
+Oryh is the AI-native ERP/CRM: the agent your people already use is the
+interface, the server keeps the records, and the company's process is prose
+the workspace owns. This manual is for the person who deployed it from the
+public repository and now has to make it useful to a company. It covers the self-hosted product end
 to end: installing it, giving it its first workspace, connecting agents,
 loading the company's own records, and keeping it running.
 
@@ -11,7 +13,7 @@ side of it are not part of what you deployed.
 
 ## The shape of the thing
 
-oryh is headless. The documents a business runs on live here — employees,
+Oryh is headless. The documents a business runs on live here — employees,
 customers and vendors, products, quotations, orders, invoices in both
 directions, payments, payroll, timesheets, expense claims, leave — but the
 work of creating and moving them happens through **agents**, not through

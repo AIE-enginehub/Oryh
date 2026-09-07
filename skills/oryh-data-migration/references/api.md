@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 The credential also needs `tenant.act_for_any_employee` — a migration writes
 documents belonging to many salespeople, which ordinary submit credentials are
 forbidden to do (403 naming the capability). Admin roles hold it by default.

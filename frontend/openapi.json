@@ -16011,6 +16011,31 @@
       },
       "EnvelopeMeta": {
         "properties": {
+          "completed_todo_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed Todo Ids"
+          },
+          "document_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Status"
+          },
           "page": {
             "anyOf": [
               {
@@ -42028,13 +42053,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -42042,6 +42067,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -42468,13 +42494,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -42482,6 +42508,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -44690,15 +44717,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -45309,15 +45343,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -45613,15 +45654,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -46821,15 +46869,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -47624,15 +47679,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -48295,13 +48357,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -48309,6 +48371,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -48871,13 +48934,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -48885,6 +48948,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -50409,13 +50473,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -50423,6 +50487,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -51061,13 +51126,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -51075,6 +51140,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -51611,13 +51677,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -51625,6 +51691,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -52235,13 +52302,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -52249,6 +52316,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -53282,15 +53350,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -53959,15 +54034,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -54668,15 +54750,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -55642,13 +55731,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -55656,6 +55745,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -56543,15 +56633,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -57272,13 +57369,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -57286,6 +57383,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -57526,13 +57624,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -57540,6 +57638,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -59578,13 +59677,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -59592,6 +59691,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -60201,15 +60301,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -60862,15 +60969,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -61609,13 +61723,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -61623,6 +61737,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -62169,13 +62284,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -62183,6 +62298,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -62837,13 +62953,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -62851,6 +62967,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -63263,13 +63380,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -63277,6 +63394,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -63774,15 +63892,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -64112,15 +64237,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -65769,15 +65901,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -67090,13 +67229,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -67104,6 +67243,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -68385,13 +68525,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -68399,6 +68539,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -69094,13 +69235,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -69108,6 +69249,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -69880,15 +70022,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -70450,15 +70599,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -70764,15 +70920,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -72173,13 +72336,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -72187,6 +72350,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -72749,13 +72913,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -72763,6 +72927,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -73589,15 +73754,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -74796,15 +74968,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 200,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -75441,15 +75620,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -76150,15 +76336,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -76811,15 +77004,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -77488,15 +77688,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -78511,15 +78718,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -80500,15 +80714,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -82438,13 +82659,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -82452,6 +82673,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -83652,13 +83874,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -83666,6 +83888,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -84346,15 +84569,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -85732,15 +85962,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -87781,13 +88018,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -87795,6 +88032,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -90408,13 +90646,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -90422,6 +90660,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -92111,13 +92350,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -92125,6 +92364,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -92735,13 +92975,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -92749,6 +92989,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -93646,13 +93887,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -93660,6 +93901,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -94810,15 +95052,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -95370,15 +95619,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 100,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -96031,15 +96287,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -96763,12 +97026,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "default": 50,
-              "maximum": 200,
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "minimum": 1,
               "title": "Size",
               "type": "integer"
@@ -96971,13 +97235,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -96985,6 +97249,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -98125,13 +98390,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -98139,6 +98404,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -99271,13 +99537,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -99285,6 +99551,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },
@@ -100688,15 +100955,22 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Size",
-              "type": "integer"
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
             }
           },
           {
@@ -101518,13 +101792,13 @@
             }
           },
           {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
             "in": "query",
             "name": "size",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "maximum": 200,
                   "minimum": 1,
                   "type": "integer"
                 },
@@ -101532,6 +101806,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
               "title": "Size"
             }
           },

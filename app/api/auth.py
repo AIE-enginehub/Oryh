@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.api.common import PAGE_SIZE_DOC, requested_pagination
 from app.api.deps import Actor, get_actor, require_permission
 from app.core.browser_auth import (
     clear_browser_auth_cookies,
@@ -579,7 +580,7 @@ def list_users(
     status_filter: Annotated[UserStatus | None, Query(alias="status")] = None,
     role: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     require_permission(actor, "users.manage")
     stmt = select(User).where(User.tenant_id == actor.tenant_id)
@@ -590,10 +591,12 @@ def list_users(
         stmt = stmt.where(User.status == status_filter)
     if role:
         stmt = stmt.where(User.role == role)
-    if page is None:
+    paging = requested_pagination(page, size)
+    if paging is None:
         users = db.scalars(stmt.order_by(User.created_at.desc(), User.id.desc())).all()
         data = [UserRead.model_validate(user).model_dump() for user in users]
         return envelope(data, len(data))
+    page, size = paging
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     users = db.scalars(

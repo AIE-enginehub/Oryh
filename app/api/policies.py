@@ -32,6 +32,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     envelope,
     get_live_or_404,
     get_scoped_or_404,
@@ -184,7 +185,7 @@ def list_policies(
     keyword: str | None = None,
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """`in_force_on` is the question worth asking — what applied in March, not
     what is on the intranet today."""
@@ -212,7 +213,7 @@ def list_policies(
         keyword=keyword,
         keyword_columns=(Policy.code, Policy.title, Policy.summary),
         order_by=(Policy.code.asc(), Policy.version.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=PolicyRead,
     )
     return result

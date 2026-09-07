@@ -1,13 +1,25 @@
-# oryh
+# Oryh — the AI-native ERP/CRM
 
-**Agent-native business records for one company, self-hosted.**
+**Oryh is an ERP/CRM built for AI agents, not adapted to them.** Self-hosted,
+one company per deployment, open source.
 
-oryh is a **headless ERP/CRM** — the system of record that AI agents operate
-against. Customers and vendors, products and inventory, quotations, orders,
-invoices in both directions, payments and settlement, payroll: the documents a
-business actually runs on, behind an API designed to be driven by an agent
-rather than clicked through by a person. It stores facts and state; the agents
-your people already use drive the flow.
+An AI-native ERP/CRM means three things here, each of them structural:
+
+- **The agent is the user interface.** There are no data-entry screens.
+  Employees speak to the agent they already use — Claude Code, Codex, Hermes,
+  WorkBuddy and others of that class — and the agent files the timesheet,
+  raises the purchase order, matches the invoice. The console exists to
+  administer the workspace, not to do the work.
+- **The server keeps facts; agents make the decisions.** Oryh stores
+  customers and vendors, products and stock, quotations, orders, invoices in
+  both directions, payments and settlement, payroll — as durable records with
+  an audit trail. Which approver comes next, whether a discount is too deep,
+  what "our process" is: that is prose the workspace owns, read by agents,
+  never a configuration screen.
+- **Skills instead of an SDK.** A skill is markdown plus plain HTTP. Any
+  agent that can read a file and call a URL can run the company, and every
+  skill carries the server's own contract so the agent knows each parameter
+  before its first call. MCP is the same door for agents that speak it.
 
 **Bring your own agent.** Skills are markdown instructions plus plain HTTP —
 no SDK, no client library, nothing to keep in step with a release. So most

@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 Capability: `fin_account.manage` — reads included (the register is
 payroll-grade sensitive; the member surface never sees it).
 

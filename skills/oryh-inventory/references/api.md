@@ -7,6 +7,8 @@ Use with:
 - capability: `inventory.manage` (the bundle only carries this skill when the
   principal's role has it); reads are tenant-visible
 
+{{include:_common/api-conventions.md}}
+
 ## Positions
 
 ```text

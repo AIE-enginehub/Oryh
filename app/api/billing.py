@@ -44,6 +44,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     _run_document_import,
     account_position,
     allocate_document_number,
@@ -693,7 +694,7 @@ def list_invoices(
     keyword: str | None = None,
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """The receivables/payables work queues live here.
 
@@ -756,7 +757,7 @@ def list_invoices(
             Invoice.counterparty_name_snapshot,
         ),
         order_by=(Invoice.created_at.desc(), Invoice.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=InvoiceRead,
     )
 
@@ -1772,7 +1773,7 @@ def list_billing_accounts(
     keyword: str | None = None,
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """`over_limit=true` is the credit-risk queue: accounts whose balance has
     gone past the credit line they were given."""
@@ -1803,7 +1804,7 @@ def list_billing_accounts(
             BillingAccount.external_account_id,
         ),
         order_by=(BillingAccount.created_at.desc(), BillingAccount.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=BillingAccountRead,
     )
 
@@ -2180,7 +2181,7 @@ def list_billing_account_entries(
     entity_type: str | None = None,
     entity_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries posted through POST /billing-accounts/{id}/entries."""
@@ -2193,7 +2194,7 @@ def list_billing_account_entries(
             BillingAccountEntry.entity_id: entity_id,
         },
         order_by=(BillingAccountEntry.effective_at.desc(), BillingAccountEntry.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=BillingAccountEntryRead,
     )
 
@@ -2542,7 +2543,7 @@ def list_payments(
     keyword: str | None = None,
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """`unapplied=true` is the 认领队列: money that arrived or went out and has
     not been matched to a document yet. On the inbound side that is 预收款 plus
@@ -2578,7 +2579,7 @@ def list_payments(
             Payment.remarks,
         ),
         order_by=(Payment.created_at.desc(), Payment.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=PaymentRead,
     )
 
@@ -3163,7 +3164,7 @@ def list_payment_applications(
     applied_to_id: str | None = None,
     invoice_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries recorded through POST /payments/{id}/apply.
@@ -3211,7 +3212,7 @@ def list_payment_applications(
             PaymentApplication.invoice_item_id: invoice_item_id,
         },
         order_by=(PaymentApplication.applied_at.desc(), PaymentApplication.id.desc()),
-        pagination=page_only_pagination(page, size),
+        pagination=page_only_pagination(page, size, default=50),
         read_model=PaymentApplicationRead,
     )
 

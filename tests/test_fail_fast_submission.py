@@ -104,3 +104,52 @@ def test_the_stop_rule_is_written_where_every_submit_skill_reads() -> None:
     timesheet = (PRODUCT_SKILLS_DIR / "oryh-timesheet-submit" / "SKILL.md").read_text(encoding="utf-8")
     assert "confirm capturing it as free text" not in timesheet
     assert "validate_only" in timesheet
+
+
+def test_a_count_is_one_call_on_every_list_shape(office) -> None:
+    """"How many products / orders" used to be answered by fetching them all.
+    Both pagination contracts — master data (page opts in) and documents
+    (either parameter opts in) — hand back the total for one row."""
+    client, key, who = office
+    for i in range(3):
+        made = client.post("/api/v1/products", json={"product_code": f"P-{i}", "name": f"货 {i}"}, headers=key)
+        assert made.status_code == 201, made.text
+    products = client.get("/api/v1/products?page=1&size=1", headers=key).json()
+    assert products["meta"]["total"] == 3 and len(products["data"]) == 1
+    for start, end in (("2026-05-01", "2026-05-07"), ("2026-05-08", "2026-05-14")):
+        r = client.post("/api/v1/timesheet-headers", headers=key, json={
+            "employee_id": who, "period_start": start, "period_end": end})
+        assert r.status_code == 201, r.text
+    headers = client.get(f"/api/v1/timesheet-headers?employee_id={who}&page=1&size=1", headers=key).json()
+    assert headers["meta"]["total"] == 2 and len(headers["data"]) == 1
+
+
+
+def test_one_paging_contract_on_every_list(office) -> None:
+    """Agents lost a round trip on every list that followed the other contract:
+    size=500 was refused, size=1 without page answered with the whole table.
+    Now either parameter pages, an oversize page clamps to 200 and says so,
+    and omitting both still returns everything."""
+    client, key, _ = office
+    for i in range(3):
+        made = client.post("/api/v1/products", json={"product_code": f"Q-{i}", "name": f"品 {i}"}, headers=key)
+        assert made.status_code == 201, made.text
+
+    # size alone pages, on a master-data list and on a document list alike
+    one = client.get("/api/v1/products?size=1", headers=key).json()
+    assert len(one["data"]) == 1 and one["meta"]["total"] == 3 and one["meta"]["page"] == 1
+    assert client.get("/api/v1/timesheet-headers?size=1", headers=key).json()["meta"]["page"] == 1
+
+    # an oversize page is clamped, not refused
+    big = client.get("/api/v1/products?size=500", headers=key)
+    assert big.status_code == 200 and big.json()["meta"]["page_size"] == 200
+    assert client.get("/api/v1/timesheet-headers?page=1&size=999", headers=key).json()["meta"]["page_size"] == 200
+
+    # omitting both is still the complete list
+    everything = client.get("/api/v1/products", headers=key).json()
+    assert len(everything["data"]) == 3 and everything["meta"] == {"total": 3}
+
+    # and the parameter says all of this where an agent reads the contract
+    spec = client.get("/openapi.json").json()
+    size_param = next(p for p in spec["paths"]["/api/v1/products"]["get"]["parameters"] if p["name"] == "size")
+    assert "clamped to 200" in size_param["description"] and "meta.total" in size_param["description"]

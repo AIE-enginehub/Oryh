@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 ## Look Up The Type's Shape (optional but useful)
 
 ```text

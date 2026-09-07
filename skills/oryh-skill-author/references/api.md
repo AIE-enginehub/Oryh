@@ -5,6 +5,8 @@ Use with:
 - header: `X-API-Key: <the admin's user-bound key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
 
+{{include:_common/api-conventions.md}}
+
 ## Read The Tenant's Reality (step 3)
 
 ```text

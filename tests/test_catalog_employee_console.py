@@ -183,7 +183,7 @@ def test_product_pagination_filters_sku_counts_and_query_shape(
     assert archived_only["sku_count"] == 1
     assert archived_only["has_skus"] is False
 
-    full = client.get("/api/v1/products?keyword=Summer&size=1&status=all", headers=service).json()
+    full = client.get("/api/v1/products?keyword=Summer&status=all", headers=service).json()
     assert len(full["data"]) == 4
     assert full["meta"] == {"total": 4}
 
@@ -235,13 +235,15 @@ def test_product_sku_pagination_counts_after_all_filters(stack: tuple[TestClient
     assert exact["meta"] == {"total": 1, "page": 1, "page_size": 1, "pages": 1}
 
     full = client.get(
-        f"/api/v1/product-skus?product_id={first['id']}&size=1&status=all", headers=service
+        f"/api/v1/product-skus?product_id={first['id']}&status=all", headers=service
     ).json()
     assert len(full["data"]) == 5
     assert full["meta"] == {"total": 5}
 
-    for query in ("page=0", "page=1&size=0", "page=1&size=201"):
+    for query in ("page=0", "page=1&size=0"):
         assert client.get(f"/api/v1/product-skus?{query}", headers=service).status_code == 422
+    # an oversize page clamps rather than refuses — one contract for every list
+    assert client.get("/api/v1/product-skus?page=1&size=201", headers=service).json()["meta"]["page_size"] == 200
 
     assert client.delete(f"/api/v1/products/{second['id']}", headers=service).status_code == 204
     denied = client.post(
@@ -486,7 +488,7 @@ def test_employee_pagination_permissions_and_no_delete(stack: tuple[TestClient, 
         for index in range(5)
     ]
 
-    full = client.get("/api/v1/employees?keyword=Console&size=1", headers=service).json()
+    full = client.get("/api/v1/employees?keyword=Console", headers=service).json()
     assert len(full["data"]) == 5
     assert full["meta"] == {"total": 5}
 

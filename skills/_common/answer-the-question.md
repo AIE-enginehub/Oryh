@@ -20,6 +20,19 @@ or one action carried out — not a summary.
   it, and findings are for questions that asked for findings. An answer that
   starts with "I looked into…" or "I found that…" to a list question is
   wrong even when every finding is true.
+- **A count is `meta.total`, never a download.** "How many products do we
+  have", "how many orders this month", "how many open claims" is ONE list
+  call with the filters that define the set and `page=1&size=1`; the answer
+  is `meta.total` in the response, and the one row that came with it is
+  ignored. Every list pages the same way: `page` (from 1) or `size` (1–200,
+  larger is clamped to 200 and `meta.page_size` says so) — either one turns
+  paging on and the response carries `meta.total`, `meta.page`,
+  `meta.page_size`; omit both and you get the complete list, which on a big
+  collection is the slow mistake. Never fetch the rows to count them — a
+  workspace with seventy thousand quotations is a real case. For the whole picture at once,
+  `GET /object-directory` counts every document collection and custom type
+  in one read, and an admin's `GET /workspace/setup-report` counts the
+  master data.
 - **A question is not a filing.** The numbered Steps in a skill are the path
   for DOING something — they read the workflow definition, dedup, check
   requirements because a write is coming. A question about a fact ("did that

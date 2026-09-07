@@ -146,29 +146,40 @@ def paginated_envelope(data, *, total: int, page: int, page_size: int) -> dict:
     }
 
 
-def requested_pagination(page: int | None, size: int | None) -> tuple[int, int] | None:
-    """Keep legacy list semantics unless pagination was explicitly requested.
+MAX_PAGE_SIZE = 200
+PAGE_SIZE_DOC = (
+    "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says "
+    "what was used). Sending page or size turns paging on: the response carries "
+    "meta.total, meta.page, meta.page_size. Omit both for the complete list. "
+    "To count, send page=1&size=1 and read meta.total."
+)
 
-    Supplying either parameter opts into pagination; the omitted counterpart
-    receives the console default. This lets old clients continue to receive the
-    complete result set while new clients can use a conventional page/size
-    contract.
+
+def requested_pagination(
+    page: int | None, size: int | None, default: int = 50
+) -> tuple[int, int] | None:
+    """One paging contract for every list: either parameter opts in.
+
+    Two contracts used to coexist — documents paged on `page` OR `size`,
+    master data only on `page`, and `size` was capped by a 422 — and an agent
+    that learned one of them lost a round trip on every list that followed the
+    other: `size=500` refused, `size=1` without `page` answered with the whole
+    table. Now `size` alone pages (page 1), `page` alone pages with the
+    family's default size, and an oversize page is clamped rather than
+    refused, with `meta.page_size` reporting what was served. Omitting both
+    still returns the complete list, which old clients rely on.
     """
     if page is None and size is None:
         return None
-    return page or 1, size or 50
+    return page or 1, min(size or default, MAX_PAGE_SIZE)
 
 
-def page_only_pagination(page: int | None, size: int) -> tuple[int, int] | None:
-    """The master-data page contract: only `page` opts into pagination.
-
-    These endpoints shipped `size` with a default before pagination existed,
-    so `size` alone cannot opt in — it sizes the page once `page` asks for
-    one, and omitting `page` keeps the full-list contract.
-    """
-    if page is None:
-        return None
-    return page, size
+def page_only_pagination(
+    page: int | None, size: int | None, default: int = 50
+) -> tuple[int, int] | None:
+    """The master-data lists' entry point — the same contract as every other
+    list now; the name survives so thirty call sites read as before."""
+    return requested_pagination(page, size, default)
 
 
 def list_rows(

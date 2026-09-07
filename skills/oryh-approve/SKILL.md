@@ -99,8 +99,24 @@ POST /approval-records
 ```
 
 `approver_id` is filled by the server from the authenticated user — do not
-self-report it. Allowed actions: `approved`, `rejected`, `returned`,
-`commented` (an objection that does not decide).
+self-report it. `approver_role` is optional: send the seat the todo or the
+definition names you by ("manager", "finance"), otherwise omit it — it is a
+label on the fact, nothing is derived from it, and there is no convention to
+look up. Allowed actions: `approved`, `rejected`, `returned`, `commented`
+(an objection that does not decide).
+
+**Several documents, same decision — one batch each way.** "Approve them
+all" after a list is N detail reads sent together, N decisions sent
+together. Not read-decide-read-decide: every sequential pair is a wait the
+person feels.
+
+**The response is the verification.** A 201 carries the recorded fact, and
+its `meta` says what the same transaction did with it:
+`completed_todo_ids` (your own approval todo, closed) and `document_status`.
+Do not re-read the todo list, the trail, or the document afterwards to
+confirm — the fact is in the response, and the transaction that wrote it is
+the guarantee. If the person has a habit of asking for a check, the answer
+is the response you already hold, not another round of calls.
 
 **One step holds one decision.** Re-sending the SAME action is idempotent — a
 retry gets the recorded fact back. A DIFFERENT decision at the same

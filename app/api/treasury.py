@@ -28,6 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     archive_row,
     commit_or_conflict,
     envelope,
@@ -174,7 +175,7 @@ def list_fin_accounts(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     _require_treasury(actor)
     return list_rows(
@@ -299,7 +300,7 @@ def list_fin_account_transactions(
     date_to: Annotated[date | None, Query()] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     _require_treasury(actor)
     stmt = (

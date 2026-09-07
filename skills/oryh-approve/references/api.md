@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-approver.md}}
 
+{{include:_common/api-conventions.md}}
+
 ## Read Context
 
 One `/detail` per document type; the trail and your own todo are the same two

@@ -2,6 +2,8 @@
 
 {{include:_common/api-auth-principal.md}}
 
+{{include:_common/api-conventions.md}}
+
 The credential needs `purchase_order.manage` — held by admin roles by
 default, grantable to procurement staff, **not** in the member default (403
 names the capability).

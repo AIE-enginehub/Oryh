@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    PAGE_SIZE_DOC,
     commit_or_conflict,
     envelope,
     get_scoped_or_404,
@@ -108,7 +109,7 @@ def list_external_document_links(
     entity_type: str | None = None,
     entity_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, le=200)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
 ):
     return list_rows(
         db,

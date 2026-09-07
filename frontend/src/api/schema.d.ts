@@ -10567,6 +10567,10 @@ export interface components {
         };
         /** EnvelopeMeta */
         EnvelopeMeta: {
+            /** Completed Todo Ids */
+            completed_todo_ids?: string[] | null;
+            /** Document Status */
+            document_status?: string | null;
             /** Page */
             page?: number | null;
             /** Page Size */
@@ -18130,6 +18134,7 @@ export interface operations {
                 action?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -18251,6 +18256,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -19100,7 +19106,8 @@ export interface operations {
                 status?: ("invited" | "active" | "disabled") | null;
                 role?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19294,7 +19301,8 @@ export interface operations {
                 entity_type?: string | null;
                 entity_id?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19344,7 +19352,8 @@ export interface operations {
                 keyword?: string | null;
                 include_deleted?: boolean;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19707,7 +19716,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19946,7 +19956,8 @@ export interface operations {
                 bom_id?: string | null;
                 component_product_id?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -20143,6 +20154,7 @@ export interface operations {
                 link_type?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -20302,6 +20314,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -20792,6 +20805,7 @@ export interface operations {
                 document_type?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -20989,6 +21003,7 @@ export interface operations {
                 contract_id?: string | null;
                 product_id?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -21149,6 +21164,7 @@ export interface operations {
                 term_type?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -21314,6 +21330,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -21628,7 +21645,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21827,7 +21845,8 @@ export interface operations {
                 customer_product_code?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22028,7 +22047,8 @@ export interface operations {
                 customer_type?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22311,6 +22331,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -22588,7 +22609,8 @@ export interface operations {
                 keyword?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22792,6 +22814,7 @@ export interface operations {
                 entity_id?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -22871,6 +22894,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -23480,6 +23504,7 @@ export interface operations {
                 entity_type?: string | null;
                 entity_id?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -23642,7 +23667,8 @@ export interface operations {
                 at?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23840,7 +23866,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24044,6 +24071,7 @@ export interface operations {
                 date_to?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -24208,6 +24236,7 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -24406,6 +24435,7 @@ export interface operations {
                 status?: string | null;
                 subscription_id?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -24529,6 +24559,7 @@ export interface operations {
                 entity_type?: string | null;
                 enabled?: boolean | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -24659,7 +24690,8 @@ export interface operations {
                 purchase_order_id?: string | null;
                 include_archived_items?: boolean;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24743,7 +24775,8 @@ export interface operations {
                 lot_id?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25193,7 +25226,8 @@ export interface operations {
                 keyword?: string | null;
                 include_deleted?: boolean;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25592,6 +25626,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -26040,6 +26075,7 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -26241,6 +26277,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -26477,7 +26514,8 @@ export interface operations {
                 component?: string | null;
                 in_force_on?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26640,7 +26678,8 @@ export interface operations {
                 applied_to_id?: string | null;
                 invoice_item_id?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26691,7 +26730,8 @@ export interface operations {
                 keyword?: string | null;
                 include_deleted?: boolean;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27129,6 +27169,7 @@ export interface operations {
                 picklist_id?: string | null;
                 inventory_item_id?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -27291,6 +27332,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -27531,7 +27573,8 @@ export interface operations {
                 keyword?: string | null;
                 include_deleted?: boolean;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27897,7 +27940,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28094,7 +28138,8 @@ export interface operations {
                 product_id?: string | null;
                 image_type?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28295,7 +28340,8 @@ export interface operations {
                 currency?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28493,7 +28539,8 @@ export interface operations {
                 sku_code?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28692,7 +28739,8 @@ export interface operations {
                 product_type?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29010,7 +29058,8 @@ export interface operations {
                 keyword?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29604,7 +29653,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30198,6 +30248,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -30566,6 +30617,7 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -30769,7 +30821,8 @@ export interface operations {
                 booking_mode?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31200,7 +31253,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31799,6 +31853,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -32602,6 +32657,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -33135,6 +33191,7 @@ export interface operations {
                 product_id?: string | null;
                 inventory_item_id?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -33300,6 +33357,7 @@ export interface operations {
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -33574,6 +33632,7 @@ export interface operations {
                 kind?: ("product" | "custom") | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -33928,7 +33987,8 @@ export interface operations {
                 facility_id?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34089,7 +34149,8 @@ export interface operations {
                 status?: string | null;
                 keyword?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34287,7 +34348,8 @@ export interface operations {
                 vendor_id?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34519,6 +34581,7 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 page?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number;
             };
             header?: {
@@ -34562,6 +34625,7 @@ export interface operations {
                 status?: ("active" | "inactive" | "all") | null;
                 is_active?: boolean | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -34919,6 +34983,7 @@ export interface operations {
                 without_open_todo?: boolean;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -35253,6 +35318,7 @@ export interface operations {
                 include?: "target" | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
@@ -35688,7 +35754,8 @@ export interface operations {
                 tax_id?: string | null;
                 status?: string | null;
                 page?: number | null;
-                size?: number;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35929,6 +35996,7 @@ export interface operations {
                 status?: ("active" | "superseded" | "all") | null;
                 keyword?: string | null;
                 page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
             };
             header?: {
