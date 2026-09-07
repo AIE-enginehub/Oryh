@@ -1,6 +1,6 @@
 ---
 name: oryh-business-object-summary
-description: Use when an AI agent needs to summarize a set of business objects of one type for its principal — e.g. a manager asking for this week's daily reports, or who has not submitted one yet. Reads business_objects (optionally scoped by a payload field) and produces a natural-language summary. Read-only; never writes or advances any record.
+description: Use when a principal wants a summary over business objects of one type — this week's daily reports, who has not filed one. Reads business_objects, optionally scoped by a payload field, and reports in prose. Read-only; never writes or advances a record.
 required_capability: business_object.summarize
 ---
 

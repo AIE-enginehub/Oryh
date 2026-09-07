@@ -1,3 +1,5 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
@@ -57,9 +59,8 @@ function resourceForm(resource?: Resource): ResourceForm {
 export function ResourcesPage() {
   const { text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "inactive", "archived"]);
   const [editing, setEditing] = useState<Resource | null | undefined>(undefined);
   const [archiving, setArchiving] = useState<Resource | null>(null);
   const [form, setForm] = useState<ResourceForm>(emptyForm);
@@ -75,6 +76,7 @@ export function ResourcesPage() {
       id ? updateResource(id, input) : createResource(input),
     onSuccess: async (_resource, variables) => {
       setEditing(undefined);
+      notify(variables.id ? "saved" : "created");
       if (!variables.id) setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "resources"] });
     },
@@ -83,6 +85,7 @@ export function ResourcesPage() {
     mutationFn: (id: string) => archiveResource(id),
     onSuccess: async () => {
       setArchiving(null);
+      notify("archived");
       setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "resources"] });
     },
@@ -136,8 +139,9 @@ export function ResourcesPage() {
   return (
     <div className="master-data-page" data-testid="resources-page">
       <header className="page-intro">
-        <div><span className="eyebrow">Resource registry</span><h2>{text("资源主数据", "Resource master data")}</h2><p>{text("登记空间、设备和共享库存，并定义代理预订时使用的占用规则。", "Register spaces, equipment, and shared inventory, and define the capacity rules used for bookings.")}</p></div>
+        <div><span className="eyebrow">Resource registry</span><h2>{text("共享资源", "Resources")}</h2><p>{text("登记空间、设备和共享库存，并定义代理预订时使用的占用规则。", "Register spaces, equipment, and shared inventory, and define the capacity rules used for bookings.")}</p></div>
       </header>
+      {notice}
       <section className="data-panel" aria-label={text("资源列表", "Resource list")}>
         <ListToolbar
           keyword={keyword}
@@ -146,7 +150,7 @@ export function ResourcesPage() {
           createLabel={text("新建资源", "New resource")}
           statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "inactive", label: text("停用", "Inactive") }, { value: "archived", label: text("已归档", "Archived") }]}
           onCreate={openCreate}
-          onApply={(filters) => { setKeyword(filters.keyword); setStatus(filters.status as StatusFilter); setPage(1); }}
+          onApply={applyFilters}
         />
         <ListState
           loading={resources.isPending}
@@ -161,7 +165,7 @@ export function ResourcesPage() {
               <thead><tr><th>{text("资源", "Resource")}</th><th>{text("类型 / 位置", "Type / Location")}</th><th>{text("预订规则", "Booking rules")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
               <tbody>{result.data.map((resource) => (
                 <tr key={resource.id}>
-                  <td><strong>{resource.name}</strong><small>{resource.code || text("未设置编号", "No code")}</small></td>
+                  <td><button className="record-name" type="button" onClick={() => openEdit(resource)}>{resource.name}</button><small>{resource.code || text("未设置编号", "No code")}</small></td>
                   <td><span>{resource.resource_type}</span><small>{resource.location || text("未设置位置", "No location")}{resource.capacity ? text(` · 容量 ${resource.capacity}`, ` · Capacity ${resource.capacity}`) : ""}</small></td>
                   <td>{resource.booking_mode === "shared" ? <><span>{text("共享数量", "Shared quantity")}</span><small>{text(`最多 ${resource.max_quantity ?? "—"}`, `Up to ${resource.max_quantity ?? "—"}`)}</small></> : <><span>{text("独占预订", "Exclusive booking")}</span><small>{text("同一时段仅一笔", "One booking per time slot")}</small></>}</td>
                   <td><StatusBadge status={resource.status} /></td>

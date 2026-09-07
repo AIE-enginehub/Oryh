@@ -1,6 +1,6 @@
 ---
 name: oryh-expense-submit
-description: Use when a person's AI agent needs to file, update, query, or submit that person's own expense claim in oryh. Covers reading invoice/receipt images and PDFs, extracting the structured fields, confirming them with the principal, uploading the evidence, duplicate-invoice checks, line items, submission, and fixing a returned claim. It records the submitter's facts only — routing and approval belong to other roles.
+description: Use when a person's agent files, updates, queries or submits their OWN expense claim in oryh — read receipts and invoices, confirm the fields, upload evidence, check duplicates, submit, fix a returned claim. Submitter's facts only; routing and approval belong to other roles.
 required_capability: expense.submit_own
 ---
 
@@ -33,6 +33,8 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/fewer-round-trips.md}}
+
+{{include:_common/fail-fast-on-master-data.md}}
 
 {{include:_common/read-before-you-decide.md}}
 
@@ -71,8 +73,9 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
      `PATCH`/`DELETE` per item to fix. Items are editable only while the
      claim is in the tenant's editable states (default `draft`/`returned`) —
      a 409 means the claim has moved on.
-   - Project: send `project_id` only when a real project record is confidently matched (`GET /projects?keyword=`); otherwise keep `project_name_snapshot` + `client` as free text. Never invent projects.
-   - Vendor: match the receipt's seller against vendor master data — `GET /vendors?tax_id={seller_tax_id}` (exact key, best) or `GET /vendors?keyword={seller_name}`. Send `vendor_id` only on a confident match; `merchant` always keeps the seller name exactly as printed. No match is normal — leave `vendor_id` null. Never create vendors; that is master-data management.
+   - Project: one lookup, `GET /projects?keyword=` with the words the person used. One hit → `project_id`; none → if the definition requires a project, the claim cannot be submitted, say so; otherwise ask once whether to keep the name as free text in `project_name_snapshot`. Never invent projects, never try other spellings.
+   - Vendor: one lookup — `GET /vendors?tax_id={seller_tax_id}` (exact key, best) or `GET /vendors?keyword={seller_name}`. Send `vendor_id` on one hit; `merchant` always keeps the seller name exactly as printed. No match is normal — leave `vendor_id` null and move on. Never create vendors.
+   - Unsure whether the whole claim is legal? The same POST with `?validate_only=true` runs every server check (duplicate invoices included) and writes nothing — one call, the same errors the real write would give.
 8. **Submit**: `POST /expense-claims/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent — resubmitting a submitted claim is a no-op. The response's `status`/`submitted_at` is the confirmation; tell the principal it is submitted, with the total you already hold from step 7.
 9. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.
 

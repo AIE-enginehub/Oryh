@@ -1,3 +1,5 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
@@ -48,9 +50,8 @@ function customerForm(customer?: Customer): CustomerForm {
 export function CustomersPage() {
   const { text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "archived"]);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [archiving, setArchiving] = useState<Customer | null>(null);
   const [form, setForm] = useState<CustomerForm>(emptyForm);
@@ -66,6 +67,7 @@ export function CustomersPage() {
       id ? updateCustomer(id, input) : createCustomer(input),
     onSuccess: async (_customer, variables) => {
       setEditing(undefined);
+      notify(variables.id ? "saved" : "created");
       if (!variables.id) setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "customers"] });
     },
@@ -74,6 +76,7 @@ export function CustomersPage() {
     mutationFn: (id: string) => archiveCustomer(id),
     onSuccess: async () => {
       setArchiving(null);
+      notify("archived");
       setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "customers"] });
     },
@@ -121,8 +124,9 @@ export function CustomersPage() {
   return (
     <div className="master-data-page" data-testid="customers-page">
       <header className="page-intro">
-        <div><span className="eyebrow">Customer registry</span><h2>{text("客户主数据", "Customer master data")}</h2><p>{text("集中维护客户、税号与联系人，支持销售报价与开票流程准确匹配。", "Maintain customers, tax IDs, and contacts for accurate sales-quotation and invoicing workflows.")}</p></div>
+        <div><span className="eyebrow">Customer registry</span><h2>{text("客户资料", "Customers")}</h2><p>{text("集中维护客户、税号与联系人，支持销售报价与开票流程准确匹配。", "Maintain customers, tax IDs, and contacts for accurate sales-quotation and invoicing workflows.")}</p></div>
       </header>
+      {notice}
       <section className="data-panel" aria-label={text("客户列表", "Customer list")}>
         <ListToolbar
           keyword={keyword}
@@ -131,7 +135,7 @@ export function CustomersPage() {
           createLabel={text("新建客户", "New customer")}
           statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
           onCreate={openCreate}
-          onApply={(filters) => { setKeyword(filters.keyword); setStatus(filters.status as StatusFilter); setPage(1); }}
+          onApply={applyFilters}
         />
         <ListState
           loading={customers.isPending}
@@ -146,7 +150,7 @@ export function CustomersPage() {
               <thead><tr><th>{text("客户", "Customer")}</th><th>{text("税号", "Tax ID")}</th><th>{text("联系人", "Contact")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
               <tbody>{result.data.map((customer) => (
                 <tr key={customer.id}>
-                  <td><strong>{customer.name}</strong><small>{customer.customer_code || text("未设置编号", "No code")}</small></td>
+                  <td><button className="record-name" type="button" onClick={() => openEdit(customer)}>{customer.name}</button><small>{customer.customer_code || text("未设置编号", "No code")}</small></td>
                   <td className="mono-cell">{customer.tax_id || <span className="muted-value">—</span>}</td>
                   <td><span>{customer.contact || <span className="muted-value">—</span>}</span><small>{customer.email || customer.phone || text("未设置联系方式", "No contact details")}</small></td>
                   <td><StatusBadge status={customer.status} /></td>

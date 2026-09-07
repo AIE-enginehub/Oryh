@@ -1,3 +1,4 @@
+import { Tray } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { useI18n } from "../../i18n";
 
@@ -20,7 +21,7 @@ export function ListState({ loading, error, empty, emptyTitle, emptyDescription,
     return <div className="table-state error-state" role="alert"><strong>{text("数据加载失败", "Data could not be loaded")}</strong><span>{error}</span><button className="button" type="button" onClick={onRetry}>{text("重试", "Retry")}</button></div>;
   }
   if (empty) {
-    return <div className="table-state empty-state"><span className="empty-mark" aria-hidden="true">∅</span><strong>{emptyTitle}</strong><span>{emptyDescription}</span></div>;
+    return <div className="table-state empty-state"><span className="empty-mark" aria-hidden="true"><Tray size={25} /></span><strong>{emptyTitle}</strong><span>{emptyDescription}</span></div>;
   }
   return <>{children}</>;
 }

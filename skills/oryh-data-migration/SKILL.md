@@ -1,6 +1,6 @@
 ---
 name: oryh-data-migration
-description: Use when a company is moving HISTORICAL business data into oryh in bulk — 把老系统/旧ERP的历史报价单、历史销售订单导进来, "这是我们2021到2024年的报价单，几十万条", a migration workbook with thousands of rows, or backfilling past documents that already ended. Covers the mandatory order (master data first, then documents), reading the workbook, a dry run before anything lands, chunked imports that resume after an interruption, and reporting the documents whose customer or product no longer exists. Not for filing today's quotation or order — those are the submit skills.
+description: Use when a company moves HISTORICAL data into oryh in bulk — 老系统的历史报价单、销售订单, a workbook with thousands of rows, documents that already ended. Master data first, dry run, chunked resumable imports, a report of rows whose customer or product is gone. Not for today's documents (submit skills).
 required_capability: tenant.act_for_any_employee
 ---
 
@@ -26,6 +26,7 @@ not mean starting over, and one departed customer must not stop the run.
 - "Here are our 2021-2024 sales orders, about three hundred thousand rows"
 - "Historical data migration — what goes first?"
 - "Last time it stopped halfway; how do I resume?"
+- "These are our 2021–2024 quotations, a few hundred thousand rows"
 
 ## Required Inputs
 

@@ -1,6 +1,6 @@
 ---
 name: oryh-approve
-description: Use when an approver's AI agent needs to execute a single approval action on any oryh document — 审批/驳回/退回 a timesheet, expense claim, purchase request, sales quotation, sales order, payment request, or invoice ("审批这张报销单"、"折扣太深，退回去重算"、"这笔款能不能付"、"把审批意见写回系统"). Records exactly one approval fact and completes the approver's own todo, after the review that document type demands: receipts for expenses, derived discounts for quotations, drift from the won quotation for orders, unpriced lines for purchase requests, and the payee account against the vendor's own record for payments. Never changes document status, never decides routing, never creates todos for others — advancing the flow is the workflow admin agent's job.
+description: Use when an approver's agent records ONE approval decision on any oryh document — 审批/驳回/退回 a timesheet, expense, purchase request, quotation, order, payment or invoice ("审批这张报销单"、"退回去重算"). Reviews what that type demands first. Never changes status or routes; that is the flow agent's.
 required_capability: approval.record
 ---
 
@@ -25,6 +25,9 @@ clearing a rep to send — belongs to the flow skills
 - "The discount is too deep — send it back to be recalculated"
 - "The contract is not signed; reject this order for now"
 - "Write my approval note back into oryh"
+- "The discount is too deep — send it back to be recalculated"
+- "Can this payment go out?"
+- "Write my approval comment back into the system"
 
 ## Required Inputs
 

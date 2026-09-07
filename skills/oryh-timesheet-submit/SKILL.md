@@ -1,6 +1,6 @@
 ---
 name: oryh-timesheet-submit
-description: Use when a person's AI agent needs to fill, update, query, or submit that person's own timesheet in oryh. Covers natural-language timesheet capture, validating the input and confirming anything unusual with the principal before writing, draft reuse, line entries, free-text project capture, submission, and fixing a returned timesheet. It records the submitter's facts only — routing and approval belong to other roles.
+description: Use when a person's agent fills, updates, queries or submits their OWN timesheet in oryh — capture hours in plain language, confirm anything unusual before writing, reuse a draft, add lines and projects, fix a returned timesheet. Submitter's facts only; routing and approval belong to other roles.
 required_capability: timesheet.submit_own
 ---
 
@@ -32,6 +32,8 @@ Everything else comes from conversation: the period, the hours, the original des
 
 {{include:_common/fewer-round-trips.md}}
 
+{{include:_common/fail-fast-on-master-data.md}}
+
 {{include:_common/read-before-you-decide.md}}
 
 {{include:_common/leave-no-orphan-work.md}}
@@ -53,9 +55,16 @@ Everything else comes from conversation: the period, the hours, the original des
    - Validate every line BEFORE writing — see "Validate before writing"
      below. Anything that fails a reasonableness check is a conversation,
      not a write. The batch is not a reason to lower the bar per line.
-   - Project: send `project_id` only when a real project record is
-     confidently matched (`GET /projects?keyword=`); otherwise keep
-     `project_name_snapshot` + `client` as free text. Never invent projects.
+   - Project: one lookup, `GET /projects?keyword=` with the words the person
+     used (several words narrow it; the match is case-insensitive). One hit →
+     `project_id`. None → if the step-2 definition requires entries to name a
+     project, the timesheet cannot be submitted: say so and stop. If it does
+     not, ask whether to keep the name as free text in `project_name_snapshot`.
+     Never invent projects, never try other spellings.
+   - Unsure whether the whole document is legal? The same POST with
+     `?validate_only=true` runs every server check and writes nothing — one
+     call, the same errors the real write would give, and a 200 means the
+     document would land as sent.
    - **The response is your read-back**: it carries the header AND every
      entry as stored. Show it to the person from the response; do not spend
      a call re-reading what you were just told.
@@ -90,7 +99,7 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 - A full week totalling under 20h or over 60h → something missing, duplicated, or misread?
 - Vague task text ("work", "dealt with things") → ask what was actually done; approvers return vague lines, so one question now saves a rework round.
 - A near-duplicate line already on the header (same date, same task) → add on top, or replace the old line?
-- A project name that matches nothing in `/projects` → confirm capturing it as free text.
+- A project name that matches nothing in `/projects` → unsubmittable when the definition requires a project; otherwise ask once whether to keep it as free text.
 
 **Tenant requirements (the workflow admin returns violations; catch them in conversation first):**
 

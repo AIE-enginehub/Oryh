@@ -1,3 +1,5 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
@@ -51,9 +53,8 @@ function projectForm(project?: Project): ProjectForm {
 export function ProjectsPage() {
   const { text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "archived"]);
   const [editing, setEditing] = useState<Project | null | undefined>(undefined);
   const [archiving, setArchiving] = useState<Project | null>(null);
   const [form, setForm] = useState<ProjectForm>(emptyForm);
@@ -75,6 +76,7 @@ export function ProjectsPage() {
       id ? updateProject(id, input) : createProject(input),
     onSuccess: async (_project, variables) => {
       setEditing(undefined);
+      notify(variables.id ? "saved" : "created");
       if (!variables.id) setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "projects"] });
     },
@@ -84,6 +86,7 @@ export function ProjectsPage() {
     mutationFn: (id: string) => archiveProject(id),
     onSuccess: async () => {
       setArchiving(null);
+      notify("archived");
       setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "projects"] });
     },
@@ -136,10 +139,11 @@ export function ProjectsPage() {
       <header className="page-intro">
         <div>
           <span className="eyebrow">Project registry</span>
-          <h2>{text("项目主数据", "Project master data")}</h2>
+          <h2>{text("项目资料", "Projects")}</h2>
           <p>{text("维护项目编号、客户和有效周期，供工时、费用与代理流程引用。", "Maintain project codes, customers, and active dates for timesheets, expenses, and agent workflows.")}</p>
         </div>
       </header>
+      {notice}
 
       <section className="data-panel" aria-label={text("项目列表", "Project list")}>
         <ListToolbar
@@ -149,11 +153,7 @@ export function ProjectsPage() {
           createLabel={text("新建项目", "New project")}
           statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
           onCreate={openCreate}
-          onApply={(filters) => {
-            setKeyword(filters.keyword);
-            setStatus(filters.status as StatusFilter);
-            setPage(1);
-          }}
+          onApply={applyFilters}
         />
         <ListState
           loading={projects.isPending}
@@ -171,7 +171,7 @@ export function ProjectsPage() {
                   <tbody>
                     {result.data.map((project) => (
                       <tr key={project.id}>
-                        <td><strong>{project.project_name}</strong><small>{project.project_code || text("未设置编号", "No code")}</small></td>
+                        <td><button className="record-name" type="button" onClick={() => openEdit(project)}>{project.project_name}</button><small>{project.project_code || text("未设置编号", "No code")}</small></td>
                         <td>{project.client || <span className="muted-value">—</span>}</td>
                         <td>{project.start_date || project.end_date ? `${project.start_date || "…"} → ${project.end_date || "…"}` : <span className="muted-value">{text("长期", "Ongoing")}</span>}</td>
                         <td><StatusBadge status={project.status} /></td>

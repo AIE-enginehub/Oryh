@@ -1,6 +1,6 @@
 ---
 name: oryh-access-admin
-description: Use when an administrator's AI agent needs to change who can do what in oryh — granting someone a capability ("let Xie Ting place purchase orders too"), creating or adjusting roles ("make a procurement-officer role"), inviting colleagues or outside vendors, moving someone to a new role, disabling a departed employee's account, or reissuing a skill bundle or access credential. Covers the capability catalog, roles as the unit of grant, user lifecycle, and what each change does to the person's installed skills. Requires users.manage. It never approves, never files documents, and never grants itself more than it already holds.
+description: Use when an administrator's agent changes who can do what in oryh — grant a capability ("让谢婷也能下采购单"), shape roles, invite or disable people, reissue a bundle or credential. Requires users.manage. Never approves or files documents; never grants more than it holds.
 required_capability: users.manage
 ---
 

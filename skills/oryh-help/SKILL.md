@@ -1,6 +1,6 @@
 ---
 name: oryh-help
-description: Use when someone asks a question ABOUT oryh itself rather than asking for work to be done — "oryh 能不能…"、"这个权限是什么意思"、"给他建客户的权限是不是要给 admin"、"为什么我被 403"、"自定义对象和内置对象有什么区别"、"哪个 skill 负责…". Answers from the shipped documentation in this skill's references — the user manual, the capability-to-API-to-skill map, the FAQ — and only touches the API for a live fact. Needs no capability; everyone's bundle carries it.
+description: Use when someone asks a question ABOUT oryh rather than for work — "oryh 能不能…"、"这个权限是什么意思"、"为什么我被 403"、"哪个 skill 负责…". Answers from the shipped manual, capability map and FAQ in its references; touches the API only for a live fact. Needs no capability.
 ---
 
 # Oryh Help
@@ -9,6 +9,11 @@ The answer to "how does oryh work" is written down. Read it before doing
 anything else, and answer in the person's own words and language.
 
 {{include:_common/answer-the-question.md}}
+
+## Trigger Examples
+
+- "To let him create customers, do I have to make him admin?"
+- "What is the difference between a custom object and a builtin one?"
 
 ## Required Inputs
 

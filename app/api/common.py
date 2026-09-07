@@ -211,8 +211,14 @@ def list_rows(
                     )
             stmt = stmt.where(column == value)
     if keyword:
-        pattern = f"%{keyword.strip()}%"
-        stmt = stmt.where(or_(*(column.ilike(pattern) for column in keyword_columns)))
+        # Every word the caller typed must land in some searchable column:
+        # "华东 二期" finds "华东医院信息化二期", where a single substring
+        # would not. An agent that misses on the first try goes looking —
+        # other spellings, the whole list — and the person waits; a query
+        # that forgives word order and gaps makes the first try the last.
+        for word in keyword.split():
+            pattern = f"%{word}%"
+            stmt = stmt.where(or_(*(column.ilike(pattern) for column in keyword_columns)))
     if render is None:
         def render(rows):
             return [read_model.model_validate(row).model_dump(by_alias=by_alias) for row in rows]
@@ -976,6 +982,13 @@ def complete_rework_todos_for(db: Session, actor: Actor, entity_type: str, entit
     for todo in open_rework:
         todo.status = "completed"
         todo.completed_at = datetime.now(timezone.utc)
+        # The docstring above already argues for this line —
+        # "`completed`, not `cancelled`: somebody did the work" — and then the
+        # row did not say who, so every resubmission left a todo that claimed
+        # to be done by nobody. The sibling auto-completion in objects.py
+        # (the approval todo the server closes) has always written it; this
+        # one was the odd path out.
+        todo.completed_by = attributed(actor, None)
         record_audit(
             db,
             tenant_id=actor.tenant_id,

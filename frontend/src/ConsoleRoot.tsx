@@ -5,6 +5,7 @@ import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { createConsoleQueryClient } from "./session/sessionController";
 import "./styles.css";
+import "./console-design.css";
 
 // One client for the app's lifetime. Its cache belongs to whoever is signed
 // in, and `adoptNewIdentity` is what hands it to the next person — see

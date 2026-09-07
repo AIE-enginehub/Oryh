@@ -1,6 +1,6 @@
 ---
 name: oryh-payroll
-description: Use when HR or a compensation specialist needs to set or change someone's pay terms (setting or revising pay, including commission and bonus arrangements), produce payslips (工资条) for a period, and disburse pay (发放工资) with the payout matched to each payslip. Covers the whole payroll arc for one role. Not for approving the payout (that is oryh-payment-approval-flow), not for expense reimbursement (oryh-expense-submit), and not for billing customers or suppliers (oryh-receivables / oryh-payables).
+description: Use when HR or compensation sets or changes someone's pay terms, produces payslips (工资条) for a period, and disburses pay (发放工资) matched to each payslip. Not for approving the payout (oryh-payment-approval-flow), reimbursement (oryh-expense-submit) or billing. Requires payroll.manage.
 required_capability: payroll.manage
 ---
 

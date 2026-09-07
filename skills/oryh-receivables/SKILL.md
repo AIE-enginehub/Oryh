@@ -1,6 +1,6 @@
 ---
 name: oryh-receivables
-description: Use when an accounts-receivable person needs to bill a customer and collect — 给客户开票 from a sales order or free-standing, 登记收款 when money lands in the bank, 核销 matching that money to the invoices it settles (including reversing a wrong match), and chasing what is overdue. Covers the whole AR arc for one role. Not for filing the sales order (that is oryh-order-submit), not for the supplier side (oryh-payables), and not for approving or routing anything (oryh-invoice-approval-flow / oryh-payment-approval-flow). Also records customer REFUNDS for sales returns ("给买家退款"、"退货款退回去"): an outbound payment named to the SR- return, settling no invoice.
+description: Use when accounts receivable bills a customer and collects — 给客户开票 from an order or free-standing, 登记收款, 核销 money against invoices (and reverse a wrong match), chase overdue, refund a sales return. Not for filing the order (oryh-order-submit), the supplier side (oryh-payables) or approving anything.
 required_capability: invoice.manage:sales
 ---
 
@@ -38,6 +38,8 @@ Three facts shape everything here:
 - "That money was matched to the wrong invoice, reverse it"
 - "Which customers are overdue?"
 - "The customer says they never got this invoice — void it and reissue"
+- "Refund the buyer"
+- "Refund the returned goods' money to the buyer"
 
 ## Required Inputs
 

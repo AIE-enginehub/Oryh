@@ -1,6 +1,6 @@
 ---
 name: oryh-master-data
-description: Use when a person's AI agent needs to load or maintain the company's master data in oryh — importing products, vendors, or customers from a spreadsheet ("import the products in this Excel file"), adding or correcting entries by hand, archiving obsolete ones, or auditing what the catalog already holds. Also curates the external product map ("天猫这个商品对应我们哪个货"、"京东商品id映射"): which platform listing means which catalog product, bundles included. Covers reading the file locally, working out which column means what and confirming it with the person, a dry-run preview before anything is written, upsert by the tenant's own code, and per-row reporting. Requires master-data management rights; ordinary submit/approve skills read this catalog but must never write it.
+description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map ("天猫这个商品对应我们哪个货"). Dry run before writing. Requires master_data.manage; other skills only read it.
 required_capability: master_data.manage
 ---
 
@@ -62,6 +62,7 @@ rather than leaving a duplicate beside it.
 - "The customer list is in this CSV, please create the records"
 - "Rename product P-1024" (single edit — same endpoints, one row)
 - "These products are discontinued" (archive: `status: archived`)
+- "Map the JD product ids"
 
 ## Required Inputs
 

@@ -1,6 +1,6 @@
 ---
 name: oryh-connect
-description: Use when a person's AI agent needs to connect (or reconnect) to a company's oryh — first run on a new machine, "连接 oryh" / "登录 oryh", adding a SECOND employer alongside one that is already installed, or when any oryh skill hits 401 invalid API key. Opens the oryh web page for the person to sign in and approve, then installs that company's personal skill bundle with a fresh device key. Needs no pre-existing credential; this is the only oryh skill that works before login, and the only one shared by every company the person works for.
+description: Use to connect a person's agent to a company's oryh — first run on a new machine ("连接 oryh"、"登录 oryh"), adding a second employer, or after any oryh skill hits 401. Opens the sign-in page, then installs that company's bundle with a fresh device key. The only oryh skill that works before login.
 ---
 
 # Oryh Connect

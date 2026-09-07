@@ -96,7 +96,8 @@ of the deployment that issued it. Download `oryh-connect` from the deployment
 you actually mean and connect again.
 
 **A skill reaches nobody.** The skills screen shows *targeted · nobody* for a
-skill aimed at named people with none named. Name someone.
+skill aimed at named people with none named. Name someone. *Runner only* is
+different: the approval-flow skills ship that way on purpose.
 
 **The port is taken.** Set `ORYH_CONSOLE_PORT` and restart.
 

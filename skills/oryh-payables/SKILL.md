@@ -1,6 +1,6 @@
 ---
 name: oryh-payables
-description: Use when an accounts-payable person needs to book what a supplier billed and pay it — 登记进项发票 against a purchase order, checking it against what was ordered and what actually arrived (三单匹配), filing the 付款申请 that goes through approval, and 核销 matching the payment to the bills it settles. Also settles employee expense claims once approved. Not for the customer side (oryh-receivables), not for placing the purchase order (oryh-purchase-order), and not for routing the approval (oryh-invoice-approval-flow for the bill, oryh-payment-approval-flow for the payment). Also records the vendor's REFUND coming home for a purchase return ("戴尔退款到了"): an inbound payment named to the PR- return.
+description: Use when accounts payable books what a supplier billed and pays it — 登记进项发票 against a PO with 三单匹配, file the 付款申请, 核销 payments against bills, settle approved expense claims, record a supplier refund arriving ("戴尔退款到了"). Not the customer side (oryh-receivables) or placing a PO (oryh-purchase-order).
 required_capability: invoice.manage:purchase
 ---
 
@@ -37,6 +37,7 @@ What makes this side different from receivables:
 - "Turn this batch of supplier bills into a payment request"
 - "The money went out, settle it"
 - "Li's expense claim is approved — pay it"
+- "Dell's refund has arrived"
 
 ## Required Inputs
 

@@ -235,7 +235,7 @@ export function ObjectsPage() {
           <footer className="object-type-footer">{text(`${builtinCount} 个内建 · ${customCount} 个自定义`, `${builtinCount} built-in · ${customCount} custom`)}</footer>
         </aside>
 
-        <main className="object-record-workspace">
+        <div className="object-record-workspace">
           {!selection ? (
             <section className="data-panel object-placeholder">
               <span className="object-placeholder-mark" aria-hidden="true">◎</span>
@@ -278,7 +278,7 @@ export function ObjectsPage() {
               </ListState>
             </section>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );

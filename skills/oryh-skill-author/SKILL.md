@@ -1,6 +1,6 @@
 ---
 name: oryh-skill-author
-description: Use when a tenant admin's AI agent needs to turn a natural-language process requirement into tenant configuration in oryh — deciding whether it belongs in a workflow definition (policy) or a customer workflow skill (process contract), drafting a qualified SKILL.md against the tenant's real object types and capabilities, publishing it to the /skills registry, and wiring who receives it via required_capability. The admin describes the process in plain language; agents company-wide get the skill on their next sync. Requires skills.manage.
+description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds ("报销超过5000财务也要审"、"采购先经主管再到采购部") — by publishing or amending the workflow definition, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage.
 required_capability: skills.manage
 ---
 

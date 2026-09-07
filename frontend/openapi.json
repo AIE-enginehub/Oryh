@@ -31521,6 +31521,21 @@
             ],
             "title": "Calibration"
           },
+          "catalog_distribution_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "capability",
+                  "targeted"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Distribution Mode"
+          },
           "catalog_required_capability": {
             "anyOf": [
               {
@@ -31601,6 +31616,11 @@
               }
             ],
             "title": "Required Capability"
+          },
+          "runs_unattended": {
+            "default": false,
+            "title": "Runs Unattended",
+            "type": "boolean"
           },
           "status": {
             "enum": [
@@ -31713,6 +31733,11 @@
               }
             ],
             "title": "Required Capability"
+          },
+          "runs_unattended": {
+            "default": false,
+            "title": "Runs Unattended",
+            "type": "boolean"
           },
           "status": {
             "enum": [
@@ -57624,8 +57649,19 @@
         "summary": "List Expense Claims"
       },
       "post": {
+        "description": "`validate_only=true`: every check the write runs — duplicate invoice\nnumbers, categories, the project and vendor references — with nothing\ncommitted. See `create_timesheet_header`.",
         "operationId": "create_expense_claim_api_v1_expense_claims_post",
         "parameters": [
+          {
+            "in": "query",
+            "name": "validate_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Validate Only",
+              "type": "boolean"
+            }
+          },
           {
             "in": "header",
             "name": "X-API-Key",
@@ -98212,8 +98248,19 @@
         "summary": "List Timesheet Headers"
       },
       "post": {
+        "description": "`validate_only=true` runs every check the real write runs — the\nemployee, the period, each entry's date and hours and project — and then\nrolls back instead of committing. The agent's alternative was write, fail,\nfix, write again, with the person waiting through each round; one dry run\nanswers \"would this land as sent\" in a single call and leaves nothing\nbehind. The response is what would have been created.",
         "operationId": "create_timesheet_header_api_v1_timesheet_headers_post",
         "parameters": [
+          {
+            "in": "query",
+            "name": "validate_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Validate Only",
+              "type": "boolean"
+            }
+          },
           {
             "in": "header",
             "name": "X-API-Key",

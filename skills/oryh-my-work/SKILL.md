@@ -1,6 +1,6 @@
 ---
 name: oryh-my-work
-description: Use when a person's AI agent needs to check what its principal should do in oryh — on session start (check-in), on demand ("我有什么要办的"), or periodically. Reads the principal's open todos, overdue items, and the approval progress of their in-flight records, then reports a concise briefing. Read-mostly; the only write it may perform is completing a todo the principal says is done.
+description: Use when a person's agent checks what its principal should do in oryh — on session start, on demand ("我有什么要办的"、"我的todo"), or periodically. Lists open todos, overdue items and in-flight approvals, briefly. Read-mostly; the only write is completing a todo the principal says is done.
 ---
 
 # Oryh My Work

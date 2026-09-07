@@ -144,6 +144,9 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
             select(TenantSkill).where(TenantSkill.tenant_id == tenant_id, TenantSkill.name == name)
         )
         required_capability = meta.get("required_capability") or None
+        distribution_mode = meta.get("distribution_mode") or "capability"
+        if distribution_mode not in ("capability", "targeted"):
+            raise ValueError(f"{name}: distribution_mode must be capability or targeted")
         if skill is None:
             changed += insert_unless_raced(
                 db,
@@ -155,6 +158,8 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
                     description=meta.get("description"),
                     required_capability=required_capability,
                     catalog_required_capability=required_capability,
+                    distribution_mode=distribution_mode,
+                    catalog_distribution_mode=distribution_mode,
                     files_jsonb=files,
                     created_by="product-catalog",
                 ),
@@ -194,6 +199,14 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
                 if skill.required_capability == skill.catalog_required_capability:
                     skill.required_capability = required_capability
                 skill.catalog_required_capability = required_capability
+                dirty = True
+            # the same rule for the mode: an untouched default follows the
+            # catalog, a tenant's own choice (targeted to procurement, or
+            # widened back to capability) is theirs and survives every sync
+            if skill.catalog_distribution_mode != distribution_mode:
+                if skill.distribution_mode == skill.catalog_distribution_mode:
+                    skill.distribution_mode = distribution_mode
+                skill.catalog_distribution_mode = distribution_mode
                 dirty = True
             if dirty:
                 changed += 1

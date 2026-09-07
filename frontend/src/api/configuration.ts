@@ -70,6 +70,9 @@ export type SkillSummary = {
   description: string | null;
   required_capability: string | null;
   distribution_mode: DistributionMode;
+  /** The hosted runner holds this skill's gate: targeted-with-nobody is its
+   *  shipped default, not a misconfiguration. */
+  runs_unattended: boolean;
   audience: SkillAudienceSummary | null;
   version: number;
   status: SkillStatus;

@@ -1999,7 +1999,12 @@ export interface paths {
         /** List Expense Claims */
         get: operations["list_expense_claims_api_v1_expense_claims_get"];
         put?: never;
-        /** Create Expense Claim */
+        /**
+         * Create Expense Claim
+         * @description `validate_only=true`: every check the write runs — duplicate invoice
+         *     numbers, categories, the project and vendor references — with nothing
+         *     committed. See `create_timesheet_header`.
+         */
         post: operations["create_expense_claim_api_v1_expense_claims_post"];
         delete?: never;
         options?: never;
@@ -5435,7 +5440,15 @@ export interface paths {
         /** List Timesheet Headers */
         get: operations["list_timesheet_headers_api_v1_timesheet_headers_get"];
         put?: never;
-        /** Create Timesheet Header */
+        /**
+         * Create Timesheet Header
+         * @description `validate_only=true` runs every check the real write runs — the
+         *     employee, the period, each entry's date and hours and project — and then
+         *     rolls back instead of committing. The agent's alternative was write, fail,
+         *     fix, write again, with the person waiting through each round; one dry run
+         *     answers "would this land as sent" in a single call and leaves nothing
+         *     behind. The response is what would have been created.
+         */
         post: operations["create_timesheet_header_api_v1_timesheet_headers_post"];
         delete?: never;
         options?: never;
@@ -15290,6 +15303,8 @@ export interface components {
             audience?: components["schemas"]["SkillAudienceSummary"] | null;
             /** Calibration */
             calibration?: string | null;
+            /** Catalog Distribution Mode */
+            catalog_distribution_mode?: ("capability" | "targeted") | null;
             /** Catalog Required Capability */
             catalog_required_capability?: string | null;
             /**
@@ -15322,6 +15337,11 @@ export interface components {
             name: string;
             /** Required Capability */
             required_capability?: string | null;
+            /**
+             * Runs Unattended
+             * @default false
+             */
+            runs_unattended: boolean;
             /**
              * Status
              * @enum {string}
@@ -15358,6 +15378,11 @@ export interface components {
             name: string;
             /** Required Capability */
             required_capability?: string | null;
+            /**
+             * Runs Unattended
+             * @default false
+             */
+            runs_unattended: boolean;
             /**
              * Status
              * @enum {string}
@@ -22883,7 +22908,9 @@ export interface operations {
     };
     create_expense_claim_api_v1_expense_claims_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
@@ -34929,7 +34956,9 @@ export interface operations {
     };
     create_timesheet_header_api_v1_timesheet_headers_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;

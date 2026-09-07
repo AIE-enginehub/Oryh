@@ -3715,6 +3715,17 @@ class UpdateTenantSkillRequest(TenantSkillBase):
     status: Literal["active", "archived"] | None = None
 
 
+def _hosted_runner_holds(required_capability: str | None) -> bool:
+    """Whether the hosted flow agent's fixed grant set covers this gate — the
+    fact behind "this skill is the runner's": a person is out of its audience
+    by default because the runner never was."""
+    from app.services.bundles import capability_covers  # noqa: PLC0415 — bundles imports schemas
+
+    return bool(required_capability) and capability_covers(
+        frozenset(HOSTED_FLOW_AGENT_PERMISSIONS), required_capability
+    )
+
+
 class TenantSkillRead(APIModel):
     id: str
     tenant_id: str
@@ -3733,6 +3744,10 @@ class TenantSkillRead(APIModel):
         serialization_alias="files",
     )
     distribution_mode: DistributionMode = "capability"
+    catalog_distribution_mode: DistributionMode | None = None
+    # the hosted runner holds this skill's gate: "targeted · nobody" on such a
+    # skill is the shipped default (the runner ignores audience), not a gap
+    runs_unattended: bool = False
     version: int
     status: Literal["active", "archived"]
     created_by: str | None = None
@@ -3740,6 +3755,11 @@ class TenantSkillRead(APIModel):
     updated_at: datetime | None = None
     # who it is currently aimed at, so a detail view needs no second call
     audience: "SkillAudienceSummary | None" = None
+
+    @model_validator(mode="after")
+    def derive_runs_unattended(self):
+        self.runs_unattended = _hosted_runner_holds(self.required_capability)
+        return self
 
 
 class SkillAudienceSummary(APIModel):
@@ -3757,7 +3777,13 @@ class TenantSkillSummary(APIModel):
     description: str | None = None
     required_capability: str | None = None
     distribution_mode: DistributionMode = "capability"
+    runs_unattended: bool = False
     audience: SkillAudienceSummary | None = None
+
+    @model_validator(mode="after")
+    def derive_runs_unattended(self):
+        self.runs_unattended = _hosted_runner_holds(self.required_capability)
+        return self
     version: int
     status: Literal["active", "archived"]
     updated_at: datetime | None = None

@@ -1,6 +1,6 @@
 ---
 name: oryh-billing-account
-description: Use when someone needs to work with a party's standing account balance — 客户预存款 and 挂账额度 (deposit money, draw against a credit line, check how much a customer may still charge), or 会员积分/储值/券额 (grant points for a purchase, redeem them, run the expiry sweep, answer "我还有多少分"). One account is one balance in one unit; a customer may hold several. Not for invoicing or collecting (oryh-receivables), not for paying suppliers (oryh-payables), and it never converts points into money.
+description: Use for a party's standing balance in oryh — 客户预存款、挂账额度、会员积分/储值 (deposit, draw against credit, grant or redeem points, "我还有多少分"). One account is one balance in one unit. Not for invoicing (oryh-receivables) or paying suppliers (oryh-payables); never converts points to money.
 required_capability: billing_account.post
 ---
 

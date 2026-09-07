@@ -1,6 +1,6 @@
 ---
 name: oryh-workspace-setup
-description: Use when a tenant administrator's AI agent should introduce a NEW workspace and guide its initialization ("刚开通,从哪开始？"、"帮我初始化"、"系统怎么用起来"、"我们要启用哪些模块"、"给我做个开通向导"), or audit where setup stands later ("我们还缺什么配置"). Reads the derived setup report, interviews the admin about what the company does, then orchestrates the real work through the owning skills — people and roles, master data import, workflow definitions, state vocabulary — verifying every step by re-reading the report. Requires users.manage.
+description: Use when a tenant administrator's agent introduces a NEW workspace ("刚开通,从哪开始？"、"帮我初始化"、"给我做个开通向导") or audits where setup stands ("我们还缺什么配置"). Reads the setup report, interviews the admin, hands each step to the owning skill and re-reads the report to verify. Requires users.manage.
 required_capability: users.manage
 ---
 
@@ -18,6 +18,8 @@ outside this conversation — by anyone, in any order — shows as done.
 - "We just got this workspace — where do we start?"
 - "Walk me through setting up oryh for our company"
 - "What's still missing before the team can use this?"
+- "How do we get the system going?"
+- "Which modules should we enable?"
 
 ## Required Inputs
 

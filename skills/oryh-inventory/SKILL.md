@@ -1,6 +1,6 @@
 ---
 name: oryh-inventory
-description: Use when a warehouse keeper's AI agent needs to record what actually happened to stock in oryh — 收货 goods arriving (with or without a purchase order), 发货/领用 goods going out, 盘点 a stock count from a sheet, 借用/归还 a borrowed tool, a courier box nobody expected, a return with no return order. Covers posting ledger movements with whatever provenance exists, staging unknown arrivals, pairing loose ends with todos, and importing count sheets. Requires inventory management rights; it does not create products, vendors or customers (that is oryh-master-data) and does not place or receive purchase orders (oryh-purchase-order).
+description: Use when a warehouse keeper's agent records what happened to stock in oryh — 收货、发货/领用、盘点、借用/归还, an unexpected box, a return with no order. Posts ledger movements with whatever provenance exists. Requires inventory.manage. Never creates products (oryh-master-data) or places POs (oryh-purchase-order).
 required_capability: inventory.manage
 ---
 

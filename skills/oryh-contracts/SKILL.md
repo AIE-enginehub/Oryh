@@ -1,6 +1,6 @@
 ---
 name: oryh-contracts
-description: Use when a person's AI agent files or consults contracts in oryh — recording a signed contract with a factory, supplier or customer ("把这份代工合同录进去"、"这是签好的扫描件"), locating its key clauses (付款条件、首付款、交货节奏、验收、违约责任) so questions are answered from the clause itself ("这个合同的付款节奏怎样?"、"首付多少?"、"什么时候交货?"), recording supplements and renewals, and linking purchase orders, invoices and payments to the contract they execute. Requires contract.manage (scoped :purchase or :sales).
+description: Use to file or consult contracts in oryh — record a signed contract ("把这份代工合同录进去"), answer from its clauses ("付款节奏怎样?"、"首付多少?"), record supplements and renewals, link the orders, invoices and payments that execute it. Requires contract.manage, scoped :purchase or :sales.
 required_capability: contract.manage
 ---
 
@@ -15,6 +15,12 @@ each; the located clauses are the contract's OWN WORDS, verbatim, tagged
 by type, pointing at the file and page they came from. That is the whole
 design: a question about payment is one lookup by type, never a re-read
 of forty pages, and never your memory of them.
+
+## Trigger Examples
+
+- "Here is the signed scan"
+- "What is this contract's payment schedule?"
+- "When is delivery?"
 
 ## Three rules
 

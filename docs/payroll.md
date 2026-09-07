@@ -229,16 +229,11 @@ consequence is real and worth stating rather than discovering: any standing
 agent on the tenant key can read every salary. A workspace that cares should run
 payroll agents on user-bound keys holding `payroll.read`.
 
-**The hosted flow agent reads payroll too.** Its fixed grant set carries
-`payroll.read` (since 2026-09-05) because a payslip is a `direction=payroll`
-invoice in the same `submitted` queue as every other invoice, and without the
-read the hosted invoice flow could neither list nor advance one — thirteen
-payslips once waited a day in a workspace whose run log said "queue 0". The
-trade is stated rather than hidden: enrolling in hosted driving means the
-platform-run agent can read pay. What bounds it is the skill it runs, which
-routes payslips and writes no pay figure anywhere outside them, and the
-approver it assigns, who must hold `payroll.read` to open what they are asked
-to approve.
+**The hosted flow agent reads payroll.** A payslip is a `direction=payroll`
+invoice in the same `submitted` queue as every other invoice, and the hosted
+agent drives every invoice, so its fixed grant set carries `payroll.read`.
+The approver it assigns must hold `payroll.read` too, to open what they are
+asked to approve.
 
 `payroll.manage` is separate from `invoice.manage:payroll` because deciding what
 somebody earns and producing the monthly document are different jobs, and a

@@ -171,6 +171,10 @@ def test_resubmitting_completes_the_rework_todo(workspace) -> None:
                                    headers=workspace["key"]).json()["data"]
     assert todo["status"] == "completed"
     assert todo["completed_at"] is not None
+    # A completed todo must say who completed it. The integrity audit
+    # counts rows where one half is present and the other is not, and this
+    # path produced one on every resubmission for two weeks.
+    assert todo["completed_by"] is not None
 
 
 def test_resubmitting_leaves_other_work_open(workspace) -> None:

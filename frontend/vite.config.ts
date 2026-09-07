@@ -17,20 +17,33 @@ const appVersion = process.env.ORYH_APP_VERSION?.trim() || packageVersion;
 
 // Console only. The public website is its own project (../site) with its own
 // build and container; nothing here carries marketing code.
-export default defineConfig({
-  base: "/console/",
-  define: {
-    __APP_VERSION__: JSON.stringify(appVersion),
-  },
-  plugins: [react()],
-  build: {
-    outDir: "dist",
-  },
-  server: {
-    proxy: {
-      "/api": apiTarget,
-      "/web": apiTarget,
-      "/admin": apiTarget,
+export default defineConfig(async ({ mode, command }) => {
+  if (mode === "preview" && command !== "serve")
+    throw new Error(
+      "Sample preview is dev-only; use the default mode for production builds.",
+    );
+  const preview = mode === "preview";
+  const previewPlugin = preview
+    ? (await import("./preview/consolePreview")).consolePreview()
+    : null;
+  return {
+    base: "/console/",
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
     },
-  },
+    plugins: [react(), ...(previewPlugin ? [previewPlugin] : [])],
+    build: {
+      outDir: "dist",
+    },
+    server: {
+      host: "127.0.0.1",
+      proxy: preview
+        ? undefined
+        : {
+            "/api": apiTarget,
+            "/web": apiTarget,
+            "/admin": apiTarget,
+          },
+    },
+  };
 });

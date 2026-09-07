@@ -1,6 +1,6 @@
 ---
 name: oryh-purchase-order
-description: Use when a procurement agent needs to place, maintain, or receive against purchase orders in oryh — 下采购单/向供应商订货 from approved purchase requests (按单采购 keeps the request-line link), recording goods arrival (收货) with or without a warehouse, and closing or cancelling the order. The vendor is required — a PO is a commitment to a specific supplier. Not for filing the requisition (that is oryh-purchase-submit), approving it (oryh-purchase-approve), or routing the flow (oryh-purchase-approval-flow).
+description: Use when procurement places, maintains or receives against purchase orders in oryh — 下采购单/向供应商订货 from approved requests, 收货 with or without a warehouse, close or cancel. A PO names a specific vendor. Not for filing the requisition (oryh-purchase-submit) or approving it (oryh-approve).
 required_capability: purchase_order.manage
 ---
 

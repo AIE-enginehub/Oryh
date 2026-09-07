@@ -1,6 +1,6 @@
 ---
 name: oryh-quotation-submit
-description: Use when a salesperson's AI agent needs to draft, update, query, submit, send, close, or revise that person's own sales quotation in oryh. Covers natural-language quote capture, matching the customer and products against master data (both optional), list-price snapshots and discount facts, gift lines, per-line tax rates and lead times, the negotiated header total (抹零), sending to the customer, recording the outcome (成交/流失/过期), and issuing a new revision when the customer negotiates. It records the salesperson's facts only — internal approval routing belongs to other roles.
+description: Use when a salesperson's agent drafts, updates, submits, sends, closes or revises their OWN sales quotation in oryh — match customer and products, list-price snapshots and discounts, gift lines, 抹零, send, record 成交/流失/过期, issue a revision. Salesperson's facts only; approval routing is other roles'.
 required_capability: quotation.submit_own
 ---
 
@@ -48,6 +48,8 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/fewer-round-trips.md}}
+
+{{include:_common/fail-fast-on-master-data.md}}
 
 {{include:_common/read-before-you-decide.md}}
 

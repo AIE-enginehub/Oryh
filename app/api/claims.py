@@ -122,6 +122,19 @@ def normalize_project_context(
     return project.id, project_name_snapshot or project.project_name
 
 
+def _dry_run_readback(db: Session, document, read_model, rows, row_model, key: str):
+    """What a validate-only create would have returned, then nothing written.
+
+    Rendered BEFORE the rollback, while the flushed rows still carry their
+    ids and defaults, so the caller sees the exact shape a real write gives
+    — minus the ids surviving. The envelope says so in `meta`."""
+    db.flush()  # ids and defaults exist only once the rows have hit the transaction
+    data = read_model.model_validate(document).model_dump(by_alias=True)
+    data[key] = [row_model.model_validate(row).model_dump(by_alias=True) for row in rows]
+    db.rollback()
+    return {"data": data, "meta": {"validate_only": True, "written": False}}
+
+
 # --- timesheets: hours worked, asserted by the person who worked them --------
 
 
@@ -177,7 +190,14 @@ def create_timesheet_header(
     payload: CreateTimesheetHeaderRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
+    """`validate_only=true` runs every check the real write runs — the
+    employee, the period, each entry's date and hours and project — and then
+    rolls back instead of committing. The agent's alternative was write, fail,
+    fix, write again, with the person waiting through each round; one dry run
+    answers "would this land as sent" in a single call and leaves nothing
+    behind. The response is what would have been created."""
     tenant_id = actor.tenant_id
     require_permission(actor, "timesheet.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
@@ -201,6 +221,8 @@ def create_timesheet_header(
         entries = [
             build_timesheet_entry(db, actor, row, header=header) for row in payload.entries
         ]
+        if validate_only:
+            return _dry_run_readback(db, header, TimesheetHeaderRead, entries, TimesheetEntryRead, "entries")
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -572,7 +594,11 @@ def create_expense_claim(
     payload: CreateExpenseClaimRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
+    """`validate_only=true`: every check the write runs — duplicate invoice
+    numbers, categories, the project and vendor references — with nothing
+    committed. See `create_timesheet_header`."""
     tenant_id = actor.tenant_id
     require_permission(actor, "expense.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
@@ -591,6 +617,8 @@ def create_expense_claim(
     db.add(claim)
     db.flush()
     items = [build_expense_item(db, actor, row, claim=claim) for row in payload.items]
+    if validate_only:
+        return _dry_run_readback(db, claim, ExpenseClaimRead, items, ExpenseItemRead, "items")
     db.commit()
     db.refresh(claim)
     data = ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True)

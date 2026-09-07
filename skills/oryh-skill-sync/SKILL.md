@@ -1,6 +1,6 @@
 ---
 name: oryh-skill-sync
-description: Use when a person's AI agent should check whether its installed oryh skills for THIS company are current — on session start, periodically, or on demand ("更新一下 oryh 技能"). Compares the local bundle manifest against the server's per-user manifest and refreshes this company's bundle when anything changed. Read-only against business data; the only local write is replacing this company's own installed directory.
+description: Use to check whether this company's installed oryh skills are current — on session start, periodically, or on demand ("更新一下 oryh 技能"). Compares the local manifest with the server's and refreshes this company's bundle when it changed. Touches no business data.
 ---
 
 # Oryh Skill Sync

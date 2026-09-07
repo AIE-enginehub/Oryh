@@ -48,7 +48,7 @@ export function useFocusTrap(
         panel.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
-      ).filter((node) => !node.hasAttribute("hidden"));
+      ).filter((node) => node.tabIndex >= 0 && !node.closest("[hidden], [inert]") && !(node instanceof HTMLInputElement && node.type === "hidden"));
       if (focusable.length === 0) return;
 
       const first = focusable[0];

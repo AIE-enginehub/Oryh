@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useFocusTrap } from "../useFocusTrap";
+import { useEffect, useId, useRef } from "react";
 import { useI18n } from "../../i18n";
 
 type ConfirmDialogProps = {
@@ -9,6 +10,7 @@ type ConfirmDialogProps = {
   error?: string | null;
   kicker?: string;
   confirmLabel?: string;
+  tone?: "danger" | "primary";
   busyLabel?: string;
   scrimLabel?: string;
   onCancel: () => void;
@@ -23,6 +25,7 @@ export function ConfirmDialog({
   error,
   kicker,
   confirmLabel,
+  tone = "danger",
   busyLabel,
   scrimLabel,
   onCancel,
@@ -33,6 +36,9 @@ export function ConfirmDialog({
   const resolvedConfirmLabel = confirmLabel ?? text("确认归档", "Confirm archive");
   const resolvedBusyLabel = busyLabel ?? text("正在归档…", "Archiving…");
   const resolvedScrimLabel = scrimLabel ?? text("取消归档", "Cancel archive");
+  const id = useId();
+  const panelRef = useRef<HTMLElement>(null);
+  useFocusTrap(panelRef, open);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const cancelHandlerRef = useRef(onCancel);
   const busyRef = useRef(busy);
@@ -40,26 +46,29 @@ export function ConfirmDialog({
   busyRef.current = busy;
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     cancelRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !busyRef.current) cancelHandlerRef.current();
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => { document.removeEventListener("keydown", onKeyDown); document.body.style.overflow = overflow; previous?.focus(); };
   }, [open]);
 
   if (!open) return null;
   return (
     <div className="dialog-layer">
-      <button className="drawer-scrim" type="button" aria-label={resolvedScrimLabel} onClick={onCancel} />
-      <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description">
-        <span className="danger-kicker">{resolvedKicker}</span>
-        <h2 id="confirm-title">{title}</h2>
-        <p id="confirm-description">{description}</p>
+      <button className="drawer-scrim" type="button" aria-label={resolvedScrimLabel} disabled={busy} onClick={onCancel} />
+      <section ref={panelRef} className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}>
+        <span className={tone === "danger" ? "danger-kicker" : "eyebrow"}>{resolvedKicker}</span>
+        <h2 id={`${id}-title`}>{title}</h2>
+        <p id={`${id}-description`}>{description}</p>
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className="dialog-actions">
           <button ref={cancelRef} className="button" type="button" disabled={busy} onClick={onCancel}>{text("取消", "Cancel")}</button>
-          <button className="button danger" type="button" disabled={busy} onClick={onConfirm}>
+          <button className={`button ${tone}`} type="button" disabled={busy} onClick={onConfirm}>
             {busy ? resolvedBusyLabel : resolvedConfirmLabel}
           </button>
         </div>

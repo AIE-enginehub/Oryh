@@ -1,6 +1,6 @@
 ---
 name: oryh-policy
-description: Use when someone needs to write, publish, amend or repeal a company rule — 员工手册, 报销制度, 薪酬管理办法, 采购审批权限 — or to record an external standard the company must follow (社保缴费基数, 最低工资, 税率通知). Also use when an agent needs a figure a policy sets (差旅住宿上限, 提成比例, 缴费基数) and wants the document, version and publisher behind it. Not for routing a document through approval (that is the workflow definition), and not for one person's own salary or commission (that is oryh-payroll).
+description: Use to write, publish, amend or repeal a company rule — 员工手册、报销制度、薪酬管理办法 — or record an external standard (社保缴费基数、最低工资), and when an agent needs a figure a policy sets with its version and publisher. Not for who approves what (oryh-skill-author) or one person's pay (oryh-payroll).
 required_capability: policy.manage
 ---
 

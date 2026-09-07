@@ -1,6 +1,6 @@
 ---
 name: oryh-order-submit
-description: Use when a salesperson's AI agent needs to record, update, query, or submit that person's own sales order in oryh — typically right after a quotation was accepted ("客户签了，下单吧"), and afterwards to keep fulfilment facts current ("发货了，单号SF…"、"客户签收了"). Also records orders arriving from external channels ("把天猫这单录进来"、"京东订单同步"、"Amazon order came in"): dedup by the platform's order number, translate platform product ids through the external product map, link the external number to the oryh order. Also records customer RETURNS ("买家退货了"、"这单要退两件"、"天猫退款单同步"): a return is an order-table row with order_kind=return linking its original order, running the e-commerce return lifecycle (申请/寄回/收货/验货/退款). Records the order (usually from the won quotation's lines), submits it for confirmation, and maintains logistics/delivery FACTS as fields; status transitions belong to the flow admin. Requires order.submit_own.
+description: Use when a salesperson's agent records, updates or submits their OWN sales order in oryh — after a won quotation ("客户签了，下单吧"), fulfilment facts ("发货了，单号SF…"), channel orders ("把天猫这单录进来") and customer returns ("买家退货了"). Facts only; status transitions belong to the flow. Requires order.submit_own.
 required_capability: order.submit_own
 ---
 
@@ -17,6 +17,10 @@ now.
 - "City First signed — raise the order from the quotation"
 - "The order shipped, tracking SF3021…"
 - "The customer signed for it" / "when does it arrive?"
+- "The customer signed for it"
+- "Sync the JD order"
+- "Two pieces of this order are coming back"
+- "Sync the Tmall refund order"
 
 ## Required Inputs
 
@@ -32,6 +36,8 @@ oryh:
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/fewer-round-trips.md}}
+
+{{include:_common/fail-fast-on-master-data.md}}
 
 {{include:_common/read-before-you-decide.md}}
 

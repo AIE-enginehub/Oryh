@@ -38,10 +38,14 @@ def catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def write_skill(catalog: Path, name: str, *, capability: str | None, body: str = "steps") -> None:
+def write_skill(
+    catalog: Path, name: str, *, capability: str | None, body: str = "steps", mode: str | None = None
+) -> None:
     skill_dir = catalog / name
     skill_dir.mkdir(exist_ok=True)
     gate = f"required_capability: {capability}\n" if capability else ""
+    if mode:
+        gate += f"distribution_mode: {mode}\n"
     (skill_dir / "SKILL.md").write_text(
         f"---\nname: {name}\ndescription: does {name} things ({body})\n{gate}---\n\n# {name}\n\n{body}\n",
         encoding="utf-8",
@@ -262,3 +266,51 @@ def test_calibration_survives_every_content_update(db: Session, catalog: Path) -
     assert skill.calibration == "List titles only; never expand the linked record."
     assert skill.kind == "product"                      # still tracking
     assert "and once more" in skill.files_jsonb["SKILL.md"]  # still receiving
+
+
+def test_the_shipped_distribution_mode_tracks_the_catalog_until_the_tenant_decides(
+    db: Session, catalog: Path
+) -> None:
+    """The flow skills ship `targeted` with nobody named so they stay out of
+    every person's bundle. An existing tenant's untouched default follows
+    that on the next sync; a tenant who chose a mode keeps it."""
+    write_skill(catalog, "oryh-thing-approval-flow", capability="thing.advance")
+    write_skill(catalog, "oryh-other-approval-flow", capability="other.advance")
+    provisioning.provision_product_skills(db, TENANT)
+    db.commit()
+    assert get_skill(db, "oryh-thing-approval-flow").catalog_distribution_mode == "capability"
+
+    # the tenant already narrowed one of them to a team
+    chosen = get_skill(db, "oryh-other-approval-flow")
+    chosen.distribution_mode = "targeted"
+    db.add(TenantSkillAssignment(
+        tenant_id=TENANT, skill_id=chosen.id, subject_type="role", subject_id="finance",
+    ))
+    db.commit()
+
+    # the catalog now ships both targeted
+    write_skill(catalog, "oryh-thing-approval-flow", capability="thing.advance", mode="targeted")
+    write_skill(catalog, "oryh-other-approval-flow", capability="other.advance", mode="targeted")
+    provisioning.provision_product_skills(db, TENANT)
+    db.commit()
+
+    untouched = get_skill(db, "oryh-thing-approval-flow")
+    assert untouched.distribution_mode == "targeted"
+    assert untouched.catalog_distribution_mode == "targeted"
+    assert untouched.kind == "product", "a shipped mode is not a fork"
+    chosen = get_skill(db, "oryh-other-approval-flow")
+    assert chosen.distribution_mode == "targeted"
+    rows = db.scalars(
+        select(TenantSkillAssignment).where(TenantSkillAssignment.skill_id == chosen.id)
+    ).all()
+    assert [(r.subject_type, r.subject_id) for r in rows] == [("role", "finance")]
+
+    # a tenant who widened a flow back to capability keeps that too
+    untouched.distribution_mode = "capability"
+    db.commit()
+    write_skill(catalog, "oryh-thing-approval-flow", capability="thing.advance", mode="targeted",
+                body="revised")
+    provisioning.provision_product_skills(db, TENANT)
+    db.commit()
+    assert get_skill(db, "oryh-thing-approval-flow").distribution_mode == "capability"
+

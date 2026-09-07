@@ -45,6 +45,14 @@ turns it into fields and reads the result back — and reading it back is the
 important half, because the structure is the agent's interpretation and only
 the person can confirm it is what they meant.
 
+A name that is not in the master data — a project, a vendor, a customer —
+ends the exchange at once: the agent says the record does not exist and asks
+whether the name is wrong or the record is missing. It does not go looking
+for spellings or substitutes; that is what used to make a two-minute filing
+take ten. Whole-document creates (timesheets, expense claims) also accept
+`?validate_only=true`, which runs every server check and writes nothing, so
+"would this land as sent" is one call.
+
 ## Approving
 
 | Ask for | Skill |

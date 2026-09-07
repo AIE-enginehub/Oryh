@@ -76,7 +76,11 @@ employee record is told exactly that — it is a real state, not an error.
 The skills screen exists to answer one question at a glance: **who does this
 skill reach?** A skill aimed at named people with nobody actually named is
 shown as *targeted · nobody* — a real state, and one worth catching, because
-it reaches no one while looking configured.
+it reaches no one while looking configured. The exception is shown as
+*runner only*: the approval-flow skills ship targeted with nobody named,
+because the hosted flow agent drives them and ignores audience. They stay out
+of every person's bundle by default; name a person on one only to let them
+take a flow over by hand.
 
 Access credentials is where you issue an agent key without needing the
 bootstrap key from first boot, and where you disable one that leaked. A key

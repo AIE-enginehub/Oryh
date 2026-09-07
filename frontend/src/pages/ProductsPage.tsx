@@ -1,5 +1,7 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
   archiveProduct,
@@ -197,9 +199,9 @@ function AttributeSummary({ attributes }: { attributes: Record<string, unknown> 
 export function ProductsPage() {
   const { language, text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const skuPanelRef = useRef<HTMLElement>(null);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "archived"]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null | undefined>(undefined);
@@ -238,6 +240,12 @@ export function ProductsPage() {
     enabled: selectedProduct !== null,
   });
 
+  useEffect(() => {
+    if (!selectedProduct) return;
+    skuPanelRef.current?.focus({ preventScroll: true });
+    skuPanelRef.current?.scrollIntoView?.({ block: "start", behavior: "instant" });
+  }, [selectedProduct?.id]);
+
   const productPages = products.data?.meta.pages;
   useEffect(() => {
     if (productPages !== undefined && page > productPages) {
@@ -257,6 +265,7 @@ export function ProductsPage() {
       id ? updateProduct(id, input) : createProduct(input),
     onSuccess: async (saved, variables) => {
       setEditingProduct(undefined);
+      notify(variables.id ? "saved" : "created");
       if (!variables.id) setPage(1);
       setSelectedProduct((current: Product | null) => current?.id === saved.id ? saved : current);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "products"] });
@@ -267,6 +276,7 @@ export function ProductsPage() {
     mutationFn: (id: string) => archiveProduct(id),
     onSuccess: async (_, id) => {
       setArchivingProduct(null);
+      notify("archived");
       setPage(1);
       if (selectedProduct?.id === id) setSelectedProduct(null);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "products"] });
@@ -283,6 +293,7 @@ export function ProductsPage() {
       : createProductSku(variables.input),
     onSuccess: async (_, variables) => {
       setEditingSku(undefined);
+      notify(variables.mode === "create" ? "created" : "saved");
       if (variables.mode === "create") {
         setSkuPage(1);
         setSelectedProduct((current: Product | null) => current ? { ...current, has_skus: true, sku_count: current.sku_count + 1 } : current);
@@ -319,6 +330,7 @@ export function ProductsPage() {
     mutationFn: (id: string) => archiveProductSku(id),
     onSuccess: async () => {
       setArchivingSku(null);
+      notify("archived");
       setSkuPage(1);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["master-data", "product-skus", selectedProduct?.id] }),
@@ -468,6 +480,7 @@ export function ProductsPage() {
       <header className="page-intro">
         <div><span className="eyebrow">Product catalog</span><h2>{text("产品与 SKU", "Products and SKUs")}</h2><p>{text("先维护产品级信息，再为颜色、尺码或其他可交易变体建立 SKU。", "Maintain product-level information, then create SKUs for colors, sizes, or other sellable variants.")}</p></div>
       </header>
+      {notice}
 
       <section className="data-panel" aria-label={text("产品列表", "Product list")} aria-busy={products.isFetching}>
         <ListToolbar
@@ -477,7 +490,7 @@ export function ProductsPage() {
           createLabel={text("新建产品", "New product")}
           statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
           onCreate={openCreateProduct}
-          onApply={(filters) => { setKeyword(filters.keyword); setStatus(filters.status as StatusFilter); setPage(1); }}
+          onApply={applyFilters}
         />
         <ListState
           loading={products.isPending}
@@ -510,13 +523,13 @@ export function ProductsPage() {
         </ListState>
       </section>
 
-      <section className={`sku-workspace ${selectedProduct ? "selected" : ""}`} aria-label={text("SKU 管理", "SKU management")}>
+      <section ref={skuPanelRef} tabIndex={-1} hidden={!selectedProduct} className={`sku-workspace ${selectedProduct ? "selected" : ""}`} aria-label={text("SKU 管理", "SKU management")}>
         {!selectedProduct ? (
           <div className="sku-placeholder"><strong>{text("选择一个产品管理 SKU", "Select a product to manage its SKUs")}</strong><p>{text("点击产品行右侧的“SKU”操作，进入该产品的二级变体目录。", "Use the “SKU” action on a product row to open its variant catalog.")}</p></div>
         ) : (
           <>
             <header className="sku-workspace-header">
-              <div><span className="eyebrow">Selected product</span><h3>{selectedProduct.name} · SKU</h3><p>{selectedProduct.product_code || text("无产品编号", "No product code")} · {text(`价格币种 ${selectedProduct.currency}`, `Price currency ${selectedProduct.currency}`)}</p></div>
+              <div><span className="eyebrow">{text("当前产品", "Selected product")}</span><h3>{selectedProduct.name} · SKU</h3><p>{selectedProduct.product_code || text("无产品编号", "No product code")} · {text(`价格币种 ${selectedProduct.currency}`, `Price currency ${selectedProduct.currency}`)}</p></div>
               <div className="sku-header-actions">
                 <button className="button quiet" type="button" onClick={() => setSelectedProduct(null)}>{text("关闭", "Close")}</button>
                 <button
@@ -543,7 +556,7 @@ export function ProductsPage() {
               <section className="sku-batch-result" role="status" aria-live="polite">
                 <div className="sku-batch-result-summary">
                   <div>
-                    <span className="eyebrow">Batch result</span>
+                    <span className="eyebrow">{text("批量结果", "Batch result")}</span>
                     <strong>{text(`批量配码完成：已创建 ${batchNotice.created.length} 个 SKU，跳过 ${batchNotice.skipped.length} 个值。`, `Batch complete: created ${batchNotice.created.length} SKUs and skipped ${batchNotice.skipped.length} values.`)}</strong>
                   </div>
                   <button className="notice-close" type="button" aria-label={text("关闭批量配码结果", "Dismiss batch result")} onClick={() => setBatchNotice(null)}>×</button>
@@ -561,7 +574,7 @@ export function ProductsPage() {
                 <button className="button compact" type="submit">{text("查询", "Search")}</button>
                 {(skuCode || skuStatus) && <button className="button compact quiet" type="button" onClick={() => { setSkuCode(""); setSkuCodeDraft(""); setSkuStatus(""); setSkuPage(1); }}>{text("清除", "Clear")}</button>}
               </form>
-              <span className="eyebrow">Exact code filter</span>
+
             </div>
             <ListState
               loading={skus.isPending}

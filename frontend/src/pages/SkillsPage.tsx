@@ -120,7 +120,11 @@ function audienceLabel(skill: SkillSummary, text: (zh: string, en: string) => st
   const roles = skill.audience?.roles ?? [];
   const people = skill.audience?.user_count ?? 0;
   if (roles.length === 0 && people === 0) {
-    return <span className="audience-empty">{text("定向 · 无人", "Targeted · nobody")}</span>;
+    // the runner ignores audience, so a flow skill with nobody named is
+    // exactly as shipped; name a person only to let them take over by hand
+    return skill.runs_unattended
+      ? <span className="muted-value">{text("仅托管代理", "Runner only")}</span>
+      : <span className="audience-empty">{text("定向 · 无人", "Targeted · nobody")}</span>;
   }
   const parts = [...roles];
   if (people > 0) parts.push(text(`${people} 人`, `${people} ${people === 1 ? "person" : "people"}`));

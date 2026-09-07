@@ -1,6 +1,6 @@
 ---
 name: oryh-payslip
-description: Use when someone wants to READ pay — "我这个月发了多少"、"我的工资条"、"我的社保扣了多少"、"我去年的调薪记录", or, for a reviewer holding payroll.read, 核对某批工资条与发放金额是否一致 before approving a payout. Everyone can read their OWN pay with this skill and needs no special permission for it. Read-only: it never sets pay, never issues a payslip, and never moves money — that is oryh-payroll (定薪/出工资条/发放) and oryh-payment-approval-flow (审批).
+description: Use when someone wants to READ pay — "我这个月发了多少"、"我的工资条"、"我的社保扣了多少" — or, holding payroll.read, to check a batch of payslips against a payout before approving it. Everyone may read their own pay. Read-only: never sets pay, issues a payslip or moves money.
 ---
 
 # Oryh Payslip (read-only)
@@ -34,6 +34,7 @@ a payout made, that is `$oryh-payroll` and it needs `payroll.manage` /
 - "Does this batch of payslips total the same as the disbursement?" — a reviewer with `payroll.read`
 - "What did Zhou earn in July?" — needs `payroll.read`; without it this is a 404, and that
   is the gate working, not a fault
+- "My pay changes last year"
 
 ## Required Inputs
 

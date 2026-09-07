@@ -1947,6 +1947,13 @@ class TenantSkill(TenantRecord, Base):
     # audience means nobody. Explicit rather than inferred from row count, so
     # emptying the audience narrows rather than silently re-broadcasting.
     distribution_mode: Mapped[str] = mapped_column(String(20), default="capability")
+    # what the shipped catalog last said distribution_mode is (product skills
+    # only; null on custom) — the same tracking rule as the gate: equal to the
+    # tenant's value → keep following the catalog, different → the tenant
+    # decided, leave it alone. Exists so a skill the runner drives (the
+    # `*-approval-flow` family) can ship `targeted` with nobody named and stay
+    # out of every person's bundle without a tenant having to say so.
+    catalog_distribution_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # The workspace's own refinement of a skill it did not write: "只报简要内容",
     # "报销单也带上项目名". Appended as a section when the bundle renders, and
     # NEVER touched by the catalog sync — the third knob a tenant owns outright,

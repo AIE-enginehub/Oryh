@@ -75,6 +75,7 @@ describe("tenant console shell", () => {
           meta: {},
         }));
       }
+      if (path.startsWith("/api/v1/todos")) return Promise.resolve(jsonResponse({ data: [], meta: { total: 0, page: 1, page_size: 5, pages: 1 } }));
       return Promise.resolve(jsonResponse({
         data: { counts: { users: 3, todos_open: 2, todos_overdue: 1, objects: 4, skills: 5 } },
         meta: {},
@@ -85,7 +86,7 @@ describe("tenant console shell", () => {
 
     expect(await screen.findByRole("heading", { name: "Workspace overview" })).toBeInTheDocument();
     expect(screen.getByText("Active users")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Continue managing your workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Everyday data" })).toBeInTheDocument();
     expect(screen.queryByText("租户运行概况")).not.toBeInTheDocument();
   });
 
@@ -104,6 +105,7 @@ describe("tenant console shell", () => {
           meta: {},
         }));
       }
+      if (path.startsWith("/api/v1/todos")) return Promise.resolve(jsonResponse({ data: [], meta: { total: 0, page: 1, page_size: 5, pages: 1 } }));
       return Promise.resolve(jsonResponse({
         data: { counts: { users: 3, todos_open: 2, todos_overdue: 1, objects: 4, skills: 5 } },
         meta: {},
@@ -246,6 +248,7 @@ describe("tenant console shell", () => {
           }),
         );
       }
+      if (path.startsWith("/api/v1/todos")) return Promise.resolve(jsonResponse({ data: [], meta: { total: 0, page: 1, page_size: 5, pages: 1 } }));
       return Promise.resolve(
         jsonResponse({
           data: {
@@ -259,7 +262,7 @@ describe("tenant console shell", () => {
 
     renderApp();
 
-    expect(await screen.findByText("Acme Corp")).toBeInTheDocument();
+    expect((await screen.findAllByText("Acme Corp")).length).toBeGreaterThan(0);
     expect(await screen.findByTestId("metric-users")).toHaveTextContent("12");
     expect(screen.getByTestId("metric-todos_overdue")).toHaveTextContent("2");
     expect(document.body).not.toHaveTextContent(/React|PostgreSQL|\bSQL\b|\bRLS\b|\bRBAC\b|HttpOnly|JSON Schema|\bAPI\b|backend|server-rendered/i);
@@ -308,7 +311,7 @@ describe("tenant console shell", () => {
 
     renderApp("/projects");
 
-    expect(await screen.findByRole("heading", { name: "项目主数据" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "项目资料" })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith("/api/v1/projects?"))).toBe(true);
   });
 

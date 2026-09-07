@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, type FormEvent, type ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { useFocusTrap } from "../useFocusTrap";
 
@@ -28,6 +28,8 @@ export function Drawer({
   onSubmit,
 }: DrawerProps) {
   const { text } = useI18n();
+  const titleId = useId();
+  const errorRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
   const busyRef = useRef(busy);
@@ -55,21 +57,23 @@ export function Drawer({
     };
   }, [open]);
 
+  useEffect(() => { if (open && error) errorRef.current?.focus(); }, [open, error]);
+
   if (!open) return null;
   return (
     <div className="drawer-layer">
-      <button className="drawer-scrim" type="button" aria-label={text("关闭编辑面板", "Close edit panel")} onClick={onClose} />
-      <section ref={panelRef} className="data-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <button className="drawer-scrim" type="button" aria-label={text("关闭编辑面板", "Close edit panel")} disabled={busy} onClick={onClose} />
+      <section ref={panelRef} className="data-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="drawer-header">
           <div>
-            <h2 id="drawer-title">{title}</h2>
+            <h2 id={titleId}>{title}</h2>
             <p>{description}</p>
           </div>
           <button className="drawer-close" type="button" aria-label={text("关闭", "Close")} disabled={busy} onClick={onClose}>×</button>
         </header>
         <form className="drawer-form" onSubmit={onSubmit} noValidate>
           <div className="drawer-body">
-            {error && <div className="form-error" role="alert">{error}</div>}
+            {error && <div ref={errorRef} tabIndex={-1} className="form-error" role="alert">{error}</div>}
             {children}
           </div>
           <footer className="drawer-footer">

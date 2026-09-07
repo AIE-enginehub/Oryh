@@ -1,6 +1,6 @@
 ---
 name: oryh-purchase-submit
-description: Use when a person's AI agent needs to file, update, query, or submit that person's own purchase request in oryh. Covers natural-language requisition capture, matching products and the target vendor against master data (both optional), handling known and unknown prices, quote attachments, submission, and fixing a returned request. It records the requester's facts only — routing, sourcing, and approval belong to other roles.
+description: Use when a person's agent files, updates, queries or submits their OWN purchase request in oryh — capture the requisition, match products and vendor (both optional), known or unknown prices, quote attachments, fix a returned request. Requester's facts only; sourcing and approval are other roles'.
 required_capability: purchase.submit_own
 ---
 
@@ -38,6 +38,8 @@ Everything else comes from conversation: what to buy, how many, for when, from w
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/fewer-round-trips.md}}
+
+{{include:_common/fail-fast-on-master-data.md}}
 
 {{include:_common/read-before-you-decide.md}}
 

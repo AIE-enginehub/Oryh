@@ -1,138 +1,114 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  ArrowSquareOut,
+  CaretRight,
+  List,
+  MagnifyingGlass,
+  Plus,
+  SignOut,
+  X,
+} from "@phosphor-icons/react";
 
 import { browserLogout, type BootstrapData } from "../api/client";
-import { LanguageSwitcher, type MessageKey, useI18n } from "../i18n";
+import { LanguageSwitcher, useI18n } from "../i18n";
+import { navigation, visibleNavigation } from "../navigation";
+import { CommandMenu } from "./CommandMenu";
 import { OryhLogo } from "./OryhLogo";
 import { useNarrowViewport } from "./useNarrowViewport";
+import { useFocusTrap } from "./useFocusTrap";
 
-type AppShellProps = {
-  bootstrap: BootstrapData;
-  children: ReactNode;
-};
+// Keep existing page imports stable while sharing access policy outside the shell.
+export {
+  hasCapability,
+  canManageTenantConfiguration,
+  canManageObjectConfiguration,
+  canManageMasterData,
+  canManageEmployees,
+  canManageAccess,
+} from "../access";
 
-type NavItem = {
-  label: MessageKey;
-  href: string;
-  capability?: string;
-  adminOnly?: boolean;
-  masterData?: boolean;
-  objectConfiguration?: boolean;
-};
-
-const navigation: Array<{ label: MessageKey; items: NavItem[] }> = [
-  {
-    label: "overview",
-    items: [{ label: "dashboard", href: "/dashboard" }],
-  },
-  {
-    label: "peopleAndAccess",
-    items: [
-      { label: "users", href: "/users", capability: "users.manage" },
-      { label: "rolesAndPermissions", href: "/roles", capability: "users.manage" },
-      { label: "employees", href: "/employees", capability: "employees.manage" },
-    ],
-  },
-  {
-    label: "masterData",
-    items: [
-      { label: "projects", href: "/projects", masterData: true },
-      { label: "vendors", href: "/vendors", masterData: true },
-      { label: "customers", href: "/customers", masterData: true },
-      { label: "products", href: "/products", masterData: true },
-      { label: "resources", href: "/resources", masterData: true },
-      { label: "objectTypes", href: "/object-types", objectConfiguration: true },
-    ],
-  },
-  {
-    label: "recordsAndActivity",
-    items: [
-      { label: "businessObjects", href: "/objects", adminOnly: true },
-      { label: "todos", href: "/todos" },
-      { label: "approvals", href: "/approvals" },
-    ],
-  },
-  {
-    label: "automation",
-    items: [
-      { label: "skills", href: "/skills", capability: "skills.manage" },
-      { label: "apiKeys", href: "/api-keys", capability: "keys.manage" },
-      { label: "flowAgent", href: "/flow-agent", capability: "keys.manage" },
-    ],
-  },
-];
-
-function permissionCovers(permissions: string[], capability: string): boolean {
-  return permissions.includes(capability) || permissions.includes(`${capability}:*`);
-}
-
-export function hasCapability(bootstrap: BootstrapData, capability: string): boolean {
-  return permissionCovers(bootstrap.permissions, capability);
-}
-
-export function canManageTenantConfiguration(bootstrap: BootstrapData): boolean {
-  return bootstrap.role === "admin" || permissionCovers(bootstrap.permissions, "users.manage");
-}
-
-export function canManageObjectConfiguration(bootstrap: BootstrapData): boolean {
-  return canManageTenantConfiguration(bootstrap) ||
-    hasCapability(bootstrap, "object_types.manage") ||
-    hasCapability(bootstrap, "workflows.publish");
-}
-
-export function canManageMasterData(bootstrap: BootstrapData): boolean {
-  return bootstrap.role === "admin" ||
-    permissionCovers(bootstrap.permissions, "master_data.manage") ||
-    permissionCovers(bootstrap.permissions, "users.manage");
-}
-
-export function canManageEmployees(bootstrap: BootstrapData): boolean {
-  return permissionCovers(bootstrap.permissions, "employees.manage");
-}
-
-export function canManageAccess(bootstrap: BootstrapData): boolean {
-  return permissionCovers(bootstrap.permissions, "users.manage");
-}
-
-const routeTitles: Record<string, { section: MessageKey; title: MessageKey }> = {
-  "/dashboard": { section: "tenantConsole", title: "dashboard" },
-  "/users": { section: "peopleAndAccess", title: "users" },
-  "/roles": { section: "peopleAndAccess", title: "rolesAndPermissions" },
-  "/employees": { section: "peopleAndAccess", title: "employees" },
-  "/projects": { section: "masterData", title: "projects" },
-  "/vendors": { section: "masterData", title: "vendors" },
-  "/customers": { section: "masterData", title: "customers" },
-  "/products": { section: "masterData", title: "products" },
-  "/resources": { section: "masterData", title: "resources" },
-  "/object-types": { section: "masterData", title: "objectTypes" },
-  "/objects": { section: "recordsAndActivity", title: "businessObjects" },
-  "/todos": { section: "recordsAndActivity", title: "todos" },
-  "/approvals": { section: "recordsAndActivity", title: "approvals" },
-  "/skills": { section: "automation", title: "skills" },
-  "/api-keys": { section: "automation", title: "apiKeys" },
-  "/flow-agent": { section: "automation", title: "flowAgent" },
-};
-const notFoundTitle = { section: "tenantConsole" as const, title: "pageNotFound" as const };
-const objectDetailPath = /^\/objects\/[^/]+\/[^/]+\/?$/;
+type AppShellProps = { bootstrap: BootstrapData; children: ReactNode };
 
 export function AppShell({ bootstrap, children }: AppShellProps) {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
-  // Below 820px the sidebar is moved off-screen with `translateX(-102%)`, which
-  // hides it from sight and from nothing else: every nav link stayed in the tab
-  // order and in the accessibility tree, so a keyboard user tabbing across a
-  // "closed" mobile page walked through the whole navigation first, and a
-  // screen reader read it out. `inert` is what CSS transform cannot say.
+  const [command, setCommand] = useState<"navigate" | "create" | null>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const narrow = useNarrowViewport();
   const navHidden = narrow && !menuOpen;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const isAdmin = canManageTenantConfiguration(bootstrap);
+  const groups = visibleNavigation(bootstrap);
+  const canCreate = groups.some((group) =>
+    group.items.some((item) => item.createLabel),
+  );
   const displayName = bootstrap.user.name || bootstrap.user.email;
-  const pageTitle = routeTitles[location.pathname] ??
-    (objectDetailPath.test(location.pathname) ? routeTitles["/objects"] : notFoundTitle);
+  const currentGroup = navigation.find((group) =>
+    group.items.some(
+      (item) =>
+        item.href === location.pathname ||
+        (item.href === "/objects" &&
+          /^\/objects\/[^/]+\/[^/]+\/?$/.test(location.pathname)),
+    ),
+  );
+  const currentPage = currentGroup?.items.find(
+    (item) =>
+      item.href === location.pathname ||
+      (item.href === "/objects" && location.pathname.startsWith("/objects/")),
+  );
+  const roleLabel =
+    bootstrap.role === "admin"
+      ? text("租户管理员", "Tenant administrator")
+      : bootstrap.role === "member"
+        ? text("团队成员", "Team member")
+        : bootstrap.role;
+
+  useFocusTrap(sidebar, narrow && menuOpen);
+  useEffect(() => {
+    setMenuOpen(false);
+    setCommand(null);
+  }, [location.pathname, location.search]);
+  useEffect(() => {
+    if (!menuOpen || !narrow) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sidebar.current
+      ?.querySelector<HTMLElement>(".nav-link.active, .nav-link")
+      ?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", close);
+    };
+  }, [menuOpen, narrow]);
+  useEffect(() => {
+    const openFinder = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k")
+        return;
+      if (
+        !command &&
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [role="alertdialog"]')
+      )
+        return;
+      event.preventDefault();
+      setMenuOpen(false);
+      setCommand((value) => (value ? null : "navigate"));
+    };
+    document.addEventListener("keydown", openFinder);
+    return () => document.removeEventListener("keydown", openFinder);
+  }, [command]);
 
   const logout = useMutation({
     mutationFn: browserLogout,
@@ -142,53 +118,93 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
     },
   });
 
-  const visible = (item: NavItem) =>
-    (!item.adminOnly || isAdmin) &&
-    (!item.masterData || canManageMasterData(bootstrap)) &&
-    (!item.objectConfiguration || canManageObjectConfiguration(bootstrap)) &&
-    (!item.capability || hasCapability(bootstrap, item.capability));
-
   return (
     <div className="console-layout">
+      <a className="console-skip-link" href="#console-content">
+        {text("跳到主要内容", "Skip to main content")}
+      </a>
       {menuOpen && (
         <button
           className="nav-scrim"
-          aria-label={t("closeNavigation")}
+          aria-label={text("关闭导航遮罩", "Close navigation backdrop")}
           onClick={() => setMenuOpen(false)}
         />
       )}
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`} inert={navHidden || undefined}>
+      <aside
+        ref={sidebar}
+        className={`sidebar ${menuOpen ? "open" : ""}`}
+        inert={navHidden || undefined}
+        id="console-sidebar"
+        role={narrow && menuOpen ? "dialog" : undefined}
+        aria-modal={(narrow && menuOpen) || undefined}
+        aria-label={narrow && menuOpen ? t("navigation") : undefined}
+      >
         <div className="brand-block">
-          <OryhLogo subtitle={bootstrap.tenant.name} />
+          <NavLink
+            to="/dashboard"
+            aria-label={text("ORYH 工作台", "ORYH workspace")}
+            onClick={() => setMenuOpen(false)}
+          >
+            <OryhLogo />
+          </NavLink>
+          <span className="console-brand-label">CONSOLE</span>
+          <button
+            className="sidebar-close icon-button"
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              menuButton.current?.focus();
+            }}
+            aria-label={t("closeNavigation")}
+          >
+            <X size={20} />
+          </button>
         </div>
-
+        <div className="workspace-identity">
+          <span aria-hidden="true">{bootstrap.tenant.name.slice(0, 1)}</span>
+          <div>
+            <strong title={bootstrap.tenant.name}>
+              {bootstrap.tenant.name}
+            </strong>
+            <small>{text("企业工作空间", "Company workspace")}</small>
+          </div>
+        </div>
         <nav className="sidebar-nav" aria-label={t("navigation")}>
-          {navigation.map((group) => {
-            const items = group.items.filter(visible);
-            if (items.length === 0) return null;
-            return (
-              <div className="nav-group" key={group.label}>
-                <div className="nav-group-label">{t(group.label)}</div>
-                {items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-                  >
-                    <span>{t(item.label)}</span>
-                  </NavLink>
-                ))}
-              </div>
-            );
-          })}
+          {groups.map((group) => (
+            <div className="nav-group" key={group.label[1]}>
+              <div className="nav-group-label">{text(...group.label)}</div>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  to={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `nav-link ${isActive ? "active" : ""}`
+                  }
+                >
+                  <item.icon size={19} weight="regular" aria-hidden />
+                  <span>{t(item.label)}</span>
+                </NavLink>
+              ))}
+            </div>
+          ))}
         </nav>
-
+        <a className="sidebar-help" href="/web/connect">
+          {text("使用指南与智能体接入", "Guide & agent connection")}
+          <ArrowSquareOut size={15} aria-hidden />
+        </a>
+        {logout.isError && (
+          <p className="signout-error" role="alert">
+            {text("退出失败，请重试。", "Could not sign out. Please retry.")}
+          </p>
+        )}
         <div className="identity-block">
-          <span className="avatar" aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>
+          <span className="avatar" aria-hidden>
+            {displayName.slice(0, 1).toUpperCase()}
+          </span>
           <span className="identity-copy">
-            <strong>{displayName}</strong>
-            <small>{bootstrap.role}</small>
+            <strong title={bootstrap.user.email}>{displayName}</strong>
+            <small>{roleLabel}</small>
           </span>
           <button
             className="icon-button"
@@ -198,34 +214,75 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
             disabled={logout.isPending}
             onClick={() => logout.mutate()}
           >
-            {t("signOut")}
+            <SignOut size={19} />
           </button>
         </div>
       </aside>
 
-      <main className="main-panel">
+      <div className="main-panel">
         <header className="topbar">
           <button
+            ref={menuButton}
             className="menu-button"
             type="button"
             aria-label={t("openNavigation")}
             aria-expanded={menuOpen}
+            aria-controls="console-sidebar"
             onClick={() => setMenuOpen(true)}
           >
-            {t("menu")}
+            <List size={22} />
           </button>
-          <div>
-            <span className="eyebrow">{t(pageTitle.section)}</span>
-            <h1>{t(pageTitle.title)}</h1>
+          <div className="console-breadcrumb">
+            <span>
+              {currentGroup ? text(...currentGroup.label) : t("tenantConsole")}
+            </span>
+            <CaretRight size={13} aria-hidden />
+            <h1>{currentPage ? t(currentPage.label) : t("pageNotFound")}</h1>
           </div>
-          <div className="topbar-meta">
-            <span className="status-dot" aria-hidden="true" />
-            {t("sessionRls")}
+          <div className="console-header-actions">
+            <button
+              className="console-find"
+              type="button"
+              onClick={() => setCommand("navigate")}
+              aria-label={text("查找页面与功能", "Find pages and actions")}
+            >
+              <MagnifyingGlass size={17} aria-hidden />
+              <span>{text("查找页面与功能", "Find pages and actions")}</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            {canCreate && (
+              <button
+                className="button primary console-create"
+                type="button"
+                aria-label={text("新建", "Create")}
+                onClick={() => setCommand("create")}
+              >
+                <Plus size={17} aria-hidden />
+                <span>{text("新建", "Create")}</span>
+              </button>
+            )}
+            <LanguageSwitcher />
           </div>
-          <LanguageSwitcher />
         </header>
-        <div className="page-content">{children}</div>
-      </main>
+        {import.meta.env.MODE === "preview" && (
+          <div className="console-preview-note">
+            {text(
+              "本地样例预览 · 操作仅影响内存中的样例数据",
+              "Local sample preview · Changes only affect in-memory sample data",
+            )}
+          </div>
+        )}
+        <main className="page-content" id="console-content" tabIndex={-1}>
+          {children}
+        </main>
+      </div>
+      {command && (
+        <CommandMenu
+          groups={groups}
+          mode={command}
+          onClose={() => setCommand(null)}
+        />
+      )}
     </div>
   );
 }

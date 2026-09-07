@@ -797,6 +797,40 @@ def test_service_key_gets_the_tenant_bundle_for_the_flow_agent(client: TestClien
         assert any(n.endswith("/SKILL.md") for n in names)
 
 
+def test_the_flow_skills_are_the_runners_and_stay_out_of_the_admins_bundle(
+    client: TestClient,
+) -> None:
+    """Admin holds every `*.advance`, so the eight approval-flow skills used to
+    land in the admin's own bundle — eight entries in a person's catalog that
+    only the runner ever executes. They ship targeted with nobody named now:
+    the service principal ignores audience and still gets them, a person gets
+    them only by being named."""
+    if not any(p.name.endswith("-approval-flow") for p in PRODUCT_SKILLS_DIR.iterdir()):
+        pytest.skip("open-core tree ships no flow skills")
+    data = bootstrap_tenant(client, company_name="Bundle Co", email="admin@bundle-co.com", password="bundle-pass1")
+    service = {"X-API-Key": data["plain_text_api_key"]}
+    admin_id = data["user"]["id"]
+
+    personal = bundle_skill_names(bundle_zip(client, service, admin_id))
+    assert not any(name.endswith("-approval-flow") for name in personal), personal
+    assert "oryh-approve" in personal, "approving by hand is still the person's"
+
+    listed = client.get("/api/v1/skills", headers=service, params={"size": 100}).json()["data"]
+    flow = next(row for row in listed if row["name"] == "oryh-timesheet-approval-flow")
+    assert flow["distribution_mode"] == "targeted" and flow["runs_unattended"] is True
+    assert (flow["audience"] or {"roles": [], "user_count": 0}) == {"roles": [], "user_count": 0}
+
+    # naming the admin is how they take a flow over by hand
+    named = client.post(
+        f"/api/v1/skills/{flow['id']}/assignments",
+        json={"subject_type": "user", "subject_id": admin_id},
+        headers=service,
+    )
+    assert named.status_code == 201, named.text
+    personal = bundle_skill_names(bundle_zip(client, service, admin_id))
+    assert "oryh-timesheet-approval-flow" in personal
+
+
 def test_browser_session_still_cannot_mint_a_bundle(client: TestClient) -> None:
     """The boundary that does hold: a session must not produce a long-lived
     credential file."""

@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260905_0084
+-- Alembic revision: 20260906_0085
 --
 
 --
@@ -2001,6 +2001,7 @@ CREATE TABLE oryh.tenant_skills (
     catalog_required_capability text,
     distribution_mode character varying(20) DEFAULT 'capability'::character varying NOT NULL,
     calibration text,
+    catalog_distribution_mode character varying(20),
     CONSTRAINT tenant_skills_kind_chk CHECK ((kind = ANY (ARRAY['product'::text, 'custom'::text]))),
     CONSTRAINT tenant_skills_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text]))),
     CONSTRAINT tenant_skills_version_chk CHECK ((version >= 1))

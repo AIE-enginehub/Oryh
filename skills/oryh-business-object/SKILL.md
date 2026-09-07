@@ -1,6 +1,6 @@
 ---
 name: oryh-business-object
-description: Use when an AI agent needs to record, update, query, or relate ANY tenant-defined business object in oryh through business_objects and business_object_links — warranty cards, sales orders, daily reports, contract reviews, service requests, whatever the tenant has defined. This one skill covers every custom object type by reading the tenant's object-type definition (fields, lifecycle) and workflow definition (submission requirements) at use time; tenants do not need a separate skill per object type. Recording facts only; routing and approval belong to the flow admin and approver skills.
+description: Use to record, update, query or relate ANY tenant-defined object in oryh (warranty cards, daily reports, service requests…) by reading its object-type and workflow definitions at use time. One skill for every custom type. Facts only; routing and approval belong to the flow and approve skills.
 required_capability: business_object.write
 ---
 

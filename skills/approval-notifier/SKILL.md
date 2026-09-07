@@ -1,6 +1,6 @@
 ---
 name: approval-notifier
-description: Use when an AI agent needs to notify approvers, reviewers, submitters, or other participants about approval activity for any oryh entity such as timesheet_header or business_object. This covers email-style approval requests, reminders, escalations, and approval outcome messages using approval step context and contact details stored in agent memory.
+description: Use to tell people about approval activity on any oryh document — the new approver, the submitter of a returned or rejected one, reminders. Sends through POST /notifications, one message per person per run; the server picks the address and writes the body. Requires todos.assign, notification.send.
 required_capability: todos.assign
 ---
 

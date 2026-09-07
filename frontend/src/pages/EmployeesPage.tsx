@@ -1,3 +1,5 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useOutletContext } from "react-router-dom";
@@ -137,9 +139,8 @@ export function EmployeesPage() {
   const context = useOutletContext<ConsoleContext | null>();
   const { text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "inactive"]);
   const [editing, setEditing] = useState<Employee | null | undefined>(undefined);
   const [form, setForm] = useState<EmployeeForm>(newEmployeeForm);
   const [fieldErrors, setFieldErrors] = useState<EmployeeFieldErrors>({});
@@ -199,6 +200,7 @@ export function EmployeesPage() {
     },
     onSuccess: async (result, variables) => {
       setEditing(undefined);
+      notify(variables.mode === "create" ? "created" : "saved");
       if (variables.mode === "create") setPage(1);
       if (variables.mode === "create" && variables.createUser) {
         setCopyState("idle");
@@ -323,6 +325,7 @@ export function EmployeesPage() {
         </div>
         <Link className="related-page-link" to="/users">{text("管理登录用户与邀请", "Manage login users and invitations")} →</Link>
       </header>
+      {notice}
 
       {creationNotice && (
         <section className={`employee-creation-notice ${creationNotice.tone}`} role={creationNotice.tone === "warning" ? "alert" : "status"}>
@@ -354,11 +357,7 @@ export function EmployeesPage() {
             { value: "inactive", label: text("停用", "Inactive") },
           ]}
           onCreate={openCreate}
-          onApply={(filters) => {
-            setKeyword(filters.keyword);
-            setStatus(filters.status as StatusFilter);
-            setPage(1);
-          }}
+          onApply={applyFilters}
         />
 
         <ListState
@@ -390,7 +389,7 @@ export function EmployeesPage() {
                     {result.data.map((employee) => (
                       <tr key={employee.id}>
                         <td>
-                          <strong>{employee.name}</strong>
+                          <button className="record-name" type="button" onClick={() => openEdit(employee)}>{employee.name}</button>
                           <small>{employee.employee_code || text("未设置工号", "No employee ID")}</small>
                         </td>
                         <td>{employee.email || <span className="muted-value">—</span>}</td>

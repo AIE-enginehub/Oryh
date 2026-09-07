@@ -1,6 +1,6 @@
 ---
 name: oryh-treasury
-description: Use when the cashier/treasury person's AI agent manages where the company's money actually sits and moves — opening fin accounts (银行户/现金/微信支付宝 PayPal 商户), importing bank or platform statements ("把招行这个月流水导进来"、"微信账单对一下"), recording fees/interest/transfers by hand, and reconciling register lines against paid payments ("这笔打款到账了吗"、"对账"). The register is the bank's truth: rows append and never change; balances derive. Requires fin_account.manage.
+description: Use when the cashier's agent manages where company money sits and moves — open fin accounts (银行户/现金/微信支付宝), import statements ("把招行这个月流水导进来"), record fees and transfers, reconcile register lines with paid payments ("这笔打款到账了吗"、"对账"). The register is the bank's truth. Requires fin_account.manage.
 required_capability: fin_account.manage
 ---
 
@@ -29,6 +29,7 @@ Three rules carry everything here:
 - "Here is August's bank statement spreadsheet — import it"
 - "Pull the WeChat merchant bill and reconcile it"
 - "The 80,000 to the landlord went out — match it in the register"
+- "Reconcile the WeChat bill"
 
 ## Required Inputs
 

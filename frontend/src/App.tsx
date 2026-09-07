@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   Link,
   Navigate,
@@ -25,25 +25,26 @@ import {
   canManageTenantConfiguration,
   hasCapability,
 } from "./components/AppShell";
-import { ApiKeysPage } from "./pages/ApiKeysPage";
-import { ApprovalsPage } from "./pages/ApprovalsPage";
-import { CustomersPage } from "./pages/CustomersPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { EmployeesPage } from "./pages/EmployeesPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { ObjectDetailPage } from "./pages/ObjectDetailPage";
-import { ObjectTypesPage } from "./pages/ObjectTypesPage";
-import { ObjectsPage } from "./pages/ObjectsPage";
-import { ProductsPage } from "./pages/ProductsPage";
-import { ProjectsPage } from "./pages/ProjectsPage";
-import { ResourcesPage } from "./pages/ResourcesPage";
-import { RolesPage } from "./pages/RolesPage";
-import { FlowAgentPage } from "./pages/FlowAgentPage";
-import { SkillsPage } from "./pages/SkillsPage";
-import { TodosPage } from "./pages/TodosPage";
-import { UsersPage } from "./pages/UsersPage";
-import { VendorsPage } from "./pages/VendorsPage";
+
+const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage").then(module => ({ default: module.ApiKeysPage })));
+const ApprovalsPage = lazy(() => import("./pages/ApprovalsPage").then(module => ({ default: module.ApprovalsPage })));
+const CustomersPage = lazy(() => import("./pages/CustomersPage").then(module => ({ default: module.CustomersPage })));
+const EmployeesPage = lazy(() => import("./pages/EmployeesPage").then(module => ({ default: module.EmployeesPage })));
+const ObjectDetailPage = lazy(() => import("./pages/ObjectDetailPage").then(module => ({ default: module.ObjectDetailPage })));
+const ObjectTypesPage = lazy(() => import("./pages/ObjectTypesPage").then(module => ({ default: module.ObjectTypesPage })));
+const ObjectsPage = lazy(() => import("./pages/ObjectsPage").then(module => ({ default: module.ObjectsPage })));
+const ProductsPage = lazy(() => import("./pages/ProductsPage").then(module => ({ default: module.ProductsPage })));
+const ProjectsPage = lazy(() => import("./pages/ProjectsPage").then(module => ({ default: module.ProjectsPage })));
+const ResourcesPage = lazy(() => import("./pages/ResourcesPage").then(module => ({ default: module.ResourcesPage })));
+const RolesPage = lazy(() => import("./pages/RolesPage").then(module => ({ default: module.RolesPage })));
+const FlowAgentPage = lazy(() => import("./pages/FlowAgentPage").then(module => ({ default: module.FlowAgentPage })));
+const SkillsPage = lazy(() => import("./pages/SkillsPage").then(module => ({ default: module.SkillsPage })));
+const TodosPage = lazy(() => import("./pages/TodosPage").then(module => ({ default: module.TodosPage })));
+const UsersPage = lazy(() => import("./pages/UsersPage").then(module => ({ default: module.UsersPage })));
+const VendorsPage = lazy(() => import("./pages/VendorsPage").then(module => ({ default: module.VendorsPage })));
 
 export type ConsoleContext = {
   bootstrap: BootstrapData;
@@ -95,7 +96,9 @@ function SessionBoundary() {
 
   return (
     <AppShell bootstrap={session.data}>
-      <Outlet context={{ bootstrap: session.data } satisfies ConsoleContext} />
+      <Suspense fallback={<div className="console-route-loading" role="status"><span className="spinner" aria-hidden />{t("loadingConsole")}</div>}>
+        <Outlet context={{ bootstrap: session.data } satisfies ConsoleContext} />
+      </Suspense>
     </AppShell>
   );
 }

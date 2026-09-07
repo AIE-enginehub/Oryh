@@ -67,6 +67,24 @@ def _served() -> tuple[set[tuple[str, str]], set[str]]:
         for method in methods
         if method.upper() in {"GET", "POST", "PATCH", "PUT", "DELETE"}
     }
+    # Routes kept out of the published contract on purpose — `POST /mcp`, the
+    # OAuth endpoints — are still served, and a doc that names one is right.
+    from app.main import app  # noqa: PLC0415 — the app import is the slow part
+
+    def walk(routes):
+        for route in routes:
+            # a router included into the app is one entry wrapping the original
+            # router (newer FastAPI) or carrying its routes directly (older)
+            inner = getattr(route, "original_router", None)
+            yield from walk(getattr(inner, "routes", None) or getattr(route, "routes", ()))
+            path = getattr(route, "path", None)
+            if path:
+                yield path, getattr(route, "methods", None) or ()
+
+    for path, methods in walk(app.routes):
+        operations.update(
+            (m, _normalise(path)) for m in methods if m in {"GET", "POST", "PATCH", "PUT", "DELETE"}
+        )
     return operations, {path for _verb, path in operations}
 
 

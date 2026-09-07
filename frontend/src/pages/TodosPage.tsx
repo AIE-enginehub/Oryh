@@ -1,3 +1,4 @@
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
@@ -80,10 +81,8 @@ export function TodosPage() {
   const { entityLabels, todoEntityOptions } = useActivityLabels();
   const { bootstrap } = useOutletContext<ConsoleContext>();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["open", "completed"]);
   const [entityType, setEntityType] = useState<EntityFilter>("");
-  const [page, setPage] = useState(1);
   const [confirming, setConfirming] = useState<Todo | null>(null);
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [employeeKeyword, setEmployeeKeyword] = useState("");
@@ -136,7 +135,10 @@ export function TodosPage() {
     onSuccess: async () => {
       setConfirming(null);
       setPage(1);
-      await queryClient.invalidateQueries({ queryKey: ["activity", "todos"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["activity", "todos"] }),
+        queryClient.invalidateQueries({ queryKey: ["console", "dashboard"] }),
+      ]);
     },
   });
 
@@ -195,10 +197,8 @@ export function TodosPage() {
             primaryOptions={[{ value: "open", label: text("未完成", "Open") }, { value: "completed", label: text("已完成", "Completed") }]}
             entityOptions={todoEntityOptions}
             onApply={(filters) => {
-              setKeyword(filters.keyword);
-              setStatus(filters.primary as StatusFilter);
+              applyFilters({ keyword: filters.keyword, status: filters.primary });
               setEntityType(filters.entityType as EntityFilter);
-              setPage(1);
             }}
           />
           {displayNames.isError && <div className="activity-name-warning" role="status">{text("名称解析暂时不可用，当前保留原 employee ID 或 actor 标识。", "Name resolution is temporarily unavailable; raw employee IDs or actor identifiers are shown.")}</div>}

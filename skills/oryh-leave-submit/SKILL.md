@@ -1,6 +1,6 @@
 ---
 name: oryh-leave-submit
-description: Use when a person's AI agent needs to check their own leave balance or file, amend, withdraw or submit their own 请假 in oryh — 年假/病假/事假/婚假/产假/陪产假/丧假/调休. Answers "我还有几天年假"、"下周三请一天假"、"上午请半天"、"我今年休了多少天", computing the balance from the workspace's published leave policy rather than reading a stored number. Records the requester's own facts only; approving and routing belong to other roles.
+description: Use when a person's agent checks their own leave balance or files, amends, withdraws or submits their OWN 请假 in oryh — "我还有几天年假"、"下周三请一天假"、"上午请半天". Computes the balance from the published leave policy. Requester's facts only; approving and routing belong to other roles.
 required_capability: leave.submit_own
 ---
 
@@ -21,6 +21,8 @@ balance is correct immediately, with no data to migrate.
 
 {{include:_common/leave-balance.md}}
 
+{{include:_common/fail-fast-on-master-data.md}}
+
 {{include:_common/read-before-you-decide.md}}
 
 {{include:_common/leave-no-orphan-work.md}}
@@ -34,6 +36,7 @@ balance is correct immediately, with no data to migrate.
 - "Annual leave from 2 to 6 March"
 - "How much sick leave have I taken this year?"
 - "Withdraw that leave request — the dates are wrong"
+- "How many days off have I taken this year?"
 
 ## Required Inputs
 

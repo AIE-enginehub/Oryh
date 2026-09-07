@@ -1,3 +1,5 @@
+import { useRecordNotice } from "../components/master-data/RecordNotice";
+import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 
@@ -46,9 +48,8 @@ function vendorForm(vendor?: Vendor): VendorForm {
 export function VendorsPage() {
   const { text } = useI18n();
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("");
-  const [page, setPage] = useState(1);
+  const { notice, notify } = useRecordNotice();
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "archived"]);
   const [editing, setEditing] = useState<Vendor | null | undefined>(undefined);
   const [archiving, setArchiving] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorForm>(emptyForm);
@@ -64,6 +65,7 @@ export function VendorsPage() {
       id ? updateVendor(id, input) : createVendor(input),
     onSuccess: async (_vendor, variables) => {
       setEditing(undefined);
+      notify(variables.id ? "saved" : "created");
       if (!variables.id) setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "vendors"] });
     },
@@ -72,6 +74,7 @@ export function VendorsPage() {
     mutationFn: (id: string) => archiveVendor(id),
     onSuccess: async () => {
       setArchiving(null);
+      notify("archived");
       setPage(1);
       await queryClient.invalidateQueries({ queryKey: ["master-data", "vendors"] });
     },
@@ -118,8 +121,9 @@ export function VendorsPage() {
   return (
     <div className="master-data-page" data-testid="vendors-page">
       <header className="page-intro">
-        <div><span className="eyebrow">Vendor registry</span><h2>{text("供应商主数据", "Vendor master data")}</h2><p>{text("集中维护供应商、税号与联系人，支持票据识别和采购流程准确匹配。", "Maintain vendors, tax IDs, and contacts for accurate receipt recognition and purchasing workflows.")}</p></div>
+        <div><span className="eyebrow">Vendor registry</span><h2>{text("供应商资料", "Vendors")}</h2><p>{text("集中维护供应商、税号与联系人，支持票据识别和采购流程准确匹配。", "Maintain vendors, tax IDs, and contacts for accurate receipt recognition and purchasing workflows.")}</p></div>
       </header>
+      {notice}
       <section className="data-panel" aria-label={text("供应商列表", "Vendor list")}>
         <ListToolbar
           keyword={keyword}
@@ -128,7 +132,7 @@ export function VendorsPage() {
           createLabel={text("新建供应商", "New vendor")}
           statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
           onCreate={openCreate}
-          onApply={(filters) => { setKeyword(filters.keyword); setStatus(filters.status as StatusFilter); setPage(1); }}
+          onApply={applyFilters}
         />
         <ListState
           loading={vendors.isPending}
@@ -143,7 +147,7 @@ export function VendorsPage() {
               <thead><tr><th>{text("供应商", "Vendor")}</th><th>{text("税号", "Tax ID")}</th><th>{text("联系人", "Contact")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
               <tbody>{result.data.map((vendor) => (
                 <tr key={vendor.id}>
-                  <td><strong>{vendor.name}</strong><small>{vendor.vendor_code || text("未设置编号", "No code")}</small></td>
+                  <td><button className="record-name" type="button" onClick={() => openEdit(vendor)}>{vendor.name}</button><small>{vendor.vendor_code || text("未设置编号", "No code")}</small></td>
                   <td className="mono-cell">{vendor.tax_id || <span className="muted-value">—</span>}</td>
                   <td><span>{vendor.contact || <span className="muted-value">—</span>}</span><small>{vendor.email || vendor.phone || text("未设置联系方式", "No contact details")}</small></td>
                   <td><StatusBadge status={vendor.status} /></td>

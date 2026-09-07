@@ -1,6 +1,6 @@
 ---
 name: oryh-crm
-description: Use when a salesperson's AI agent works that person's own sales pipeline in oryh — capturing leads ("展会上加了个微信,记一下"、"有人咨询报价"), advancing them (contacted/qualified/disqualified and revival), converting a qualified lead into a customer and an opportunity ("这家定了,建档开单"), and driving opportunities to won or lost ("这单赢了"、"预算砍了,丢了"). The pipeline has no approvals — your grant files AND advances your own records; quoting and ordering hand off to $oryh-quotation-submit and $oryh-order-submit. Requires crm.own.
+description: Use when a salesperson's agent works their own pipeline in oryh — capture leads ("展会上加了个微信,记一下"), advance them, convert a qualified lead into a customer and opportunity, close won or lost. No approvals; quoting and ordering hand off to oryh-quotation-submit and oryh-order-submit. Requires crm.own.
 required_capability: crm.own
 ---
 
@@ -20,6 +20,10 @@ customer's signature, so YOU advance the states as the facts happen.
 - "Somebody asked for a quote — log the inquiry"
 - "This one signed: open the customer and the deal"
 - "We won this one" / "Budget was cut, we lost it"
+- "Someone asked for a quote"
+- "This one is decided — create the customer and open the deal"
+- "We won this one"
+- "Their budget got cut, this one is lost"
 
 ## Required Inputs
 
