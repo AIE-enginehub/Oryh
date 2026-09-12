@@ -22,6 +22,8 @@ Two facts shape every step:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 ## Trigger Examples
 
 - "Place a purchase order with Dell" / "Order against the requisition approved last week"
@@ -116,9 +118,10 @@ flow marker. A return never charges the billing account (422 — freeing our
 prepayment happens through the payment, not through occupation), and its
 `original_order_id` must name an ORDER, never another return. Stock leaving
 the warehouse for the courier is an `issued` movement naming this return row
-(`purchase_order_id` = the RETURN row's id) — normally posted by the
-outbound shipment's `/post-stock` ($oryh-inventory), or directly when no
-freight leg is filed. One door per parcel, once.
+(`purchase_order_id` = the RETURN row's id) — posted by the outbound
+shipment's `/post-stock` ($oryh-shipping); there is no direct ledger
+write, so a vendor return that leaves the building is a shipment. One
+door per parcel, once.
 
 ## Freight Records Beside Receiving
 
@@ -127,7 +130,7 @@ goods. A `/shipments` document (inbound, linked to the PO) may additionally
 record the freight leg — carrier, tracking, dates — but if the goods entered
 stock through `/receive`, never also `/post-stock` that shipment: one
 physical movement, one ledger entry. The outbound leg of a purchase RETURN
-is where shipments carry the stock too — see $oryh-inventory.
+is where shipments carry the stock too — see $oryh-shipping.
 
 ## Contract Manufacturing: Buying From A Factory That Makes Our Goods
 
@@ -144,12 +147,14 @@ product. What is different is what you bring to the order:
    what WE buy — that is a separate purchase to the material vendor.
 2. **The contract governs the order.** `GET /contracts?vendor_id=&status=active`
    → the OEM contract, and `GET /contract-terms?contract_id=&term_type=`
+   (the explosion and the contract lookup are independent — send them
+   together; only the terms read waits on the contract id)
    for `deposit`, `payment_terms`, `delivery_schedule`, `acceptance`
    before you write anything — the order's dates and the deposit follow
    the contract's words, not your defaults. The purchase order carries
    `contract_id`; the server refuses a sales-side contract.
 3. **Receiving is receiving.** Finished goods arrive as an inbound
-   shipment against the purchase order ($oryh-inventory) and the invoice
+   shipment against the purchase order ($oryh-shipping) and the invoice
    and the deposit ride the same `contract_id` ($oryh-payables), so
    `GET /contracts/{id}/execution` answers "how far along is this deal".
 

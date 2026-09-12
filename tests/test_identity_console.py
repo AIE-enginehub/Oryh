@@ -372,12 +372,12 @@ def test_tenant_password_reset_email_keeps_access_until_the_link_is_accepted(
     assert first_data["user"]["id"] == user_id
     assert first_data["email_sent"] is True
     assert "reset_url" not in first_data
-    assert "重置" in outbox.messages[-1].subject
+    assert "重置" in outbox.messages[-1].subject or "Reset" in outbox.messages[-1].subject
     assert (
         f"https://console.oryh.test/web/invitations/accept?mode=reset&token={first_token}"
         in outbox.messages[-1].body
     )
-    assert "60 分钟" in outbox.messages[-1].body
+    assert "60 分钟" in outbox.messages[-1].body or "60 minutes" in outbox.messages[-1].body
     assert "member-old-pass" not in outbox.messages[-1].body
 
     # Re-sending rotates the token. Neither send changes the current password

@@ -24,6 +24,8 @@ Two ideas run through everything here:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 ## Trigger Examples

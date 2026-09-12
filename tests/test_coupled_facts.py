@@ -242,6 +242,7 @@ def test_every_family_shares_the_funnel() -> None:
     # go unwatched.
     collections = {path.strip("/") for path in BUILTIN_QUEUE_PATHS.values()} | {
         "purchase-orders", "shipments", "picklists", "leads", "opportunities", "contracts",
+        "campaigns", "events",
     }
     assert len(collections) == len(DOCUMENT_ENTITY_TYPES), (
         f"{len(collections)} collections for {len(DOCUMENT_ENTITY_TYPES)} document families — "

@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     # From address; must match the authenticated mailbox for most providers.
     smtp_from: str | None = None
-    smtp_from_name: str = "oryh"
+    smtp_from_name: str = "Oryh Service"
     # Exact email addresses exempt from the corporate-domain registration check.
     registration_email_allowlist: list[str] = []
     # Production keeps review enabled: mailbox verification proves access to
@@ -85,7 +85,14 @@ class Settings(BaseSettings):
     # no tenant at all; afterwards these are inert. An empty password means
     # "generate one and print it to the log once", which is the right default
     # for a compose file that should work before anyone edits an .env.
-    standalone_company_name: str = "我的公司"
+    standalone_company_name: str = "My Company"
+    # The language of what a fresh workspace is SEEDED with and what the
+    # server itself writes — the shipped vocabularies, the capability
+    # catalogue, system emails, the console shell. Explicit `ORYH_LOCALE`
+    # wins; otherwise a standalone deployment (the open-core repository) is
+    # English and the hosted service is Chinese, which is what each one's
+    # customers read. A Chinese company self-hosting sets it to `zh`.
+    locale: str = ""
     standalone_admin_email: str = "admin@oryh.local"
     standalone_admin_password: str = ""
     invitation_token_ttl_hours: int = 168
@@ -132,6 +139,19 @@ class Settings(BaseSettings):
         if value not in ("", "cloud", "standalone"):
             raise ValueError("edition must be 'cloud', 'standalone', or unset")
         return value
+
+    @field_validator("locale")
+    @classmethod
+    def _validate_locale(cls, value: str) -> str:
+        if value not in ("", "zh", "en"):
+            raise ValueError("locale must be 'zh', 'en', or unset")
+        return value
+
+    @property
+    def resolved_locale(self) -> str:
+        if self.locale:
+            return self.locale
+        return "en" if self.resolved_edition == "standalone" else "zh"
 
     @property
     def resolved_edition(self) -> str:

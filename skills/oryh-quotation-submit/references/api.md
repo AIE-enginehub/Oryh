@@ -79,7 +79,7 @@ POST /sales-quotation-items
 ```
 
 - `list_price_snapshot` is captured **automatically** from the catalog (SKU price overrides product price) when the line references one — send it explicitly only when applying a special price list. Uncataloged free-text lines carry none; the discount is then not derivable, which approvers will see.
-- `amount` is the line total override (normally omit; `quantity × unit_price` is computed at read time).
+- `amount` is the line total override (normally omit; `quantity × unit_price` is computed at read time). Changing `quantity`, `unit_price` or `is_gift` on a line clears a stored override so the line follows the new price — send `amount` again only to override it again.
 - Gift lines: `"is_gift": true, "unit_price": 0` — counted as 0 in totals, never as "unpriced" and never as a 100% discount.
 - `line_no` is the printed document order; `/detail` returns lines sorted by it.
 

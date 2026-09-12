@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     require_contract_for,
     CENT,
@@ -206,6 +207,7 @@ def list_purchase_requests(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "purchase_request", status_filter)
     stmt = select(PurchaseRequest).where(PurchaseRequest.tenant_id == tenant_id)
@@ -234,6 +236,7 @@ def list_purchase_requests(
         ),
         order_by=(PurchaseRequest.created_at.desc(), PurchaseRequest.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=PurchaseRequestRead,
     )
 
@@ -531,6 +534,7 @@ def list_purchase_orders(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(
         db, tenant_id,
@@ -562,6 +566,7 @@ def list_purchase_orders(
         ),
         order_by=(PurchaseOrder.created_at.desc(), PurchaseOrder.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=PurchaseOrderRead,
     )
 
@@ -764,8 +769,28 @@ def list_purchase_order_items(
     db: Annotated[Session, Depends(get_db)],
     po_id: str | None = None,
     purchase_request_item_id: str | None = None,
+    sales_order_id: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
-    return list_items(db, tenant_id, PurchaseOrderItem, {"po_id": po_id, "purchase_request_item_id": purchase_request_item_id})
+    """`sales_order_id` walks the procurement chain for a whole order at once:
+    every PO line whose request line pins one of this order's lines. The
+    order-flow agent used to ask per order line, inside a per-order loop."""
+    where = []
+    if sales_order_id:
+        pinned = (
+            select(PurchaseRequestItem.id)
+            .join(SalesOrderItem, PurchaseRequestItem.sales_order_item_id == SalesOrderItem.id)
+            .where(SalesOrderItem.order_id == sales_order_id, PurchaseRequestItem.tenant_id == tenant_id)
+        )
+        where.append(PurchaseOrderItem.purchase_request_item_id.in_(pinned))
+    return list_items(
+        db, tenant_id, PurchaseOrderItem,
+        {"po_id": po_id, "purchase_request_item_id": purchase_request_item_id},
+        where=where,
+        pagination=requested_pagination(page, size), sort=order_by,
+    )
 
 
 @router.post(
@@ -817,10 +842,14 @@ def list_purchase_order_adjustments(
     po_id: str | None = None,
     po_item_id: str | None = None,
     adjustment_type: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_adjustments(
         db, tenant_id, PurchaseOrderAdjustment,
         parent_id=po_id, item_id=po_item_id, adjustment_type=adjustment_type,
+        pagination=requested_pagination(page, size), sort=order_by,
     )
 
 

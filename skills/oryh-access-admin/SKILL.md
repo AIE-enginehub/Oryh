@@ -22,6 +22,8 @@ judgment this skill makes**, not a mechanical step.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 ## Trigger Examples
 
 - "Let Xie Ting place purchase orders and receive goods"
@@ -46,7 +48,7 @@ than something to retry.
 
 ## Steps
 
-1. **See the current state before discussing a change.** Three read calls:
+1. **See the current state before discussing a change.** Three read calls, one batch:
    `GET /capabilities` (system and custom capabilities, and which are scopable),
    `GET /roles` (which capabilities each role holds, and whether it is a system
    role), `GET /auth/users` (who holds which role).
@@ -58,7 +60,7 @@ than something to retry.
    cost before acting**. Authorization changes reach far: describe the approach
    and its consequences, get explicit agreement, then write.
 
-3. **Execute**, one change at a time, reading it back afterwards.
+3. **Execute**, one change at a time. The write's response IS the read-back — a `PATCH /roles/{id}` answers with the role's full permission list as stored; compare that against what you meant to send. Re-read only when a response did not carry the resource.
 
 4. **Tell the principal what happens next**: once the role changes, that
    person's agent picks up any newly available skills on its next
@@ -135,7 +137,7 @@ and has pitfalls of its own:
 `GET /roles` first, remove the one entry, and write the result back —
 reconstructing that array from memory makes an accidentally omitted capability
 and a deliberately removed one look identical to the server and to the audit
-trail. Read it back afterwards and confirm only the intended entry is gone.
+trail. Check the response afterwards and confirm only the intended entry is gone.
 
 **Changing a system role (`is_system: true`, especially `member`) deserves its
 own sentence.** The server will not stop you — it is a legitimate administrator
@@ -250,7 +252,7 @@ change fixes it; hand it to `$oryh-skill-author`. Deriving a capability matrix
 by hand and getting it wrong costs somebody a permission they did not need,
 and nobody notices.
 
-**Revoking needs this step too**: read it back afterwards and confirm you did
+**Revoking needs this step too**: check the response afterwards and confirm you did
 not remove something else along the way. `PATCH /roles/{role_ref}` replaces the
 whole array, and an omitted entry looks exactly like a deliberate removal to
 both the server and the audit trail.

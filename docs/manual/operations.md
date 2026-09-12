@@ -59,10 +59,23 @@ own** model key; nothing is provided for you.
 docker compose --profile flow-runner up -d
 ```
 
-It needs two files you supply: a credentials file holding the workspace id and
-a service key (the bootstrap key works), and a provider file holding your model
-credential. Both are mounted read-only and the model key is read fresh per run
-and passed only to the agent child process.
+It needs two files you supply, beside `docker-compose.yml`. Both are mounted
+read-only; the model key is read fresh per run and passed only to the agent
+child process.
+
+`flow-runner-credentials.json` — which workspace to drive, with a service key
+(the bootstrap key from first boot works; `GET /api/v1/tenant` returns the id):
+
+```json
+[{"tenant_id": "<workspace id>", "api_key": "<service key>"}]
+```
+
+`flow-runner-provider.json` — the environment your agent runtime reads its
+model credential from, as a flat object; `{}` while you run the stub adapter:
+
+```json
+{"ANTHROPIC_API_KEY": "<your key>"}
+```
 
 Leave `ORYH_RUNNER_PI_BINARY` unset to watch it against the stub adapter
 before spending model calls. With no flow skills installed there are no

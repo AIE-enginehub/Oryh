@@ -25,6 +25,8 @@ Four facts shape everything:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 {{include:_common/who-you-are-acting-as.md}}
@@ -74,28 +76,65 @@ so the balance is the ledger's sum from the very first row.
 them decides what may be posted and to whom; a wrong account is closed and a
 right one opened.
 
-## Recording Movement
+## Every Movement Has A Door
+
+No entry is typed by hand. The ledger has no write of its own
+(`/billing-account-entries` is read-only); every row is written by the act
+that causes it, and carries that act:
+
+| What happened | The act that writes the row | Reason it lands under |
+|---|---|---|
+| A customer paid in, we refunded out, an account settled an invoice | `POST /payments/{id}/apply` (below) | `deposit` / `refund` / `charge` |
+| The account was opened with a balance | `opening_balance` on `POST /billing-accounts` | `initial` |
+| A points batch lapsed | `POST /billing-accounts/{id}/expire` (below) | `expired` |
+| Points earned or redeemed, a balance adjusted, a transfer between accounts, anything else | an **account document** the tenant defined, posted once: `POST /business-objects/{id}/post-entries` | the document type's own reason |
+
+A movement you cannot place in this table is a question for the person —
+what happened, and which door is it? — never a row to invent.
+
+## Account Documents: The Tenant's Own Doors
+
+An account document is a business object whose type definition carries an
+`account_effect` — the ledger reason its lines post under (a word from
+`GET /type-options?family=billing_account_entry_reason` that is not one of
+the reserved doors above) and the state in which posting is allowed, the
+tenant's approval in their own words:
 
 ```json
-POST /billing-accounts/{account_id}/entries
-{
-  "lines": [{"amount": 300.0, "reason": "earned", "description": "3000 spent",
-             "expires_at": "2027-12-31T00:00:00Z"}],
-  "idempotency_key": "grant-so-2026-0031"
-}
+POST /object-type-definitions
+{"object_type": "points_grant", "title": "points grant document",
+ "state_machine": {"initial": "draft", "states": ["draft", "approved", "rejected"],
+                   "transitions": {"draft": ["approved", "rejected"], "approved": [], "rejected": []},
+                   "account_effect": {"reason": "earned", "state": "approved"}}}
 ```
 
-- The amount is **signed**: positive adds, negative spends or reverses.
-- `reason` comes from `GET /type-options?family=billing_account_entry_reason`.
-- **Always pass an `idempotency_key`** when granting or spending: this writes a
-  balance, and a retry without one posts twice. A repeat with the same key
-  returns `replayed: true`.
-- `expires_at` only means something on a points account (422 otherwise).
-- Every line of one call is judged together, so a request that would breach the
-  floor is refused whole — never half-posted.
-- Link the movement to what caused it with `entity_type`/`entity_id` (the
-  order, the invoice, the entry being reversed). Do it: it is what makes the
-  balance explainable a year later.
+Filing and posting one, in that order:
+
+1. `POST /business-objects` `{object_type, title, status, payload: {lines:
+   [{billing_account_id, amount, expires_at?, description?}], …}}` — lines
+   are SIGNED and may name several accounts: a points grant document is plus lines, a
+   points redemption document minus lines pointing at the order they paid, a transfer document one
+   minus line and one plus line, a balance adjustment document either. Whatever else the
+   tenant's schema asks for (the order, the rule applied, who asked) goes
+   in the payload beside them — it is what makes the balance explainable a
+   year later.
+2. Walk it to the state the definition posts from (`PATCH
+   /business-objects/{id}` `{"status": …}`); a document created straight
+   in that state is legal when nobody approves.
+3. `POST /business-objects/{id}/post-entries` — **once**. The server posts
+   every line under the type's reason with the document as provenance
+   (`entity_type: "business_object"`), judges each account's floor and
+   status as the settlement path does (a breach refuses the whole
+   document — never half-posted), needs `billing_account.post` for each
+   account's unit type, stamps `payload.entries_posted_at`, and answers a
+   second call with a 409. A wrong posting is a counter-document, never an
+   edit — and editing a posted document moves nothing.
+
+`expires_at` only means something on a points account (422 otherwise);
+amounts carry at most two decimals. **Read the type definitions once**
+(`GET /object-type-definitions?entity_kind=business_object`) to learn which
+documents this workspace has; a workspace that has none yet needs the
+admin to write one sentence — say so rather than looking for another door.
 
 ## Prepayments and charge accounts (money accounts)
 
@@ -174,8 +213,8 @@ rate, ask — do not invent one.
 
 **Redeeming against a document is two facts, never one conversion:**
 
-1. a points entry — `amount: -500`, `reason: "redeemed"`, pointing at the
-   document being paid;
+1. a points redemption document (an account document whose type posts `redeemed`) with a
+   minus line of 500 and the order it paid in its payload, posted once;
 2. a `discount` line on that document for the money value (¥5), or a payment
    for it.
 
@@ -190,15 +229,20 @@ GET /billing-accounts/{account_id}/expiring?before=2026-12-31T00:00:00Z
 ```
 
 Returns the earn batches past that date that nothing has expired yet. Then, for
-each batch you decide is actually spent, post:
+each batch you decide is actually spent, write the expiry through the sweep's
+own door:
 
 ```json
-{"lines": [{"amount": -300.0, "reason": "expired",
-            "entity_type": "billing_account_entry", "entity_id": "<the earn entry id>"}]}
+POST /billing-accounts/{account_id}/expire
+{"lines": [{"entry_id": "<the earn entry id>", "amount": 300.0,
+            "description": "2025 batch; 50 were redeemed FIFO, 250 lapse"}]}
 ```
 
-**Pointing at the earn entry is what makes the sweep safe to re-run** — the
-next pass sees that batch as handled instead of expiring it twice.
+The server holds the sweep to its facts — the batch is this account's,
+carried an expiry, has not been expired yet (409 otherwise), and the amount
+is at most the batch — and writes the `expired` row pointing at the batch.
+**That pointer is what makes the sweep safe to re-run**: the next pass sees
+the batch as handled. There is no other way to write an `expired` row.
 
 `expiring_amount` is the sum of those batches, **not** the amount to expire.
 How much of a batch survived redemption depends on whether the workspace draws
@@ -221,7 +265,9 @@ rule you applied when you report.
 
 - Convert points into money, or money into points.
 - Decide earning rates, redemption rates, tiers or the expiry basis.
-- Set a balance directly, or edit/delete a ledger entry.
+- Set a balance directly, type a ledger entry, or edit/delete one. There is
+  no direct write; every row is a payment, the sweep, the opening balance
+  or an account document posted once.
 - Apply a payment to a points account (409 — and rightly).
 - Change an account's unit, unit type or owner.
 - Reactivate a frozen account without being asked to.

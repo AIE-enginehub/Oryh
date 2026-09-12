@@ -61,13 +61,16 @@ def test_item_totals_move_only_through_details(client: TestClient) -> None:
     ledger = details_of(client, headers, item["id"])
     assert len(ledger) == 1 and ledger[0]["reason"] == "initial"
 
-    # movement: issue 30, atp follows qoh by default
-    issued = client.post(
-        "/api/v1/inventory-item-details",
-        json={"inventory_item_id": item["id"], "quantity_on_hand_diff": -30, "reason": "issued"},
+    # movement: an outbound leg issues 30 when it posts; atp follows qoh
+    leg = client.post(
+        "/api/v1/shipments",
+        json={"direction": "outbound", "items": [
+            {"product_id": product_id, "quantity": 30, "inventory_item_id": item["id"]}]},
         headers=headers,
     )
-    assert issued.status_code == 201, issued.text
+    assert leg.status_code == 201, leg.text
+    issued = client.post(f"/api/v1/shipments/{leg.json()['data']['id']}/post-stock", headers=headers)
+    assert issued.status_code == 200, issued.text
     after = client.get(f"/api/v1/inventory-items/{item['id']}", headers=headers).json()["data"]
     assert after["quantity_on_hand"] == 70 and after["available_to_promise"] == 70
 
@@ -110,12 +113,14 @@ def test_archived_item_rejects_movement(client: TestClient) -> None:
     item = client.post(
         "/api/v1/inventory-items", json={"product_id": product_id, "initial_quantity": 5}, headers=headers
     ).json()["data"]
-    assert client.delete(f"/api/v1/inventory-items/{item['id']}", headers=headers).status_code == 204
-    blocked = client.post(
-        "/api/v1/inventory-item-details",
-        json={"inventory_item_id": item["id"], "quantity_on_hand_diff": 1, "reason": "received"},
+    leg = client.post(
+        "/api/v1/shipments",
+        json={"direction": "inbound", "items": [
+            {"product_id": product_id, "quantity": 1, "inventory_item_id": item["id"]}]},
         headers=headers,
-    )
+    ).json()["data"]
+    assert client.delete(f"/api/v1/inventory-items/{item['id']}", headers=headers).status_code == 204
+    blocked = client.post(f"/api/v1/shipments/{leg['id']}/post-stock", headers=headers)
     assert blocked.status_code == 409
 
 

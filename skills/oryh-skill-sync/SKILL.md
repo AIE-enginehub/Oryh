@@ -46,7 +46,8 @@ If the person has more than one employer installed, sync the one this request is
       install_dir, site_base_url, api_base_url,
       skills: [{name, installed_as, version, files_hash}]}
 
-2. GET {api_base_url}/my/skills/manifest
+2. GET {api_base_url}/my/skills/manifest — issued in the same turn as step 1
+   (the local file and the server list are independent; read both, then compare)
    → the server's current list for YOUR role, plus the same identity block:
      {"data": [{name, installed_as, title, version, files_hash}],
       "meta": {total, tenant: {id, slug, name}, environment_id, install_dir,

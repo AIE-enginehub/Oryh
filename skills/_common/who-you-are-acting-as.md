@@ -2,8 +2,10 @@
 
 One key, one identity, and the server decides it — not you.
 
-`GET /auth/me` answers who the key you hold belongs to. That answer is fixed
-for the whole session: nothing you do earlier in a conversation changes who a
+You already know it: this bundle was rendered for one person, and their
+employee id and skill list are in it. `GET /auth/me` would answer the same
+question; do not spend a call on it. That answer is fixed for the whole
+session: nothing you do earlier in a conversation changes who a
 later write is attributed to. For a **user-bound key the server records the
 authenticated user and ignores any identity you supply**, so a write signed as
 somebody else is not something you can do by mistake.

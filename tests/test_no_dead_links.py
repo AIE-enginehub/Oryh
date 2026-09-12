@@ -135,6 +135,16 @@ def _console_router_paths() -> set[str]:
     return set(re.findall(r'<Route\s+path="(/[^"*]*)"', app_tsx.read_text(encoding="utf-8")))
 
 
+def _console_routes(href: str, router: set[str]) -> bool:
+    """`/data/sales-orders` is served by `<Route path="/data/:resource">`: a
+    `:param` segment matches one path segment, the rest is literal."""
+    for pattern in router:
+        regex = "^" + re.sub(r":[^/]+", "[^/]+", re.escape(pattern).replace("\\:", ":")) + "$"
+        if re.match(regex, href):
+            return True
+    return False
+
+
 def _standalone_paths() -> set[str]:
     """Routes an assembly without `app.saas` would serve."""
     paths: set[str] = set()
@@ -263,6 +273,6 @@ def test_no_dead_links_in_the_standalone_build() -> None:
     dead = [
         f"{where} → {href}"
         for where, href in _links()
-        if href not in router and not _served(href, paths, gateway)
+        if not _console_routes(href, router) and not _served(href, paths, gateway)
     ]
     assert not dead, f"links to paths a standalone build does not serve: {dead}"

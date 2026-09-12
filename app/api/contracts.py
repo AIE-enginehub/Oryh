@@ -28,6 +28,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
@@ -188,6 +189,7 @@ def list_contracts(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     visible = _require_reader(actor)
     tenant_id = actor.tenant_id
@@ -216,6 +218,7 @@ def list_contracts(
         ),
         order_by=(Contract.created_at.desc(), Contract.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ContractRead,
     )
 
@@ -469,6 +472,7 @@ def list_contract_items(
     product_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -479,6 +483,7 @@ def list_contract_items(
         filters={ContractItem.contract_id: contract_id, ContractItem.product_id: product_id},
         order_by=(ContractItem.line_no.asc(), ContractItem.created_at.asc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ContractItemRead,
     )
 
@@ -561,6 +566,7 @@ def list_contract_documents(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -579,6 +585,7 @@ def list_contract_documents(
             ContractDocument.created_at.asc(),
         ),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         render=lambda rows: [_contract_document_read(row, with_text=with_text) for row in rows],
     )
 
@@ -678,6 +685,7 @@ def list_contract_terms(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -695,6 +703,7 @@ def list_contract_terms(
             ContractTerm.created_at.asc(),
         ),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ContractTermRead,
     )
 

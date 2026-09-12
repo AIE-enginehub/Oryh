@@ -35,18 +35,17 @@ def stockroom():
 
         def order(title="一单") -> str:
             return client.post("/api/v1/sales-orders", headers=admin, json={
-                "employee_id": emp, "title": title}).json()["data"]["id"]
+                "employee_id": emp, "title": title,
+                "items": [{"product_id": product, "quantity": 5}]}).json()["data"]["id"]
 
         def sums() -> tuple[float, float]:
             data = client.get(f"/api/v1/inventory-items/{position}",
                               headers=admin).json()["data"]
             return float(data["quantity_on_hand"]), float(data["available_to_promise"])
 
-        def reserve(order_id: str, qty: float, **overrides) -> object:
-            body = {"inventory_item_id": position, "quantity_on_hand_diff": 0,
-                    "available_to_promise_diff": -qty, "reason": "reserved",
-                    "sales_order_id": order_id, **overrides}
-            return client.post("/api/v1/inventory-item-details", headers=admin, json=body)
+        def reserve(order_id: str, qty: float, item_id: str | None = None) -> object:
+            return client.post(f"/api/v1/sales-orders/{order_id}/reserve", headers=admin, json={
+                "lines": [{"inventory_item_id": item_id or position, "quantity": qty}]})
 
         yield {"client": client, "admin": admin, "product": product,
                "position": position, "order": order, "sums": sums, "reserve": reserve}
@@ -55,15 +54,24 @@ def stockroom():
 def test_a_hold_moves_availability_only_and_names_its_order(stockroom) -> None:
     so = stockroom["order"]()
     ok = stockroom["reserve"](so, 3)
-    assert ok.status_code == 201, ok.text
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["data"]["lines"][0]["available_to_promise"] == 7.0
     assert stockroom["sums"]() == (10.0, 7.0), "占货: available drops, on-hand stays"
+    rows = stockroom["client"].get("/api/v1/inventory-item-details",
+                                   params={"sales_order_id": so}, headers=stockroom["admin"]).json()["data"]
+    assert [(r["reason"], r["quantity_on_hand_diff"], r["available_to_promise_diff"]) for r in rows] == \
+        [("reserved", 0.0, -3.0)], "the bridge writes the ATP-only shape; nobody types it"
 
-    moved_goods = stockroom["reserve"](so, 2, quantity_on_hand_diff=-2)
-    assert moved_goods.status_code == 422, "goods that actually moved are issued, not reserved"
     backwards = stockroom["reserve"](so, -2)
     assert backwards.status_code == 422
-    anonymous = stockroom["reserve"](so, 2, sales_order_id=None)
-    assert anonymous.status_code == 422, "a hold must say whose it is, or nothing can consume it"
+    over = stockroom["reserve"](so, 8)
+    assert over.status_code == 409 and "below zero" in over.json()["detail"]
+    other = stockroom["client"].post("/api/v1/products", json={"name": "Lid"},
+                                     headers=stockroom["admin"]).json()["data"]["id"]
+    elsewhere = stockroom["client"].post("/api/v1/inventory-items", headers=stockroom["admin"], json={
+        "product_id": other, "facility": "main", "initial_quantity": 4}).json()["data"]["id"]
+    wrong_shelf = stockroom["reserve"](so, 1, elsewhere)
+    assert wrong_shelf.status_code == 422, "a hold names goods the order sells"
 
 
 def test_shipping_a_held_order_consumes_the_hold_not_atp_twice(stockroom) -> None:
@@ -144,12 +152,14 @@ def test_a_cancelled_order_gives_its_hold_back_by_hand(stockroom) -> None:
     so = stockroom["order"]("要取消的单")
     stockroom["reserve"](so, 4)
     assert stockroom["sums"]() == (10.0, 6.0)
-    released = client.post("/api/v1/inventory-item-details", headers=admin, json={
-        "inventory_item_id": stockroom["position"], "quantity_on_hand_diff": 0,
-        "available_to_promise_diff": 4, "reason": "reservation_released",
-        "sales_order_id": so, "description": "订单取消,释放占货"})
-    assert released.status_code == 201, released.text
+    released = client.post(f"/api/v1/sales-orders/{so}/release", headers=admin,
+                           json={"description": "订单取消,释放占货"})
+    assert released.status_code == 200, released.text
+    assert released.json()["data"]["lines"][0]["quantity"] == 4.0
     assert stockroom["sums"]() == (10.0, 10.0), "the hold came back, nothing moved"
+    again = client.post(f"/api/v1/sales-orders/{so}/release", headers=admin, json={
+        "lines": [{"inventory_item_id": stockroom["position"], "quantity": 1}]})
+    assert again.status_code == 409, "nothing is held any more; a release cannot invent availability"
 
 
 def test_two_lines_on_one_position_split_one_hold_inside_a_posting(stockroom) -> None:

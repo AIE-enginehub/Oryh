@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
@@ -204,6 +205,7 @@ def list_picklists(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "picklist", status_filter)
     stmt = select(Picklist).where(Picklist.tenant_id == tenant_id)
@@ -220,6 +222,7 @@ def list_picklists(
         keyword_columns=(cast(Picklist.id, String), Picklist.picklist_no, Picklist.remarks),
         order_by=(Picklist.created_at.desc(), Picklist.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=PicklistRead,
     )
 
@@ -373,6 +376,7 @@ def list_picklist_items(
     inventory_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -385,6 +389,7 @@ def list_picklist_items(
         },
         order_by=(PicklistItem.line_no.asc(), PicklistItem.created_at.asc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=PicklistItemRead,
     )
 
@@ -476,6 +481,7 @@ def list_shipments(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "shipment", status_filter)
     stmt = select(Shipment).where(Shipment.tenant_id == tenant_id)
@@ -505,6 +511,7 @@ def list_shipments(
         ),
         order_by=(Shipment.created_at.desc(), Shipment.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ShipmentRead,
     )
 
@@ -516,7 +523,7 @@ def create_shipment(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     _require_order_coherence(
         db, tenant_id, payload.direction, payload.sales_order_id, payload.purchase_order_id
     )
@@ -631,7 +638,7 @@ def update_shipment(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     shipment = get_active_document_or_404(db, Shipment, tenant_id, shipment_id)
     updates = payload.model_dump(exclude_unset=True)
     if "sales_order_id" in updates or "purchase_order_id" in updates:
@@ -733,7 +740,7 @@ def post_shipment_stock(
     refusal — the ledger is append-only, so running twice would double the
     goods, and the stamp is what makes the second call a loud 409 instead."""
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     # the source row is LOCKED before the posted stamp is read: two postings
     # of one shipment that both read "not yet posted" is how stock left the
     # ledger twice (review R02). The second waits, then sees the stamp.
@@ -830,6 +837,7 @@ def list_shipment_items(
     inventory_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -843,6 +851,7 @@ def list_shipment_items(
         },
         order_by=(ShipmentItem.created_at.asc(), ShipmentItem.id.asc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ShipmentItemRead,
     )
 
@@ -854,7 +863,7 @@ def create_shipment_item(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     shipment = get_active_document_or_404(db, Shipment, tenant_id, payload.shipment_id)
     ensure_document_editable(db, shipment)
     _require_line_position(
@@ -884,7 +893,7 @@ def update_shipment_item(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     item = get_active_document_or_404(db, ShipmentItem, tenant_id, item_id)
     shipment = get_active_document_or_404(db, Shipment, tenant_id, item.shipment_id)
     ensure_document_editable(db, shipment)
@@ -908,7 +917,7 @@ def delete_shipment_item(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    require_permission(actor, "inventory.manage")
+    require_permission(actor, "shipment.manage")
     item = get_active_document_or_404(db, ShipmentItem, tenant_id, item_id)
     shipment = get_active_document_or_404(db, Shipment, tenant_id, item.shipment_id)
     ensure_document_editable(db, shipment)

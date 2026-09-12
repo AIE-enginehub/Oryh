@@ -65,6 +65,7 @@ function movementReasonLabel(reason: InventoryItemDetailRead["reason"], text: Lo
     transfer: ["调拨", "Transfer"],
     reserved: ["占货", "Reserved"],
     reservation_released: ["释放占货", "Hold released"],
+    production: ["生产完工入库", "Production receipt"],
     other: ["其他", "Other"],
   };
   const [chinese, english] = labels[reason];

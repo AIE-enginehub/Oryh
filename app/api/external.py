@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     commit_or_conflict,
     envelope,
@@ -38,7 +39,7 @@ from app.api.common import (
     list_rows,
     requested_pagination,
 )
-from app.api.deps import Actor, attributed, get_actor, require_permission
+from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
     BusinessObject,
@@ -110,6 +111,7 @@ def list_external_document_links(
     entity_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -123,6 +125,7 @@ def list_external_document_links(
         },
         order_by=(ExternalDocumentLink.created_at.desc(), ExternalDocumentLink.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ExternalDocumentLinkRead,
     )
 
@@ -138,7 +141,36 @@ def create_external_document_link(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    _load_and_gate(db, actor, payload.entity_type, payload.entity_id)
+    target = _load_and_gate(db, actor, payload.entity_type, payload.entity_id)
+    if payload.entity_type == "sales_order":
+        # a link is written by whoever may work the order — and a seller's
+        # credential works its OWN orders (E-30), the same rule the order
+        # itself applies
+        enforce_member_employee(actor, target.employee_id)
+    elsewhere = db.scalars(
+        select(ExternalDocumentLink).where(
+            ExternalDocumentLink.tenant_id == actor.tenant_id,
+            ExternalDocumentLink.source == payload.source,
+            ExternalDocumentLink.external_kind == payload.external_kind,
+            ExternalDocumentLink.external_no == payload.external_no,
+            ExternalDocumentLink.entity_type == payload.entity_type,
+            ExternalDocumentLink.entity_id != payload.entity_id,
+        )
+    ).all()
+    if elsewhere and not payload.split:
+        # E-02: the number already became one of our documents of this
+        # kind; a second one is a duplicate import unless the caller says
+        # it is a split
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{payload.source} {payload.external_kind} {payload.external_no} is already "
+                f"linked to {payload.entity_type} "
+                + ", ".join(sorted({link.entity_id for link in elsewhere}))
+                + " — a duplicate import reuses that document; a deliberate split (拆单) "
+                "sends split: true"
+            ),
+        )
     existing = db.scalar(
         select(ExternalDocumentLink).where(
             ExternalDocumentLink.tenant_id == actor.tenant_id,

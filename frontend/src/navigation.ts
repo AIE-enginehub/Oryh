@@ -3,6 +3,7 @@ import {
   CalendarBlank,
   CheckSquare,
   ClipboardText,
+  Database,
   Cube,
   Files,
   Folders,
@@ -81,6 +82,16 @@ export const navigation: NavigationGroup[] = [
         description: [
           "报价、采购、费用及其他业务单据",
           "Quotations, purchases, expenses and business records",
+        ],
+        visible: canManageTenantConfiguration,
+      },
+      {
+        label: "dataBrowser",
+        href: "/data",
+        icon: Database,
+        description: [
+          "按集合查看全部数据，任意筛选、排序与分页",
+          "Every collection, with every filter, sort and paging",
         ],
         visible: canManageTenantConfiguration,
       },

@@ -23,14 +23,17 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
+import math
 import re
 import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ensure_document_not_deleted,
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     _finish_bulk_import,
     archive_row,
@@ -43,14 +46,15 @@ from app.api.common import (
     page_only_pagination,
     register_attachment_source,
     require_active_row,
-    require_entity_uuid,
     require_master_data_manage,
     serve_document_attachment,
     status_scope,
 )
+from app.api.geo import customer_territory
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
+    Employee,
     Attachment,
     BillOfMaterials,
     BomItem,
@@ -67,6 +71,7 @@ from app.models import (
     Store,
     StoreFacility,
     SalesOrder,
+    SalesOrderItem,
     Product,
     ProductCategory,
     ProductImage,
@@ -84,7 +89,11 @@ from app.schemas import (
     BulkUpsertEnvelope,
     BulkVendorUpsertRequest,
     CreateCustomerRequest,
-    CreateInventoryItemDetailRequest,
+    ReleaseStockRequest,
+    ReserveStockRequest,
+    StockReservationEnvelope,
+    StockReservationLineRead,
+    StockReservationRead,
     CreateInventoryItemRequest,
     CreateProductPriceRequest,
     CreateFacilityRequest,
@@ -122,6 +131,7 @@ from app.schemas import (
     CustomerContactEnvelope,
     CustomerContactListEnvelope,
     CustomerContactRead,
+    CustomerDetailEnvelope,
     CustomerEnvelope,
     CustomerProductEnvelope,
     CustomerProductListEnvelope,
@@ -183,6 +193,7 @@ from app.schemas import (
     VendorRead,
 )
 from app.services.inventory_import import _find_item, bulk_inventory_upsert, post_inventory_detail
+from app.services.state_machines import get_builtin_machine, is_terminal_state
 from app.services.master_data_import import bulk_upsert
 from app.services.type_options import require_type_option
 
@@ -349,6 +360,7 @@ def list_vendors(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Vendor).where(Vendor.tenant_id == tenant_id),
@@ -357,6 +369,7 @@ def list_vendors(
         keyword_columns=(Vendor.name,),
         order_by=(Vendor.created_at.desc(), Vendor.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=VendorRead,
     )
 
@@ -442,9 +455,13 @@ def list_customers(
     phone: str | None = None,
     customer_kind: str | None = None,
     customer_type: str | None = None,
+    geo_id: str | None = None,
+    territory_id: str | None = None,
+    owner_employee_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Customer).where(Customer.tenant_id == tenant_id),
@@ -455,12 +472,16 @@ def list_customers(
             Customer.phone: phone,
             Customer.customer_kind: customer_kind,
             Customer.customer_type: customer_type,
+            Customer.geo_id: geo_id,
+            Customer.territory_id: territory_id,
+            Customer.owner_employee_id: owner_employee_id,
             Customer.status: status_scope(status_filter),
         },
         keyword=keyword,
         keyword_columns=(Customer.name,),
         order_by=(Customer.created_at.desc(), Customer.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=CustomerRead,
     )
 
@@ -480,6 +501,8 @@ def create_customer(
     ensure_code_available(db, Customer, actor.tenant_id, "customer_code", payload.customer_code)
     if payload.customer_type is not None:
         require_type_option(db, actor.tenant_id, "customer_type", payload.customer_type)
+    if payload.owner_employee_id:
+        get_scoped_or_404(db, Employee, actor.tenant_id, payload.owner_employee_id)
     customer = Customer(
         tenant_id=actor.tenant_id,
         customer_code=payload.customer_code,
@@ -491,6 +514,10 @@ def create_customer(
         email=payload.email,
         phone=payload.phone,
         address=payload.address,
+        geo_id=payload.geo_id,
+        territory_id=customer_territory(db, actor.tenant_id, payload.geo_id, payload.territory_id),
+        owner_employee_id=payload.owner_employee_id,
+        payment_terms=payload.payment_terms,
         status=payload.status,
         metadata_jsonb=payload.metadata,
     )
@@ -510,6 +537,46 @@ def get_customer(
     return envelope(CustomerRead.model_validate(customer).model_dump(by_alias=True))
 
 
+@router.get("/customers/{customer_id}/detail", response_model=CustomerDetailEnvelope, response_model_exclude_unset=True)
+def get_customer_detail(
+    customer_id: str,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """What a visit brief needs, in one read (F-16): the people, the open
+    deals, the last ten contacts, what is scheduled, the last ten messages,
+    the recent quotations and orders, and the territory covering it."""
+    from app.models import Activity, CommunicationEvent, Event, Opportunity, SalesOrder, SalesQuotation, Territory
+    from app.schemas import (
+        ActivityRead, CommunicationEventRead, CustomerDetailRead, EventRead, OpportunityRead,
+        SalesOrderRead, SalesQuotationRead, TerritoryRead,
+    )
+    customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
+
+    def recent(model, order_column, *, live=True, limit=10):
+        stmt = select(model).where(model.tenant_id == tenant_id, model.customer_id == customer.id)
+        if live and hasattr(model, "deleted_at"):
+            stmt = stmt.where(model.deleted_at.is_(None))
+        return db.scalars(stmt.order_by(order_column.desc()).limit(limit)).all()
+
+    contacts = db.scalars(select(CustomerContact).where(
+        CustomerContact.tenant_id == tenant_id, CustomerContact.customer_id == customer.id,
+    ).order_by(CustomerContact.is_primary.desc(), CustomerContact.created_at.asc())).all()
+    territory = db.get(Territory, customer.territory_id) if customer.territory_id else None
+    detail = CustomerDetailRead(
+        customer=CustomerRead.model_validate(customer),
+        contacts=[CustomerContactRead.model_validate(c) for c in contacts],
+        opportunities=[OpportunityRead.model_validate(o) for o in recent(Opportunity, Opportunity.created_at)],
+        activities=[ActivityRead.model_validate(a) for a in recent(Activity, Activity.occurred_at)],
+        events=[EventRead.model_validate(e) for e in recent(Event, Event.starts_at)],
+        communications=[CommunicationEventRead.model_validate(c) for c in recent(CommunicationEvent, CommunicationEvent.occurred_at)],
+        quotations=[SalesQuotationRead.model_validate(q) for q in recent(SalesQuotation, SalesQuotation.created_at, limit=5)],
+        orders=[SalesOrderRead.model_validate(o) for o in recent(SalesOrder, SalesOrder.created_at, limit=5)],
+        territory=TerritoryRead.model_validate(territory) if territory is not None else None,
+    )
+    return envelope(detail.model_dump(by_alias=True))
+
+
 @router.patch("/customers/{customer_id}", response_model=CustomerEnvelope, response_model_exclude_unset=True)
 def update_customer(
     customer_id: str,
@@ -527,6 +594,15 @@ def update_customer(
         )
     if updates.get("customer_type") is not None:
         require_type_option(db, actor.tenant_id, "customer_type", updates["customer_type"])
+    if "geo_id" in updates or "territory_id" in updates or "owner_employee_id" in updates:
+        geo_id = updates.get("geo_id", customer.geo_id)
+        # a geo change re-resolves the territory unless one was named in the same write
+        territory_id = updates["territory_id"] if "territory_id" in updates else (
+            None if "geo_id" in updates else customer.territory_id
+        )
+        updates["territory_id"] = customer_territory(db, actor.tenant_id, geo_id, territory_id)
+        if updates.get("owner_employee_id"):
+            get_scoped_or_404(db, Employee, actor.tenant_id, updates["owner_employee_id"])
     if "metadata" in updates:
         customer.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
@@ -557,6 +633,7 @@ def list_facilities(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Facility).where(Facility.tenant_id == tenant_id),
@@ -565,6 +642,7 @@ def list_facilities(
         keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
         order_by=(Facility.name.asc(), Facility.id.asc()),
         pagination=page_only_pagination(page, size, default=100),
+        sort=order_by,
         read_model=FacilityRead,
     )
 
@@ -694,6 +772,7 @@ def list_sales_channels(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(SalesChannel).where(SalesChannel.tenant_id == tenant_id),
@@ -702,6 +781,7 @@ def list_sales_channels(
         keyword_columns=(SalesChannel.channel_code, SalesChannel.name),
         order_by=(SalesChannel.channel_code.asc(), SalesChannel.id.asc()),
         pagination=page_only_pagination(page, size, default=100),
+        sort=order_by,
         read_model=SalesChannelRead,
     )
 
@@ -797,10 +877,34 @@ def list_stores(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(Store).options(selectinload(Store.sales_channel)).where(Store.tenant_id == tenant_id)
     if source:
         stmt = stmt.where(Store.sales_channel.has(SalesChannel.channel_code == source.strip().lower()))
+
+    def with_fulfilment(stores) -> list[dict]:
+        # the same standing list the single read carries (E-24: a null here
+        # read as "this store has no warehouse") — one grouped query per page
+        data = [StoreRead.model_validate(store).model_dump(by_alias=True) for store in stores]
+        by_store: dict[str, list[dict]] = {}
+        if data:
+            for link in db.scalars(
+                select(StoreFacility)
+                .where(
+                    StoreFacility.tenant_id == tenant_id,
+                    StoreFacility.store_id.in_([row["id"] for row in data]),
+                    StoreFacility.status == "active",
+                )
+                .order_by(StoreFacility.priority.asc().nulls_last(), StoreFacility.created_at.asc())
+            ):
+                by_store.setdefault(link.store_id, []).append(
+                    StoreFacilityRead.model_validate(link).model_dump(by_alias=True)
+                )
+        for row in data:
+            row["fulfilment_facilities"] = by_store.get(row["id"], [])
+        return data
+
     return list_rows(
         db, stmt,
         filters={Store.channel: channel, Store.status: status_scope(status_filter)},
@@ -808,7 +912,8 @@ def list_stores(
         keyword_columns=(Store.name, Store.store_code, Store.address),
         order_by=(Store.name.asc(), Store.id.asc()),
         pagination=page_only_pagination(page, size, default=100),
-        read_model=StoreRead,
+        sort=order_by,
+        render=with_fulfilment,
     )
 
 
@@ -910,6 +1015,7 @@ def list_store_facilities(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(StoreFacility).where(StoreFacility.tenant_id == tenant_id),
@@ -925,6 +1031,7 @@ def list_store_facilities(
             StoreFacility.id.asc(),
         ),
         pagination=page_only_pagination(page, size, default=100),
+        sort=order_by,
         read_model=StoreFacilityRead,
     )
 
@@ -998,6 +1105,7 @@ def list_product_images(
     image_type: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductImage).where(ProductImage.tenant_id == tenant_id),
@@ -1009,6 +1117,7 @@ def list_product_images(
             ProductImage.created_at.asc(),
         ),
         pagination=page_only_pagination(page, size, default=100),
+        sort=order_by,
         read_model=ProductImageRead,
     )
 
@@ -1235,6 +1344,7 @@ def list_bills_of_materials(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -1246,6 +1356,7 @@ def list_bills_of_materials(
         keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
         order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=BillOfMaterialsRead,
     )
 
@@ -1463,6 +1574,7 @@ def list_bom_items(
     component_product_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db,
@@ -1470,6 +1582,7 @@ def list_bom_items(
         filters={BomItem.bom_id: bom_id, BomItem.component_product_id: component_product_id},
         order_by=(BomItem.line_no.asc(), BomItem.created_at.asc()),
         pagination=page_only_pagination(page, size, default=100),
+        sort=order_by,
         read_model=BomItemRead,
     )
 
@@ -1600,6 +1713,7 @@ def list_product_categories(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
     if root_only:
@@ -1614,6 +1728,7 @@ def list_product_categories(
         keyword_columns=(ProductCategory.name, ProductCategory.category_code),
         order_by=(ProductCategory.name.asc(), ProductCategory.id.asc()),
         pagination=page_only_pagination(page, size, default=200),
+        sort=order_by,
         read_model=ProductCategoryRead,
     )
 
@@ -1715,6 +1830,7 @@ def list_products(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
@@ -1730,6 +1846,7 @@ def list_products(
         keyword_columns=(Product.name, Product.product_code),
         order_by=(Product.created_at.desc(), Product.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         render=lambda products: product_reads_with_sku_stats(db, tenant_id, products),
     )
 
@@ -1771,19 +1888,49 @@ def _require_pair_free(db: Session, model, tenant_id: str, scope: dict, noun: st
         )
 
 
-def _title_terms(text_value: str) -> set[str]:
-    """Matching terms of a platform title: ASCII words/numbers lowercased,
-    and CJK bigrams — 保温杯500ml樱花粉 → {保温, 温杯, 500ml, 樱花, 花粉}.
-    Bigrams survive the punctuation and marketing prefixes that keep a
-    substring search from ever seeing the product name."""
-    folded = unicodedata.normalize("NFKC", text_value).casefold()
-    terms: set[str] = set(re.findall(r"[a-z0-9]+", folded))
-    runs = re.findall(r"[\u4e00-\u9fff]+", folded)
-    for run in runs:
-        if len(run) == 1:
-            terms.add(run)
-        terms.update(run[i:i + 2] for i in range(len(run) - 1))
-    return terms
+def _match_text(text_value: str) -> str:
+    return " ".join(unicodedata.normalize("NFKC", text_value).casefold().split())
+
+
+def _match_phrases(title: str, field_text: str) -> set[str]:
+    """What a catalog field and a platform title share, as PHRASES: every
+    ASCII word/number both contain, and every maximal run of CJK (two or
+    more characters) that appears verbatim in both. Bigram counting (the
+    first cut) let a long compound shared by half the catalog — 医用胶片打印机 —
+    outscore the one word that names the goods (色带), because the compound
+    is six bigrams and the word is one. A shared run is one phrase however
+    long it is; how much it says is its rarity, weighed by the caller."""
+    if not field_text:
+        return set()
+    phrases: set[str] = set()
+    title_words = set(re.findall(r"[a-z0-9][a-z0-9.\-]*", title))
+    phrases.update(word for word in re.findall(r"[a-z0-9][a-z0-9.\-]*", field_text) if word in title_words)
+    title_runs = re.findall(r"[\u4e00-\u9fff]+", title)
+    for run in re.findall(r"[\u4e00-\u9fff]+", field_text):
+        for t_run in title_runs:
+            # maximal common substrings of length >= 2 (single characters
+            # say nothing: 机 is in every machine), longest first so a
+            # shorter piece of an already-taken run does not count twice
+            found: list[str] = []
+            n, m = len(run), len(t_run)
+            table = [[0] * (m + 1) for _ in range(n + 1)]
+            for i in range(n):
+                for j in range(m):
+                    if run[i] == t_run[j]:
+                        table[i + 1][j + 1] = table[i][j] + 1
+            ends = sorted(
+                ((table[i][j], i) for i in range(1, n + 1) for j in range(1, m + 1) if table[i][j] >= 2),
+                reverse=True,
+            )
+            taken: list[tuple[int, int]] = []
+            for length, i in ends:
+                lo, hi = i - length, i
+                if any(lo < t_hi and hi > t_lo for t_lo, t_hi in taken):
+                    continue
+                taken.append((lo, hi))
+                found.append(run[lo:hi])
+            phrases.update(found)
+    return phrases
 
 
 @router.get("/product-matches", response_model_exclude_unset=True)
@@ -1793,36 +1940,103 @@ def match_products_by_title(
     title: Annotated[str, Query(min_length=1, max_length=300)],
     limit: Annotated[int, Query(ge=1, le=20)] = 5,
 ):
-    """Candidates for a platform title, ranked by how much of the title's
-    vocabulary each active product's name/code/spec shares. A READ that
-    hands the agent a shortlist with scores; which one (if any) the title
-    means is the person's confirmation, and the map row that records it
-    is what makes the next import skip this call."""
-    wanted = _title_terms(title)
-    if not wanted:
+    """Candidates for a platform title. A READ that hands the agent a
+    shortlist with scores; which one (if any) the title means is the
+    person's confirmation, and the map row that records it is what makes
+    the next import skip this call.
+
+    Scoring: the phrases a product (its name, code, spec — and its SKUs'
+    codes and variant values) shares with the title, each weighed by how
+    RARE it is in this catalog: a phrase every printer carries says little,
+    the one phrase only the ribbon carries says almost everything, and a
+    spec token that names one SKU (14x17) is as telling as the product's
+    own name. `match_score` is the share of the title's catalog-known mass
+    the candidate covers, in [0, 1]; `matched_terms` lists the phrases;
+    `sku_candidates` names the variants whose own text the title also
+    matches, so a spec in the title resolves to a SKU, not just a product."""
+    folded = _match_text(title)
+    if not folded:
         return envelope([])
-    scored = []
-    for product_id, name, code, spec in db.execute(
+    products = db.execute(
         select(Product.id, Product.name, Product.product_code, Product.spec)
         .where(Product.tenant_id == tenant_id, Product.status == "active")
+    ).all()
+    skus_by_product: dict[str, list[tuple[str, str]]] = {}
+    for sku_id, product_id, sku_code, variant_attrs in db.execute(
+        select(ProductSku.id, ProductSku.product_id, ProductSku.sku_code, ProductSku.variant_attrs)
+        .where(ProductSku.tenant_id == tenant_id, ProductSku.status == "active")
     ):
-        have = _title_terms(" ".join(part for part in (name, code, spec) if part))
-        hit = len(wanted & have)
-        if hit:
-            scored.append((hit / len(wanted), hit, name, product_id))
+        values = [str(v) for v in (variant_attrs or {}).values() if v not in (None, "")]
+        skus_by_product.setdefault(product_id, []).append(
+            (sku_id, _match_text(" ".join(part for part in [sku_code or "", *values] if part)))
+        )
+    texts = {
+        product_id: _match_text(" ".join(part for part in (name, code, spec) if part))
+        for product_id, name, code, spec in products
+    }
+    shared: dict[str, set[str]] = {}
+    sku_hits: dict[str, list[tuple[str, set[str]]]] = {}
+    for product_id, text in texts.items():
+        phrases = _match_phrases(folded, text)
+        for sku_id, sku_text in skus_by_product.get(product_id, ()):
+            sku_phrases = _match_phrases(folded, sku_text)
+            if sku_phrases:
+                sku_hits.setdefault(product_id, []).append((sku_id, sku_phrases))
+                phrases |= sku_phrases
+        if phrases:
+            shared[product_id] = phrases
+    if not shared:
+        return envelope([])
+    # rarity across the catalog: a phrase carried by n of N products
+    every_text = {
+        product_id: text + " " + " ".join(sku_text for _sid, sku_text in skus_by_product.get(product_id, ()))
+        for product_id, text in texts.items()
+    }
+    total = len(every_text)
+    weight: dict[str, float] = {}
+    for phrase in set().union(*shared.values()):
+        carriers = sum(1 for text in every_text.values() if phrase in text)
+        weight[phrase] = math.log(1 + total / max(carriers, 1))
+    title_mass = sum(weight.values())
+    scored = []
+    for product_id, phrases in shared.items():
+        mass = sum(weight[p] for p in phrases)
+        scored.append((mass / title_mass if title_mass else 0.0, mass, product_id))
     scored.sort(key=lambda row: (-row[0], -row[1], row[2]))
     shortlist = scored[:limit]
-    products = {
+    rows = {
         product.id: product
-        for product in db.scalars(select(Product).where(Product.id.in_([row[3] for row in shortlist])))
+        for product in db.scalars(select(Product).where(Product.id.in_([row[2] for row in shortlist])))
     }
+    reads = {
+        read["id"]: read
+        for read in product_reads_with_sku_stats(db, tenant_id, [rows[pid] for _s, _m, pid in shortlist])
+    }
+    sku_rows = {
+        sku.id: sku
+        for sku in db.scalars(select(ProductSku).where(ProductSku.id.in_(
+            [sku_id for pid in rows for sku_id, _p in sku_hits.get(pid, ())]
+        )))
+    } if any(sku_hits.get(pid) for pid in rows) else {}
     return envelope([
         {
-            **ProductRead.model_validate(products[product_id]).model_dump(by_alias=True),
+            **reads[product_id],
             "match_score": round(score, 3),
-            "matched_terms": hit,
+            "matched_terms": sorted(shared[product_id], key=lambda p: -weight[p]),
+            "sku_candidates": [
+                {
+                    "id": sku_id,
+                    "sku_code": sku_rows[sku_id].sku_code,
+                    "variant_attrs": sku_rows[sku_id].variant_attrs or {},
+                    "matched_terms": sorted(phrases, key=lambda p: -weight[p]),
+                }
+                for sku_id, phrases in sorted(
+                    sku_hits.get(product_id, ()), key=lambda hit: -sum(weight[p] for p in hit[1])
+                )
+                if sku_id in sku_rows
+            ],
         }
-        for score, hit, _name, product_id in shortlist
+        for score, _mass, product_id in shortlist
     ])
 
 
@@ -2033,6 +2247,7 @@ def list_product_skus(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductSku).where(ProductSku.tenant_id == tenant_id),
@@ -2043,6 +2258,7 @@ def list_product_skus(
         },
         order_by=(ProductSku.created_at.asc(), ProductSku.sku_code.asc(), ProductSku.id.asc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=ProductSkuRead,
     )
 
@@ -2171,6 +2387,7 @@ def list_product_prices(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(ProductPrice).where(ProductPrice.tenant_id == tenant_id),
@@ -2184,6 +2401,7 @@ def list_product_prices(
         # newest first: the live price and its history read top-down
         order_by=(ProductPrice.created_at.desc(), ProductPrice.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=ProductPriceRead,
     )
 
@@ -2299,6 +2517,7 @@ def list_supplier_products(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(SupplierProduct).where(SupplierProduct.tenant_id == tenant_id),
@@ -2314,6 +2533,7 @@ def list_supplier_products(
             SupplierProduct.id.asc(),
         ),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=SupplierProductRead,
     )
 
@@ -2417,6 +2637,7 @@ def list_customer_products(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(CustomerProduct).where(CustomerProduct.tenant_id == tenant_id),
@@ -2428,6 +2649,7 @@ def list_customer_products(
         },
         order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=CustomerProductRead,
     )
 
@@ -2529,6 +2751,7 @@ def list_customer_contacts(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(CustomerContact).where(CustomerContact.tenant_id == tenant_id),
@@ -2541,6 +2764,7 @@ def list_customer_contacts(
         keyword_columns=(
             CustomerContact.name, CustomerContact.title,
             CustomerContact.wechat, CustomerContact.email,
+            CustomerContact.phone,  # F-25: a number the person types finds the person
         ),
         # the primary first, then the rest by arrival — the order a person
         # answering "找谁" actually wants
@@ -2550,8 +2774,16 @@ def list_customer_contacts(
             CustomerContact.id.asc(),
         ),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=CustomerContactRead,
     )
+
+
+def _owns_customer(db: Session, actor: Actor, customer_id: str) -> bool:
+    if actor.employee_id is None:
+        return False
+    customer = db.get(Customer, customer_id)
+    return customer is not None and customer.tenant_id == actor.tenant_id and customer.owner_employee_id == actor.employee_id
 
 
 @router.post("/customer-contacts", response_model=CustomerContactEnvelope,
@@ -2561,7 +2793,10 @@ def create_customer_contact(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    # F-09: the salesperson who owns the account adds its people (the deal's
+    # cast, the demo's attendees); everyone else's rolodex is the catalog desk's
+    if not (has_permission(actor, "crm.own") and _owns_customer(db, actor, payload.customer_id)):
+        require_master_data_manage(actor)
     tenant_id = actor.tenant_id
     get_scoped_or_404(db, Customer, tenant_id, payload.customer_id)
     if payload.is_primary:
@@ -2655,6 +2890,34 @@ def require_map_curation(actor: Actor) -> None:
     require_master_data_manage(actor)
 
 
+def _require_map_window_authority(actor: Actor, effective_from, effective_to) -> None:
+    """A dated window is a swap statement — "this listing meant X until the
+    9th" — and that is catalog work: the desk that confirms pairings may not
+    date them (E-03)."""
+    if (effective_from is not None or effective_to is not None) and not has_permission(actor, "master_data.manage"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "effective_from / effective_to record a listing swap, which is the "
+                "catalog desk's write (master_data.manage) — confirm the pairing without a window"
+            ),
+        )
+
+
+def _require_map_row_authority(actor: Actor, row: ExternalProductMap) -> None:
+    """The desk that may write an undated pairing may also correct or
+    withdraw one (E-03: a wrong row it can create but not remove is a trap);
+    a row with a window is a swap record and stays with the catalog desk."""
+    if (row.effective_from is not None or row.effective_to is not None) and not has_permission(actor, "master_data.manage"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"map {row.id} carries an effective window — a swap record the catalog "
+                "desk (master_data.manage) curates"
+            ),
+        )
+
+
 @router.get(
     "/external-product-maps",
     response_model=ExternalProductMapListEnvelope,
@@ -2686,8 +2949,20 @@ def list_external_product_maps(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(ExternalProductMap).where(ExternalProductMap.tenant_id == tenant_id)
+    if external_product_id and external_name:
+        # E-18: an export that carries ids is answered by id-keyed rows AND
+        # by the title-keyed rows a desk wrote before anyone recorded the id
+        # — the same listing, confirmed under the name it prints
+        stmt = stmt.where(or_(
+            ExternalProductMap.external_product_id == external_product_id.strip(),
+            and_(ExternalProductMap.external_product_id == "",
+                 ExternalProductMap.external_name_norm == normalize_external_name(external_name)),
+        ))
+        external_product_id = None
+        external_name = None
     if at is not None:
         stmt = stmt.where(
             or_(ExternalProductMap.effective_from.is_(None),
@@ -2706,7 +2981,7 @@ def list_external_product_maps(
             ),
             ExternalProductMap.external_name_norm: normalize_external_name(external_name),
             ExternalProductMap.external_sku_id: (
-                external_sku_id.strip() if external_sku_id is not None else None
+                (normalize_external_name(external_sku_id) or "") if external_sku_id is not None else None
             ),
             ExternalProductMap.product_id: product_id,
             ExternalProductMap.status: status_scope(status_filter),
@@ -2720,6 +2995,7 @@ def list_external_product_maps(
             ExternalProductMap.id.asc(),
         ),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=ExternalProductMapRead,
     )
 
@@ -2751,6 +3027,10 @@ def create_external_product_map(
     # listing may swap BACK to a product it meant before, and closed-window
     # rows for back-dated imports never conflict with the current pairing.
     name_norm = normalize_external_name(payload.external_name)
+    # the spec text is matched the way the title is (E-01): "片幅:11X14" and
+    # "片幅:11x14" are one spec, and a lookup folds the same way
+    payload.external_sku_id = normalize_external_name(payload.external_sku_id) or ""
+    _require_map_window_authority(actor, payload.effective_from, payload.effective_to)
     if payload.status == "active" and payload.effective_to is None:
         # the listing's identity is its id, or — when the export carries
         # none — its normalized title; the open slot is claimed per that
@@ -2826,6 +3106,8 @@ def update_external_product_map(
     require_map_curation(actor)
     row = get_scoped_or_404(db, ExternalProductMap, actor.tenant_id, map_id)
     updates = payload.model_dump(exclude_unset=True)
+    _require_map_row_authority(actor, row)
+    _require_map_window_authority(actor, updates.get("effective_from"), updates.get("effective_to"))
     if "sku_id" in updates and updates["sku_id"] is not None:
         sku = get_scoped_or_404(db, ProductSku, actor.tenant_id, updates["sku_id"])
         if sku.product_id != row.product_id:
@@ -2877,7 +3159,10 @@ def delete_external_product_map(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return archive_row(db, actor, ExternalProductMap, map_id)
+    require_map_curation(actor)
+    _require_map_row_authority(actor, get_scoped_or_404(db, ExternalProductMap, actor.tenant_id, map_id))
+    return archive_row(db, actor, ExternalProductMap, map_id, permission="order.submit_own"
+                       if not has_permission(actor, "master_data.manage") else None)
 
 
 # --- inventory: items are running sums of an append-only detail ledger -----
@@ -2907,6 +3192,7 @@ def list_inventory_items(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)
     # "" is a real position ("" is the default lot, and a facility may be
@@ -2924,6 +3210,7 @@ def list_inventory_items(
         },
         order_by=(InventoryItem.created_at.desc(), InventoryItem.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=InventoryItemRead,
     )
 
@@ -3038,6 +3325,10 @@ def update_inventory_item(
     updates = payload.model_dump(exclude_unset=True)
     if "metadata" in updates:
         item.metadata_jsonb = updates.pop("metadata")
+    if updates.get("facility_id"):
+        # the registry pointer beside the free-text name (E-25): positions
+        # predate the registry, and a rename of the warehouse must not orphan them
+        get_scoped_or_404(db, Facility, actor.tenant_id, updates["facility_id"])
     for field, value in updates.items():
         setattr(item, field, value.strip() if field in ("facility", "lot_id") else value)
     commit_or_conflict(db, "an inventory item for this (product, sku, facility, lot) already exists")
@@ -3071,6 +3362,7 @@ def list_inventory_item_details(
     include_archived_items: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = (
         select(InventoryItemDetail)
@@ -3098,95 +3390,180 @@ def list_inventory_item_details(
             InventoryItemDetail.id.desc(),
         ),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=InventoryItemDetailRead,
     )
 
 
-@router.post(
-    "/inventory-item-details",
-    response_model=InventoryItemDetailEnvelope,
-    response_model_exclude_unset=True,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_inventory_item_detail(
-    payload: CreateInventoryItemDetailRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    """Append one movement. Details are immutable — there is no PATCH or
-    DELETE; a mistake is corrected by a counter-entry. The item's totals move
-    here and only here."""
-    require_inventory_manage(actor)
-    item = _require_movement_shape(db, actor.tenant_id, payload)
-    detail = post_inventory_detail(
-        db,
-        item=item,
-        quantity_on_hand_diff=payload.quantity_on_hand_diff,
-        available_to_promise_diff=payload.available_to_promise_diff,
-        reason=payload.reason,
-        description=payload.description,
-        sales_order_id=payload.sales_order_id,
-        purchase_order_id=payload.purchase_order_id,
-        entity_type=payload.entity_type,
-        entity_id=payload.entity_id,
-        unit_cost=payload.unit_cost,
-        custom_fields=payload.custom_fields,
-        effective_at=payload.effective_at,
-        created_by=attributed(actor, payload.created_by),
-    )
-    db.commit()
-    db.refresh(detail)
-    return envelope(InventoryItemDetailRead.model_validate(detail).model_dump(by_alias=True))
+def _require_hold_within_bounds(db: Session, item: InventoryItem, reason: str, atp: float, sales_order_id: str) -> None:
+    """The two guards the ledger's shape check does not give (E-15): a hold
+    that would push available below zero is over-selling, and a release
+    larger than what this order still holds at this position invents
+    availability. Both are 409s naming the numbers, so the agent's next
+    sentence to sales is the right one."""
+    available = float(item.available_to_promise or 0)
+    if reason == "reserved" and available + atp < 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"this hold would push available to promise below zero: {available:g} available "
+                f"at this position, {-atp:g} asked — the shortfall is a conversation with "
+                "sales, not a negative number"
+            ),
+        )
+    if reason == "reservation_released":
+        held = -float(db.scalar(
+            select(func.coalesce(func.sum(InventoryItemDetail.available_to_promise_diff), 0)).where(
+                InventoryItemDetail.tenant_id == item.tenant_id,
+                InventoryItemDetail.inventory_item_id == item.id,
+                InventoryItemDetail.sales_order_id == sales_order_id,
+                InventoryItemDetail.reason.in_(("reserved", "reservation_released")),
+            )
+        ) or 0)
+        if atp > held + 1e-9:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"this order holds {held:g} at this position, not {atp:g} — a release "
+                    "gives back at most what was held (post-stock already released what "
+                    "the shipment consumed)"
+                ),
+            )
 
 
-def _require_movement_shape(db: Session, tenant_id: str, payload: CreateInventoryItemDetailRequest) -> InventoryItem:
-    """Everything a movement must get right before the ledger takes it: a
-    live position, a resolvable entity, at most one of OUR orders, and the
-    reservation pair's availability-only shape."""
+
+
+def _order_lines_by_goods(db: Session, order: SalesOrder) -> dict[tuple[str, str | None], list[SalesOrderItem]]:
+    lines: dict[tuple[str, str | None], list[SalesOrderItem]] = {}
+    for line in db.scalars(select(SalesOrderItem).where(
+        SalesOrderItem.tenant_id == order.tenant_id, SalesOrderItem.order_id == order.id,
+        SalesOrderItem.deleted_at.is_(None), SalesOrderItem.product_id.is_not(None),
+    )):
+        lines.setdefault((line.product_id, line.sku_id), []).append(line)
+    return lines
+
+
+def _position_for_order(db: Session, order: SalesOrder, inventory_item_id: str) -> InventoryItem:
+    """The position a hold names must hold goods the order sells: a hold
+    on a shelf the order never mentions is a typo the ledger would keep."""
     item = require_active_row(
-        db, InventoryItem, tenant_id, payload.inventory_item_id, "inventory item",
-        detail="inventory item is archived — set it active before posting movement",
+        db, InventoryItem, order.tenant_id, inventory_item_id, "inventory item",
+        detail="inventory item is archived — set it active before holding stock there",
     )
-    require_entity_uuid(payload.entity_id)
-    # A movement fulfils at most one of OUR orders. Two at once is not a
-    # transfer — it is two movements — and an external order (Tmall, JD) is
-    # neither: its number is not a uuid this database can vouch for, so it
-    # belongs in `custom_fields`, not in a column that promises resolvability.
-    if payload.sales_order_id and payload.purchase_order_id:
+    goods = _order_lines_by_goods(db, order)
+    if (item.product_id, item.sku_id) not in goods and (item.product_id, None) not in goods:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                "a movement fulfils at most one order — record two movements if "
-                "stock genuinely moved twice"
+                f"inventory item {item.id} holds product {item.product_id}"
+                + (f" sku {item.sku_id}" if item.sku_id else "")
+                + f", which order {order.order_no} has no line for"
             ),
         )
-    if payload.sales_order_id:
-        get_scoped_or_404(db, SalesOrder, tenant_id, payload.sales_order_id)
-    if payload.purchase_order_id:
-        get_scoped_or_404(db, PurchaseOrder, tenant_id, payload.purchase_order_id)
-    if payload.reason in ("reserved", "reservation_released"):
-        # the reservation pair moves AVAILABILITY only: goods held for an
-        # order have not moved, they have stopped being promisable. And a
-        # hold must say whose it is, or nothing can ever consume it.
-        atp = payload.available_to_promise_diff
-        wrong_shape = (
-            payload.quantity_on_hand_diff != 0
-            or atp is None
-            or (payload.reason == "reserved" and atp >= 0)
-            or (payload.reason == "reservation_released" and atp <= 0)
-            or not payload.sales_order_id
-        )
-        if wrong_shape:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    "a reservation row moves availability only: quantity_on_hand_diff 0, "
-                    "available_to_promise_diff negative for `reserved` (占货) and positive "
-                    "for `reservation_released`, and sales_order_id naming whose goods "
-                    "are held — goods that actually moved are `issued`/`received`"
-                ),
-            )
     return item
+
+
+@router.post(
+    "/sales-orders/{order_id}/reserve",
+    response_model=StockReservationEnvelope,
+    response_model_exclude_unset=True,
+)
+def reserve_stock_for_order(
+    order_id: str,
+    payload: ReserveStockRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """占货: hold goods for an order. The ONLY way a `reserved` row enters
+    the ledger — an availability fact tied to the order it serves, posted
+    by the warehouse from the positions it chooses. Each line names a
+    position holding goods the order sells and a quantity; a hold that
+    would push available to promise below zero is refused with the
+    numbers. Post-stock on the order's shipment consumes the hold itself."""
+    require_inventory_manage(actor)
+    tenant_id = actor.tenant_id
+    order = get_scoped_or_404(db, SalesOrder, tenant_id, order_id)
+    ensure_document_not_deleted(order)
+    machine = get_builtin_machine(db, tenant_id, "sales_order")
+    if is_terminal_state(machine, order.status):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"order {order.order_no} is {order.status}, a state nothing follows — there is nothing to hold for",
+        )
+    report = []
+    for line in payload.lines:
+        item = _position_for_order(db, order, line.inventory_item_id)
+        _require_hold_within_bounds(db, item, "reserved", -line.quantity, order.id)
+        detail = post_inventory_detail(
+            db, item=item, quantity_on_hand_diff=0, available_to_promise_diff=-line.quantity,
+            reason="reserved",
+            description=line.description or payload.description or f"held for order {order.order_no}",
+            entity_type="sales_order_item" if line.order_item_id else None,
+            entity_id=line.order_item_id,
+            sales_order_id=order.id, created_by=attributed(actor, None),
+        )
+        report.append(StockReservationLineRead(
+            inventory_item_id=item.id, detail_id=detail.id, quantity=line.quantity,
+            available_to_promise=float(item.available_to_promise),
+        ))
+    db.commit()
+    return envelope(StockReservationRead(order_id=order.id, reason="reserved", lines=report).model_dump(by_alias=True))
+
+
+@router.post(
+    "/sales-orders/{order_id}/release",
+    response_model=StockReservationEnvelope,
+    response_model_exclude_unset=True,
+)
+def release_stock_for_order(
+    order_id: str,
+    payload: ReleaseStockRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Give a hold back by hand — a cancelled order, a line the customer
+    dropped. Without `lines`, every outstanding hold of the order is
+    released; with them, exactly those quantities, never more than the
+    order still holds at that position (post-stock already released what
+    the shipment consumed)."""
+    require_inventory_manage(actor)
+    tenant_id = actor.tenant_id
+    order = get_scoped_or_404(db, SalesOrder, tenant_id, order_id)
+    ensure_document_not_deleted(order)
+    wanted: list[tuple[str, float, str | None]]
+    if payload.lines:
+        wanted = [(line.inventory_item_id, line.quantity, line.description) for line in payload.lines]
+    else:
+        held = db.execute(
+            select(InventoryItemDetail.inventory_item_id,
+                   func.coalesce(func.sum(InventoryItemDetail.available_to_promise_diff), 0))
+            .where(
+                InventoryItemDetail.tenant_id == tenant_id,
+                InventoryItemDetail.sales_order_id == order.id,
+                InventoryItemDetail.reason.in_(("reserved", "reservation_released")),
+            )
+            .group_by(InventoryItemDetail.inventory_item_id)
+        ).all()
+        wanted = [(position_id, -float(total), None) for position_id, total in held if -float(total) > 1e-9]
+    report = []
+    for position_id, quantity, words in wanted:
+        item = require_active_row(
+            db, InventoryItem, tenant_id, position_id, "inventory item",
+            detail="inventory item is archived — set it active before releasing its hold",
+        )
+        _require_hold_within_bounds(db, item, "reservation_released", quantity, order.id)
+        detail = post_inventory_detail(
+            db, item=item, quantity_on_hand_diff=0, available_to_promise_diff=quantity,
+            reason="reservation_released",
+            description=words or payload.description or f"hold for order {order.order_no} given back",
+            sales_order_id=order.id, created_by=attributed(actor, None),
+        )
+        report.append(StockReservationLineRead(
+            inventory_item_id=item.id, detail_id=detail.id, quantity=quantity,
+            available_to_promise=float(item.available_to_promise),
+        ))
+    db.commit()
+    return envelope(StockReservationRead(order_id=order.id, reason="reservation_released", lines=report).model_dump(by_alias=True))
 
 
 @router.post(

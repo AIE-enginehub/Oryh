@@ -38,6 +38,22 @@ Delete Customer Product
 |---|---|---|---|---|
 | `customer_product_id` | path | string | yes |  |
 
+## DELETE /customers/{customer_id}
+
+Delete Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## DELETE /external-document-links/{link_id}
+
+Delete External Document Link
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `link_id` | path | string | yes |  |
+
 ## DELETE /external-product-maps/{map_id}
 
 Delete External Product Map
@@ -45,6 +61,22 @@ Delete External Product Map
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `map_id` | path | string | yes |  |
+
+## DELETE /facilities/{facility_id}
+
+Delete Facility
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `facility_id` | path | string | yes |  |
+
+## DELETE /inventory-items/{item_id}
+
+Delete Inventory Item
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `item_id` | path | string | yes |  |
 
 ## DELETE /product-categories/{category_id}
 
@@ -78,6 +110,47 @@ Delete Product
 |---|---|---|---|---|
 | `product_id` | path | string | yes |  |
 
+## DELETE /sales-channels/{channel_id}
+
+Delete Sales Channel
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `channel_id` | path | string | yes |  |
+
+## DELETE /skills/{skill_ref}
+
+Archive Skill
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+
+## DELETE /skills/{skill_ref}/assignments/{assignment_id}
+
+Remove Skill Assignment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+| `assignment_id` | path | string | yes |  |
+
+## DELETE /store-facilities/{link_id}
+
+Delete Store Facility
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `link_id` | path | string | yes |  |
+
+## DELETE /stores/{store_id}
+
+Delete Store
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `store_id` | path | string | yes |  |
+
 ## DELETE /supplier-products/{supplier_product_id}
 
 Delete Supplier Product
@@ -85,6 +158,54 @@ Delete Supplier Product
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `supplier_product_id` | path | string | yes |  |
+
+## DELETE /territory-geos/{row_id}
+
+Delete Territory Geo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `row_id` | path | string | yes |  |
+
+## DELETE /territory-members/{row_id}
+
+Delete Territory Member
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `row_id` | path | string | yes |  |
+
+## DELETE /type-options/{type_option_id}
+
+Archive Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
+## DELETE /vendors/{vendor_id}
+
+Delete Vendor
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `vendor_id` | path | string | yes |  |
+
+## GET /attachments/{attachment_id}
+
+Get Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `attachment_id` | path | string | yes |  |
+
+## GET /attachments/{attachment_id}/content
+
+Get Attachment Content
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `attachment_id` | path | string | yes |  |
 
 ## GET /auth/me
 
@@ -101,6 +222,7 @@ List Bills Of Materials
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /bills-of-materials/{bom_id}
 
@@ -121,6 +243,18 @@ Explode Bill Of Materials
 | `with_stock` | query | boolean | no |  |
 | `facility_id` | query | string | no |  |
 
+## GET /bom-items
+
+List Bom Items
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `bom_id` | query | string | no |  |
+| `component_product_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
 ## GET /customer-contacts
 
 List Customer Contacts
@@ -133,6 +267,15 @@ List Customer Contacts
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /customer-contacts/{contact_id}
+
+Get Customer Contact
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `contact_id` | path | string | yes |  |
 
 ## GET /customer-products
 
@@ -146,6 +289,15 @@ List Customer Products
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /customer-products/{customer_product_id}
+
+Get Customer Product
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_product_id` | path | string | yes |  |
 
 ## GET /customers
 
@@ -158,9 +310,72 @@ List Customers
 | `phone` | query | string | no |  |
 | `customer_kind` | query | string | no |  |
 | `customer_type` | query | string | no |  |
+| `geo_id` | query | string | no |  |
+| `territory_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /customers/{customer_id}
+
+Get Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /customers/{customer_id}/detail
+
+Get Customer Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /employees
+
+List Employees
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /employees/{employee_id}
+
+Get Employee
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+
+## GET /external-document-links
+
+List External Document Links
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `source` | query | string | no |  |
+| `external_kind` | query | string | no |  |
+| `external_no` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /external-document-links/{link_id}
+
+Get External Document Link
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `link_id` | path | string | yes |  |
 
 ## GET /external-product-maps
 
@@ -178,6 +393,15 @@ List External Product Maps
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /external-product-maps/{map_id}
+
+Get External Product Map
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `map_id` | path | string | yes |  |
 
 ## GET /facilities
 
@@ -190,6 +414,86 @@ List Facilities
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /facilities/{facility_id}
+
+Get Facility
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `facility_id` | path | string | yes |  |
+
+## GET /geos
+
+List Geos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `geo_type` | query | string | no |  |
+| `parent_geo_id` | query | string | no |  |
+| `geo_code` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /geos/{geo_id}
+
+Get Geo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `geo_id` | path | string | yes |  |
+
+## GET /geos/{geo_id}/path
+
+Get Geo Path
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `geo_id` | path | string | yes |  |
+
+## GET /inventory-item-details
+
+List Inventory Item Details
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `inventory_item_id` | query | string | no |  |
+| `reason` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `sales_order_id` | query | string | no |  |
+| `purchase_order_id` | query | string | no |  |
+| `include_archived_items` | query | boolean | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /inventory-items
+
+List Inventory Items
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `product_id` | query | string | no |  |
+| `sku_id` | query | string | no |  |
+| `facility` | query | string | no |  |
+| `lot_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /inventory-items/{item_id}
+
+Get Inventory Item
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `item_id` | path | string | yes |  |
 
 ## GET /product-categories
 
@@ -203,6 +507,15 @@ List Product Categories
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /product-categories/{category_id}
+
+Get Product Category
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `category_id` | path | string | yes |  |
 
 ## GET /product-images
 
@@ -214,6 +527,7 @@ List Product Images
 | `image_type` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /product-matches
 
@@ -237,6 +551,15 @@ List Product Prices
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /product-prices/{price_id}
+
+Get Product Price
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `price_id` | path | string | yes |  |
 
 ## GET /products
 
@@ -250,6 +573,7 @@ List Products
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /products/{product_id}
 
@@ -279,6 +603,52 @@ List Sales Channels
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /sales-channels/{channel_id}
+
+Get Sales Channel
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `channel_id` | path | string | yes |  |
+
+## GET /skills
+
+List Skills
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `status` | query | `active` | `archived` | `all` | no |  |
+| `kind` | query | `product` | `custom` | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+
+## GET /skills/{skill_ref}
+
+Get Skill
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+
+## GET /skills/{skill_ref}/assignments
+
+List Skill Assignments
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+
+## GET /skills/{skill_ref}/files/{file_path}
+
+Get Skill File
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+| `file_path` | path | string | yes |  |
 
 ## GET /store-facilities
 
@@ -291,6 +661,7 @@ List Store Facilities
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /stores
 
@@ -304,6 +675,7 @@ List Stores
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /stores/{store_id}
 
@@ -324,6 +696,112 @@ List Supplier Products
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /supplier-products/{supplier_product_id}
+
+Get Supplier Product
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `supplier_product_id` | path | string | yes |  |
+
+## GET /territories
+
+List Territories
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `parent_territory_id` | query | string | no |  |
+| `manager_employee_id` | query | string | no |  |
+| `territory_code` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /territories/{territory_id}
+
+Get Territory
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `territory_id` | path | string | yes |  |
+
+## GET /territory-geos
+
+List Territory Geos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `territory_id` | query | string | no |  |
+| `geo_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /territory-geos/{row_id}
+
+Get Territory Geo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `row_id` | path | string | yes |  |
+
+## GET /territory-members
+
+List Territory Members
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `territory_id` | query | string | no |  |
+| `employee_id` | query | string | no |  |
+| `role` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /territory-members/{row_id}
+
+Get Territory Member
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `row_id` | path | string | yes |  |
+
+## GET /territory-resolution
+
+Resolve
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `geo_id` | query | string | yes | The place to resolve — a customer's geo, or any geo |
+
+## GET /todos
+
+List Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `due_before` | query | date-time | no |  |
+| `include` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /todos/{todo_id}
+
+Get Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
 
 ## GET /type-options
 
@@ -345,6 +823,15 @@ List Vendors
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /vendors/{vendor_id}
+
+Get Vendor
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `vendor_id` | path | string | yes |  |
 
 ## PATCH /bills-of-materials/{bom_id}
 
@@ -427,6 +914,34 @@ Body:
 | `order_increment` | number (≤9999999.99) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## PATCH /customers/{customer_id}
+
+Update Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `address` | string (≤500 chars) | optional |  |
+| `contact` | string (≤200 chars) | optional |  |
+| `customer_code` | string (≤64 chars) | optional |  |
+| `customer_kind` | `person` | `company` | optional |  |
+| `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `geo_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `payment_terms` | string (≤500 chars) | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `territory_id` | string | optional |  |
+
 ## PATCH /external-product-maps/{map_id}
 
 Update External Product Map
@@ -466,6 +981,48 @@ Body:
 | `name` | string (≤100 chars) | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## PATCH /geos/{geo_id}
+
+Update Geo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `geo_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `abbreviation` | string (≤50 chars) | optional |  |
+| `geo_type` | string (≤50 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `parent_geo_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## PATCH /inventory-items/{item_id}
+
+Update Inventory Item
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `item_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `bin_number` | string (≤64 chars) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `expire_date` | date | optional |  |
+| `facility` | string (≤100 chars) | optional |  |
+| `facility_id` | string | optional |  |
+| `lot_id` | string (≤64 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `received_at` | date-time | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `unit_cost` | number (≥0.0, ≤9999999.99) | optional |  |
 
 ## PATCH /product-categories/{category_id}
 
@@ -563,6 +1120,26 @@ Body:
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## PATCH /skills/{skill_ref}
+
+Update Skill
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `calibration` | string (≤4000 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `distribution_mode` | `capability` | `targeted` | optional |  |
+| `files` | object | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
 ## PATCH /store-facilities/{link_id}
 
 Update Store Facility
@@ -625,6 +1202,60 @@ Body:
 | `supplier_product_code` | string (≤64 chars) | optional |  |
 | `supplier_product_name` | string (≤200 chars) | optional |  |
 
+## PATCH /territories/{territory_id}
+
+Update Territory
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `territory_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤4000 chars) | optional |  |
+| `manager_employee_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `parent_territory_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## PATCH /territory-members/{row_id}
+
+Update Territory Member
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `row_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `metadata` | object | optional |  |
+| `role` | string (≤50 chars) | optional |  |
+| `valid_from` | date | optional |  |
+| `valid_until` | date | optional |  |
+
+## PATCH /todos/{todo_id}
+
+Update Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `completed_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `due_at` | date-time | optional |  |
+| `status` | `open` | `completed` | `cancelled` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
 ## PATCH /type-options/{type_option_id}
 
 Update Type Option
@@ -640,6 +1271,27 @@ Body:
 | `description` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 | `title` | string (≤200 chars) | optional |  |
+
+## PATCH /vendors/{vendor_id}
+
+Update Vendor
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `vendor_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contact` | string (≤200 chars) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `vendor_code` | string (≤64 chars) | optional |  |
 
 ## POST /attachments
 
@@ -731,6 +1383,30 @@ Body:
 | `order_increment` | number (≤9999999.99) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## POST /customers
+
+Create Customer
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `address` | string (≤500 chars) | optional |  |
+| `contact` | string (≤200 chars) | optional |  |
+| `customer_code` | string (≤64 chars) | optional |  |
+| `customer_kind` | `person` | `company` | optional |  |
+| `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `geo_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `payment_terms` | string (≤500 chars) | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `territory_id` | string | optional |  |
+
 ## POST /customers/bulk
 
 Bulk Upsert Customers
@@ -748,12 +1424,32 @@ Body:
   | `customer_kind` | `person` | `company` | optional |  |
   | `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
   | `email` | string (≤320 chars) | optional |  |
+  | `geo_id` | string | optional |  |
   | `metadata` | object | optional |  |
+  | `owner_employee_id` | string | optional |  |
+  | `payment_terms` | string (≤500 chars) | optional |  |
   | `phone` | string (≤50 chars) | optional |  |
   | `status` | `active` | `archived` | optional |  |
   | `tax_id` | string (≤64 chars) | optional |  |
+  | `territory_id` | string | optional |  |
 | `dry_run` | boolean | optional |  |
 | `on_error` | `abort` | `skip` | optional |  |
+
+## POST /external-document-links
+
+Create External Document Link
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `entity_id` | string | required |  |
+| `entity_type` | string (≤100 chars) | required |  |
+| `external_kind` | string (≤50 chars) | required |  |
+| `external_no` | string (≤128 chars) | required |  |
+| `source` | string (≤50 chars) | required |  |
+| `metadata` | object | optional |  |
+| `split` | boolean | optional |  |
 
 ## POST /external-product-maps
 
@@ -790,6 +1486,56 @@ Body:
 | `metadata` | object | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## POST /geos
+
+Create Geo
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `geo_code` | string (≤64 chars) | required |  |
+| `geo_type` | string (≤50 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `abbreviation` | string (≤50 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `parent_geo_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## POST /geos/seed-template
+
+Seed Geo Template
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `template` | string | required |  |
+
+## POST /inventory-items
+
+Create Inventory Item
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `product_id` | string | required |  |
+| `bin_number` | string (≤64 chars) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `expire_date` | date | optional |  |
+| `facility` | string (≤100 chars) | optional |  |
+| `facility_id` | string | optional |  |
+| `initial_description` | string (≤500 chars) | optional |  |
+| `initial_quantity` | number (≥-9999999.99, ≤9999999.99) | optional |  |
+| `initial_reason` | `initial` | `import_initial` | `import_override` | `received` | `issued` | `adjustment` | `damaged` | `returned` | `transfer` | `other` | `reserved` | `reservation_released` | `production` | optional |  |
+| `lot_id` | string (≤64 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `received_at` | date-time | optional |  |
+| `sku_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `unit_cost` | number (≥0.0, ≤9999999.99) | optional |  |
 
 ## POST /inventory-items/bulk
 
@@ -923,6 +1669,22 @@ Body:
 | `dry_run` | boolean | optional |  |
 | `on_error` | `abort` | `skip` | optional |  |
 
+## POST /products/{product_id}/skus/batch
+
+Batch Create Product Skus
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `product_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `dimension` | string (≤50 chars) | required |  |
+| `values` | array of string | required |  |
+| `list_price` | number (≥0.0, ≤9999999.99) | string (pattern `^(?!^[-+.]*$)[+-]?0*\d*\.?\d{0,2}0*$`) | optional |  |
+
 ## POST /sales-channels
 
 Create Sales Channel
@@ -937,6 +1699,37 @@ Body:
 | `metadata` | object | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## POST /skills
+
+Create Skill
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `files` | object | required |  |
+| `name` | string (≤100 chars, pattern `^[a-z0-9]+(-[a-z0-9]+)*$`) | required |  |
+| `created_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `distribution_mode` | `capability` | `targeted` | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
+## POST /skills/{skill_ref}/assignments
+
+Add Skill Assignment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `skill_ref` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `subject_id` | string (≤100 chars) | required |  |
+| `subject_type` | `user` | `role` | required |  |
 
 ## POST /store-facilities
 
@@ -992,6 +1785,49 @@ Body:
 | `supplier_product_code` | string (≤64 chars) | optional |  |
 | `supplier_product_name` | string (≤200 chars) | optional |  |
 
+## POST /territories
+
+Create Territory
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `territory_code` | string (≤64 chars) | required |  |
+| `description` | string (≤4000 chars) | optional |  |
+| `manager_employee_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `parent_territory_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## POST /territory-geos
+
+Create Territory Geo
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `geo_id` | string | required |  |
+| `territory_id` | string | required |  |
+| `metadata` | object | optional |  |
+
+## POST /territory-members
+
+Create Territory Member
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `employee_id` | string | required |  |
+| `territory_id` | string | required |  |
+| `metadata` | object | optional |  |
+| `role` | string (≤50 chars) | optional |  |
+| `valid_from` | date | optional |  |
+| `valid_until` | date | optional |  |
+
 ## POST /type-options
 
 Create Type Option
@@ -1004,6 +1840,23 @@ Body:
 | `name` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
 | `description` | string (≤2000 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
+
+## POST /vendors
+
+Create Vendor
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `contact` | string (≤200 chars) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `vendor_code` | string (≤64 chars) | optional |  |
 
 ## POST /vendors/bulk
 

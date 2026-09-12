@@ -32,7 +32,21 @@ export const DRIVER_SILENT_MS = 2 * 60 * 60 * 1000;
 /** How long a just-created subscription is given before silence counts. */
 const STARTUP_GRACE_MS = 10 * 60 * 1000;
 
-export type DriverState = "parked" | "off" | "silent" | "starting" | "running";
+export type DriverState = "parked" | "off" | "paused" | "silent" | "starting" | "running";
+
+/**
+ * The platform's side of the switch. `Tenant.flow_runner_enabled` is set by
+ * ORYH, not by the workspace: off, the hosted runner is refused for this
+ * company no matter what is enrolled below, and the tenant's own switches are
+ * left exactly as they were for when it comes back.
+ */
+export type FlowRunnerAvailability = { flow_runner_enabled: boolean };
+
+export async function getFlowRunnerAvailability(): Promise<FlowRunnerAvailability> {
+  const tenant = await apiRequest<{ flow_runner_enabled?: boolean }>("/api/v1/tenant");
+  // A server from before the switch existed has no such field; it drove everyone.
+  return { flow_runner_enabled: tenant.flow_runner_enabled !== false };
+}
 
 /**
  * Why nothing may be happening — kept in one place because `enabled` alone
@@ -43,9 +57,14 @@ export type DriverState = "parked" | "off" | "silent" | "starting" | "running";
 export function driverState(
   subscription: FlowSubscription,
   now: number = Date.now(),
+  platformEnabled: boolean = true,
 ): DriverState {
   if (subscription.parked_at) return "parked";
   if (!subscription.enabled) return "off";
+  // The platform said no for the whole company. Reported before silence, because
+  // the silence is explained: a runner that is refused writes no run rows, and
+  // "the driving service may be down" would be the wrong sentence.
+  if (!platformEnabled) return "paused";
   const lastSeen = subscription.last_run_at ?? null;
   if (!lastSeen) {
     // Never run. Freshly enrolled and still starting, or enrolled long ago and

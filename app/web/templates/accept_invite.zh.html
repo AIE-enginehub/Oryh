@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ '重设密码' if reset_mode else '接受邀请' }}{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>{{ '重设你的密码' if reset_mode else '加入你的团队' }}</h1>
+  <p class="muted">{{ '为你的账号设置一个新密码。' if reset_mode else '设置密码以激活你的账号。' }}</p>
+  <form method="post" action="/web/invitations/accept">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="mode" value="{{ 'reset' if reset_mode else 'invite' }}">
+    <label for="password">密码（至少 8 位）</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <label for="password_confirmation">确认密码</label>
+    <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <button type="submit">{{ '设置新密码' if reset_mode else '激活账号' }}</button>
+  </form>
+</div>
+{% endblock %}

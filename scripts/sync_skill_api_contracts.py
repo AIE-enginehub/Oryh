@@ -126,8 +126,25 @@ def _body_rows(spec: dict, schema: dict, indent: str = "") -> list[str]:
     return rows
 
 
+# A skill that names a collection at all works its whole family: the record
+# routes, the verbs, the lines. The old rule kept only "METHOD /path" lines,
+# so `PATCH {"status": "confirmed"}` written without its path, or a
+# collection named in prose, left the very write a flow skill exists for out
+# of its contract (F-10) — while api-conventions.md told the agent "what is
+# not in the contract does not exist".
+COLLECTION = re.compile(r"(?<![\w/])(/[a-z][a-z0-9-]*)(?=[/?`\s)\]}.,;:]|$)")
+# roots whose members are named one by one, never as a family
+FAMILY_NEVER_WIDENED = frozenset({"auth", "admin", "enterprise-pilot-applications", "oauth", "device", "mcp", "tenant"})
+# every skill resolves people, works todos and reads option vocabularies
+UNIVERSAL = (
+    ("GET", "/employees"), ("GET", "/employees/{}"), ("GET", "/todos"), ("GET", "/todos/{}"),
+    ("PATCH", "/todos/{}"), ("GET", "/type-options"),
+)
+
+
 def render(skill_dir: Path, spec: dict, ops: dict) -> str | None:
     mentioned: set[tuple[str, str]] = set()
+    roots: set[str] = set()
     for md in sorted(skill_dir.rglob("*.md")):
         if md.name == TARGET:
             continue
@@ -135,10 +152,29 @@ def render(skill_dir: Path, spec: dict, ops: dict) -> str | None:
             # the help skill's references are the user manual mirrored; the
             # endpoints they mention are the product's, not this skill's calls
             continue
-        for method, path in REQUEST_LINE.findall(md.read_text(encoding="utf-8")):
+        text = md.read_text(encoding="utf-8")
+        for method, path in REQUEST_LINE.findall(text):
             if not path.startswith("/api"):
                 path = PREFIX + path
             mentioned.add((method, _normalize(path)))
+        for match in COLLECTION.finditer(text):
+            roots.add(match.group(1).strip("/"))
+    if mentioned:
+        # the family of every collection the skill names, plus the universal calls
+        roots.update(path[len(PREFIX):].split("/")[1] for _m, path in mentioned if path.startswith(PREFIX + "/"))
+        # identity and platform routes are not a family a skill "works": a
+        # skill that names /auth/me must not inherit /auth/register, which
+        # only the SaaS assembly serves — the open-core contract would name
+        # an endpoint the open-core API does not have
+        roots -= FAMILY_NEVER_WIDENED
+        # a skill that quotes no write anywhere is a read-only skill: naming a
+        # collection hands it the reads of the family, never the writes
+        writes = any(m != "GET" for m, _p in mentioned)
+        for method, path in ops:
+            if path.startswith(PREFIX + "/") and path[len(PREFIX):].split("/")[1] in roots:
+                if writes or method == "GET":
+                    mentioned.add((method, path))
+        mentioned.update((m, PREFIX + p) for m, p in UNIVERSAL if (m, PREFIX + p) in ops and (writes or m == "GET"))
     found = sorted(k for k in mentioned if k in ops)
     if not found:
         return None

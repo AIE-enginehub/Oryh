@@ -37,6 +37,8 @@ Everything else comes from conversation: what to buy, how many, for when, from w
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/fail-fast-on-master-data.md}}
@@ -52,7 +54,10 @@ Everything else comes from conversation: what to buy, how many, for when, from w
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
 
 4. **In-flight duplicate check**: `GET /purchase-requests?employee_id={me}&status=submitted` — if an open request already covers the same items, tell the principal instead of filing twice. This is a conversation, not a hard stop.
-5. **Match master data** (read-only, both optional):
+
+   **Steps 2, 3, 4 and the step-5 lookups are ONE wave.** The definition, the draft query, the in-flight query, the vendor lookup and every line's product lookup depend on nothing but the person's words — send them together the moment the names are known. Only the SKU lookups wait, because they need a product id.
+
+5. **Match master data** (read-only, both optional, in the wave above):
    - Vendor: `GET /vendors?keyword={name}` or `?tax_id=` when the principal names a supplier. Confident match → header `vendor_id`; otherwise put their words in `vendor_name_snapshot`.
    - Product per line: `GET /products?keyword=`. Confident match → `product_id` (name/unit backfill automatically, and `list_price` gives you the price-sanity reference); otherwise `product_name_snapshot` + `spec` free text.
    - SKU per line, when the matched product has `has_skus: true`: `GET /product-skus?product_id={id}&status=active` and locate the variant from the principal's words against `variant_attrs` ("navy XL" → size:XL). Confident match → send `sku_id` (the product derives automatically; SKU-level `list_price` overrides the product's). Ambiguous → ask ONE question listing the variants. Principal says it is undecided → `sku_id` null, and flag it at read-back.

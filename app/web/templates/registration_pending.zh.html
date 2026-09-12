@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}注册审核中{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>邮箱已验证</h1>
+  <div class="notice">
+    <strong>{{ result.registration.company_name }}</strong> 正在等待平台审核。
+  </div>
+  <p>审核通过或拒绝后，我们会发邮件到 <strong>{{ result.registration.email }}</strong>。</p>
+  <p class="muted">审核通过后才会创建公司工作区，并让这个邮箱成为第一位管理员。在此之前不存在任何账号或访问凭证。</p>
+  <a href="/console/login"><button type="button">去登录</button></a>
+</div>
+{% endblock %}

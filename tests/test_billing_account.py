@@ -79,14 +79,47 @@ def points_account(client: TestClient, **overrides) -> dict:
     return post(client, "/api/v1/billing-accounts", body)
 
 
+def account_document(client: TestClient, reason: str, lines: list[dict], headers: dict = HEADERS,
+                     title: str = "test document") -> dict:
+    """An account document of the tenant's own type — one type per reason,
+    defined on first use — filed straight in the state that posts. This is
+    the ONLY way a reason outside the payment/expiry/opening doors reaches
+    the ledger; the old direct `/entries` write is gone."""
+    client.post("/api/v1/object-type-definitions", headers=headers, json={
+        "object_type": f"acct_{reason}", "title": f"账户单据 {reason}",
+        "state_machine": {"initial": "approved", "states": ["approved"], "transitions": {"approved": []},
+                          "account_effect": {"reason": reason, "state": "approved"}}})
+    created = client.post("/api/v1/business-objects", headers=headers, json={
+        "object_type": f"acct_{reason}", "title": title, "status": "approved", "payload": {"lines": lines}})
+    assert created.status_code == 201, created.text
+    return created.json()["data"]
+
+
 def entries(client: TestClient, account_id: str, lines: list[dict], expect: int = 200, **extra) -> dict:
-    response = client.post(
-        f"/api/v1/billing-accounts/{account_id}/entries",
-        json={"lines": lines, **extra},
-        headers=HEADERS,
-    )
-    assert response.status_code == expect, response.text
-    return response.json()["data"] if expect == 200 else response.json()
+    """Post `lines` (each with a `reason`) through account documents, one
+    document per reason, and answer in the shape the old write did: the
+    entries, the balance, what is available. `charge` is a payment's word
+    now, so a test that draws on credit by hand draws as an adjustment."""
+    by_reason: dict[str, list[dict]] = {}
+    for line in lines:
+        reason = line["reason"]
+        # money and opening reasons have their own doors (payments, creation);
+        # a test that moves money by hand moves it as an adjustment
+        reason = "adjustment" if reason in ("charge", "deposit", "refund", "initial") else reason
+        by_reason.setdefault(reason, []).append({"billing_account_id": account_id, **{
+            k: v for k, v in line.items() if k not in ("reason", "entity_type", "entity_id")}})
+    written: list[dict] = []
+    for reason, doc_lines in by_reason.items():
+        doc = account_document(client, reason, doc_lines)
+        response = client.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=HEADERS)
+        if response.status_code != 200:
+            assert response.status_code == expect, response.text
+            return response.json()
+        for row in response.json()["data"]["lines"]:
+            written.append({"id": row["entry_id"], "amount": row["amount"], "reason": reason})
+    assert expect == 200, f"expected {expect}, the documents posted"
+    account = client.get(f"/api/v1/billing-accounts/{account_id}", headers=HEADERS).json()["data"]
+    return {"entries": written, "balance": account["balance"], "available_amount": account["available_amount"]}
 
 
 def test_an_account_starts_empty_and_allocates_its_own_code(client: TestClient) -> None:
@@ -194,7 +227,25 @@ def test_a_frozen_account_refuses_movement(client: TestClient) -> None:
     assert entries(client, account["id"], [{"amount": 10.0, "reason": "earned"}])["balance"] == 110.0
 
 
-def test_a_retry_with_the_same_key_posts_once(client: TestClient) -> None:
+def test_a_document_posts_once(client: TestClient) -> None:
+    """Idempotency is the document's: a grant is a 积分发放单, and posting
+    it again is a 409, not a second grant. The old idempotency key on a
+    direct write is gone with the write."""
+    account = points_account(client)
+    doc = account_document(client, "earned", [{"billing_account_id": account["id"], "amount": 500.0}])
+    first = client.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=HEADERS)
+    assert first.status_code == 200, first.text
+    again = client.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=HEADERS)
+    assert again.status_code == 409, again.text
+    assert client.get(f"/api/v1/billing-accounts/{account['id']}", headers=HEADERS).json()["data"]["balance"] == 500.0
+    read = client.get(f"/api/v1/business-objects/{doc['id']}", headers=HEADERS).json()["data"]
+    assert read["payload"]["entries_posted_at"]
+    rows = client.get("/api/v1/billing-account-entries", headers=HEADERS,
+                      params={"entity_type": "business_object", "entity_id": doc["id"]}).json()["data"]
+    assert [(r["reason"], r["amount"]) for r in rows] == [("earned", 500.0)]
+
+
+def _retired_retry_with_the_same_key_posts_once(client: TestClient) -> None:
     account = points_account(client)
     lines = [{"amount": 500.0, "reason": "earned"}]
 
@@ -210,7 +261,7 @@ def test_a_retry_with_the_same_key_posts_once(client: TestClient) -> None:
     assert len(ledger) == 1
 
 
-def test_a_multi_line_grant_may_carry_an_idempotency_key(client: TestClient) -> None:
+def _retired_multi_line_grant_may_carry_an_idempotency_key(client: TestClient) -> None:
     """The key names the CALL. Conflating it with the row made any keyed grant
     of more than one line collide with itself on the unique index."""
     account = points_account(client)
@@ -343,7 +394,7 @@ def test_the_reason_vocabulary_is_gated_and_extensible(client: TestClient) -> No
     account = points_account(client)
 
     body = entries(client, account["id"], [{"amount": 10.0, "reason": "made_up"}], expect=422)
-    assert "earned" in body["detail"]
+    assert "earned" in str(body["detail"])
 
     assert client.post(
         "/api/v1/type-options",
@@ -447,12 +498,14 @@ def test_the_expiry_sweep_is_idempotent(client: TestClient) -> None:
     first = client.get(url, headers=HEADERS).json()["data"]
     assert first["expiring_amount"] == 300.0
 
-    # the sweep writes the expiry, pointing at the batch it consumed
-    entries(
-        client, account["id"],
-        [{"amount": -300.0, "reason": "expired", "description": "2025 年积分到期",
-          "entity_type": "billing_account_entry", "entity_id": batch_id}],
-    )
+    # the sweep writes the expiry through the account's own door, naming the batch
+    swept = client.post(f"/api/v1/billing-accounts/{account['id']}/expire", headers=HEADERS,
+                        json={"lines": [{"entry_id": batch_id, "amount": 300.0, "description": "2025 年积分到期"}]})
+    assert swept.status_code == 200, swept.text
+    assert swept.json()["data"]["entries"][0]["entity_id"] == batch_id
+    twice = client.post(f"/api/v1/billing-accounts/{account['id']}/expire", headers=HEADERS,
+                        json={"lines": [{"entry_id": batch_id, "amount": 300.0}]})
+    assert twice.status_code == 409, "a batch expires once"
 
     second = client.get(url, headers=HEADERS).json()["data"]
     assert second["entries"] == []
@@ -508,18 +561,16 @@ def test_posting_can_be_scoped_to_one_unit_type(scoped_client) -> None:
         headers=service["headers"],
     ).json()["data"]
 
-    allowed = points_only["client"].post(
-        f"/api/v1/billing-accounts/{points['id']}/entries",
-        json={"lines": [{"amount": 100.0, "reason": "earned"}]},
-        headers=points_only["headers"],
-    )
+    grant = account_document(service["client"], "earned",
+                             [{"billing_account_id": points["id"], "amount": 100.0}], headers=service["headers"])
+    allowed = points_only["client"].post(f"/api/v1/business-objects/{grant['id']}/post-entries",
+                                         headers=points_only["headers"])
     assert allowed.status_code == 200, allowed.text
 
-    refused = points_only["client"].post(
-        f"/api/v1/billing-accounts/{money['id']}/entries",
-        json={"lines": [{"amount": 100.0, "reason": "deposit"}]},
-        headers=points_only["headers"],
-    )
+    top_up = account_document(service["client"], "adjustment",
+                              [{"billing_account_id": money["id"], "amount": 100.0}], headers=service["headers"])
+    refused = points_only["client"].post(f"/api/v1/business-objects/{top_up['id']}/post-entries",
+                                         headers=points_only["headers"])
     assert refused.status_code == 403
     assert "billing_account.post:currency" in refused.json()["detail"]
 
@@ -575,13 +626,10 @@ def test_the_ledger_and_the_balance_are_quantised_once(client: TestClient) -> No
     carry at most two decimals, and the balance is the Decimal sum of exactly
     the figures the rows carry."""
     acct = money_account(client)
-    refused = client.post(f"/api/v1/billing-accounts/{acct['id']}/entries", headers=HEADERS,
-                          json={"lines": [{"amount": 0.015, "reason": "deposit"}]})
-    assert refused.status_code == 422 and "two decimals" in refused.text
-    ok = client.post(f"/api/v1/billing-accounts/{acct['id']}/entries", headers=HEADERS,
-                     json={"lines": [{"amount": 0.1, "reason": "deposit"}, {"amount": 0.2, "reason": "deposit"},
-                                     {"amount": 0.7, "reason": "deposit"}, {"amount": -0.3, "reason": "charge"}]})
-    assert ok.status_code == 200, ok.text
+    refused = entries(client, acct["id"], [{"amount": 0.015, "reason": "adjustment"}], expect=422)
+    assert "two decimals" in str(refused["detail"])
+    entries(client, acct["id"], [{"amount": 0.1, "reason": "adjustment"}, {"amount": 0.2, "reason": "adjustment"},
+                                 {"amount": 0.7, "reason": "adjustment"}, {"amount": -0.3, "reason": "adjustment"}])
     balance = float(client.get(f"/api/v1/billing-accounts/{acct['id']}", headers=HEADERS).json()["data"]["balance"])
     rows = client.get("/api/v1/billing-account-entries", params={"billing_account_id": acct["id"]}, headers=HEADERS).json()["data"]
     assert balance == 0.7 and round(sum(float(r["amount"]) for r in rows), 2) == 0.7, (balance, rows)

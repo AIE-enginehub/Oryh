@@ -1,0 +1,45 @@
+.data-browser .page-intro code { font-size: 12px; color: var(--muted); }
+.data-browser .page-intro .eyebrow a { color: inherit; text-decoration: none; }
+.data-group { padding: 14px 18px 16px; }
+.data-group h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.data-group-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 18px; }
+.data-group-list li { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; }
+.data-group-list a { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); text-decoration: none; font-weight: 600; }
+.data-group-list a:hover { color: var(--accent); }
+.data-group-list small { color: var(--muted); padding-left: 23px; }
+.data-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+.data-filter { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); }
+.data-filter input, .data-filter select { height: 34px; min-width: 150px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--ink); padding: 0 9px; font: inherit; font-size: 13px; }
+.data-filter input:focus, .data-filter select:focus { border-color: var(--accent); outline: 2px solid rgba(13, 148, 136, 0.16); }
+.data-filter-actions { display: flex; gap: 8px; }
+.data-browser-table th { white-space: nowrap; }
+.data-browser-table td { white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.sort-header { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.sort-header:hover { color: var(--accent); }
+.numeric-cell { text-align: right; font-variant-numeric: tabular-nums; }
+.data-row-actions { white-space: nowrap; display: flex; gap: 10px; align-items: center; }
+.row-menu { position: relative; display: inline-block; }
+.row-menu summary { list-style: none; cursor: pointer; }
+.row-menu summary::-webkit-details-marker { display: none; }
+.row-menu-list { position: absolute; z-index: 5; top: 100%; left: 0; min-width: 140px; margin-top: 4px; padding: 6px; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow-sm); }
+.row-menu-list .text-action { text-align: left; padding: 5px 8px; border-radius: 6px; }
+.row-menu-list .text-action:hover { background: var(--line-soft); }
+.write-preview { margin: 10px 0 4px; font-size: 12.5px; }
+.write-preview th { text-align: left; padding-right: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.write-preview td { padding: 3px 8px 3px 0; word-break: break-all; }
+.data-detail { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 12.5px; }
+.data-detail div { display: contents; }
+.data-detail dt { color: var(--muted); }
+.data-detail dd { margin: 0; word-break: break-all; }
+.data-detail pre { margin: 0; font-size: 11.5px; white-space: pre-wrap; }
+.data-related { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.reference-picker { position: relative; display: flex; flex-direction: column; gap: 3px; }
+.reference-picker input { width: 100%; box-sizing: border-box; }
+.reference-picked { color: var(--ink); font-size: 12px; }
+.reference-picker .text-action { align-self: flex-start; font-size: 11.5px; }
+.reference-options { position: absolute; z-index: 6; top: 36px; left: 0; min-width: min(360px, 80vw); max-height: 240px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow-sm); }
+.reference-options li { padding: 0; }
+.reference-options li.muted-value { padding: 6px 8px; font-size: 12px; }
+.reference-options button { width: 100%; text-align: left; border: 0; background: transparent; padding: 6px 8px; border-radius: 6px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.reference-options button:hover, .reference-options li[aria-selected="true"] button { background: var(--line-soft); }
+.reference-options span { color: var(--muted); }

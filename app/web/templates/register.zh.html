@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}注册{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>注册你的公司</h1>
+  <p class="muted">请使用企业邮箱。个人邮箱（gmail、qq、163 等）不能开通公司账号。</p>
+  <div class="notice">
+    审核通过后，这个账号将成为公司的第一位管理员，拥有用户、角色、流程和访问凭证的全部权限。请确认你有权代表公司开通账号后再提交。
+  </div>
+  <form method="post" action="/web/register">
+    <label for="company_name">公司名称</label>
+    <input id="company_name" name="company_name" required maxlength="200" value="{{ company_name or '' }}">
+    <label for="email">企业邮箱</label>
+    <input id="email" name="email" type="email" required maxlength="320" value="{{ email or '' }}">
+    <label for="password">密码（至少 8 位）</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <label for="password_confirmation">确认密码</label>
+    <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+    <button type="submit">验证邮箱并提交审核</button>
+  </form>
+  <p class="muted">已经注册过？<a href="/console/login">登录</a></p>
+</div>
+{% endblock %}

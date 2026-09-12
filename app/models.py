@@ -135,6 +135,18 @@ class Tenant(IdMixin, TimestampMixin, Base):
     # then IMMUTABLE — it is a directory name on machines we do not control.
     slug: Mapped[str | None] = mapped_column(String(24), unique=True, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
+    # The platform's own lever on hosted flow driving, per company. `status`
+    # suspends the whole company and a FlowSubscription's `enabled` is the
+    # tenant's per-family choice; this sits between them: ORYH's runner may or
+    # may not advance this company's workflows at all. Off, the runner is not
+    # told about the tenant, is refused a credential, and a credential it
+    # already holds is refused on every request — so an operator can stop the
+    # fleet driving one workspace without touching the tenant's subscriptions
+    # or their own automation. Nothing else reads it; a tenant's own agent
+    # keeps working either way.
+    flow_runner_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true")
+    )
 
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="tenant")
 
@@ -322,6 +334,86 @@ class Vendor(TenantRecord, MetadataJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")
 
 
+class Geo(TenantRecord, MetadataJsonbMixin, Base):
+    """A place in a hierarchy — OFBiz's Geo: a country, a province, a city, a
+    district, a postal code, a region the workspace itself defines — each
+    naming its parent. `geo_code` is the workspace's own code (GB/T 2260
+    for Chinese divisions when the template seeded them), unique per
+    workspace. Reference data, so `master_data.manage` curates it and
+    everyone reads; `archived` keeps history pointing at a place that no
+    longer receives new records."""
+
+    __tablename__ = "geos"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "geo_code", name="geos_geo_code_uk"),
+    )
+
+    geo_code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    # type option family `geo_type`
+    geo_type: Mapped[str] = mapped_column(String(50))
+    parent_geo_id: Mapped[str | None] = mapped_column(ForeignKey("geos.id"), nullable=True, index=True)
+    abbreviation: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    parent: Mapped["Geo | None"] = relationship(remote_side="Geo.id")
+
+
+class Territory(TenantRecord, MetadataJsonbMixin, Base):
+    """A sales territory: a named set of geos (its coverage) with the people
+    who work it. Territories nest (华东区 → 浙江区) through
+    `parent_territory_id`; a customer's territory is resolved from its geo by
+    walking the geo's ancestors and asking which territories cover each —
+    the most specific answer first — and is then a fact on the customer."""
+
+    __tablename__ = "territories"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "territory_code", name="territories_territory_code_uk"),
+    )
+
+    territory_code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    parent_territory_id: Mapped[str | None] = mapped_column(
+        ForeignKey("territories.id"), nullable=True, index=True
+    )
+    manager_employee_id: Mapped[str | None] = mapped_column(
+        ForeignKey("employees.id"), nullable=True, index=True
+    )
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+
+    parent: Mapped["Territory | None"] = relationship(remote_side="Territory.id")
+
+
+class TerritoryGeo(TenantRecord, MetadataJsonbMixin, Base):
+    """One geo a territory covers. Coverage is by containment: a territory
+    that covers Zhejiang covers every geo under it."""
+
+    __tablename__ = "territory_geos"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "territory_id", "geo_id", name="territory_geos_uk"),
+    )
+
+    territory_id: Mapped[str] = mapped_column(ForeignKey("territories.id"), index=True)
+    geo_id: Mapped[str] = mapped_column(ForeignKey("geos.id"), index=True)
+
+
+class TerritoryMember(TenantRecord, MetadataJsonbMixin, Base):
+    """One of our people working a territory, with a role from the type
+    option family `territory_member_role` (manager, rep)."""
+
+    __tablename__ = "territory_members"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "territory_id", "employee_id", name="territory_members_uk"),
+    )
+
+    territory_id: Mapped[str] = mapped_column(ForeignKey("territories.id"), index=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    role: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
 class Customer(TenantRecord, MetadataJsonbMixin, Base):
     """Customer/account master data — 零售 and B2B on ONE table.
 
@@ -394,6 +486,16 @@ class Customer(TenantRecord, MetadataJsonbMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # quotes/deliveries need it on the printed document — first-class, unlike vendors
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # where the customer is (a geo — country, province, city, district…) and
+    # the territory that covers it; the territory is resolved from the geo
+    # when exactly one covers it, else a person assigns it
+    geo_id: Mapped[str | None] = mapped_column(ForeignKey("geos.id"), nullable=True, index=True)
+    territory_id: Mapped[str | None] = mapped_column(ForeignKey("territories.id"), nullable=True, index=True)
+    # the salesperson who owns the account; the conversion bridge sets it to
+    # the lead's owner, a manager reassigns it — a fact, not a rule
+    owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    # "月结 30 天" — free text the order and invoice desks copy in by default
+    payment_terms: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
 
 
@@ -1606,6 +1708,297 @@ class ShipmentItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     inventory_item: Mapped[InventoryItem | None] = relationship()
 
 
+class OpportunityItem(TenantRecord, CustomFieldsJsonbMixin, Base):
+    """What a deal is expected to be for: product lines with a quantity and,
+    when known, a price — the quotation line's shape without its rigour, so
+    "about 200 units" is legal at the opportunity stage. The quote bridge
+    copies these into the quotation draft; from then on the quotation is the
+    priced truth and these stay the deal's original expectation."""
+
+    __tablename__ = "opportunity_items"
+    __table_args__ = (
+        CheckConstraint(
+            "product_id IS NOT NULL OR product_name_snapshot IS NOT NULL",
+            name="opportunity_items_names_a_product_check",
+        ),
+    )
+
+    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    product_id: Mapped[str | None] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
+    sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True, index=True)
+    product_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    spec: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    quantity: Mapped[float] = mapped_column(Numeric(12, 2))
+    unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    opportunity: Mapped["Opportunity"] = relationship()
+    product: Mapped[Product | None] = relationship()
+    sku: Mapped[ProductSku | None] = relationship()
+
+
+class OpportunityContact(TenantRecord, MetadataJsonbMixin, Base):
+    """Who, on the customer's side, matters to this deal and how: the
+    decision maker, the champion, the gatekeeper — Salesforce's
+    OpportunityContactRole. One row per person per deal; `role` is the type
+    option family `opportunity_contact_role`; one primary per deal, the
+    rolodex's own convention."""
+
+    __tablename__ = "opportunity_contacts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "opportunity_id", "contact_id", name="opportunity_contacts_uk"),
+    )
+
+    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), index=True)
+    contact_id: Mapped[str] = mapped_column(ForeignKey("customer_contacts.id"), index=True)
+    role: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    opportunity: Mapped["Opportunity"] = relationship()
+    contact: Mapped[CustomerContact] = relationship()
+
+
+class Event(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """Something scheduled with, or about, a customer: a visit, a meeting, a
+    demo, a call booked for Thursday. Personal like the lead (mine to plan,
+    everyone's to read) and approval-free: it is planned, then it was held or
+    cancelled. What was said when it was held is an Activity logged from it
+    (`POST /events/{id}/log`), not a state of the event. Internal events with
+    no customer are legal — the parties are optional here, unlike an
+    activity's."""
+
+    __tablename__ = "events"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "event_no", name="events_event_no_uk"),
+    )
+
+    event_no: Mapped[str] = mapped_column(String(64))
+    subject: Mapped[str] = mapped_column(String(200))
+    # type option family `event_type`
+    event_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    lead_id: Mapped[str | None] = mapped_column(ForeignKey("leads.id"), nullable=True, index=True)
+    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True, index=True)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="planned")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee: Mapped[Employee] = relationship()
+
+
+class EventParticipant(TenantRecord, MetadataJsonbMixin, Base):
+    """Who an event involves: one of our people, or one of the customer's
+    (a rolodex contact) — exactly one per row. `response` is the type option
+    family `event_response` (invited, accepted, declined, attended)."""
+
+    __tablename__ = "event_participants"
+    __table_args__ = (
+        CheckConstraint(
+            "(employee_id IS NOT NULL) <> (contact_id IS NOT NULL)",
+            name="event_participants_one_person_check",
+        ),
+        Index(
+            "event_participants_employee_uk", "tenant_id", "event_id", "employee_id",
+            unique=True,
+            postgresql_where=text("employee_id IS NOT NULL"),
+            sqlite_where=text("employee_id IS NOT NULL"),
+        ),
+        Index(
+            "event_participants_contact_uk", "tenant_id", "event_id", "contact_id",
+            unique=True,
+            postgresql_where=text("contact_id IS NOT NULL"),
+            sqlite_where=text("contact_id IS NOT NULL"),
+        ),
+    )
+
+    event_id: Mapped[str] = mapped_column(ForeignKey("events.id"), index=True)
+    employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    contact_id: Mapped[str | None] = mapped_column(ForeignKey("customer_contacts.id"), nullable=True, index=True)
+    response: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    event: Mapped[Event] = relationship()
+
+
+class CommunicationEvent(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One message that passed between us and a customer — an email, a text,
+    a chat message, a phone call's existence — recorded as a fact after it
+    happened. Oryh does not send these: the person's mail client or the
+    agent's own channel does, under the person's explicit say-so, and this
+    row is the record. `message_id` is the channel's own id (an email's
+    Message-ID), unique per workspace when present, so the same mail
+    imported twice is one row; `thread_id` groups a conversation."""
+
+    __tablename__ = "communication_events"
+    __table_args__ = (
+        CheckConstraint("direction IN ('inbound', 'outbound')", name="communication_events_direction_check"),
+        CheckConstraint(
+            "customer_id IS NOT NULL OR lead_id IS NOT NULL OR opportunity_id IS NOT NULL OR contact_id IS NOT NULL",
+            name="communication_events_names_a_party_check",
+        ),
+        Index(
+            "communication_events_message_uk", "tenant_id", "message_id",
+            unique=True,
+            postgresql_where=text("message_id IS NOT NULL"),
+            sqlite_where=text("message_id IS NOT NULL"),
+        ),
+    )
+
+    # type option family `communication_channel`
+    channel: Mapped[str] = mapped_column(String(50))
+    direction: Mapped[str] = mapped_column(String(20))
+    subject: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    from_address: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    to_addresses: Mapped[list] = mapped_column(JsonType, default=list)
+    cc_addresses: Mapped[list] = mapped_column(JsonType, default=list)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    lead_id: Mapped[str | None] = mapped_column(ForeignKey("leads.id"), nullable=True, index=True)
+    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True, index=True)
+    contact_id: Mapped[str | None] = mapped_column(ForeignKey("customer_contacts.id"), nullable=True, index=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Activity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One contact with a customer that already happened — a call, a visit,
+    a meeting, a message — with what was said and what comes next. The CRM
+    plan's "客户跟进记录": the fact the agent used to have to keep in the
+    conversation. Hangs off a customer, a lead or an opportunity (at least
+    one); may name the event it was logged from and the message it records.
+    `content` is the summary the person confirmed; `source_text` their own
+    words. No lifecycle — it happened."""
+
+    __tablename__ = "activities"
+    __table_args__ = (
+        CheckConstraint(
+            "customer_id IS NOT NULL OR lead_id IS NOT NULL OR opportunity_id IS NOT NULL",
+            name="activities_names_a_party_check",
+        ),
+    )
+
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    lead_id: Mapped[str | None] = mapped_column(ForeignKey("leads.id"), nullable=True, index=True)
+    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True, index=True)
+    contact_id: Mapped[str | None] = mapped_column(ForeignKey("customer_contacts.id"), nullable=True, index=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # type option families `activity_type` and `activity_outcome`
+    activity_type: Mapped[str] = mapped_column(String(50))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    subject: Mapped[str] = mapped_column(String(200))
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    next_action: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    next_action_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    event_id: Mapped[str | None] = mapped_column(ForeignKey("events.id"), nullable=True, index=True)
+    communication_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("communication_events.id"), nullable=True, index=True
+    )
+
+    employee: Mapped[Employee] = relationship()
+
+
+class Campaign(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """One marketing effort — a trade fair, a webinar, a mailing, an ad run —
+    that leads and deals can be attributed to. Salesforce's Campaign, with
+    the parts that are FACTS: when it ran, what it cost, who owns it, who was
+    reached (the members). What it earned is never stored here: it is the
+    leads and opportunities carrying `campaign_id`, read live.
+
+    Not a personal document (marketing runs it for everyone) and approval-
+    free: `campaign.manage` files and advances. A parent lets a season roll
+    up its fairs."""
+
+    __tablename__ = "campaigns"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "campaign_no", name="campaigns_campaign_no_uk"),
+    )
+
+    campaign_no: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    # type option family `campaign_type`; the tenant's vocabulary
+    campaign_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    parent_campaign_id: Mapped[str | None] = mapped_column(
+        ForeignKey("campaigns.id"), nullable=True, index=True
+    )
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    budget: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    actual_cost: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    expected_revenue: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    status: Mapped[str] = mapped_column(String(50), default="planned")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    employee: Mapped[Employee] = relationship()
+    parent: Mapped["Campaign | None"] = relationship(remote_side="Campaign.id")
+
+
+class CampaignMember(TenantRecord, MetadataJsonbMixin, Base):
+    """Who a campaign reached: a lead, or a customer (optionally one of its
+    contacts) — exactly one party per row, held by a CHECK. `member_status`
+    is the type option family `campaign_member_status` (targeted, sent,
+    responded, attended, converted, declined by default). Not a document:
+    no lifecycle, no soft delete — a member removed is a row deleted."""
+
+    __tablename__ = "campaign_members"
+    __table_args__ = (
+        CheckConstraint(
+            "(lead_id IS NOT NULL) <> (customer_id IS NOT NULL)",
+            name="campaign_members_one_party_check",
+        ),
+        Index(
+            "campaign_members_lead_uk", "tenant_id", "campaign_id", "lead_id",
+            unique=True,
+            postgresql_where=text("lead_id IS NOT NULL"),
+            sqlite_where=text("lead_id IS NOT NULL"),
+        ),
+        Index(
+            "campaign_members_customer_uk", "tenant_id", "campaign_id", "customer_id",
+            unique=True,
+            postgresql_where=text("customer_id IS NOT NULL AND contact_id IS NULL"),
+            sqlite_where=text("customer_id IS NOT NULL AND contact_id IS NULL"),
+        ),
+        Index(
+            "campaign_members_contact_uk", "tenant_id", "campaign_id", "customer_id", "contact_id",
+            unique=True,
+            postgresql_where=text("contact_id IS NOT NULL"),
+            sqlite_where=text("contact_id IS NOT NULL"),
+        ),
+    )
+
+    campaign_id: Mapped[str] = mapped_column(ForeignKey("campaigns.id"), index=True)
+    lead_id: Mapped[str | None] = mapped_column(ForeignKey("leads.id"), nullable=True, index=True)
+    customer_id: Mapped[str | None] = mapped_column(
+        ForeignKey("customers.id"), nullable=True, index=True
+    )
+    contact_id: Mapped[str | None] = mapped_column(
+        ForeignKey("customer_contacts.id"), nullable=True, index=True
+    )
+    member_status: Mapped[str] = mapped_column(String(50), default="targeted")
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    campaign: Mapped[Campaign] = relationship()
+    lead: Mapped["Lead | None"] = relationship()
+    customer: Mapped[Customer | None] = relationship()
+    contact: Mapped[CustomerContact | None] = relationship()
+
+
 class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One unqualified potential customer: someone met at a trade fair, a
     number from an ad inquiry, a referral — before anybody has decided they
@@ -1639,6 +2032,14 @@ class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     # free text on purpose — 展会/朋友介绍/抖音: the vocabulary is the
     # tenant's habit, and the skill teaches consistency instead of a table
     source: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # the campaign this lead came from — attribution, so "which fair paid
+    # for itself" is a count, not a recollection. `source` stays the free
+    # text it always was; the campaign is the record behind it when there is one
+    campaign_id: Mapped[str | None] = mapped_column(
+        ForeignKey("campaigns.id"), nullable=True, index=True
+    )
+    # where the inquiry is from; the customer it converts into inherits it
+    geo_id: Mapped[str | None] = mapped_column(ForeignKey("geos.id"), nullable=True, index=True)
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="new")
     converted_customer_id: Mapped[str | None] = mapped_column(
@@ -1678,10 +2079,23 @@ class Opportunity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     lead_id: Mapped[str | None] = mapped_column(
         ForeignKey("leads.id"), nullable=True, index=True
     )
+    # inherited from the lead at conversion, or named directly on a deal
+    # that arrived without a lead
+    campaign_id: Mapped[str | None] = mapped_column(
+        ForeignKey("campaigns.id"), nullable=True, index=True
+    )
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     expected_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     expected_close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # the salesperson's read of the odds, 0–100; the workflow definition may
+    # say what each stage usually means, the server never computes it
+    probability: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # type option families `opportunity_lost_reason`; free text for the rival
+    lost_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    competitor: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # the lead's `source` vocabulary, for a deal that arrived without a lead
+    source: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="open")
     closed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -2407,6 +2821,11 @@ class SalesQuotation(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonb
     revision_of_id: Mapped[str | None] = mapped_column(
         ForeignKey("sales_quotations.id"), nullable=True, index=True
     )
+    # the deal this quotation prices, when there is one — set by the quote
+    # bridge or named on create; "what did this opportunity produce" is a filter
+    opportunity_id: Mapped[str | None] = mapped_column(
+        ForeignKey("opportunities.id"), nullable=True, index=True
+    )
     # the owning sales rep; lifecycle actions are bound to this employee
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
@@ -2614,6 +3033,10 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
             "order_kind = 'return' OR original_order_id IS NULL",
             name="sales_orders_original_only_on_returns_check",
         ),
+        CheckConstraint(
+            "order_kind = 'order' OR supersedes_order_id IS NULL",
+            name="sales_orders_supersedes_only_on_orders_check",
+        ),
     )
 
     # server-allocated when the agent doesn't bring a tenant convention
@@ -2632,6 +3055,19 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     # API refuses an original that is itself a return.
     original_order_id: Mapped[str | None] = mapped_column(
         ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
+    # orders only: the order this one replaces. A confirmed order the
+    # warehouse cannot ship as written is past its editable states; the
+    # answer is a fresh draft copied from it (`/revise`) that names its source
+    # here, while the source moves to cancelled in the same transaction. The
+    # link is a fact the next reader can follow — not a remark.
+    supersedes_order_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_orders.id"), nullable=True, index=True
+    )
+    # the deal this order closes — inherited from the quotation it fulfils,
+    # or named directly; the campaign's "won" money is read through it
+    opportunity_id: Mapped[str | None] = mapped_column(
+        ForeignKey("opportunities.id"), nullable=True, index=True
     )
     # the won quotation this order fulfils — FK + snapshot, like every other
     # master-data reference; free-standing orders (no quote) are legal facts

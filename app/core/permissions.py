@@ -124,6 +124,16 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     # document: no approval half exists, so the one grant files AND advances
     # your own leads and opportunities — and drives the lead's conversion
     # bridge, which creates the customer it qualified into.
+    # A campaign is marketing's, run for everyone: not personal, no approval
+    # half — one functional grant files, advances, and curates the members.
+    # Attribution (a lead's or a deal's campaign_id) is written by whoever
+    # files the lead or deal; reading campaigns needs nothing beyond membership.
+    (
+        "campaign.manage",
+        False,
+        "市场活动管理",
+        "创建、维护和推进市场活动,登记活动触达的线索与客户;线索与商机的活动归因由填单人写",
+    ),
     (
         "crm.own",
         False,
@@ -147,7 +157,19 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "inventory.manage",
         False,
         "库存管理",
-        "登记库存台账与库存变动（收货、发出、盘点、借用、退回）；不含产品/供应商/客户主数据",
+        "登记库位、盘点导入、库存单据过账（报损、调拨、生产入库等）与订单占货；库存流水只由这些业务动作产生。含发货运单的权限",
+    ),
+    # Split out of inventory.manage. The order desk that ships what it sold
+    # files freight legs and posts them — and must NOT be able to touch a
+    # stock position or a stock document. An agent that heard "出库" and
+    # wrote a bare ledger row did so because one grant covered both; this
+    # is the grant that covers only the shipment. inventory.manage implies
+    # it (the keeper who holds the shelf also ships from it).
+    (
+        "shipment.manage",
+        False,
+        "发货与运单",
+        "建立、推进运单并过账（销售发货、退货收件、采购退货发出）；不含库位、盘点与库存单据",
     ),
     # The treasury desk, split from the accounting desk on purpose: 钱账分离.
     # Whoever holds the bank register must not need — and does not get — the
@@ -182,9 +204,87 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ("object_types.manage", False, "对象类型管理", "定义对象字段与状态流程"),
     ("workflows.publish", False, "发布流程定义", "发布新的工作流定义版本"),
     ("skills.manage", False, "Skill 管理", "创建、修订、归档工作空间 skills"),
+    # The narrow write: a workspace's own refinement of one shipped skill —
+    # the product-matching rules, the report style — without the registry.
+    # An order desk that hits an unmapped listing needs to add a rule, not
+    # to publish skills. Scopable by skill name.
+    (
+        "skills.calibrate",
+        True,
+        "调整技能校准",
+        "只写某个已发布技能的 calibration(本工作区对该技能的补充规则,如商品匹配规则),并读取该技能;"
+        "可按技能名作用域(skills.calibrate:oryh-product-matching);不能改技能文件、受众或状态",
+    ),
     ("purchase_order.manage", False, "采购下单与收货", "创建和维护采购订单、记录收货；不是'本人单据'——是采购职能"),
     ("tenant.act_for_any_employee", False, "代表任意员工", "越过'仅本人'限制，代表任何员工操作记录"),
 )
+
+
+# The catalogue's titles and descriptions in English, by capability name;
+# `system_capabilities()` picks by locale. Keys must match SYSTEM_CAPABILITIES
+# exactly; tests/test_seed_locale.py holds the two together.
+CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
+    "timesheet.submit_own": ("Submit own timesheet", "Create, fill in, submit and resubmit one's own timesheets"),
+    "leave.submit_own": ("Submit own leave", "Create, fill in, submit, withdraw and resubmit one's own leave requests"),
+    "leave.advance": ("Advance leave status", "Leave-request status transitions (final decision, return, cancellation): the flow-driving grant"),
+    "timesheet.advance": ("Advance timesheet status", "Timesheet status transitions (final decision, return): the flow-driving grant"),
+    "expense.submit_own": ("Submit own expense claim", "Create, fill in, submit and resubmit one's own expense claims, receipts included"),
+    "expense.advance": ("Advance expense status", "Expense-claim status transitions (final decision, return, mark paid): the flow-driving grant"),
+    "purchase.submit_own": ("Submit own purchase request", "Create, fill in, submit and resubmit one's own purchase requests"),
+    "purchase.advance": ("Advance purchase request status", "Purchase-request status transitions (final decision, return, mark ordered): the flow-driving grant"),
+    "quotation.submit_own": ("Submit own sales quotation", "Create, fill in and submit one's own quotations, including sending, recording the outcome and revising"),
+    "quotation.advance": ("Advance quotation status", "Quotation status transitions (final decision, return, expiry sweep): the flow-driving grant"),
+    "order.submit_own": ("Submit own sales order", "Create, fill in and submit one's own sales orders, including logistics and delivery facts"),
+    "order.advance": ("Advance sales order status", "Sales-order status transitions (confirm, ship, sign-off, cancel): the flow-driving grant"),
+    "invoice.manage": ("Issue / record invoices", "Create, edit and submit invoices; scopable by direction (invoice.manage:sales for sales only, :purchase for purchase only, :payroll for payslips only, :reimbursement for employee claims only)"),
+    "invoice.advance": ("Advance invoice status", "Invoice status transitions (issue, return, void, write off): the flow-driving grant"),
+    "payment.record": ("Record payments", "Create, edit and submit receipts and payments; not settlement"),
+    "payment.advance": ("Advance payment status", "Payment status transitions (approve, reject, return, mark paid): the flow-driving grant"),
+    "payment.apply": ("Settle", "Apply money to invoices or expense claims, reversals included; separate from payment.record so recording and settlement can be different desks"),
+    "payroll.read": ("Read payroll", "Read pay records and payslips; a credential without it sees no payslip at all, while everyone sees their own"),
+    "payroll.manage": ("Set pay", "Write pay records (pay changes); separate from issuing payslips (invoice.manage:payroll), because setting pay is a decision at another level"),
+    "policy.manage": ("Draft policies", "Create and edit policy drafts and their rules; a draft is visible only to credentials holding this, since a leaked draft is worse than a published one"),
+    "policy.publish": ("Publish / repeal policies", "Publish a draft as the version in force (closing the previous one) and repeal published policies; separate from drafting, because publishing is an act of authority, not an edit"),
+    "billing_account.manage": ("Manage accounts", "Open account and points balances for customers, suppliers and employees; set credit limits, freeze and close"),
+    "billing_account.post": ("Post account entries", "Write account movements (deposit, charge, grant points, redeem, expire); scopable by unit (billing_account.post:currency for money only, :points for points only); granting points is a fraud-prone act, kept apart from opening accounts"),
+    "business_object.write": ("Create / edit business objects", "Scopable by object type; includes links and soft delete / restore"),
+    "business_object.advance": ("Advance business object status", "Status transitions scoped by object type: the flow-driving grant"),
+    "business_object.summarize": ("Summarise business objects", "Scoped by object type; gates the distribution of summary skills (a manager summarising daily reports); reading business objects is not gated by it"),
+    "approval.record": ("Record approval facts", "Write approval records (approved / rejected / returned / commented)"),
+    "flow_run.record": ("Record flow-agent runs", "Write the flow agent's own run ledger (start, end, outcome): the agent's trail of its own work; advances no document"),
+    "todos.assign": ("Create todos for others", "Create todos assigned to any employee"),
+    "notification.send": ("Send work notifications", "Email the employee concerned about assignments, returns and decisions; the address is resolved from the employee record, never chosen by the caller; no arbitrary content to arbitrary addresses"),
+    "todos.complete_own": ("Complete own todos", "Complete todos assigned to oneself"),
+    "booking.own": ("Book resources", "Create, change and cancel resource bookings in one's own name"),
+    "campaign.manage": ("Run marketing campaigns", "Create, maintain and advance marketing campaigns and record the leads and customers they reached; attribution on leads and deals is written by whoever files them"),
+    "crm.own": ("Work own leads and opportunities", "Create, advance and convert one's own leads and drive one's own opportunities to won or lost; the conversion bridge creates the customer record"),
+    "master_data.manage": ("Manage master data", "Create, edit and archive projects, vendors, customers, products, SKUs and resources"),
+    "inventory.manage": ("Manage stock", "Register stock positions, import counts, post stock documents (damage, transfer, production receipts) and hold stock for orders; ledger rows come only from these acts. Includes shipment.manage"),
+    "shipment.manage": ("Ship and receive parcels", "File, advance and post-stock shipments (sales dispatch, return receipt, purchase-return dispatch); no positions, counts or stock documents"),
+    "fin_account.manage": ("Fin accounts and bank statements", "Record fin accounts (bank, cash, payment platforms) and their register lines, import statements, link payments for reconciliation; not the payment documents themselves"),
+    "contract.manage": ("Manage contracts", "File contracts and originals, locate clauses, advance status, link orders, invoices and payments; scopable by side (contract.manage:purchase, :sales); reading needs it too"),
+    "employees.manage": ("Manage employees", "Create and maintain employee records"),
+    "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities"),
+    "keys.manage": ("Manage access credentials", "Issue, view and disable workspace and personal credentials"),
+    "object_types.manage": ("Manage object types", "Define object fields and lifecycles"),
+    "workflows.publish": ("Publish workflow definitions", "Publish a new version of a workflow definition"),
+    "skills.manage": ("Manage skills", "Create, revise and archive the workspace's skills"),
+    "skills.calibrate": ("Calibrate a skill", "Write one shipped skill's calibration — the workspace's own rules for it, such as product-matching rules — and read that skill; scopable by skill name (skills.calibrate:oryh-product-matching); never its files, audience or status"),
+    "purchase_order.manage": ("Place and receive purchase orders", "Create and maintain purchase orders and record receipts; a procurement function, not 'own documents'"),
+    "tenant.act_for_any_employee": ("Act for any employee", "Bypass the 'own records only' rule and act on any employee's records"),
+}
+
+
+def system_capabilities() -> tuple[tuple[str, bool, str, str], ...]:
+    """The capability catalogue in the deployment's content locale."""
+    from app.core.config import settings  # noqa: PLC0415
+
+    if settings.resolved_locale != "en":
+        return SYSTEM_CAPABILITIES
+    return tuple(
+        (name, scopable, *CAPABILITY_TEXT_EN[name])
+        for name, scopable, _title, _description in SYSTEM_CAPABILITIES
+    )
 
 SYSTEM_CAPABILITY_NAMES = frozenset(name for name, *_ in SYSTEM_CAPABILITIES)
 SCOPABLE_VERBS = frozenset(name for name, scopable, *_ in SYSTEM_CAPABILITIES if scopable)
@@ -276,10 +376,22 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
 )
 
 
+# A verb the holder of another verb also has. Not an alias: the wider grant
+# is a genuine superset — the keeper who holds the shelf also ships from it —
+# so a role granted `inventory.manage` before `shipment.manage` existed
+# keeps shipping without a data migration, and a role granted only
+# `shipment.manage` reaches nothing else.
+IMPLIED_BY: dict[str, tuple[str, ...]] = {
+    "shipment.manage": ("inventory.manage",),
+}
+
+
 def permissions_cover(permissions: frozenset[str], verb: str, scope: str | None = None) -> bool:
     if verb in permissions or f"{verb}:*" in permissions:
         return True
-    return scope is not None and f"{verb}:{scope}" in permissions
+    if scope is not None and f"{verb}:{scope}" in permissions:
+        return True
+    return any(permissions_cover(permissions, wider, scope) for wider in IMPLIED_BY.get(verb, ()))
 
 
 def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
@@ -298,7 +410,9 @@ def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
     if verb in permissions:
         return True
     prefix = verb + ":"
-    return any(grant.startswith(prefix) for grant in permissions)
+    if any(grant.startswith(prefix) for grant in permissions):
+        return True
+    return any(permissions_cover_any_scope(permissions, wider) for wider in IMPLIED_BY.get(verb, ()))
 
 
 def validate_permission_grammar(grant: str, known_custom: frozenset[str]) -> str | None:

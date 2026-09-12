@@ -164,3 +164,18 @@ def test_generated_types_match_snapshot() -> None:
             + REGENERATE,
             pytrace=False,
         )
+
+
+def test_the_data_browser_catalogue_matches_the_api() -> None:
+    """The console's generic data browser is driven by
+    `frontend/src/api/data-catalog.json` — every paged collection, its
+    filters, its columns — generated from the API by
+    `scripts/export_console_catalog.py`. A list parameter added on the
+    server and not re-exported is a filter the console cannot offer."""
+    from scripts.export_console_catalog import console_catalog
+
+    catalogue = REPO_ROOT / "frontend" / "src" / "api" / "data-catalog.json"
+    assert json.loads(catalogue.read_text(encoding="utf-8")) == console_catalog(), (
+        "frontend/src/api/data-catalog.json drifted — run "
+        "`uv run python scripts/export_console_catalog.py`"
+    )

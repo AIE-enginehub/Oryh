@@ -20,6 +20,8 @@ from app.api.policies import router as policies_router
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
 from app.api.contracts import router as contracts_router
+from app.api.activities import router as activities_router
+from app.api.geo import router as geo_router
 from app.api.crm import router as crm_router
 from app.api.shipments import router as shipments_router
 from app.api.sales import router as sales_router
@@ -70,6 +72,8 @@ app.include_router(policies_router, prefix=API_PREFIX)
 app.include_router(resources_router, prefix=API_PREFIX)
 app.include_router(contracts_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
+app.include_router(activities_router, prefix=API_PREFIX)
+app.include_router(geo_router, prefix=API_PREFIX)
 app.include_router(shipments_router, prefix=API_PREFIX)
 app.include_router(treasury_router, prefix=API_PREFIX)
 app.include_router(workspace_router, prefix=API_PREFIX)

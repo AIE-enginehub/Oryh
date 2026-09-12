@@ -274,6 +274,185 @@ VendorListEnvelope = ListEnvelope[VendorRead]
 VendorEnvelope = Envelope[VendorRead]
 
 
+class GeoBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    geo_type: str = Field(min_length=1, max_length=50)
+    parent_geo_id: str | None = None
+    abbreviation: str | None = Field(default=None, max_length=50)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateGeoRequest(GeoBase):
+    geo_code: str = Field(min_length=1, max_length=64)
+
+
+class UpdateGeoRequest(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    geo_type: str | None = Field(default=None, max_length=50)
+    parent_geo_id: str | None = None
+    abbreviation: str | None = Field(default=None, max_length=50)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class GeoRead(APIModel):
+    id: str
+    geo_code: str
+    name: str
+    geo_type: str
+    parent_geo_id: str | None = None
+    abbreviation: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+GeoListEnvelope = ListEnvelope[GeoRead]
+GeoEnvelope = Envelope[GeoRead]
+
+
+class SeedGeoTemplateRequest(RequestModel):
+    """A shipped table of places, loaded once: `cn_provinces` is China's 34
+    province-level divisions under a `CN` country geo, coded GB/T 2260.
+    Rows already present (by code) are left as they are."""
+
+    template: Literal["cn_provinces"]
+
+
+class SeedGeoTemplateRead(BaseModel):
+    template: str
+    created: int
+    existing: int
+
+
+class TerritoryBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_territory_id: str | None = None
+    manager_employee_id: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateTerritoryRequest(TerritoryBase):
+    territory_code: str = Field(min_length=1, max_length=64)
+
+
+class UpdateTerritoryRequest(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    parent_territory_id: str | None = None
+    manager_employee_id: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    status: Literal["active", "archived"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class TerritoryRead(APIModel):
+    id: str
+    territory_code: str
+    name: str
+    parent_territory_id: str | None = None
+    manager_employee_id: str | None = None
+    description: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+TerritoryListEnvelope = ListEnvelope[TerritoryRead]
+TerritoryEnvelope = Envelope[TerritoryRead]
+
+
+class CreateTerritoryGeoRequest(RequestModel):
+    territory_id: str
+    geo_id: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TerritoryGeoRead(APIModel):
+    id: str
+    territory_id: str
+    geo_id: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+TerritoryGeoListEnvelope = ListEnvelope[TerritoryGeoRead]
+TerritoryGeoEnvelope = Envelope[TerritoryGeoRead]
+
+
+class CreateTerritoryMemberRequest(RequestModel):
+    territory_id: str
+    employee_id: str
+    role: str | None = Field(default=None, max_length=50)
+    valid_from: date | None = None
+    valid_until: date | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateTerritoryMemberRequest(RequestModel):
+    role: str | None = Field(default=None, max_length=50)
+    valid_from: date | None = None
+    valid_until: date | None = None
+    metadata: dict[str, Any] | None = None
+
+
+class TerritoryMemberRead(APIModel):
+    id: str
+    territory_id: str
+    employee_id: str
+    role: str | None = None
+    valid_from: date | None = None
+    valid_until: date | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+TerritoryMemberListEnvelope = ListEnvelope[TerritoryMemberRead]
+TerritoryMemberEnvelope = Envelope[TerritoryMemberRead]
+
+
+class TerritoryMatchRead(BaseModel):
+    territory: TerritoryRead
+    # the geo in the chain the territory covers — the customer's own geo, or
+    # an ancestor; how far up says how specific the coverage is
+    covered_geo: GeoRead
+    depth: int
+
+
+class TerritoryResolutionRead(BaseModel):
+    """Which territories cover a geo: the geo's chain from itself up to the
+    root, and every territory covering any geo in it, most specific first.
+    `territory` is the answer when exactly one covers the most specific
+    level; otherwise it is null and `ambiguous` says why — the choice is
+    then a person's, by the workspace's own rule."""
+
+    geo_path: list[GeoRead]
+    matches: list[TerritoryMatchRead]
+    territory: TerritoryRead | None = None
+    ambiguous: bool
+
+
+TerritoryResolutionEnvelope = Envelope[TerritoryResolutionRead]
+
+
 class CustomerBase(RequestModel):
     customer_code: str | None = Field(default=None, max_length=64)
     name: str | None = Field(default=None, max_length=200)
@@ -286,6 +465,10 @@ class CustomerBase(RequestModel):
     email: str | None = Field(default=None, max_length=320)
     phone: str | None = Field(default=None, max_length=50)
     address: str | None = Field(default=None, max_length=500)
+    geo_id: str | None = None
+    territory_id: str | None = None
+    owner_employee_id: str | None = None
+    payment_terms: str | None = Field(default=None, max_length=500)
     status: CustomerStatus = "active"
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -309,6 +492,10 @@ class CustomerRead(APIModel):
     email: str | None = None
     phone: str | None = None
     address: str | None = None
+    geo_id: str | None = None
+    territory_id: str | None = None
+    owner_employee_id: str | None = None
+    payment_terms: str | None = None
     status: CustomerStatus
     metadata_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("metadata_jsonb", "metadata"),
@@ -1635,6 +1822,10 @@ class CreateExternalDocumentLinkRequest(_NormalizesSource):
     external_no: str = Field(min_length=1, max_length=128)
     entity_type: str = Field(min_length=1, max_length=100)
     entity_id: str
+    # one platform number normally becomes ONE of our documents of a kind;
+    # a second sales_order for the same number is refused unless the caller
+    # says it is a deliberate split (拆单) — then both links stand
+    split: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("external_no", "external_kind", mode="before")
@@ -1675,6 +1866,7 @@ InventoryMovementReason = Literal[
     # `reservation_released` gives the hold back (a cancelled order, or
     # post-stock consuming the hold as the goods actually leave)
     "reserved", "reservation_released",
+    "production",
 ]
 InventoryItemStatus = Literal["active", "archived"]
 
@@ -1703,6 +1895,8 @@ class CreateInventoryItemRequest(RequestModel):
 class UpdateInventoryItemRequest(RequestModel):
     # deliberately NO quantity fields: totals move only through details —
     # sending quantity_on_hand here is a 422 naming the field
+    # the registry pointer may be filled in after the facility is registered
+    facility_id: str | None = None
     facility: str | None = Field(default=None, max_length=100)
     lot_id: str | None = Field(default=None, max_length=64)
     bin_number: str | None = Field(default=None, max_length=64)
@@ -1744,24 +1938,73 @@ InventoryItemListEnvelope = ListEnvelope[InventoryItemRead]
 InventoryItemEnvelope = Envelope[InventoryItemRead]
 
 
-class CreateInventoryItemDetailRequest(RequestModel):
+class ReserveStockLine(RequestModel):
     inventory_item_id: str
-    quantity_on_hand_diff: float = Field(ge=-9_999_999.99, le=9_999_999.99)
-    # omitted → follows quantity_on_hand_diff; reservations later move it alone
-    available_to_promise_diff: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
-    reason: InventoryMovementReason
+    quantity: float = Field(gt=0, le=9_999_999.99)
+    # the order line this hold serves, when the caller knows it
+    order_item_id: str | None = None
     description: str | None = Field(default=None, max_length=500)
-    entity_type: str | None = Field(default=None, max_length=50)
-    entity_id: str | None = None
-    # the order this movement fulfils, when it is one of ours — at most one.
-    # An EXTERNAL order (Tmall, JD, another system) goes in `custom_fields`:
-    # its number is not a uuid and this database cannot vouch for it.
-    sales_order_id: str | None = None
-    purchase_order_id: str | None = None
-    custom_fields: dict = Field(default_factory=dict)
-    unit_cost: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    effective_at: datetime | None = None
-    created_by: str | None = Field(default=None, max_length=100)
+
+
+class ReserveStockRequest(RequestModel):
+    lines: list[ReserveStockLine] = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ReleaseStockRequest(RequestModel):
+    # omitted: every outstanding hold of the order is released
+    lines: list[ReserveStockLine] | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class StockReservationLineRead(APIModel):
+    inventory_item_id: str
+    detail_id: str
+    quantity: float
+    available_to_promise: float
+
+
+class StockReservationRead(APIModel):
+    order_id: str
+    reason: Literal["reserved", "reservation_released"]
+    lines: list[StockReservationLineRead]
+
+
+StockReservationEnvelope = Envelope[StockReservationRead]
+
+
+class PostedObjectStockLineRead(APIModel):
+    inventory_item_id: str
+    detail_id: str
+    quantity_on_hand_diff: float
+    quantity_on_hand: float
+
+
+class PostedObjectEntryLineRead(APIModel):
+    billing_account_id: str
+    entry_id: str
+    amount: float
+    balance: float
+
+
+class PostObjectEntriesRead(APIModel):
+    object_id: str
+    reason: str
+    entries_posted_at: datetime
+    lines: list[PostedObjectEntryLineRead]
+
+
+PostObjectEntriesEnvelope = Envelope[PostObjectEntriesRead]
+
+
+class PostObjectStockRead(APIModel):
+    object_id: str
+    reason: str
+    stock_posted_at: datetime
+    lines: list[PostedObjectStockLineRead]
+
+
+PostObjectStockEnvelope = Envelope[PostObjectStockRead]
 
 
 class InventoryItemDetailRead(APIModel):
@@ -2288,6 +2531,546 @@ class ShipmentRead(APIModel):
     updated_at: datetime
 
 
+class CampaignBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    campaign_type: str | None = Field(default=None, max_length=50)
+    parent_campaign_id: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    budget: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    actual_cost: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    expected_revenue: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    status: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=4000)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateCampaignRequest(CampaignBase):
+    employee_id: str
+    campaign_no: str | None = Field(default=None, max_length=64)
+
+
+class UpdateCampaignRequest(RequestModel):
+    # campaign_no is the identity; the owner may change (marketing hands over)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    campaign_type: str | None = Field(default=None, max_length=50)
+    parent_campaign_id: str | None = None
+    employee_id: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    budget: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    actual_cost: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    expected_revenue: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    status: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=4000)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class CampaignRead(APIModel):
+    id: str
+    campaign_no: str
+    name: str
+    campaign_type: str | None = None
+    parent_campaign_id: str | None = None
+    employee_id: str
+    start_date: date | None = None
+    end_date: date | None = None
+    budget: float | None = None
+    actual_cost: float | None = None
+    expected_revenue: float | None = None
+    currency: str
+    status: str
+    description: str | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CampaignListEnvelope = ListEnvelope[CampaignRead]
+CampaignEnvelope = Envelope[CampaignRead]
+
+
+class CampaignDetailRead(BaseModel):
+    """The campaign and what it produced, read live from the leads and
+    opportunities that name it — attribution is a count, never a stored
+    number. `won_expected_amount` sums the won deals' ESTIMATES: real money
+    lives in the orders and invoices those deals produced."""
+
+    campaign: CampaignRead
+    members_total: int
+    members_by_status: dict[str, int]
+    leads_total: int
+    leads_converted: int
+    opportunities_total: int
+    opportunities_won: int
+    won_expected_amount: float
+
+
+CampaignDetailEnvelope = Envelope[CampaignDetailRead]
+
+
+class CreateCampaignMemberRequest(RequestModel):
+    campaign_id: str
+    # exactly one party: a lead, or a customer (optionally one of its contacts)
+    lead_id: str | None = None
+    customer_id: str | None = None
+    contact_id: str | None = None
+    member_status: str | None = Field(default=None, max_length=50)
+    responded_at: datetime | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+    @model_validator(mode="after")
+    def _one_party(self) -> "CreateCampaignMemberRequest":
+        if (self.lead_id is None) == (self.customer_id is None):
+            raise ValueError("a member is a lead OR a customer — name exactly one")
+        if self.contact_id is not None and self.customer_id is None:
+            raise ValueError("contact_id names one of the customer's people — pass customer_id with it")
+        return self
+
+
+class UpdateCampaignMemberRequest(RequestModel):
+    # the party is the row's identity; what moves is how they responded
+    contact_id: str | None = None
+    member_status: str | None = Field(default=None, max_length=50)
+    responded_at: datetime | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+
+class CampaignMemberRead(APIModel):
+    id: str
+    campaign_id: str
+    lead_id: str | None = None
+    customer_id: str | None = None
+    contact_id: str | None = None
+    member_status: str
+    responded_at: datetime | None = None
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CampaignMemberListEnvelope = ListEnvelope[CampaignMemberRead]
+CampaignMemberEnvelope = Envelope[CampaignMemberRead]
+
+
+class OpportunityItemBase(RequestModel):
+    line_no: int | None = Field(default=None, ge=1)
+    product_id: str | None = None
+    sku_id: str | None = None
+    product_name_snapshot: str | None = Field(default=None, max_length=200)
+    spec: str | None = Field(default=None, max_length=200)
+    quantity: float = Field(gt=0, le=9_999_999.99)
+    unit: str | None = Field(default=None, max_length=50)
+    unit_price: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
+    amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
+    notes: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateOpportunityItemRequest(OpportunityItemBase):
+    opportunity_id: str
+
+    @model_validator(mode="after")
+    def _names_a_product(self) -> "CreateOpportunityItemRequest":
+        if self.product_id is None and not (self.product_name_snapshot or "").strip():
+            raise ValueError("a line names a product — by id, or by name when the catalog has none")
+        return self
+
+
+class UpdateOpportunityItemRequest(RequestModel):
+    line_no: int | None = Field(default=None, ge=1)
+    product_id: str | None = None
+    sku_id: str | None = None
+    product_name_snapshot: str | None = Field(default=None, max_length=200)
+    spec: str | None = Field(default=None, max_length=200)
+    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
+    unit: str | None = Field(default=None, max_length=50)
+    unit_price: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
+    amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
+    notes: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class OpportunityItemRead(APIModel):
+    id: str
+    opportunity_id: str
+    line_no: int | None = None
+    product_id: str | None = None
+    sku_id: str | None = None
+    product_name_snapshot: str | None = None
+    spec: str | None = None
+    quantity: float
+    unit: str | None = None
+    unit_price: float | None = None
+    amount: float | None = None
+    notes: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+OpportunityItemListEnvelope = ListEnvelope[OpportunityItemRead]
+OpportunityItemEnvelope = Envelope[OpportunityItemRead]
+
+
+class CreateOpportunityContactRequest(RequestModel):
+    opportunity_id: str
+    contact_id: str
+    role: str | None = Field(default=None, max_length=50)
+    is_primary: bool = False
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+
+class UpdateOpportunityContactRequest(RequestModel):
+    role: str | None = Field(default=None, max_length=50)
+    is_primary: bool | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+
+class OpportunityContactRead(APIModel):
+    id: str
+    opportunity_id: str
+    contact_id: str
+    role: str | None = None
+    is_primary: bool
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+OpportunityContactListEnvelope = ListEnvelope[OpportunityContactRead]
+OpportunityContactEnvelope = Envelope[OpportunityContactRead]
+
+
+class OpportunityContactDetailRead(OpportunityContactRead):
+    # the person, so the deal's cast reads as names, not ids
+    contact_name: str | None = None
+    contact_title: str | None = None
+    contact_phone: str | None = None
+    contact_email: str | None = None
+
+
+class QuoteOpportunityRequest(RequestModel):
+    """The quote bridge's few choices: the draft's title (the deal's by
+    default), its dates and terms. Lines come from the opportunity's own
+    items; prices from each line's `unit_price`, else the customer's
+    agreement, else the catalog — and the response says which."""
+
+    title: str | None = Field(default=None, max_length=200)
+    quote_date: date | None = None
+    valid_until: date | None = None
+    payment_terms: str | None = Field(default=None, max_length=2000)
+    delivery_terms: str | None = Field(default=None, max_length=2000)
+    remarks: str | None = Field(default=None, max_length=2000)
+
+
+class ActivityBase(RequestModel):
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    activity_type: str = Field(min_length=1, max_length=50)
+    occurred_at: datetime
+    subject: str = Field(min_length=1, max_length=200)
+    content: str | None = Field(default=None, max_length=10000)
+    source_text: str | None = Field(default=None, max_length=20000)
+    outcome: str | None = Field(default=None, max_length=50)
+    next_action: str | None = Field(default=None, max_length=500)
+    next_action_at: datetime | None = None
+    event_id: str | None = None
+    communication_event_id: str | None = None
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateActivityRequest(ActivityBase):
+    # the writer's own employee unless the credential may act for anyone
+    employee_id: str | None = None
+
+    @model_validator(mode="after")
+    def _names_a_party(self) -> "CreateActivityRequest":
+        if self.customer_id is None and self.lead_id is None and self.opportunity_id is None:
+            raise ValueError("an activity hangs off a customer, a lead or an opportunity — at least one")
+        return self
+
+
+class UpdateActivityRequest(RequestModel):
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    activity_type: str | None = Field(default=None, max_length=50)
+    occurred_at: datetime | None = None
+    subject: str | None = Field(default=None, min_length=1, max_length=200)
+    content: str | None = Field(default=None, max_length=10000)
+    source_text: str | None = Field(default=None, max_length=20000)
+    outcome: str | None = Field(default=None, max_length=50)
+    next_action: str | None = Field(default=None, max_length=500)
+    next_action_at: datetime | None = None
+    event_id: str | None = None
+    communication_event_id: str | None = None
+    custom_fields: dict[str, Any] | None = None
+
+
+class ActivityRead(APIModel):
+    id: str
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    employee_id: str
+    activity_type: str
+    occurred_at: datetime
+    subject: str
+    content: str | None = None
+    source_text: str | None = None
+    outcome: str | None = None
+    next_action: str | None = None
+    next_action_at: datetime | None = None
+    event_id: str | None = None
+    communication_event_id: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+ActivityListEnvelope = ListEnvelope[ActivityRead]
+ActivityEnvelope = Envelope[ActivityRead]
+
+
+class EventBase(RequestModel):
+    subject: str = Field(min_length=1, max_length=200)
+    event_type: str | None = Field(default=None, max_length=50)
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    starts_at: datetime
+    ends_at: datetime | None = None
+    location: str | None = Field(default=None, max_length=300)
+    status: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=4000)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateEventRequest(EventBase):
+    employee_id: str | None = None
+    event_no: str | None = Field(default=None, max_length=64)
+
+
+class UpdateEventRequest(RequestModel):
+    subject: str | None = Field(default=None, min_length=1, max_length=200)
+    event_type: str | None = Field(default=None, max_length=50)
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    location: str | None = Field(default=None, max_length=300)
+    status: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=4000)
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class EventRead(APIModel):
+    id: str
+    event_no: str
+    subject: str
+    event_type: str | None = None
+    employee_id: str
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    starts_at: datetime
+    ends_at: datetime | None = None
+    location: str | None = None
+    status: str
+    description: str | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+EventListEnvelope = ListEnvelope[EventRead]
+EventEnvelope = Envelope[EventRead]
+
+
+class LogEventRequest(RequestModel):
+    """What the held event produced, for the activity logged from it."""
+
+    subject: str | None = Field(default=None, max_length=200)
+    content: str | None = Field(default=None, max_length=10000)
+    source_text: str | None = Field(default=None, max_length=20000)
+    outcome: str | None = Field(default=None, max_length=50)
+    next_action: str | None = Field(default=None, max_length=500)
+    next_action_at: datetime | None = None
+
+
+class CreateEventParticipantRequest(RequestModel):
+    event_id: str
+    employee_id: str | None = None
+    contact_id: str | None = None
+    response: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+    @model_validator(mode="after")
+    def _one_person(self) -> "CreateEventParticipantRequest":
+        if (self.employee_id is None) == (self.contact_id is None):
+            raise ValueError("a participant is one of our people OR one of the customer's — name exactly one")
+        return self
+
+
+class UpdateEventParticipantRequest(RequestModel):
+    response: str | None = Field(default=None, max_length=50)
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata_jsonb: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+
+
+class EventParticipantRead(APIModel):
+    id: str
+    event_id: str
+    employee_id: str | None = None
+    contact_id: str | None = None
+    response: str | None = None
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+EventParticipantListEnvelope = ListEnvelope[EventParticipantRead]
+EventParticipantEnvelope = Envelope[EventParticipantRead]
+
+
+class CommunicationEventBase(RequestModel):
+    channel: str = Field(min_length=1, max_length=50)
+    direction: Literal["inbound", "outbound"]
+    subject: str | None = Field(default=None, max_length=500)
+    body: str | None = Field(default=None, max_length=100000)
+    from_address: str | None = Field(default=None, max_length=320)
+    to_addresses: list[str] = Field(default_factory=list, max_length=100)
+    cc_addresses: list[str] = Field(default_factory=list, max_length=100)
+    occurred_at: datetime
+    message_id: str | None = Field(default=None, max_length=255)
+    thread_id: str | None = Field(default=None, max_length=255)
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateCommunicationEventRequest(CommunicationEventBase):
+    employee_id: str | None = None
+
+    @model_validator(mode="after")
+    def _names_a_party(self) -> "CreateCommunicationEventRequest":
+        if all(v is None for v in (self.customer_id, self.lead_id, self.opportunity_id, self.contact_id)):
+            raise ValueError("a message names who it was with — a customer, a lead, an opportunity or a contact")
+        return self
+
+
+class UpdateCommunicationEventRequest(RequestModel):
+    subject: str | None = Field(default=None, max_length=500)
+    body: str | None = Field(default=None, max_length=100000)
+    thread_id: str | None = Field(default=None, max_length=255)
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    custom_fields: dict[str, Any] | None = None
+
+
+class CommunicationEventRead(APIModel):
+    id: str
+    channel: str
+    direction: str
+    subject: str | None = None
+    body: str | None = None
+    from_address: str | None = None
+    to_addresses: list[str]
+    cc_addresses: list[str]
+    occurred_at: datetime
+    message_id: str | None = None
+    thread_id: str | None = None
+    employee_id: str | None = None
+    customer_id: str | None = None
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    contact_id: str | None = None
+    remarks: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CommunicationEventListEnvelope = ListEnvelope[CommunicationEventRead]
+CommunicationEventEnvelope = Envelope[CommunicationEventRead]
+
+
 class LeadBase(RequestModel):
     company_name: str | None = Field(default=None, max_length=200)
     contact_name: str | None = Field(default=None, max_length=100)
@@ -2295,6 +3078,8 @@ class LeadBase(RequestModel):
     wechat: str | None = Field(default=None, max_length=100)
     email: str | None = Field(default=None, max_length=320)
     source: str | None = Field(default=None, max_length=100)
+    campaign_id: str | None = None
+    geo_id: str | None = None
     status: str | None = Field(default=None, max_length=50)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -2322,6 +3107,8 @@ class UpdateLeadRequest(RequestModel):
     wechat: str | None = Field(default=None, max_length=100)
     email: str | None = Field(default=None, max_length=320)
     source: str | None = Field(default=None, max_length=100)
+    campaign_id: str | None = None
+    geo_id: str | None = None
     status: str | None = Field(default=None, max_length=50)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] | None = None
@@ -2358,6 +3145,8 @@ class LeadRead(APIModel):
     wechat: str | None = None
     email: str | None = None
     source: str | None = None
+    campaign_id: str | None = None
+    geo_id: str | None = None
     employee_id: str
     status: str
     converted_customer_id: str | None = None
@@ -2380,6 +3169,11 @@ class OpportunityBase(RequestModel):
     customer_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     lead_id: str | None = None
+    campaign_id: str | None = None
+    probability: int | None = Field(default=None, ge=0, le=100)
+    lost_reason: str | None = Field(default=None, max_length=50)
+    competitor: str | None = Field(default=None, max_length=200)
+    source: str | None = Field(default=None, max_length=100)
     expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
     currency: str = Field(default="CNY", min_length=3, max_length=3)
     expected_close_date: date | None = None
@@ -2401,6 +3195,11 @@ class UpdateOpportunityRequest(RequestModel):
     customer_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     lead_id: str | None = None
+    campaign_id: str | None = None
+    probability: int | None = Field(default=None, ge=0, le=100)
+    lost_reason: str | None = Field(default=None, max_length=50)
+    competitor: str | None = Field(default=None, max_length=200)
+    source: str | None = Field(default=None, max_length=100)
     expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     expected_close_date: date | None = None
@@ -2416,6 +3215,11 @@ class OpportunityRead(APIModel):
     customer_id: str | None = None
     customer_name_snapshot: str | None = None
     lead_id: str | None = None
+    campaign_id: str | None = None
+    probability: int | None = None
+    lost_reason: str | None = None
+    competitor: str | None = None
+    source: str | None = None
     employee_id: str
     expected_amount: float | None = None
     currency: str
@@ -2719,6 +3523,9 @@ class TenantRead(APIModel):
     email_domain: str | None = None
     slug: str | None = None
     status: TenantStatus
+    # Whether ORYH's hosted flow runner may advance this company's workflows.
+    # Platform-set; the tenant's own per-family switch is FlowSubscription.enabled.
+    flow_runner_enabled: bool = True
     created_at: datetime
     updated_at: datetime | None = None
 
@@ -3020,7 +3827,8 @@ class PendingRegistrationRead(APIModel):
     id: str
     company_name: str
     email: str
-    email_domain: str
+    # None for a personal-mailbox registration: it claims no company domain.
+    email_domain: str | None = None
     status: RegistrationStatus
     expires_at: datetime
     verification_sent_at: datetime
@@ -3387,9 +4195,28 @@ class AdminSessionResponse(BaseModel):
     admin: PlatformAdminRead
 
 
+class RegistrationPolicyRead(APIModel):
+    """The service-wide switch on who may self-register. On, only a corporate
+    mailbox may open a company; off, any deliverable address may, and a
+    personal one claims no company domain."""
+
+    require_corporate_email: bool
+    updated_at: datetime | None = None
+    updated_by: str | None = None
+
+
+class UpdateRegistrationPolicyRequest(RequestModel):
+    require_corporate_email: bool
+
+
+class RegistrationPolicyEnvelope(BaseModel):
+    data: RegistrationPolicyRead
+
+
 class UpdateTenantAdminRequest(RequestModel):
     name: str | None = Field(default=None, max_length=200)
     status: TenantStatus | None = None
+    flow_runner_enabled: bool | None = None
 
 
 class CreateTenantAdminRequest(RequestModel):
@@ -4714,6 +5541,9 @@ class UpdateTodoRequest(RequestModel):
     status: TodoStatus | None = None
     completed_by: str | None = Field(default=None, max_length=100)
     due_at: datetime | None = None
+    # F-17: a next step that changed is the open todo re-titled, not a second row
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
 
 
 class CreateTodoRequest(RequestModel):
@@ -4941,6 +5771,7 @@ class SalesQuotationBase(RequestModel):
     employee_id: str | None = None
     # server-allocated when omitted; bring your own for tenant conventions
     quote_number: str | None = Field(default=None, max_length=64)
+    opportunity_id: str | None = None
     customer_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     contact_name: str | None = Field(default=None, max_length=200)
@@ -4970,6 +5801,7 @@ class CreateSalesQuotationRequest(SalesQuotationBase):
 
 
 class UpdateSalesQuotationRequest(RequestModel):
+    opportunity_id: str | None = None
     customer_id: str | None = None
     customer_name_snapshot: str | None = Field(default=None, max_length=200)
     contact_name: str | None = Field(default=None, max_length=200)
@@ -5007,6 +5839,8 @@ class SubmitSalesQuotationRequest(RequestModel):
 class SendSalesQuotationRequest(RequestModel):
     sent_by: str | None = None
     source: SourceType | None = None
+    # F-43: when it actually went out; the call's moment otherwise
+    sent_at: datetime | None = None
 
 
 class CloseSalesQuotationRequest(RequestModel):
@@ -5022,11 +5856,18 @@ class ReviseSalesQuotationRequest(RequestModel):
     source: SourceType | None = None
 
 
+class ReviseSalesOrderRequest(RequestModel):
+    # why the confirmed order could not ship as written — recorded on the
+    # audit trail of the cancelled source, and as the new draft's remark
+    reason: str | None = Field(default=None, max_length=2000)
+
+
 class SalesQuotationRead(APIModel):
     id: str
     quote_number: str
     revision_no: int
     revision_of_id: str | None = None
+    opportunity_id: str | None = None
     employee_id: str
     customer_id: str | None = None
     customer_name_snapshot: str | None = None
@@ -5130,6 +5971,10 @@ class SalesQuotationItemRead(APIModel):
     )
     created_at: datetime
     updated_at: datetime | None = None
+
+
+SalesQuotationItemListEnvelope = ListEnvelope[SalesQuotationItemRead]
+SalesQuotationItemEnvelope = Envelope[SalesQuotationItemRead]
 
 
 class QuotationProductReferenceRead(BaseModel):
@@ -6116,17 +6961,21 @@ class PostBillingAccountEntryLine(RequestModel):
     effective_at: datetime | None = None
 
 
-class PostBillingAccountEntriesRequest(RequestModel):
-    lines: list[PostBillingAccountEntryLine] = Field(min_length=1, max_length=200)
-    # this writes a balance, and agents retry
-    idempotency_key: str | None = Field(default=None, max_length=64)
+class ExpireBillingAccountEntryLine(RequestModel):
+    # the earn batch that lapses, and how much of it — at most the batch
+    entry_id: str
+    amount: float = Field(gt=0, le=9_999_999_999.99)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ExpireBillingAccountEntriesRequest(RequestModel):
+    lines: list[ExpireBillingAccountEntryLine] = Field(min_length=1, max_length=200)
 
 
 class PostBillingAccountEntriesResult(BaseModel):
     entries: list[BillingAccountEntryRead]
     balance: float
     available_amount: float
-    replayed: bool = False
 
 
 PostBillingAccountEntriesEnvelope = Envelope[PostBillingAccountEntriesResult]
@@ -6446,6 +7295,9 @@ class SalesQuotationDetailRead(BaseModel):
     # every revision sharing this quote_number, oldest first — the negotiation
     # trail is a fact agents reason over
     revisions: list[SalesQuotationRead]
+    # F-38: the approval facts of the revisions this one superseded — a
+    # condition attached to v1 is read here when v2 is quoted and ordered
+    prior_approval_records: list[ApprovalRecordRead] = Field(default_factory=list)
     # header- and line-level adjustments, oldest first
     adjustments: list[SalesQuotationAdjustmentRead]
     # pricing facts for the approval-flow agent's calibration: the line sum
@@ -6470,6 +7322,7 @@ class SalesOrderBase(RequestModel):
     # server-allocated when omitted; bring your own for tenant conventions
     order_no: str | None = Field(default=None, max_length=64)
     quotation_id: str | None = None
+    opportunity_id: str | None = None
     source_quote_number: str | None = Field(default=None, max_length=64)
     customer_id: str | None = None
     billing_account_id: str | None = None
@@ -6533,6 +7386,9 @@ class UpdateSalesOrderRequest(RequestModel):
     status: OrderStatus | None = None
     logistics_company: str | None = Field(default=None, max_length=100)
     logistics_tracking_no: str | None = Field(default=None, max_length=100)
+    # F-65: the business moments, when they differ from the PATCH's own
+    shipped_at: datetime | None = None
+    signed_at: datetime | None = None
     remarks: str | None = Field(default=None, max_length=2000)
     source_report_text: str | None = Field(default=None, max_length=10000)
     custom_fields: dict[str, Any] | None = None
@@ -6557,6 +7413,8 @@ class SalesOrderRead(APIModel):
     order_no: str
     order_kind: str
     original_order_id: str | None = None
+    supersedes_order_id: str | None = None
+    opportunity_id: str | None = None
     quotation_id: str | None = None
     source_quote_number: str | None = None
     employee_id: str
@@ -6683,6 +7541,10 @@ class LinkedPurchaseItemRead(BaseModel):
     unit_price: float | None = None
 
 
+SalesOrderItemListEnvelope = ListEnvelope[SalesOrderItemRead]
+SalesOrderItemEnvelope = Envelope[SalesOrderItemRead]
+
+
 class SalesOrderItemDetailRead(SalesOrderItemRead):
     """Order line plus tenant-scoped catalog labels used by reviewers."""
 
@@ -6724,9 +7586,51 @@ class QuoteDriftRead(BaseModel):
     percent: float | None = None
 
 
+class FulfilmentLineRead(BaseModel):
+    """One order line against what has left the warehouse for it: shipped
+    is the sum of posted outbound shipment lines for the same product and
+    SKU, allocated to order lines in line order when several share one."""
+    order_item_id: str
+    line_no: int | None = None
+    product_id: str | None = None
+    sku_id: str | None = None
+    product_name_snapshot: str | None = None
+    ordered: float
+    shipped: float
+    outstanding: float
+
+
+class FulfilmentBacklogRowRead(BaseModel):
+    """A confirmed order the warehouse has not fully shipped — the
+    structured shortage the flow chases (E-22/E-27), with or without a
+    promised date."""
+    order_id: str
+    order_no: str
+    status: str
+    employee_id: str
+    store_id: str | None = None
+    customer_name_snapshot: str | None = None
+    promised_date: date | None = None
+    submitted_at: datetime | None = None
+    days_waiting: int
+    shipments_posted: int
+    open_todo_count: int
+    lines: list[FulfilmentLineRead]
+
+
+FulfilmentBacklogEnvelope = ListEnvelope[FulfilmentBacklogRowRead]
+
+
 class SalesOrderDetailRead(BaseModel):
     order: SalesOrderRead
     items: list[SalesOrderItemDetailRead]
+    # what has shipped against each line (posted outbound legs) — the fact
+    # behind "all lines shipped" and "partially shipped", per line
+    fulfilment: list[FulfilmentLineRead]
+    # the live draft that replaced this order, when `/revise` was used on it —
+    # the reverse of `supersedes_order_id`, so a cancelled order says where
+    # its work went without a second list call
+    superseded_by: SalesOrderRead | None = None
     approval_records: list[ApprovalRecordRead]
     attachments: list[AttachmentRead]
     # the won quotation this order fulfils, when linked — the closure fact
@@ -6744,3 +7648,41 @@ class SalesOrderDetailRead(BaseModel):
 
 
 SalesOrderDetailEnvelope = Envelope[SalesOrderDetailRead]
+
+
+class OpportunityDetailRead(BaseModel):
+    """The deal with everything that hangs off it in one read: its lines,
+    its cast (with names), the quotations and orders that name it — which
+    is where its money actually is — and the record of contact (F-16)."""
+
+    opportunity: OpportunityRead
+    items: list[OpportunityItemRead]
+    contacts: list[OpportunityContactDetailRead]
+    quotations: list[SalesQuotationRead]
+    orders: list[SalesOrderRead]
+    campaign: CampaignRead | None = None
+    activities: list[ActivityRead] = Field(default_factory=list)
+    events: list[EventRead] = Field(default_factory=list)
+    communications: list[CommunicationEventRead] = Field(default_factory=list)
+
+
+OpportunityDetailEnvelope = Envelope[OpportunityDetailRead]
+
+
+class CustomerDetailRead(BaseModel):
+    """The customer with what a visit brief needs in one read: its people,
+    its open deals, the last contacts with it, what is scheduled, the last
+    messages, and its recent quotations and orders (F-16)."""
+
+    customer: CustomerRead
+    contacts: list[CustomerContactRead]
+    opportunities: list[OpportunityRead]
+    activities: list[ActivityRead]
+    events: list[EventRead]
+    communications: list[CommunicationEventRead]
+    quotations: list[SalesQuotationRead]
+    orders: list[SalesOrderRead]
+    territory: TerritoryRead | None = None
+
+
+CustomerDetailEnvelope = Envelope[CustomerDetailRead]

@@ -21,6 +21,8 @@ This skill is for API usage only. It does not do calendar sync, mail notificatio
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 ## Required inputs
 
 The caller should provide a parameter block like this:
@@ -85,7 +87,19 @@ Minimum required values:
 5. Prefer availability checks before booking when time matters.
    For meeting rooms and other contested assets, check availability first unless the caller explicitly wants a direct booking attempt.
 
+{{include:_common/fewer-round-trips.md}}
+
+{{include:_common/fail-fast-on-master-data.md}}
+
 ## Recommended workflow
+
+**Two waves, at most.** Wave one: `GET /resources` with the type and keyword
+the person gave. Wave two: `GET /resources/{id}/availability` for EVERY
+candidate that came back (at most five — the first five matches by name are
+the shortlist, do not inspect further), all sent together. Then one question
+if more than one fits, or the booking. Never check candidates one at a time,
+never open a resource's detail to decide — the list row and its availability
+answer are all a booking needs.
 
 ### 1. Resolve the resource type and constraints
 
@@ -105,7 +119,7 @@ Use `GET /resources` to narrow the search by:
 - `status`
 - `keyword`
 
-Then inspect individual resources if needed.
+The list rows are enough to choose from; do not read each resource's detail.
 
 ### 3. Check availability
 
@@ -143,7 +157,8 @@ Cancelled bookings should be treated as historical records, not hard deletions.
 
 ### 6. Read back the result
 
-Finish by returning:
+From the create or update response — it carries the booking as stored; do
+not re-read it. Finish by returning:
 
 - the selected resource
 - the booking id

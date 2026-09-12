@@ -63,10 +63,24 @@ def _as_utc(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
-def _ensure_tenant_active(db: Session, tenant_id: str) -> None:
+def _ensure_tenant_active(db: Session, tenant_id: str) -> Tenant:
     tenant = db.get(Tenant, tenant_id)
     if tenant is None or tenant.status != "active":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="tenant is suspended")
+    return tenant
+
+
+def _ensure_flow_runner_allowed(tenant: Tenant) -> None:
+    """The platform's per-company switch on hosted flow driving, enforced where
+    the hosted principal authenticates rather than only where the runner
+    discovers tenants. A runner that already holds this company's credential
+    keeps polling after the switch is turned off; this is what turns it away,
+    on its very next request, with a reason it logs and moves on from."""
+    if not tenant.flow_runner_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="hosted flow runner is switched off for this tenant",
+        )
 
 
 def _load_role_permissions(db: Session, tenant_id: str, role_name: str) -> frozenset[str]:
@@ -139,12 +153,13 @@ def _resolve_api_key_actor(db: Session, api_key_value: str) -> Actor:
                 "token, or reconnect with the oryh-connect skill"
             ),
         )
-    _ensure_tenant_active(db, api_key.tenant_id)
+    tenant = _ensure_tenant_active(db, api_key.tenant_id)
     bind_tenant_context(db, api_key.tenant_id)
     if api_key.user_id is None:
         principal_kind = api_key.principal_kind or PRINCIPAL_TENANT_SERVICE
         write_scope = None
         if principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT:
+            _ensure_flow_runner_allowed(tenant)
             # the boundary the tenant actually enrolled in: writes outside it
             # are refused even if the model talks itself into them
             write_scope = {

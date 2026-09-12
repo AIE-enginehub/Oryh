@@ -75,7 +75,9 @@ def test_device_flow_happy_path(client: TestClient) -> None:
     web_login(client, ctx["email"], ctx["password"], next_url=f"/web/device?code={grant['user_code']}")
     page = client.get(f"/web/device?code={grant['user_code']}")
     assert "WorkBuddy on test" in page.text and grant["user_code"] in page.text
-    assert "进入控制台" in page.text
+    # the shell's console link, in whichever language the shell is speaking
+    assert 'href="/console/dashboard"' in page.text
+    assert "进入控制台" in page.text or "Open the console" in page.text
     assert "进入 React 控制台" not in page.text
 
     approved = client.post("/web/device/approve", data={"code": grant["user_code"]})

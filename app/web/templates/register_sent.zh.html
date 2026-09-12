@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}请查收邮件{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>请查收邮件</h1>
+  <p>我们已向 <strong>{{ email }}</strong> 发送了一封验证邮件，打开其中的链接以确认这个企业邮箱由你掌控。</p>
+  <p class="muted">验证之后，平台管理员会审核这份公司申请。链接 48 小时内有效；如果没有收到，请查看垃圾邮件文件夹。</p>
+</div>
+{% endblock %}

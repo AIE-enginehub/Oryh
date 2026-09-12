@@ -24,15 +24,20 @@ rather than where you have to recall them:
 | its current status | the same |
 | what the last call actually did | its status code, not your intent |
 
-Then, at the decision:
+Then, at the decision, speak from the last response you hold — and re-read
+only when that response is not the whole document:
 
 ```text
-GET  <the record>/detail      ← immediately before submit / edit / refuse
+GET  <the record>/detail      ← only if the document was built across several
+                                 writes, or anything was written since the
+                                 response you hold, or you are about to REFUSE
+                                 on the grounds of what it contains
 ```
 
-and speak from what came back. Quote the count you just read, not the count you
-expected. It costs one call, and it is the call that makes the difference
-between reporting the system and narrating yourself.
+A whole-document create (`POST` with every line inline) returns the record
+exactly as stored; that response IS the read-back, and reading it again before
+the submit is a call that tells you what you already have. Quote the count in
+the response you hold, not the count you expected.
 
 **If the re-read disagrees with your recollection, the re-read wins.** Say what
 is actually there — "the draft has three lines; the taxi line is on it, without

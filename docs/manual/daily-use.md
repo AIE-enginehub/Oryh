@@ -27,6 +27,15 @@ having to ask.
 
 ## Filing your own documents
 
+Before an agent writes anything — files a claim, ships an order, posts
+stock, records a payment — it shows you exactly what it is about to write
+and waits for your yes: the document, the lines, the amounts, the state it
+will end in, with anything it guessed labelled as a guess. One question
+per intent, not one per call; reads never ask. If your workspace wants a
+lighter touch on one routine write, an administrator names it in that
+skill's calibration.
+
+
 Each of these covers one document, for the person filing it: draft it, amend
 it, query it, submit it.
 
@@ -38,6 +47,10 @@ it, query it, submit it.
 | Purchase request | `oryh-purchase-submit` |
 | Sales quotation | `oryh-quotation-submit` |
 | Sales order | `oryh-order-submit` |
+| Attribute leads and deals to a campaign, read what it produced | `oryh-crm` |
+| Record a call or visit, schedule a meeting and log it when held, file a customer's email | `oryh-crm` |
+| Keep places and sales territories, and see which territory covers a customer | `oryh-master-data` |
+| Replace a confirmed order the warehouse cannot ship — the new draft names the cancelled one | `oryh-order-submit` |
 
 The input is ordinary speech. "Monday to Wednesday on the Globex integration,
 eight hours a day, Thursday I was in interviews" is a timesheet. The agent
@@ -81,6 +94,7 @@ see [operations](operations.md).
 |---|---|
 | Capture and advance leads, convert one into a customer and an opportunity | `oryh-crm` |
 | Record orders from Tmall, JD or another platform — dedup by the platform number, translate listings through the product map, confirm the unmapped ones once | `oryh-order-submit` |
+| Resolve platform listings to catalog products by this workspace's own rules — the rules are the skill's calibration, the confirmed pairings are the map | `oryh-product-matching` |
 
 ## Procurement and stock
 

@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260906_0085
+-- Alembic revision: 20260910_0093
 --
 
 --
@@ -37,6 +37,36 @@ CREATE SCHEMA oryh;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: activities; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.activities (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    customer_id uuid,
+    lead_id uuid,
+    opportunity_id uuid,
+    contact_id uuid,
+    employee_id uuid NOT NULL,
+    activity_type character varying(50) NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    subject character varying(200) NOT NULL,
+    content text,
+    source_text text,
+    outcome character varying(50),
+    next_action character varying(500),
+    next_action_at timestamp with time zone,
+    event_id uuid,
+    communication_event_id uuid,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT activities_names_a_party_check CHECK (((customer_id IS NOT NULL) OR (lead_id IS NOT NULL) OR (opportunity_id IS NOT NULL)))
+);
+
 
 --
 -- Name: alembic_version; Type: TABLE; Schema: oryh; Owner: -
@@ -90,7 +120,7 @@ CREATE TABLE oryh.approval_records (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     historical_conflict_closed boolean DEFAULT false NOT NULL,
     CONSTRAINT approval_records_action_chk CHECK ((action = ANY (ARRAY['submitted'::text, 'approved'::text, 'rejected'::text, 'returned'::text, 'commented'::text]))),
-    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['contract'::text, 'employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
+    CONSTRAINT approval_records_entity_type_chk CHECK ((entity_type = ANY (ARRAY['campaign'::text, 'contract'::text, 'employee_leave'::text, 'event'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text]))),
     CONSTRAINT approval_records_round_no_chk CHECK ((round_no >= 1)),
     CONSTRAINT approval_records_sequence_no_chk CHECK ((sequence_no >= 1)),
     CONSTRAINT approval_records_source_chk CHECK (((source = ANY (ARRAY['web'::text, 'api'::text, 'ai'::text, 'system'::text])) OR (source IS NULL)))
@@ -297,6 +327,55 @@ CREATE TABLE oryh.business_objects (
 
 
 --
+-- Name: campaign_members; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.campaign_members (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    campaign_id uuid NOT NULL,
+    lead_id uuid,
+    customer_id uuid,
+    contact_id uuid,
+    member_status character varying(50) DEFAULT 'targeted'::character varying NOT NULL,
+    responded_at timestamp with time zone,
+    remarks text,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT campaign_members_one_party_check CHECK (((lead_id IS NOT NULL) <> (customer_id IS NOT NULL)))
+);
+
+
+--
+-- Name: campaigns; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.campaigns (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    campaign_no character varying(64) NOT NULL,
+    name character varying(200) NOT NULL,
+    campaign_type character varying(50),
+    parent_campaign_id uuid,
+    employee_id uuid NOT NULL,
+    start_date date,
+    end_date date,
+    budget numeric(14,2),
+    actual_cost numeric(14,2),
+    expected_revenue numeric(14,2),
+    currency character varying(3) DEFAULT 'CNY'::character varying NOT NULL,
+    status character varying(50) DEFAULT 'planned'::character varying NOT NULL,
+    description text,
+    remarks text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: capabilities; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -311,6 +390,38 @@ CREATE TABLE oryh.capabilities (
     created_by text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT capabilities_kind_chk CHECK ((kind = ANY (ARRAY['system'::text, 'custom'::text])))
+);
+
+
+--
+-- Name: communication_events; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.communication_events (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    channel character varying(50) NOT NULL,
+    direction character varying(20) NOT NULL,
+    subject character varying(500),
+    body text,
+    from_address character varying(320),
+    to_addresses jsonb DEFAULT '[]'::jsonb NOT NULL,
+    cc_addresses jsonb DEFAULT '[]'::jsonb NOT NULL,
+    occurred_at timestamp with time zone NOT NULL,
+    message_id character varying(255),
+    thread_id character varying(255),
+    employee_id uuid,
+    customer_id uuid,
+    lead_id uuid,
+    opportunity_id uuid,
+    contact_id uuid,
+    remarks text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT communication_events_direction_check CHECK (((direction)::text = ANY ((ARRAY['inbound'::character varying, 'outbound'::character varying])::text[]))),
+    CONSTRAINT communication_events_names_a_party_check CHECK (((customer_id IS NOT NULL) OR (lead_id IS NOT NULL) OR (opportunity_id IS NOT NULL) OR (contact_id IS NOT NULL)))
 );
 
 
@@ -478,6 +589,10 @@ CREATE TABLE oryh.customers (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     customer_kind text,
     customer_type text,
+    geo_id uuid,
+    territory_id uuid,
+    owner_employee_id uuid,
+    payment_terms character varying(500),
     CONSTRAINT customers_kind_ck CHECK (((customer_kind IS NULL) OR (customer_kind = ANY (ARRAY['person'::text, 'company'::text])))),
     CONSTRAINT customers_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
@@ -584,6 +699,52 @@ CREATE TABLE oryh.enterprise_pilot_applications (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT enterprise_pilot_applications_status_chk CHECK (((status)::text = ANY ((ARRAY['submitted'::character varying, 'contacted'::character varying, 'accepted'::character varying, 'rejected'::character varying])::text[]))),
     CONSTRAINT enterprise_pilot_applications_weekly_users_chk CHECK (((weekly_active_agent_users IS NULL) OR ((weekly_active_agent_users >= 0) AND (weekly_active_agent_users <= 1000000))))
+);
+
+
+--
+-- Name: event_participants; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.event_participants (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    event_id uuid NOT NULL,
+    employee_id uuid,
+    contact_id uuid,
+    response character varying(50),
+    remarks text,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT event_participants_one_person_check CHECK (((employee_id IS NOT NULL) <> (contact_id IS NOT NULL)))
+);
+
+
+--
+-- Name: events; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.events (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    event_no character varying(64) NOT NULL,
+    subject character varying(200) NOT NULL,
+    event_type character varying(50),
+    employee_id uuid NOT NULL,
+    customer_id uuid,
+    lead_id uuid,
+    opportunity_id uuid,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone,
+    location character varying(300),
+    status character varying(50) DEFAULT 'planned'::character varying NOT NULL,
+    description text,
+    remarks text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -804,6 +965,25 @@ CREATE TABLE oryh.flow_subscriptions (
 
 
 --
+-- Name: geos; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.geos (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    geo_code character varying(64) NOT NULL,
+    name character varying(200) NOT NULL,
+    geo_type character varying(50) NOT NULL,
+    parent_geo_id uuid,
+    abbreviation character varying(50),
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: inventory_item_details; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -956,6 +1136,8 @@ CREATE TABLE oryh.leads (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    campaign_id uuid,
+    geo_id uuid,
     CONSTRAINT leads_names_somebody_check CHECK (((company_name IS NOT NULL) OR (contact_name IS NOT NULL)))
 );
 
@@ -1028,7 +1210,55 @@ CREATE TABLE oryh.opportunities (
     custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    campaign_id uuid,
+    probability integer,
+    lost_reason character varying(50),
+    competitor character varying(200),
+    source character varying(100)
+);
+
+
+--
+-- Name: opportunity_contacts; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.opportunity_contacts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    opportunity_id uuid NOT NULL,
+    contact_id uuid NOT NULL,
+    role character varying(50),
+    is_primary boolean DEFAULT false NOT NULL,
+    remarks text,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: opportunity_items; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.opportunity_items (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    opportunity_id uuid NOT NULL,
+    line_no integer,
+    product_id uuid,
+    sku_id uuid,
+    product_name_snapshot character varying(200),
+    spec character varying(200),
+    quantity numeric(12,2) NOT NULL,
+    unit character varying(50),
+    unit_price numeric(12,2),
+    amount numeric(12,2),
+    notes text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT opportunity_items_names_a_product_check CHECK (((product_id IS NOT NULL) OR (product_name_snapshot IS NOT NULL)))
 );
 
 
@@ -1161,7 +1391,7 @@ CREATE TABLE oryh.pending_registrations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     company_name text NOT NULL,
     email text NOT NULL,
-    email_domain text NOT NULL,
+    email_domain text,
     password_hash text,
     token_hash text,
     expires_at timestamp with time zone NOT NULL,
@@ -1247,6 +1477,18 @@ CREATE TABLE oryh.platform_sessions (
     expires_at timestamp with time zone NOT NULL,
     revoked_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: platform_settings; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.platform_settings (
+    key text NOT NULL,
+    value_jsonb jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by uuid
 );
 
 
@@ -1744,8 +1986,11 @@ CREATE TABLE oryh.sales_orders (
     original_order_id uuid,
     store_id uuid,
     contract_id uuid,
+    supersedes_order_id uuid,
+    opportunity_id uuid,
     CONSTRAINT sales_orders_order_kind_chk CHECK (((order_kind)::text = ANY ((ARRAY['order'::character varying, 'return'::character varying])::text[]))),
     CONSTRAINT sales_orders_original_only_on_returns_check CHECK ((((order_kind)::text = 'return'::text) OR (original_order_id IS NULL))),
+    CONSTRAINT sales_orders_supersedes_only_on_orders_check CHECK ((((order_kind)::text = 'order'::text) OR (supersedes_order_id IS NULL))),
     CONSTRAINT sales_orders_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
 
@@ -1842,6 +2087,7 @@ CREATE TABLE oryh.sales_quotations (
     deleted_at timestamp with time zone,
     deleted_by text,
     delete_reason text,
+    opportunity_id uuid,
     CONSTRAINT sales_quotations_revision_no_chk CHECK ((revision_no >= 1)),
     CONSTRAINT sales_quotations_total_amount_chk CHECK (((total_amount IS NULL) OR (total_amount >= (0)::numeric)))
 );
@@ -2020,7 +2266,60 @@ CREATE TABLE oryh.tenants (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     email_domain text,
     slug character varying(24),
+    flow_runner_enabled boolean DEFAULT true NOT NULL,
     CONSTRAINT tenants_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text])))
+);
+
+
+--
+-- Name: territories; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.territories (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    territory_code character varying(64) NOT NULL,
+    name character varying(200) NOT NULL,
+    parent_territory_id uuid,
+    manager_employee_id uuid,
+    description text,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: territory_geos; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.territory_geos (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    territory_id uuid NOT NULL,
+    geo_id uuid NOT NULL,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: territory_members; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.territory_members (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    territory_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    role character varying(50),
+    valid_from date,
+    valid_until date,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -2093,7 +2392,7 @@ CREATE TABLE oryh.todos (
     todo_type text,
     created_by text,
     due_at timestamp with time zone,
-    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['contract'::text, 'employee_leave'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
+    CONSTRAINT todos_entity_type_chk CHECK ((entity_type = ANY (ARRAY['campaign'::text, 'contract'::text, 'employee_leave'::text, 'event'::text, 'expense_claim'::text, 'invoice'::text, 'lead'::text, 'opportunity'::text, 'payment'::text, 'picklist'::text, 'purchase_order'::text, 'purchase_request'::text, 'sales_order'::text, 'sales_quotation'::text, 'shipment'::text, 'timesheet_header'::text, 'approval_target'::text, 'business_object'::text, 'project'::text]))),
     CONSTRAINT todos_status_chk CHECK ((status = ANY (ARRAY['open'::text, 'completed'::text, 'cancelled'::text])))
 );
 
@@ -2203,6 +2502,14 @@ CREATE TABLE oryh.workflow_definitions (
 --
 
 ALTER TABLE ONLY oryh.audit_logs ALTER COLUMN id SET DEFAULT nextval('oryh.audit_logs_id_seq'::regclass);
+
+
+--
+-- Name: activities activities_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_pkey PRIMARY KEY (id);
 
 
 --
@@ -2326,6 +2633,30 @@ ALTER TABLE ONLY oryh.business_object_links
 
 
 --
+-- Name: campaign_members campaign_members_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaign_members
+    ADD CONSTRAINT campaign_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: campaigns campaigns_campaign_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaigns
+    ADD CONSTRAINT campaigns_campaign_no_uk UNIQUE (tenant_id, campaign_no);
+
+
+--
+-- Name: campaigns campaigns_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaigns
+    ADD CONSTRAINT campaigns_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: capabilities capabilities_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2339,6 +2670,14 @@ ALTER TABLE ONLY oryh.capabilities
 
 ALTER TABLE ONLY oryh.capabilities
     ADD CONSTRAINT capabilities_tenant_name_uk UNIQUE (tenant_id, name);
+
+
+--
+-- Name: communication_events communication_events_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_pkey PRIMARY KEY (id);
 
 
 --
@@ -2470,6 +2809,30 @@ ALTER TABLE ONLY oryh.enterprise_pilot_applications
 
 
 --
+-- Name: event_participants event_participants_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.event_participants
+    ADD CONSTRAINT event_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: events events_event_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_event_no_uk UNIQUE (tenant_id, event_no);
+
+
+--
+-- Name: events events_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: expense_claims expense_claims_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2563,6 +2926,22 @@ ALTER TABLE ONLY oryh.flow_subscriptions
 
 ALTER TABLE ONLY oryh.flow_subscriptions
     ADD CONSTRAINT flow_subscriptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: geos geos_geo_code_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.geos
+    ADD CONSTRAINT geos_geo_code_uk UNIQUE (tenant_id, geo_code);
+
+
+--
+-- Name: geos geos_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.geos
+    ADD CONSTRAINT geos_pkey PRIMARY KEY (id);
 
 
 --
@@ -2670,6 +3049,30 @@ ALTER TABLE ONLY oryh.opportunities
 
 
 --
+-- Name: opportunity_contacts opportunity_contacts_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_contacts
+    ADD CONSTRAINT opportunity_contacts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: opportunity_contacts opportunity_contacts_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_contacts
+    ADD CONSTRAINT opportunity_contacts_uk UNIQUE (tenant_id, opportunity_id, contact_id);
+
+
+--
+-- Name: opportunity_items opportunity_items_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_items
+    ADD CONSTRAINT opportunity_items_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: pay_histories pay_histories_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2771,6 +3174,14 @@ ALTER TABLE ONLY oryh.platform_sessions
 
 ALTER TABLE ONLY oryh.platform_sessions
     ADD CONSTRAINT platform_sessions_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: platform_settings platform_settings_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.platform_settings
+    ADD CONSTRAINT platform_settings_pkey PRIMARY KEY (key);
 
 
 --
@@ -3118,6 +3529,54 @@ ALTER TABLE ONLY oryh.tenants
 
 
 --
+-- Name: territories territories_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territories
+    ADD CONSTRAINT territories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: territories territories_territory_code_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territories
+    ADD CONSTRAINT territories_territory_code_uk UNIQUE (tenant_id, territory_code);
+
+
+--
+-- Name: territory_geos territory_geos_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_geos
+    ADD CONSTRAINT territory_geos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: territory_geos territory_geos_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_geos
+    ADD CONSTRAINT territory_geos_uk UNIQUE (tenant_id, territory_id, geo_id);
+
+
+--
+-- Name: territory_members territory_members_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_members
+    ADD CONSTRAINT territory_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: territory_members territory_members_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_members
+    ADD CONSTRAINT territory_members_uk UNIQUE (tenant_id, territory_id, employee_id);
+
+
+--
 -- Name: timesheet_entries timesheet_entries_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3227,6 +3686,62 @@ ALTER TABLE ONLY oryh.workflow_definitions
 
 ALTER TABLE ONLY oryh.workflow_definitions
     ADD CONSTRAINT workflow_definitions_version_uk UNIQUE (tenant_id, entity_kind, object_type, name, version);
+
+
+--
+-- Name: activities_communication_event_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_communication_event_id_idx ON oryh.activities USING btree (communication_event_id);
+
+
+--
+-- Name: activities_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_contact_id_idx ON oryh.activities USING btree (contact_id);
+
+
+--
+-- Name: activities_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_customer_id_idx ON oryh.activities USING btree (customer_id);
+
+
+--
+-- Name: activities_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_employee_id_idx ON oryh.activities USING btree (employee_id);
+
+
+--
+-- Name: activities_event_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_event_id_idx ON oryh.activities USING btree (event_id);
+
+
+--
+-- Name: activities_lead_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_lead_id_idx ON oryh.activities USING btree (lead_id);
+
+
+--
+-- Name: activities_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_opportunity_id_idx ON oryh.activities USING btree (opportunity_id);
+
+
+--
+-- Name: activities_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX activities_tenant_id_idx ON oryh.activities USING btree (tenant_id);
 
 
 --
@@ -3454,10 +3969,143 @@ CREATE INDEX business_objects_tenant_status_idx ON oryh.business_objects USING b
 
 
 --
+-- Name: campaign_members_campaign_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaign_members_campaign_id_idx ON oryh.campaign_members USING btree (campaign_id);
+
+
+--
+-- Name: campaign_members_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaign_members_contact_id_idx ON oryh.campaign_members USING btree (contact_id);
+
+
+--
+-- Name: campaign_members_contact_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX campaign_members_contact_uk ON oryh.campaign_members USING btree (tenant_id, campaign_id, customer_id, contact_id) WHERE (contact_id IS NOT NULL);
+
+
+--
+-- Name: campaign_members_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaign_members_customer_id_idx ON oryh.campaign_members USING btree (customer_id);
+
+
+--
+-- Name: campaign_members_customer_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX campaign_members_customer_uk ON oryh.campaign_members USING btree (tenant_id, campaign_id, customer_id) WHERE ((customer_id IS NOT NULL) AND (contact_id IS NULL));
+
+
+--
+-- Name: campaign_members_lead_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaign_members_lead_id_idx ON oryh.campaign_members USING btree (lead_id);
+
+
+--
+-- Name: campaign_members_lead_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX campaign_members_lead_uk ON oryh.campaign_members USING btree (tenant_id, campaign_id, lead_id) WHERE (lead_id IS NOT NULL);
+
+
+--
+-- Name: campaign_members_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaign_members_tenant_id_idx ON oryh.campaign_members USING btree (tenant_id);
+
+
+--
+-- Name: campaigns_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaigns_employee_id_idx ON oryh.campaigns USING btree (employee_id);
+
+
+--
+-- Name: campaigns_parent_campaign_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaigns_parent_campaign_id_idx ON oryh.campaigns USING btree (parent_campaign_id);
+
+
+--
+-- Name: campaigns_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX campaigns_tenant_id_idx ON oryh.campaigns USING btree (tenant_id);
+
+
+--
 -- Name: capabilities_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
 CREATE INDEX capabilities_tenant_idx ON oryh.capabilities USING btree (tenant_id);
+
+
+--
+-- Name: communication_events_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_contact_id_idx ON oryh.communication_events USING btree (contact_id);
+
+
+--
+-- Name: communication_events_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_customer_id_idx ON oryh.communication_events USING btree (customer_id);
+
+
+--
+-- Name: communication_events_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_employee_id_idx ON oryh.communication_events USING btree (employee_id);
+
+
+--
+-- Name: communication_events_lead_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_lead_id_idx ON oryh.communication_events USING btree (lead_id);
+
+
+--
+-- Name: communication_events_message_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX communication_events_message_uk ON oryh.communication_events USING btree (tenant_id, message_id) WHERE (message_id IS NOT NULL);
+
+
+--
+-- Name: communication_events_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_opportunity_id_idx ON oryh.communication_events USING btree (opportunity_id);
+
+
+--
+-- Name: communication_events_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_tenant_id_idx ON oryh.communication_events USING btree (tenant_id);
+
+
+--
+-- Name: communication_events_thread_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX communication_events_thread_id_idx ON oryh.communication_events USING btree (thread_id);
 
 
 --
@@ -3615,6 +4263,20 @@ CREATE INDEX customer_products_tenant_idx ON oryh.customer_products USING btree 
 
 
 --
+-- Name: customers_geo_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customers_geo_id_idx ON oryh.customers USING btree (geo_id);
+
+
+--
+-- Name: customers_owner_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customers_owner_employee_id_idx ON oryh.customers USING btree (owner_employee_id);
+
+
+--
 -- Name: customers_tax_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -3640,6 +4302,13 @@ CREATE INDEX customers_tenant_idx ON oryh.customers USING btree (tenant_id, stat
 --
 
 CREATE INDEX customers_tenant_phone_idx ON oryh.customers USING btree (tenant_id, phone);
+
+
+--
+-- Name: customers_territory_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customers_territory_id_idx ON oryh.customers USING btree (territory_id);
 
 
 --
@@ -3689,6 +4358,83 @@ CREATE INDEX enterprise_pilot_applications_domain_idx ON oryh.enterprise_pilot_a
 --
 
 CREATE INDEX enterprise_pilot_applications_status_idx ON oryh.enterprise_pilot_applications USING btree (status);
+
+
+--
+-- Name: event_participants_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX event_participants_contact_id_idx ON oryh.event_participants USING btree (contact_id);
+
+
+--
+-- Name: event_participants_contact_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX event_participants_contact_uk ON oryh.event_participants USING btree (tenant_id, event_id, contact_id) WHERE (contact_id IS NOT NULL);
+
+
+--
+-- Name: event_participants_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX event_participants_employee_id_idx ON oryh.event_participants USING btree (employee_id);
+
+
+--
+-- Name: event_participants_employee_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX event_participants_employee_uk ON oryh.event_participants USING btree (tenant_id, event_id, employee_id) WHERE (employee_id IS NOT NULL);
+
+
+--
+-- Name: event_participants_event_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX event_participants_event_id_idx ON oryh.event_participants USING btree (event_id);
+
+
+--
+-- Name: event_participants_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX event_participants_tenant_id_idx ON oryh.event_participants USING btree (tenant_id);
+
+
+--
+-- Name: events_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX events_customer_id_idx ON oryh.events USING btree (customer_id);
+
+
+--
+-- Name: events_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX events_employee_id_idx ON oryh.events USING btree (employee_id);
+
+
+--
+-- Name: events_lead_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX events_lead_id_idx ON oryh.events USING btree (lead_id);
+
+
+--
+-- Name: events_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX events_opportunity_id_idx ON oryh.events USING btree (opportunity_id);
+
+
+--
+-- Name: events_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX events_tenant_id_idx ON oryh.events USING btree (tenant_id);
 
 
 --
@@ -3878,6 +4624,20 @@ CREATE INDEX flow_subscriptions_parked_idx ON oryh.flow_subscriptions USING btre
 --
 
 CREATE INDEX flow_subscriptions_tenant_idx ON oryh.flow_subscriptions USING btree (tenant_id);
+
+
+--
+-- Name: geos_parent_geo_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX geos_parent_geo_id_idx ON oryh.geos USING btree (parent_geo_id);
+
+
+--
+-- Name: geos_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX geos_tenant_id_idx ON oryh.geos USING btree (tenant_id);
 
 
 --
@@ -4119,6 +4879,13 @@ CREATE INDEX ix_sales_orders_billing_account_id ON oryh.sales_orders USING btree
 
 
 --
+-- Name: leads_campaign_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX leads_campaign_id_idx ON oryh.leads USING btree (campaign_id);
+
+
+--
 -- Name: leads_converted_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4133,6 +4900,13 @@ CREATE INDEX leads_employee_id_idx ON oryh.leads USING btree (employee_id);
 
 
 --
+-- Name: leads_geo_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX leads_geo_id_idx ON oryh.leads USING btree (geo_id);
+
+
+--
 -- Name: leads_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4144,6 +4918,13 @@ CREATE INDEX leads_tenant_id_idx ON oryh.leads USING btree (tenant_id);
 --
 
 CREATE INDEX object_type_definitions_tenant_idx ON oryh.object_type_definitions USING btree (tenant_id, status);
+
+
+--
+-- Name: opportunities_campaign_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunities_campaign_id_idx ON oryh.opportunities USING btree (campaign_id);
 
 
 --
@@ -4172,6 +4953,55 @@ CREATE INDEX opportunities_lead_id_idx ON oryh.opportunities USING btree (lead_i
 --
 
 CREATE INDEX opportunities_tenant_id_idx ON oryh.opportunities USING btree (tenant_id);
+
+
+--
+-- Name: opportunity_contacts_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_contacts_contact_id_idx ON oryh.opportunity_contacts USING btree (contact_id);
+
+
+--
+-- Name: opportunity_contacts_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_contacts_opportunity_id_idx ON oryh.opportunity_contacts USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_contacts_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_contacts_tenant_id_idx ON oryh.opportunity_contacts USING btree (tenant_id);
+
+
+--
+-- Name: opportunity_items_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_items_opportunity_id_idx ON oryh.opportunity_items USING btree (opportunity_id);
+
+
+--
+-- Name: opportunity_items_product_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_items_product_id_idx ON oryh.opportunity_items USING btree (product_id);
+
+
+--
+-- Name: opportunity_items_sku_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_items_sku_id_idx ON oryh.opportunity_items USING btree (sku_id);
+
+
+--
+-- Name: opportunity_items_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunity_items_tenant_id_idx ON oryh.opportunity_items USING btree (tenant_id);
 
 
 --
@@ -4791,6 +5621,13 @@ CREATE INDEX sales_orders_employee_idx ON oryh.sales_orders USING btree (employe
 
 
 --
+-- Name: sales_orders_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_orders_opportunity_id_idx ON oryh.sales_orders USING btree (opportunity_id);
+
+
+--
 -- Name: sales_orders_original_order_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4809,6 +5646,13 @@ CREATE INDEX sales_orders_quotation_idx ON oryh.sales_orders USING btree (quotat
 --
 
 CREATE INDEX sales_orders_store_id_idx ON oryh.sales_orders USING btree (store_id);
+
+
+--
+-- Name: sales_orders_supersedes_order_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_orders_supersedes_order_idx ON oryh.sales_orders USING btree (supersedes_order_id);
 
 
 --
@@ -4858,6 +5702,13 @@ CREATE INDEX sales_quotations_customer_idx ON oryh.sales_quotations USING btree 
 --
 
 CREATE INDEX sales_quotations_employee_idx ON oryh.sales_quotations USING btree (employee_id);
+
+
+--
+-- Name: sales_quotations_opportunity_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX sales_quotations_opportunity_id_idx ON oryh.sales_quotations USING btree (opportunity_id);
 
 
 --
@@ -5029,6 +5880,69 @@ CREATE UNIQUE INDEX tenants_slug_key ON oryh.tenants USING btree (slug);
 
 
 --
+-- Name: territories_manager_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territories_manager_employee_id_idx ON oryh.territories USING btree (manager_employee_id);
+
+
+--
+-- Name: territories_parent_territory_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territories_parent_territory_id_idx ON oryh.territories USING btree (parent_territory_id);
+
+
+--
+-- Name: territories_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territories_tenant_id_idx ON oryh.territories USING btree (tenant_id);
+
+
+--
+-- Name: territory_geos_geo_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_geos_geo_id_idx ON oryh.territory_geos USING btree (geo_id);
+
+
+--
+-- Name: territory_geos_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_geos_tenant_id_idx ON oryh.territory_geos USING btree (tenant_id);
+
+
+--
+-- Name: territory_geos_territory_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_geos_territory_id_idx ON oryh.territory_geos USING btree (territory_id);
+
+
+--
+-- Name: territory_members_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_members_employee_id_idx ON oryh.territory_members USING btree (employee_id);
+
+
+--
+-- Name: territory_members_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_members_tenant_id_idx ON oryh.territory_members USING btree (tenant_id);
+
+
+--
+-- Name: territory_members_territory_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX territory_members_territory_id_idx ON oryh.territory_members USING btree (territory_id);
+
+
+--
 -- Name: timesheet_entries_tenant_employee_date_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5127,6 +6041,62 @@ CREATE INDEX workflow_definitions_tenant_idx ON oryh.workflow_definitions USING 
 
 
 --
+-- Name: activities activities_communication_event_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_communication_event_id_fkey FOREIGN KEY (communication_event_id) REFERENCES oryh.communication_events(id);
+
+
+--
+-- Name: activities activities_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: activities activities_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: activities activities_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: activities activities_event_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_event_id_fkey FOREIGN KEY (event_id) REFERENCES oryh.events(id);
+
+
+--
+-- Name: activities activities_lead_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES oryh.leads(id);
+
+
+--
+-- Name: activities activities_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.activities
+    ADD CONSTRAINT activities_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
 -- Name: api_keys api_keys_tenant_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -5212,6 +6182,94 @@ ALTER TABLE ONLY oryh.business_object_links
 
 ALTER TABLE ONLY oryh.business_object_links
     ADD CONSTRAINT business_object_links_target_object_id_fkey FOREIGN KEY (target_object_id) REFERENCES oryh.business_objects(id);
+
+
+--
+-- Name: campaign_members campaign_members_campaign_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaign_members
+    ADD CONSTRAINT campaign_members_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES oryh.campaigns(id);
+
+
+--
+-- Name: campaign_members campaign_members_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaign_members
+    ADD CONSTRAINT campaign_members_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: campaign_members campaign_members_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaign_members
+    ADD CONSTRAINT campaign_members_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: campaign_members campaign_members_lead_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaign_members
+    ADD CONSTRAINT campaign_members_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES oryh.leads(id);
+
+
+--
+-- Name: campaigns campaigns_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaigns
+    ADD CONSTRAINT campaigns_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: campaigns campaigns_parent_campaign_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.campaigns
+    ADD CONSTRAINT campaigns_parent_campaign_id_fkey FOREIGN KEY (parent_campaign_id) REFERENCES oryh.campaigns(id);
+
+
+--
+-- Name: communication_events communication_events_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: communication_events communication_events_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: communication_events communication_events_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: communication_events communication_events_lead_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES oryh.leads(id);
+
+
+--
+-- Name: communication_events communication_events_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.communication_events
+    ADD CONSTRAINT communication_events_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
 
 
 --
@@ -5319,6 +6377,30 @@ ALTER TABLE ONLY oryh.customer_products
 
 
 --
+-- Name: customers customers_geo_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customers
+    ADD CONSTRAINT customers_geo_id_fkey FOREIGN KEY (geo_id) REFERENCES oryh.geos(id);
+
+
+--
+-- Name: customers customers_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customers
+    ADD CONSTRAINT customers_owner_employee_id_fkey FOREIGN KEY (owner_employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: customers customers_territory_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customers
+    ADD CONSTRAINT customers_territory_id_fkey FOREIGN KEY (territory_id) REFERENCES oryh.territories(id);
+
+
+--
 -- Name: employee_leaves employee_leaves_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -5340,6 +6422,62 @@ ALTER TABLE ONLY oryh.employee_leaves
 
 ALTER TABLE ONLY oryh.enterprise_pilot_applications
     ADD CONSTRAINT enterprise_pilot_applications_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES oryh.platform_admins(id);
+
+
+--
+-- Name: event_participants event_participants_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.event_participants
+    ADD CONSTRAINT event_participants_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: event_participants event_participants_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.event_participants
+    ADD CONSTRAINT event_participants_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: event_participants event_participants_event_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.event_participants
+    ADD CONSTRAINT event_participants_event_id_fkey FOREIGN KEY (event_id) REFERENCES oryh.events(id);
+
+
+--
+-- Name: events events_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: events events_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: events events_lead_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES oryh.leads(id);
+
+
+--
+-- Name: events events_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.events
+    ADD CONSTRAINT events_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
 
 
 --
@@ -5436,6 +6574,14 @@ ALTER TABLE ONLY oryh.flow_runs
 
 ALTER TABLE ONLY oryh.flow_subscriptions
     ADD CONSTRAINT flow_subscriptions_api_key_id_fkey FOREIGN KEY (api_key_id) REFERENCES oryh.api_keys(id);
+
+
+--
+-- Name: geos geos_parent_geo_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.geos
+    ADD CONSTRAINT geos_parent_geo_id_fkey FOREIGN KEY (parent_geo_id) REFERENCES oryh.geos(id);
 
 
 --
@@ -5631,6 +6777,14 @@ ALTER TABLE ONLY oryh.invoices
 
 
 --
+-- Name: leads leads_campaign_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.leads
+    ADD CONSTRAINT leads_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES oryh.campaigns(id);
+
+
+--
 -- Name: leads leads_converted_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -5644,6 +6798,22 @@ ALTER TABLE ONLY oryh.leads
 
 ALTER TABLE ONLY oryh.leads
     ADD CONSTRAINT leads_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: leads leads_geo_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.leads
+    ADD CONSTRAINT leads_geo_id_fkey FOREIGN KEY (geo_id) REFERENCES oryh.geos(id);
+
+
+--
+-- Name: opportunities opportunities_campaign_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunities
+    ADD CONSTRAINT opportunities_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES oryh.campaigns(id);
 
 
 --
@@ -5668,6 +6838,46 @@ ALTER TABLE ONLY oryh.opportunities
 
 ALTER TABLE ONLY oryh.opportunities
     ADD CONSTRAINT opportunities_lead_id_fkey FOREIGN KEY (lead_id) REFERENCES oryh.leads(id);
+
+
+--
+-- Name: opportunity_contacts opportunity_contacts_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_contacts
+    ADD CONSTRAINT opportunity_contacts_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: opportunity_contacts opportunity_contacts_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_contacts
+    ADD CONSTRAINT opportunity_contacts_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
+-- Name: opportunity_items opportunity_items_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_items
+    ADD CONSTRAINT opportunity_items_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
+-- Name: opportunity_items opportunity_items_product_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_items
+    ADD CONSTRAINT opportunity_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES oryh.products(id);
+
+
+--
+-- Name: opportunity_items opportunity_items_sku_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.opportunity_items
+    ADD CONSTRAINT opportunity_items_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
 
 
 --
@@ -5844,6 +7054,14 @@ ALTER TABLE ONLY oryh.picklists
 
 ALTER TABLE ONLY oryh.platform_sessions
     ADD CONSTRAINT platform_sessions_platform_admin_id_fkey FOREIGN KEY (platform_admin_id) REFERENCES oryh.platform_admins(id);
+
+
+--
+-- Name: platform_settings platform_settings_updated_by_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.platform_settings
+    ADD CONSTRAINT platform_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES oryh.platform_admins(id);
 
 
 --
@@ -6175,6 +7393,14 @@ ALTER TABLE ONLY oryh.sales_orders
 
 
 --
+-- Name: sales_orders sales_orders_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_orders
+    ADD CONSTRAINT sales_orders_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
 -- Name: sales_orders sales_orders_original_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -6204,6 +7430,14 @@ ALTER TABLE ONLY oryh.sales_orders
 
 ALTER TABLE ONLY oryh.sales_orders
     ADD CONSTRAINT sales_orders_store_id_fkey FOREIGN KEY (store_id) REFERENCES oryh.stores(id);
+
+
+--
+-- Name: sales_orders sales_orders_supersedes_order_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_orders
+    ADD CONSTRAINT sales_orders_supersedes_order_id_fkey FOREIGN KEY (supersedes_order_id) REFERENCES oryh.sales_orders(id);
 
 
 --
@@ -6268,6 +7502,14 @@ ALTER TABLE ONLY oryh.sales_quotations
 
 ALTER TABLE ONLY oryh.sales_quotations
     ADD CONSTRAINT sales_quotations_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: sales_quotations sales_quotations_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.sales_quotations
+    ADD CONSTRAINT sales_quotations_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
 
 
 --
@@ -6391,6 +7633,54 @@ ALTER TABLE ONLY oryh.tenant_skill_assignments
 
 
 --
+-- Name: territories territories_manager_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territories
+    ADD CONSTRAINT territories_manager_employee_id_fkey FOREIGN KEY (manager_employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: territories territories_parent_territory_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territories
+    ADD CONSTRAINT territories_parent_territory_id_fkey FOREIGN KEY (parent_territory_id) REFERENCES oryh.territories(id);
+
+
+--
+-- Name: territory_geos territory_geos_geo_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_geos
+    ADD CONSTRAINT territory_geos_geo_id_fkey FOREIGN KEY (geo_id) REFERENCES oryh.geos(id);
+
+
+--
+-- Name: territory_geos territory_geos_territory_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_geos
+    ADD CONSTRAINT territory_geos_territory_id_fkey FOREIGN KEY (territory_id) REFERENCES oryh.territories(id);
+
+
+--
+-- Name: territory_members territory_members_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_members
+    ADD CONSTRAINT territory_members_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: territory_members territory_members_territory_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.territory_members
+    ADD CONSTRAINT territory_members_territory_id_fkey FOREIGN KEY (territory_id) REFERENCES oryh.territories(id);
+
+
+--
 -- Name: timesheet_entries timesheet_entries_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -6453,6 +7743,12 @@ ALTER TABLE ONLY oryh.users
 ALTER TABLE ONLY oryh.users
     ADD CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES oryh.tenants(id);
 
+
+--
+-- Name: activities; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.activities ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: api_keys; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -6529,10 +7825,28 @@ ALTER TABLE oryh.business_object_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.business_objects ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: campaign_members; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.campaign_members ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: campaigns; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.campaigns ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: capabilities; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
 ALTER TABLE oryh.capabilities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: communication_events; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.communication_events ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: contract_documents; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -6589,6 +7903,18 @@ ALTER TABLE oryh.employee_leaves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.employees ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: event_participants; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.event_participants ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: events; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.events ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: expense_claims; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -6643,6 +7969,12 @@ ALTER TABLE oryh.flow_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.flow_subscriptions ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: geos; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.geos ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: inventory_item_details; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -6683,6 +8015,18 @@ ALTER TABLE oryh.object_type_definitions ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE oryh.opportunities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_contacts; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.opportunity_contacts ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: opportunity_items; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.opportunity_items ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: pay_histories; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -6919,6 +8263,13 @@ CREATE POLICY tenant_insert ON oryh.users FOR INSERT WITH CHECK ((((tenant_id)::
 
 
 --
+-- Name: activities tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.activities USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: approval_records tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -6982,10 +8333,31 @@ CREATE POLICY tenant_isolation ON oryh.business_objects USING ((((tenant_id)::te
 
 
 --
+-- Name: campaign_members tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.campaign_members USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: campaigns tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.campaigns USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: capabilities tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
 CREATE POLICY tenant_isolation ON oryh.capabilities USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: communication_events tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.communication_events USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -7052,6 +8424,20 @@ CREATE POLICY tenant_isolation ON oryh.employees USING ((((tenant_id)::text = cu
 
 
 --
+-- Name: event_participants tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.event_participants USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: events tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.events USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: expense_claims tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -7101,6 +8487,13 @@ CREATE POLICY tenant_isolation ON oryh.fin_accounts USING ((((tenant_id)::text =
 
 
 --
+-- Name: geos tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.geos USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: inventory_item_details tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -7147,6 +8540,20 @@ CREATE POLICY tenant_isolation ON oryh.object_type_definitions USING ((((tenant_
 --
 
 CREATE POLICY tenant_isolation ON oryh.opportunities USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: opportunity_contacts tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.opportunity_contacts USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: opportunity_items tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.opportunity_items USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -7388,6 +8795,27 @@ CREATE POLICY tenant_isolation ON oryh.tenant_skills USING ((((tenant_id)::text 
 
 
 --
+-- Name: territories tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.territories USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: territory_geos tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.territory_geos USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: territory_members tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.territory_members USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: timesheet_entries tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -7468,6 +8896,24 @@ CREATE POLICY tenant_update ON oryh.api_keys FOR UPDATE USING ((((tenant_id)::te
 
 CREATE POLICY tenant_update ON oryh.users FOR UPDATE USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text)));
 
+
+--
+-- Name: territories; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.territories ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: territory_geos; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.territory_geos ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: territory_members; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.territory_members ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: timesheet_entries; Type: ROW SECURITY; Schema: oryh; Owner: -

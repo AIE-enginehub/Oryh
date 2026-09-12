@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     apply_status_change,
     attachments_for_items,
@@ -154,6 +155,7 @@ def list_timesheet_headers(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "timesheet_header", status_filter)
     stmt = select(TimesheetHeader).where(TimesheetHeader.tenant_id == tenant_id)
@@ -182,6 +184,7 @@ def list_timesheet_headers(
             TimesheetHeader.id.desc(),
         ),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=TimesheetHeaderRead,
     )
 
@@ -561,6 +564,7 @@ def list_expense_claims(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_status_filter(db, tenant_id, "expense_claim", status_filter)
     stmt = select(ExpenseClaim).where(ExpenseClaim.tenant_id == tenant_id)
@@ -586,6 +590,7 @@ def list_expense_claims(
         ),
         order_by=(ExpenseClaim.created_at.desc(), ExpenseClaim.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ExpenseClaimRead,
     )
 

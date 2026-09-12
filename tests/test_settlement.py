@@ -1082,24 +1082,30 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
         [{"applied_to_type": "billing_account", "applied_to_id": account["id"],
           "amount_applied": 20000.0}],
     )
-    post(
-        client, f"/api/v1/billing-accounts/{account['id']}/entries",
-        {"lines": [{"amount": -5000.0, "reason": "charge"}]}, expect=200,
-    )
+    post(client, "/api/v1/object-type-definitions", {
+        "object_type": "acct_adjustment", "state_machine": {
+            "initial": "approved", "states": ["approved"], "transitions": {"approved": []},
+            "account_effect": {"reason": "adjustment", "state": "approved"}}})
+    draw = post(client, "/api/v1/business-objects", {
+        "object_type": "acct_adjustment", "title": "draw", "status": "approved",
+        "payload": {"lines": [{"billing_account_id": account["id"], "amount": -5000.0}]}})
+    post(client, f"/api/v1/business-objects/{draw['id']}/post-entries", {}, expect=200)
     loyalty = post(
         client, "/api/v1/billing-accounts",
         {"name": "会员积分", "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
     )
-    granted = post(
-        client, f"/api/v1/billing-accounts/{loyalty['id']}/entries",
-        {"lines": [{"amount": 300.0, "reason": "earned", "expires_at": "2025-12-31T00:00:00Z"}]},
-        expect=200,
-    )
+    post(client, "/api/v1/object-type-definitions", {
+        "object_type": "acct_earned", "state_machine": {
+            "initial": "approved", "states": ["approved"], "transitions": {"approved": []},
+            "account_effect": {"reason": "earned", "state": "approved"}}})
+    grant = post(client, "/api/v1/business-objects", {
+        "object_type": "acct_earned", "title": "grant", "status": "approved",
+        "payload": {"lines": [{"billing_account_id": loyalty["id"], "amount": 300.0,
+                               "expires_at": "2025-12-31T00:00:00Z"}]}})
+    granted = post(client, f"/api/v1/business-objects/{grant['id']}/post-entries", {}, expect=200)
     post(
-        client, f"/api/v1/billing-accounts/{loyalty['id']}/entries",
-        {"lines": [{"amount": -300.0, "reason": "expired",
-                    "entity_type": "billing_account_entry",
-                    "entity_id": granted["entries"][0]["id"]}]},
+        client, f"/api/v1/billing-accounts/{loyalty['id']}/expire",
+        {"lines": [{"entry_id": granted["lines"][0]["entry_id"], "amount": 300.0}]},
         expect=200,
     )
 

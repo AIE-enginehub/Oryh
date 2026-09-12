@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.services.audit_trail import catalogue_write
 
-from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, SYSTEM_CAPABILITIES
-from app.core.type_options import SYSTEM_TYPE_OPTIONS, system_type_sign
+from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, system_capabilities
+from app.core.type_options import system_type_options, system_type_sign
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
 from app.services.flow_subscriptions import provision_flow_subscriptions
 from app.services.state_machines import (
@@ -25,6 +25,8 @@ from app.services.state_machines import (
     DEFAULT_QUOTATION_MACHINE,
     DEFAULT_SALES_RETURN_MACHINE,
     DEFAULT_CONTRACT_MACHINE,
+    DEFAULT_CAMPAIGN_MACHINE,
+    DEFAULT_EVENT_MACHINE,
     DEFAULT_LEAD_MACHINE,
     DEFAULT_PICKLIST_MACHINE,
     DEFAULT_OPPORTUNITY_MACHINE,
@@ -68,6 +70,12 @@ def read_skill_dir(skill_dir: Path) -> dict[str, str]:
     common_dir = skill_dir.parent / "_common"
     files: dict[str, str] = {}
     for path in sorted(skill_dir.rglob("*")):
+        # Bytecode is not a skill file. Importing a bundled script from a test
+        # or compiling one by hand drops `__pycache__/*.pyc` beside it, and a
+        # reader that took every file then failed the whole provisioning run
+        # on the first byte of a .pyc.
+        if "__pycache__" in path.parts or path.suffix == ".pyc":
+            continue
         if path.is_file():
             content = path.read_text(encoding="utf-8")
             files[str(path.relative_to(skill_dir))] = _expand_includes(content, common_dir)
@@ -326,6 +334,18 @@ BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
         DEFAULT_SHIPMENT_MACHINE,
     ),
     (
+        "campaign",
+        "Campaign",
+        "Lifecycle of marketing campaigns — planned, active, completed/cancelled. What a campaign earned is read from the leads and opportunities that carry its campaign_id, never stored on it; members record who was reached.",
+        DEFAULT_CAMPAIGN_MACHINE,
+    ),
+    (
+        "event",
+        "Event",
+        "Lifecycle of scheduled events — a visit, a meeting, a demo: planned, then held or cancelled (a cancelled one may be re-planned). What was said is an activity logged from the event, not a state of it.",
+        DEFAULT_EVENT_MACHINE,
+    ),
+    (
         "lead",
         "Lead",
         "Lifecycle of sales leads — a potential customer before qualification. `converted` is written by the conversion bridge (/leads/{id}/convert), which creates or names the Customer; rename it via a roles map if you rename the state. `disqualified` may revive to `contacted`.",
@@ -400,7 +420,7 @@ def provision_system_capabilities(db: Session, tenant_id: str) -> int:
         )
     }
     changed = 0
-    for name, scopable, title, description in SYSTEM_CAPABILITIES:
+    for name, scopable, title, description in system_capabilities():
         row = existing.get(name)
         if row is None:
             changed += insert_unless_raced(
@@ -433,7 +453,7 @@ def provision_system_type_options(db: Session, tenant_id: str) -> int:
         )
     }
     changed = 0
-    for family, entries in SYSTEM_TYPE_OPTIONS.items():
+    for family, entries in system_type_options().items():
         for name, title, description in entries:
             # the sign is part of a shipped value's meaning, so it refreshes
             # with the title and description rather than being seeded once

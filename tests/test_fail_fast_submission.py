@@ -153,3 +153,42 @@ def test_one_paging_contract_on_every_list(office) -> None:
     spec = client.get("/openapi.json").json()
     size_param = next(p for p in spec["paths"]["/api/v1/products"]["get"]["parameters"] if p["name"] == "size")
     assert "clamped to 200" in size_param["description"] and "meta.total" in size_param["description"]
+
+
+def test_the_three_sweeps_filter_on_the_server(office) -> None:
+    """Skills used to pull whole collections and filter client-side: every
+    sent quotation to find the expired ones, the whole outbound payment
+    history to find a bank debit's batch, a PO-item query per order line."""
+    client, key, who = office
+    customer = client.post("/api/v1/customers", json={"name": "华东医院"}, headers=key).json()["data"]["id"]
+    for n, valid in (("Q-OLD", "2026-01-31"), ("Q-NEW", "2027-01-31")):
+        q = client.post("/api/v1/sales-quotations", headers=key, json={
+            "employee_id": who, "customer_id": customer, "title": n, "valid_until": valid,
+            "items": [{"product_name_snapshot": "服务", "quantity": 1, "unit_price": 100}],
+        })
+        assert q.status_code == 201, q.text
+    listed = client.get("/api/v1/sales-quotations?valid_before=2026-06-01", headers=key).json()["data"]
+    assert [q["title"] for q in listed] == ["Q-OLD"]
+
+    vendor = client.post("/api/v1/vendors", json={"name": "戴尔"}, headers=key).json()["data"]["id"]
+    for day in ("2026-08-05", "2026-08-25"):
+        p = client.post("/api/v1/payments", headers=key, json={
+            "direction": "outbound", "vendor_id": vendor, "employee_id": who,
+            "amount": 10.0, "payment_date": day, "reference_no": f"REF-{day}",
+        })
+        assert p.status_code == 201, p.text
+    window = client.get(
+        "/api/v1/payments?direction=outbound&payment_date_from=2026-08-01&payment_date_thru=2026-08-10",
+        headers=key,
+    ).json()["data"]
+    assert [p["reference_no"] for p in window] == ["REF-2026-08-05"]
+
+    # the sales_order_id walk answers with nothing for an order with no procurement chain,
+    # and the parameter exists where the order-flow agent reads the contract
+    order = client.post("/api/v1/sales-orders", headers=key, json={
+        "employee_id": who, "customer_id": customer, "title": "SO",
+        "items": [{"product_name_snapshot": "服务", "quantity": 1, "unit_price": 100}],
+    })
+    assert order.status_code == 201, order.text
+    chain = client.get(f"/api/v1/purchase-order-items?sales_order_id={order.json()['data']['id']}", headers=key)
+    assert chain.status_code == 200 and chain.json()["data"] == []

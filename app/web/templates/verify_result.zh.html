@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}公司已开通{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>欢迎，{{ result.tenant.name }}</h1>
+  <p>公司账号已经开通，你已以 <strong>{{ result.user.email }}</strong>（管理员）登录。</p>
+  <div class="notice">
+    <strong>初始访问凭证（只显示这一次，请立即保存）：</strong><br>
+    <code>{{ result.plain_text_api_key }}</code>
+  </div>
+  <p class="muted">这把公司凭证供你们的 AI agent 使用 Oryh。之后可以在「访问凭证」中创建更多公司凭证或个人凭证。</p>
+  <a href="/console/dashboard"><button type="button">进入控制台</button></a>
+</div>
+{% endblock %}

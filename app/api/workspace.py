@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.api.common import (
     MAX_PAGE_SIZE,
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     archive_row,
     commit_or_code_conflict,
@@ -173,6 +174,7 @@ def list_api_keys(
     is_active: bool | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     require_permission(actor, "keys.manage")
     stmt = select(ApiKey).where(ApiKey.tenant_id == actor.tenant_id)
@@ -206,6 +208,7 @@ def list_api_keys(
         filters={ApiKey.user_id: user_id},
         order_by=(ApiKey.created_at.desc(), ApiKey.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         render=render,
     )
 
@@ -383,6 +386,7 @@ def list_projects(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Project).where(Project.tenant_id == tenant_id),
@@ -391,6 +395,7 @@ def list_projects(
         keyword_columns=(Project.project_name,),
         order_by=(Project.created_at.desc(), Project.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=ProjectRead,
     )
 

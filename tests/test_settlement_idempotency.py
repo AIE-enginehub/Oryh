@@ -1,14 +1,12 @@
-"""An idempotency key answers for one request, not for whatever comes next.
+"""An account document posts once; a correction is a second document.
 
-Both settlement paths used to answer a known key by handing back the rows that
-key had already written, without comparing them to what the caller had just
-asked for. So an agent that reused a key across a retry it had EDITED — a
-corrected amount, one more line — got `replayed: true` and a 200, and none of
-its correction happened. Silence exactly where an error was needed.
-
-The 2026-08-16 architecture review's P0-1, item 4. These run on SQLite because
-nothing here is about concurrency: the second call happens after the first has
-committed. The concurrency half lives in `tests/postgres/`.
+The account ledger used to take a direct write with an idempotency key, and
+the key's replay had to be compared against the body (review P0-1, item 4).
+That write is gone: every row outside the payment, expiry and opening doors
+comes from a tenant-defined account document posted from its declared
+state, and the document itself is the idempotency — posting it again is a
+409, editing it after posting changes nothing on the ledger, and a corrected
+amount is a new document.
 """
 
 from __future__ import annotations
@@ -30,69 +28,65 @@ def account(client: TestClient):
         "unit": "CNY", "unit_type": "currency", "credit_limit": 0,
     }, headers=key)
     assert account.status_code == 201, account.text
+    client.post("/api/v1/object-type-definitions", headers=key, json={
+        "object_type": "balance_adjustment", "title": "余额调整单",
+        "state_machine": {"initial": "draft", "states": ["draft", "approved"],
+                          "transitions": {"draft": ["approved"], "approved": []},
+                          "account_effect": {"reason": "adjustment", "state": "approved"}}})
     return {"client": client, "key": key, "id": account.json()["data"]["id"]}
 
 
-def post_entries(account, lines, idempotency_key):
-    return account["client"].post(
-        f"/api/v1/billing-accounts/{account['id']}/entries",
-        json={"lines": lines, "idempotency_key": idempotency_key},
-        headers=account["key"],
-    )
+def document(account, lines, status="approved"):
+    r = account["client"].post("/api/v1/business-objects", headers=account["key"], json={
+        "object_type": "balance_adjustment", "title": "调整", "status": status,
+        "payload": {"lines": [{"billing_account_id": account["id"], **line} for line in lines]}})
+    assert r.status_code == 201, r.text
+    return r.json()["data"]["id"]
+
+
+def post(account, doc_id):
+    return account["client"].post(f"/api/v1/business-objects/{doc_id}/post-entries", headers=account["key"])
 
 
 def balance_of(account) -> float:
-    return account["client"].get(
-        f"/api/v1/billing-accounts/{account['id']}", headers=account["key"]
-    ).json()["data"]["balance"]
+    return float(account["client"].get(f"/api/v1/billing-accounts/{account['id']}",
+                                       headers=account["key"]).json()["data"]["balance"])
 
 
-def test_the_same_key_and_the_same_body_runs_once(account) -> None:
-    first = post_entries(account, [{"amount": 100, "reason": "deposit"}], "key-1")
-    assert first.status_code == 200, first.text
-    assert first.json()["data"]["replayed"] is False
-
-    second = post_entries(account, [{"amount": 100, "reason": "deposit"}], "key-1")
-    assert second.status_code == 200
-    assert second.json()["data"]["replayed"] is True
+def test_a_document_posts_once(account) -> None:
+    doc = document(account, [{"amount": 100.0}])
+    assert post(account, doc).status_code == 200
+    again = post(account, doc)
+    assert again.status_code == 409, again.text
     assert balance_of(account) == 100.0
 
 
-def test_the_same_key_with_a_different_amount_is_refused(account) -> None:
-    """The case that used to return 200 and do nothing."""
-    assert post_entries(account, [{"amount": 100, "reason": "deposit"}], "key-2").status_code == 200
+def test_a_document_posts_only_from_its_declared_state(account) -> None:
+    doc = document(account, [{"amount": 100.0}], status="draft")
+    early = post(account, doc)
+    assert early.status_code == 409 and "approved" in early.json()["detail"]
+    assert balance_of(account) == 0.0
 
-    corrected = post_entries(account, [{"amount": 150, "reason": "deposit"}], "key-2")
-    assert corrected.status_code == 409, corrected.text
-    assert "different set of account entries" in corrected.json()["detail"]
+
+def test_editing_a_posted_document_moves_nothing(account) -> None:
+    doc = document(account, [{"amount": 100.0}])
+    assert post(account, doc).status_code == 200
+    edited = account["client"].patch(f"/api/v1/business-objects/{doc}", headers=account["key"], json={
+        "payload": {"lines": [{"billing_account_id": account["id"], "amount": 150.0}]}})
+    assert edited.status_code == 200, edited.text
+    assert post(account, doc).status_code == 409, "the ledger keeps what was posted"
     assert balance_of(account) == 100.0
 
 
-def test_the_same_key_with_an_extra_line_is_refused(account) -> None:
-    assert post_entries(account, [{"amount": 100, "reason": "deposit"}], "key-3").status_code == 200
-
-    extended = post_entries(account, [
-        {"amount": 100, "reason": "deposit"},
-        {"amount": 50, "reason": "deposit"},
-    ], "key-3")
-    assert extended.status_code == 409
-    assert balance_of(account) == 100.0
+def test_a_correction_is_a_second_document(account) -> None:
+    assert post(account, document(account, [{"amount": 100.0}])).status_code == 200
+    assert post(account, document(account, [{"amount": -100.0, "description": "posted in error"},
+                                           {"amount": 150.0}])).status_code == 200
+    assert balance_of(account) == 150.0
 
 
-def test_a_new_key_applies_the_corrected_request(account) -> None:
-    """The 409 has to leave a way forward, and it is the one the message names."""
-    assert post_entries(account, [{"amount": 100, "reason": "deposit"}], "key-4").status_code == 200
-    assert post_entries(account, [{"amount": 150, "reason": "deposit"}], "key-5").status_code == 200
-    assert balance_of(account) == 250.0
-
-
-def test_no_key_at_all_still_works(account) -> None:
-    """Idempotency is opt-in; two identical unkeyed deposits are two deposits."""
-    for _ in range(2):
-        response = account["client"].post(
-            f"/api/v1/billing-accounts/{account['id']}/entries",
-            json={"lines": [{"amount": 25, "reason": "deposit"}]},
-            headers=account["key"],
-        )
-        assert response.status_code == 200, response.text
-    assert balance_of(account) == 50.0
+def test_the_floor_holds_for_the_whole_document(account) -> None:
+    doc = document(account, [{"amount": 50.0}, {"amount": -80.0}])
+    refused = post(account, doc)
+    assert refused.status_code == 409, refused.text
+    assert balance_of(account) == 0.0, "never half-posted"

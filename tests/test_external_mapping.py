@@ -43,13 +43,20 @@ def channel():
             client.post("/api/v1/sales-channels", headers=admin, json={
                 "channel_code": code, "name": name, "channel_kind": "marketplace"})
 
+        emp = client.post("/api/v1/employees", json={"name": "Seller"},
+                          headers=admin).json()["data"]["id"]
+
         def key_holding(*permissions: str) -> dict:
+            # the order desk's key is the Seller's own: a link on a sales
+            # order follows the order's own-record rule (E-30); an employee
+            # binds to one user, so only that key takes it
             seq["n"] += 1
             role = f"desk{seq['n']}"
             client.post("/api/v1/roles", json={"name": role, "permissions": list(permissions)},
                         headers=admin)
+            who = {"employee_id": emp} if "order.submit_own" in permissions else {}
             uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{role}@channel.example", "role": role},
+                              json={"email": f"{role}@channel.example", "role": role, **who},
                               headers=admin).json()["data"]["id"]
             token = next(l.rsplit("token=", 1)[1].strip()
                          for l in outbox.messages[-1].body.splitlines() if "token=" in l)
@@ -59,8 +66,6 @@ def channel():
                                 headers=admin).json()["data"]["plain_text_api_key"]
             return {"X-API-Key": plain}
 
-        emp = client.post("/api/v1/employees", json={"name": "Seller"},
-                          headers=admin).json()["data"]["id"]
         cust = client.post("/api/v1/customers", json={"name": "Marketplace Buyer"},
                            headers=admin).json()["data"]["id"]
         product_a = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP-1"},
@@ -272,9 +277,13 @@ def test_an_order_link_dedups_and_a_split_is_two_rows(channel) -> None:
     assert retry.status_code == 409, "recording the same link twice is a retry, not a new fact"
     assert created.json()["data"]["id"] in retry.json()["detail"]
 
+    duplicate = client.post("/api/v1/external-document-links", headers=seller,
+                            json={**link, "entity_id": second})
+    assert duplicate.status_code == 409, "the number already became an order of ours (E-02)"
+    assert first in duplicate.json()["detail"]
     split = client.post("/api/v1/external-document-links", headers=seller,
-                        json={**link, "entity_id": second})
-    assert split.status_code == 201, "拆单: one platform order, two of ours — two rows"
+                        json={**link, "entity_id": second, "split": True})
+    assert split.status_code == 201, "拆单 declared: one platform order, two of ours — two rows"
 
     by_number = client.get("/api/v1/external-document-links",
                            params={"source": "Tmall", "external_no": "TM2026082800101"},
@@ -320,13 +329,17 @@ def test_link_authority_follows_the_document(channel) -> None:
         "product_id": channel["product_a"], "facility": "main",
         "initial_quantity": 5}).json()["data"]["id"]
     keeper = channel["key_holding"]("inventory.manage")
-    moved = client.post("/api/v1/inventory-item-details", headers=keeper, json={
-        "inventory_item_id": item, "quantity_on_hand_diff": 1, "reason": "returned",
-        "description": "mystery parcel, later identified"})
-    assert moved.status_code == 201, moved.text
+    parcel = client.post("/api/v1/shipments", headers=keeper, json={
+        "direction": "inbound", "remarks": "mystery parcel, later identified",
+        "items": [{"product_id": channel["product_a"], "quantity": 1, "inventory_item_id": item}]})
+    assert parcel.status_code == 201, parcel.text
+    assert client.post(f"/api/v1/shipments/{parcel.json()['data']['id']}/post-stock",
+                       headers=keeper).status_code == 200
+    moved = client.get("/api/v1/inventory-item-details", headers=keeper,
+                       params={"inventory_item_id": item, "reason": "received"}).json()["data"][0]
     named = client.post("/api/v1/external-document-links", headers=keeper, json={
         "source": "JD", "external_kind": "return", "external_no": "JDR-7788",
-        "entity_type": "inventory_item_detail", "entity_id": moved.json()["data"]["id"]})
+        "entity_type": "inventory_item_detail", "entity_id": moved["id"]})
     assert named.status_code == 201, \
         "identifying the parcel later is a LINK on the frozen ledger row, not an edit"
 

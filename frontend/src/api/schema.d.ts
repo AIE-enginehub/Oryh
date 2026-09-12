@@ -4,6 +4,43 @@
  */
 
 export interface paths {
+    "/api/v1/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Activities */
+        get: operations["list_activities_api_v1_activities_get"];
+        put?: never;
+        /** Create Activity */
+        post: operations["create_activity_api_v1_activities_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Activity */
+        get: operations["get_activity_api_v1_activities__activity_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Activity */
+        delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Activity */
+        patch: operations["update_activity_api_v1_activities__activity_id__patch"];
+        trace?: never;
+    };
     "/api/v1/admin/api-keys/{api_key_id}": {
         parameters: {
             query?: never;
@@ -196,6 +233,30 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/settings/registration-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Get Registration Policy */
+        get: operations["admin_get_registration_policy_api_v1_admin_settings_registration_policy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Admin Update Registration Policy
+         * @description Flip who may self-register. Takes effect on the next request — there is
+         *     no cache to wait out — and applies at both doors, the form and the
+         *     verification click, so turning it back on also stops a personal-mailbox
+         *     request that was submitted while it was off.
+         */
+        patch: operations["admin_update_registration_policy_api_v1_admin_settings_registration_policy_patch"];
         trace?: never;
     };
     "/api/v1/admin/tenants": {
@@ -1021,7 +1082,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/billing-accounts/{account_id}/entries": {
+    "/api/v1/billing-accounts/{account_id}/expire": {
         parameters: {
             query?: never;
             header?: never;
@@ -1031,17 +1092,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Post Billing Account Entries
-         * @description Record movement on an account — the twin of the purchase order's receive
-         *     endpoint and the payment's apply endpoint.
-         *
-         *     What the server guarantees: the balance never falls below the credit line,
-         *     a frozen account takes nothing, the reason is a word this workspace uses,
-         *     and a retry with the same key posts once. What it does NOT do is decide how
-         *     many points a purchase earns or what they are worth — those rules live in
-         *     the tenant's workflow definition, and nothing here converts between units.
+         * Expire Billing Account Entries
+         * @description The expiry sweep's write: each line names an earn batch (`entry_id`)
+         *     and how much of it lapses. The server holds the sweep to its facts — the
+         *     batch is this account's, carried an expiry, has not been expired yet,
+         *     and the amount is at most the batch — and writes the `expired` row
+         *     pointing at the batch, which is what makes a re-run skip it. HOW MUCH of
+         *     a batch survived redemption (FIFO, LIFO, pool) is the workspace's rule;
+         *     the agent applies it and says so. There is no other way to write an
+         *     `expired` row.
          */
-        post: operations["post_billing_account_entries_api_v1_billing_accounts__account_id__entries_post"];
+        post: operations["expire_billing_account_entries_api_v1_billing_accounts__account_id__expire_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1340,6 +1401,175 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/business-objects/{object_id}/post-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Business Object Entries
+         * @description The bridge from a tenant-defined account document to the account
+         *     ledger, once. The type's state machine carries `account_effect:
+         *     {reason, state}`; the object's `payload.lines` carry
+         *     `[{billing_account_id, amount, expires_at?, description?}]` (signed, so
+         *     a 划转单 is a minus line on one account and a plus line on another).
+         *     Posting is allowed only in the declared state; each account's floor and
+         *     status are checked by the same helper the settlement path uses; the
+         *     poster needs `billing_account.post` for each account's unit type. A
+         *     second call is a 409 — a correction is a counter-document.
+         */
+        post: operations["post_business_object_entries_api_v1_business_objects__object_id__post_entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-objects/{object_id}/post-stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Business Object Stock
+         * @description The bridge from a tenant-defined stock document to the ledger, once.
+         *     The object's type definition carries `stock_effect: {reason, state}`;
+         *     the object's `payload.lines` carry `[{inventory_item_id,
+         *     quantity_on_hand_diff, unit_cost?, description?}]` (signed, so a
+         *     调拨单 is one document with a minus line and a plus line). Posting
+         *     is allowed only in the declared state — the tenant's approval, in
+         *     their words — and a second call is a 409: the ledger is append-only,
+         *     a correction is a counter-document.
+         */
+        post: operations["post_business_object_stock_api_v1_business_objects__object_id__post_stock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaign-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Campaign Members */
+        get: operations["list_campaign_members_api_v1_campaign_members_get"];
+        put?: never;
+        /** Create Campaign Member */
+        post: operations["create_campaign_member_api_v1_campaign_members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaign-members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Campaign Member */
+        get: operations["get_campaign_member_api_v1_campaign_members__member_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Campaign Member */
+        delete: operations["delete_campaign_member_api_v1_campaign_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Campaign Member */
+        patch: operations["update_campaign_member_api_v1_campaign_members__member_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Campaigns */
+        get: operations["list_campaigns_api_v1_campaigns_get"];
+        put?: never;
+        /** Create Campaign */
+        post: operations["create_campaign_api_v1_campaigns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Campaign */
+        get: operations["get_campaign_api_v1_campaigns__campaign_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Campaign */
+        delete: operations["delete_campaign_api_v1_campaigns__campaign_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Campaign */
+        patch: operations["update_campaign_api_v1_campaigns__campaign_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Campaign Detail
+         * @description What the campaign produced, counted live: members by status, the
+         *     leads that name it and how many converted, the deals that name it and
+         *     how many were won. `won_expected_amount` is the sum of the won deals'
+         *     estimates — an indication, not revenue; revenue is in the orders.
+         */
+        get: operations["get_campaign_detail_api_v1_campaigns__campaign_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/campaigns/{campaign_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Campaign */
+        post: operations["restore_campaign_api_v1_campaigns__campaign_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capabilities": {
         parameters: {
             query?: never;
@@ -1381,6 +1611,43 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Communication Events */
+        get: operations["list_communication_events_api_v1_communication_events_get"];
+        put?: never;
+        /** Create Communication Event */
+        post: operations["create_communication_event_api_v1_communication_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/communication-events/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Communication Event */
+        get: operations["get_communication_event_api_v1_communication_events__row_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Communication Event */
+        delete: operations["delete_communication_event_api_v1_communication_events__row_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Communication Event */
+        patch: operations["update_communication_event_api_v1_communication_events__row_id__patch"];
         trace?: never;
     };
     "/api/v1/connect-skill": {
@@ -1781,6 +2048,28 @@ export interface paths {
         patch: operations["update_customer_api_v1_customers__customer_id__patch"];
         trace?: never;
     };
+    "/api/v1/customers/{customer_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Customer Detail
+         * @description What a visit brief needs, in one read (F-16): the people, the open
+         *     deals, the last ten contacts, what is scheduled, the last ten messages,
+         *     the recent quotations and orders, and the territory covering it.
+         */
+        get: operations["get_customer_detail_api_v1_customers__customer_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/directory/display-names/resolve": {
         parameters: {
             query?: never;
@@ -1983,6 +2272,121 @@ export interface paths {
         put?: never;
         /** Create Enterprise Pilot Application */
         post: operations["create_enterprise_pilot_application_api_v1_enterprise_pilot_applications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Event Participants */
+        get: operations["list_event_participants_api_v1_event_participants_get"];
+        put?: never;
+        /** Create Event Participant */
+        post: operations["create_event_participant_api_v1_event_participants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event-participants/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event Participant */
+        get: operations["get_event_participant_api_v1_event_participants__row_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Event Participant */
+        delete: operations["delete_event_participant_api_v1_event_participants__row_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Event Participant */
+        patch: operations["update_event_participant_api_v1_event_participants__row_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Events */
+        get: operations["list_events_api_v1_events_get"];
+        put?: never;
+        /** Create Event */
+        post: operations["create_event_api_v1_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event */
+        get: operations["get_event_api_v1_events__event_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Event */
+        delete: operations["delete_event_api_v1_events__event_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Event */
+        patch: operations["update_event_api_v1_events__event_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log Event
+         * @description The event was held: write the activity from it — its subject, its
+         *     time, its customer/lead/deal, the first customer participant — with what
+         *     the person says was said, and move the event to `held`, one
+         *     transaction. An event with no customer-side party is a meeting among
+         *     ourselves and has no activity to log (422).
+         */
+        post: operations["log_event_api_v1_events__event_id__log_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Event */
+        post: operations["restore_event_api_v1_events__event_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2517,6 +2921,107 @@ export interface paths {
         patch: operations["report_driver_state_api_v1_flow_subscriptions__subscription_id__driver_state_patch"];
         trace?: never;
     };
+    "/api/v1/fulfilment-backlog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Fulfilment Backlog
+         * @description Confirmed orders (the tenant's name for that state) with lines the
+         *     warehouse has not fully shipped — the shortage as a fact the flow can
+         *     chase without a promised date or a remark to find it in (E-22, E-27).
+         *     Oldest first. An order whose every line has shipped is not here even
+         *     while its status still says confirmed: advancing it is the flow's step.
+         */
+        get: operations["list_fulfilment_backlog_api_v1_fulfilment_backlog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Geos */
+        get: operations["list_geos_api_v1_geos_get"];
+        put?: never;
+        /** Create Geo */
+        post: operations["create_geo_api_v1_geos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geos/seed-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Geo Template
+         * @description Load a shipped table of places once. Rows whose code already exists
+         *     are left alone, so re-running is harmless.
+         */
+        post: operations["seed_geo_template_api_v1_geos_seed_template_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/geos/{geo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Geo */
+        get: operations["get_geo_api_v1_geos__geo_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Geo */
+        patch: operations["update_geo_api_v1_geos__geo_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/geos/{geo_id}/path": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Geo Path
+         * @description The geo and its ancestors, root first — 中国 / 浙江省 / 杭州市.
+         */
+        get: operations["get_geo_path_api_v1_geos__geo_id__path_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inventory-item-details": {
         parameters: {
             query?: never;
@@ -2527,13 +3032,7 @@ export interface paths {
         /** List Inventory Item Details */
         get: operations["list_inventory_item_details_api_v1_inventory_item_details_get"];
         put?: never;
-        /**
-         * Create Inventory Item Detail
-         * @description Append one movement. Details are immutable — there is no PATCH or
-         *     DELETE; a mistake is corrected by a counter-entry. The item's totals move
-         *     here and only here.
-         */
-        post: operations["create_inventory_item_detail_api_v1_inventory_item_details_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3092,6 +3591,52 @@ export interface paths {
         patch: operations["update_opportunity_api_v1_opportunities__opportunity_id__patch"];
         trace?: never;
     };
+    "/api/v1/opportunities/{opportunity_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Opportunity Detail
+         * @description The deal and everything hanging off it in one read: lines, cast with
+         *     names, the quotations and orders that name it, its campaign.
+         */
+        get: operations["get_opportunity_detail_api_v1_opportunities__opportunity_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunities/{opportunity_id}/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quote Opportunity
+         * @description The one orchestration between the pipeline and the quotation: a draft
+         *     quotation from the deal's own lines, priced from each line's stated
+         *     price, else the customer's agreement, else the catalog — the response
+         *     says which per line — with the deal's primary contact on it and the
+         *     deal moved to its `quoting` state, one transaction. Needs the quoting
+         *     grant as well as the deal: the draft is a quotation like any other.
+         */
+        post: operations["quote_opportunity_api_v1_opportunities__opportunity_id__quote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/opportunities/{opportunity_id}/restore": {
         parameters: {
             query?: never;
@@ -3107,6 +3652,80 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunity-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Opportunity Contacts */
+        get: operations["list_opportunity_contacts_api_v1_opportunity_contacts_get"];
+        put?: never;
+        /** Create Opportunity Contact */
+        post: operations["create_opportunity_contact_api_v1_opportunity_contacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunity-contacts/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Opportunity Contact */
+        get: operations["get_opportunity_contact_api_v1_opportunity_contacts__row_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Opportunity Contact */
+        delete: operations["delete_opportunity_contact_api_v1_opportunity_contacts__row_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Opportunity Contact */
+        patch: operations["update_opportunity_contact_api_v1_opportunity_contacts__row_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/opportunity-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Opportunity Items */
+        get: operations["list_opportunity_items_api_v1_opportunity_items_get"];
+        put?: never;
+        /** Create Opportunity Item */
+        post: operations["create_opportunity_item_api_v1_opportunity_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunity-items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Opportunity Item */
+        get: operations["get_opportunity_item_api_v1_opportunity_items__item_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Opportunity Item */
+        delete: operations["delete_opportunity_item_api_v1_opportunity_items__item_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Opportunity Item */
+        patch: operations["update_opportunity_item_api_v1_opportunity_items__item_id__patch"];
         trace?: never;
     };
     "/api/v1/pay-histories": {
@@ -3705,11 +4324,20 @@ export interface paths {
         };
         /**
          * Match Products By Title
-         * @description Candidates for a platform title, ranked by how much of the title's
-         *     vocabulary each active product's name/code/spec shares. A READ that
-         *     hands the agent a shortlist with scores; which one (if any) the title
-         *     means is the person's confirmation, and the map row that records it
-         *     is what makes the next import skip this call.
+         * @description Candidates for a platform title. A READ that hands the agent a
+         *     shortlist with scores; which one (if any) the title means is the
+         *     person's confirmation, and the map row that records it is what makes
+         *     the next import skip this call.
+         *
+         *     Scoring: the phrases a product (its name, code, spec — and its SKUs'
+         *     codes and variant values) shares with the title, each weighed by how
+         *     RARE it is in this catalog: a phrase every printer carries says little,
+         *     the one phrase only the ribbon carries says almost everything, and a
+         *     spec token that names one SKU (14x17) is as telling as the product's
+         *     own name. `match_score` is the share of the title's catalog-known mass
+         *     the candidate covers, in [0, 1]; `matched_terms` lists the phrases;
+         *     `sku_candidates` names the variants whose own text the title also
+         *     matches, so a spec in the title resolves to a SKU, not just a product.
          */
         get: operations["match_products_by_title_api_v1_product_matches_get"];
         put?: never;
@@ -3979,7 +4607,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Purchase Order Items */
+        /**
+         * List Purchase Order Items
+         * @description `sales_order_id` walks the procurement chain for a whole order at once:
+         *     every PO line whose request line pins one of this order's lines. The
+         *     order-flow agent used to ask per order line, inside a per-order loop.
+         */
         get: operations["list_purchase_order_items_api_v1_purchase_order_items_get"];
         put?: never;
         /** Create Purchase Order Item */
@@ -4668,6 +5301,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sales-orders/{order_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Stock For Order
+         * @description Give a hold back by hand — a cancelled order, a line the customer
+         *     dropped. Without `lines`, every outstanding hold of the order is
+         *     released; with them, exactly those quantities, never more than the
+         *     order still holds at that position (post-stock already released what
+         *     the shipment consumed).
+         */
+        post: operations["release_stock_for_order_api_v1_sales_orders__order_id__release_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-orders/{order_id}/reserve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reserve Stock For Order
+         * @description 占货: hold goods for an order. The ONLY way a `reserved` row enters
+         *     the ledger — an availability fact tied to the order it serves, posted
+         *     by the warehouse from the positions it chooses. Each line names a
+         *     position holding goods the order sells and a quantity; a hold that
+         *     would push available to promise below zero is refused with the
+         *     numbers. Post-stock on the order's shipment consumes the hold itself.
+         */
+        post: operations["reserve_stock_for_order_api_v1_sales_orders__order_id__reserve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales-orders/{order_id}/restore": {
         parameters: {
             query?: never;
@@ -4679,6 +5361,37 @@ export interface paths {
         put?: never;
         /** Restore Sales Order */
         post: operations["restore_sales_order_api_v1_sales_orders__order_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-orders/{order_id}/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revise Sales Order
+         * @description The warehouse cannot ship a confirmed order as written, and the order
+         *     is past its machine's editable states. The tenant's own answer — cancel
+         *     it, raise a new one from it — as one transaction: a fresh draft copied
+         *     from the source (header, lines, adjustments, custom fields, the platform
+         *     numbers it was imported under) that names its source in
+         *     `supersedes_order_id`, while the source moves to the machine's cancelled
+         *     state and releases whatever credit it occupied.
+         *
+         *     An order still in an editable state is edited, not revised (409): the
+         *     revision exists for the case where editing is closed. A return is
+         *     reversed, never revised. An order a shipment already names is partly on
+         *     its way — that is a return or a second parcel, not a replacement.
+         */
+        post: operations["revise_sales_order_api_v1_sales_orders__order_id__revise_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5393,6 +6106,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/territories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Territories */
+        get: operations["list_territories_api_v1_territories_get"];
+        put?: never;
+        /** Create Territory */
+        post: operations["create_territory_api_v1_territories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/territories/{territory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Territory */
+        get: operations["get_territory_api_v1_territories__territory_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Territory */
+        patch: operations["update_territory_api_v1_territories__territory_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/territory-geos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Territory Geos */
+        get: operations["list_territory_geos_api_v1_territory_geos_get"];
+        put?: never;
+        /** Create Territory Geo */
+        post: operations["create_territory_geo_api_v1_territory_geos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/territory-geos/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Territory Geo */
+        get: operations["get_territory_geo_api_v1_territory_geos__row_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Territory Geo */
+        delete: operations["delete_territory_geo_api_v1_territory_geos__row_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/territory-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Territory Members */
+        get: operations["list_territory_members_api_v1_territory_members_get"];
+        put?: never;
+        /** Create Territory Member */
+        post: operations["create_territory_member_api_v1_territory_members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/territory-members/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Territory Member */
+        get: operations["get_territory_member_api_v1_territory_members__row_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Territory Member */
+        delete: operations["delete_territory_member_api_v1_territory_members__row_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Territory Member */
+        patch: operations["update_territory_member_api_v1_territory_members__row_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/territory-resolution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve */
+        get: operations["resolve_api_v1_territory_resolution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/timesheet-entries": {
         parameters: {
             query?: never;
@@ -5845,6 +6684,58 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ActivityRead */
+        ActivityRead: {
+            /** Activity Type */
+            activity_type: string;
+            /** Communication Event Id */
+            communication_event_id?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Content */
+            content?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Event Id */
+            event_id?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Next Action At */
+            next_action_at?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Source Text */
+            source_text?: string | null;
+            /** Subject */
+            subject: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** ApiKeyOwnerRead */
         ApiKeyOwnerRead: {
             /** Email */
@@ -5994,7 +6885,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -6441,12 +7332,18 @@ export interface components {
             customer_type?: string | null;
             /** Email */
             email?: string | null;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
             /** Name */
             name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Payment Terms */
+            payment_terms?: string | null;
             /** Phone */
             phone?: string | null;
             /**
@@ -6457,6 +7354,8 @@ export interface components {
             status: "active" | "archived";
             /** Tax Id */
             tax_id?: string | null;
+            /** Territory Id */
+            territory_id?: string | null;
         };
         /** BulkCustomerUpsertRequest */
         BulkCustomerUpsertRequest: {
@@ -7444,6 +8343,112 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /**
+         * CampaignDetailRead
+         * @description The campaign and what it produced, read live from the leads and
+         *     opportunities that name it — attribution is a count, never a stored
+         *     number. `won_expected_amount` sums the won deals' ESTIMATES: real money
+         *     lives in the orders and invoices those deals produced.
+         */
+        CampaignDetailRead: {
+            campaign: components["schemas"]["CampaignRead"];
+            /** Leads Converted */
+            leads_converted: number;
+            /** Leads Total */
+            leads_total: number;
+            /** Members By Status */
+            members_by_status: {
+                [key: string]: number;
+            };
+            /** Members Total */
+            members_total: number;
+            /** Opportunities Total */
+            opportunities_total: number;
+            /** Opportunities Won */
+            opportunities_won: number;
+            /** Won Expected Amount */
+            won_expected_amount: number;
+        };
+        /** CampaignMemberRead */
+        CampaignMemberRead: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Contact Id */
+            contact_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Member Status */
+            member_status: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Remarks */
+            remarks?: string | null;
+            /** Responded At */
+            responded_at?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CampaignRead */
+        CampaignRead: {
+            /** Actual Cost */
+            actual_cost?: number | null;
+            /** Budget */
+            budget?: number | null;
+            /** Campaign No */
+            campaign_no: string;
+            /** Campaign Type */
+            campaign_type?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Expected Revenue */
+            expected_revenue?: number | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parent Campaign Id */
+            parent_campaign_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** CapabilityCatalog */
         CapabilityCatalog: {
             /** Capabilities */
@@ -7551,6 +8556,60 @@ export interface components {
             outcome_note?: string | null;
             /** Source */
             source?: ("web" | "api" | "ai" | "system") | null;
+        };
+        /** CommunicationEventRead */
+        CommunicationEventRead: {
+            /** Body */
+            body?: string | null;
+            /** Cc Addresses */
+            cc_addresses: string[];
+            /** Channel */
+            channel: string;
+            /** Contact Id */
+            contact_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Direction */
+            direction: string;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** From Address */
+            from_address?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Message Id */
+            message_id?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Subject */
+            subject?: string | null;
+            /** Thread Id */
+            thread_id?: string | null;
+            /** To Addresses */
+            to_addresses: string[];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ConsoleBootstrapData */
         ConsoleBootstrapData: {
@@ -7877,6 +8936,46 @@ export interface components {
             /** Opportunity Title */
             opportunity_title?: string | null;
         };
+        /** CreateActivityRequest */
+        CreateActivityRequest: {
+            /** Activity Type */
+            activity_type: string;
+            /** Communication Event Id */
+            communication_event_id?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Event Id */
+            event_id?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Next Action At */
+            next_action_at?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Source Text */
+            source_text?: string | null;
+            /** Subject */
+            subject: string;
+        };
         /** CreateApiKeyRequest */
         CreateApiKeyRequest: {
             /**
@@ -7916,7 +9015,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -8097,6 +9196,65 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** CreateCampaignMemberRequest */
+        CreateCampaignMemberRequest: {
+            /** Campaign Id */
+            campaign_id: string;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Member Status */
+            member_status?: string | null;
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            };
+            /** Remarks */
+            remarks?: string | null;
+            /** Responded At */
+            responded_at?: string | null;
+        };
+        /** CreateCampaignRequest */
+        CreateCampaignRequest: {
+            /** Actual Cost */
+            actual_cost?: number | null;
+            /** Budget */
+            budget?: number | null;
+            /** Campaign No */
+            campaign_no?: string | null;
+            /** Campaign Type */
+            campaign_type?: string | null;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** End Date */
+            end_date?: string | null;
+            /** Expected Revenue */
+            expected_revenue?: number | null;
+            /** Name */
+            name: string;
+            /** Parent Campaign Id */
+            parent_campaign_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Status */
+            status?: string | null;
+        };
         /** CreateCapabilityRequest */
         CreateCapabilityRequest: {
             /** Description */
@@ -8105,6 +9263,51 @@ export interface components {
             name: string;
             /** Title */
             title?: string | null;
+        };
+        /** CreateCommunicationEventRequest */
+        CreateCommunicationEventRequest: {
+            /** Body */
+            body?: string | null;
+            /** Cc Addresses */
+            cc_addresses?: string[];
+            /** Channel */
+            channel: string;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "inbound" | "outbound";
+            /** Employee Id */
+            employee_id?: string | null;
+            /** From Address */
+            from_address?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Message Id */
+            message_id?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Subject */
+            subject?: string | null;
+            /** Thread Id */
+            thread_id?: string | null;
+            /** To Addresses */
+            to_addresses?: string[];
         };
         /** CreateContractDocumentRequest */
         CreateContractDocumentRequest: {
@@ -8312,12 +9515,18 @@ export interface components {
             customer_type?: string | null;
             /** Email */
             email?: string | null;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
             /** Name */
             name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Payment Terms */
+            payment_terms?: string | null;
             /** Phone */
             phone?: string | null;
             /**
@@ -8328,6 +9537,8 @@ export interface components {
             status: "active" | "archived";
             /** Tax Id */
             tax_id?: string | null;
+            /** Territory Id */
+            territory_id?: string | null;
         };
         /**
          * CreateEmployeeLeaveRequest
@@ -8443,6 +9654,59 @@ export interface components {
             acknowledgement_email_sent: boolean;
             application: components["schemas"]["EnterprisePilotApplicationRead"];
         };
+        /** CreateEventParticipantRequest */
+        CreateEventParticipantRequest: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Event Id */
+            event_id: string;
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            };
+            /** Remarks */
+            remarks?: string | null;
+            /** Response */
+            response?: string | null;
+        };
+        /** CreateEventRequest */
+        CreateEventRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Event No */
+            event_no?: string | null;
+            /** Event Type */
+            event_type?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Status */
+            status?: string | null;
+            /** Subject */
+            subject: string;
+        };
         /** CreateExpenseClaimRequest */
         CreateExpenseClaimRequest: {
             /** Claim Date */
@@ -8530,6 +9794,11 @@ export interface components {
             };
             /** Source */
             source: string;
+            /**
+             * Split
+             * @default false
+             */
+            split: boolean;
         };
         /** CreateExternalProductMapRequest */
         CreateExternalProductMapRequest: {
@@ -8678,39 +9947,28 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** CreateInventoryItemDetailRequest */
-        CreateInventoryItemDetailRequest: {
-            /** Available To Promise Diff */
-            available_to_promise_diff?: number | null;
-            /** Created By */
-            created_by?: string | null;
-            /** Custom Fields */
-            custom_fields?: {
+        /** CreateGeoRequest */
+        CreateGeoRequest: {
+            /** Abbreviation */
+            abbreviation?: string | null;
+            /** Geo Code */
+            geo_code: string;
+            /** Geo Type */
+            geo_type: string;
+            /** Metadata */
+            metadata?: {
                 [key: string]: unknown;
             };
-            /** Description */
-            description?: string | null;
-            /** Effective At */
-            effective_at?: string | null;
-            /** Entity Id */
-            entity_id?: string | null;
-            /** Entity Type */
-            entity_type?: string | null;
-            /** Inventory Item Id */
-            inventory_item_id: string;
-            /** Purchase Order Id */
-            purchase_order_id?: string | null;
-            /** Quantity On Hand Diff */
-            quantity_on_hand_diff: number;
+            /** Name */
+            name: string;
+            /** Parent Geo Id */
+            parent_geo_id?: string | null;
             /**
-             * Reason
+             * Status
+             * @default active
              * @enum {string}
              */
-            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
-            /** Sales Order Id */
-            sales_order_id?: string | null;
-            /** Unit Cost */
-            unit_cost?: number | null;
+            status: "active" | "archived";
         };
         /** CreateInventoryItemRequest */
         CreateInventoryItemRequest: {
@@ -8739,7 +9997,7 @@ export interface components {
              * @default initial
              * @enum {string}
              */
-            initial_reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
+            initial_reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released" | "production";
             /**
              * Lot Id
              * @default
@@ -8883,6 +10141,8 @@ export interface components {
         };
         /** CreateLeadRequest */
         CreateLeadRequest: {
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Company Name */
             company_name?: string | null;
             /** Contact Name */
@@ -8895,6 +10155,8 @@ export interface components {
             email?: string | null;
             /** Employee Id */
             employee_id: string;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Lead No */
             lead_no?: string | null;
             /** Phone */
@@ -8933,8 +10195,61 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CreateOpportunityContactRequest */
+        CreateOpportunityContactRequest: {
+            /** Contact Id */
+            contact_id: string;
+            /**
+             * Is Primary
+             * @default false
+             */
+            is_primary: boolean;
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            };
+            /** Opportunity Id */
+            opportunity_id: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Role */
+            role?: string | null;
+        };
+        /** CreateOpportunityItemRequest */
+        CreateOpportunityItemRequest: {
+            /** Amount */
+            amount?: number | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Opportunity Id */
+            opportunity_id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
         /** CreateOpportunityRequest */
         CreateOpportunityRequest: {
+            /** Campaign Id */
+            campaign_id?: string | null;
+            /** Competitor */
+            competitor?: string | null;
             /**
              * Currency
              * @default CNY
@@ -8956,10 +10271,16 @@ export interface components {
             expected_close_date?: string | null;
             /** Lead Id */
             lead_id?: string | null;
+            /** Lost Reason */
+            lost_reason?: string | null;
             /** Opportunity No */
             opportunity_no?: string | null;
+            /** Probability */
+            probability?: number | null;
             /** Remarks */
             remarks?: string | null;
+            /** Source */
+            source?: string | null;
             /** Status */
             status?: string | null;
             /** Title */
@@ -9693,6 +11014,8 @@ export interface components {
             logistics_company?: string | null;
             /** Logistics Tracking No */
             logistics_tracking_no?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Order Date */
             order_date?: string | null;
             /**
@@ -9818,6 +11141,8 @@ export interface components {
             employee_id: string;
             /** Items */
             items?: components["schemas"]["SalesQuotationItemBase"][];
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
             /** Project Id */
@@ -10046,6 +11371,57 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CreateTerritoryGeoRequest */
+        CreateTerritoryGeoRequest: {
+            /** Geo Id */
+            geo_id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Territory Id */
+            territory_id: string;
+        };
+        /** CreateTerritoryMemberRequest */
+        CreateTerritoryMemberRequest: {
+            /** Employee Id */
+            employee_id: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Role */
+            role?: string | null;
+            /** Territory Id */
+            territory_id: string;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /** CreateTerritoryRequest */
+        CreateTerritoryRequest: {
+            /** Description */
+            description?: string | null;
+            /** Manager Employee Id */
+            manager_employee_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Territory Id */
+            parent_territory_id?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Territory Code */
+            territory_code: string;
+        };
         /** CreateTimesheetEntryRequest */
         CreateTimesheetEntryRequest: {
             /** Client */
@@ -10120,7 +11496,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -10232,6 +11608,30 @@ export interface components {
             /** Wechat */
             wechat?: string | null;
         };
+        /**
+         * CustomerDetailRead
+         * @description The customer with what a visit brief needs in one read: its people,
+         *     its open deals, the last contacts with it, what is scheduled, the last
+         *     messages, and its recent quotations and orders (F-16).
+         */
+        CustomerDetailRead: {
+            /** Activities */
+            activities: components["schemas"]["ActivityRead"][];
+            /** Communications */
+            communications: components["schemas"]["CommunicationEventRead"][];
+            /** Contacts */
+            contacts: components["schemas"]["CustomerContactRead"][];
+            customer: components["schemas"]["CustomerRead"];
+            /** Events */
+            events: components["schemas"]["EventRead"][];
+            /** Opportunities */
+            opportunities: components["schemas"]["OpportunityRead"][];
+            /** Orders */
+            orders: components["schemas"]["SalesOrderRead"][];
+            /** Quotations */
+            quotations: components["schemas"]["SalesQuotationRead"][];
+            territory?: components["schemas"]["TerritoryRead"] | null;
+        };
         /** CustomerProductRead */
         CustomerProductRead: {
             /** Agreed Price */
@@ -10293,6 +11693,8 @@ export interface components {
             customer_type?: string | null;
             /** Email */
             email?: string | null;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Id */
             id: string;
             /** Metadata */
@@ -10301,6 +11703,10 @@ export interface components {
             };
             /** Name */
             name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Payment Terms */
+            payment_terms?: string | null;
             /** Phone */
             phone?: string | null;
             /**
@@ -10310,6 +11716,8 @@ export interface components {
             status: "active" | "archived";
             /** Tax Id */
             tax_id?: string | null;
+            /** Territory Id */
+            territory_id?: string | null;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -10582,6 +11990,11 @@ export interface components {
             /** Total */
             total?: number | null;
         };
+        /** Envelope[ActivityRead] */
+        Envelope_ActivityRead_: {
+            data: components["schemas"]["ActivityRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ApiKeyRead] */
         Envelope_ApiKeyRead_: {
             data: components["schemas"]["ApiKeyRead"];
@@ -10662,6 +12075,21 @@ export interface components {
             data: components["schemas"]["BusinessObjectRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[CampaignDetailRead] */
+        Envelope_CampaignDetailRead_: {
+            data: components["schemas"]["CampaignDetailRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[CampaignMemberRead] */
+        Envelope_CampaignMemberRead_: {
+            data: components["schemas"]["CampaignMemberRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[CampaignRead] */
+        Envelope_CampaignRead_: {
+            data: components["schemas"]["CampaignRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[CapabilityCatalog] */
         Envelope_CapabilityCatalog_: {
             data: components["schemas"]["CapabilityCatalog"];
@@ -10670,6 +12098,11 @@ export interface components {
         /** Envelope[CapabilityRead] */
         Envelope_CapabilityRead_: {
             data: components["schemas"]["CapabilityRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[CommunicationEventRead] */
+        Envelope_CommunicationEventRead_: {
+            data: components["schemas"]["CommunicationEventRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ContractDocumentRead] */
@@ -10712,6 +12145,11 @@ export interface components {
             data: components["schemas"]["CustomerContactRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[CustomerDetailRead] */
+        Envelope_CustomerDetailRead_: {
+            data: components["schemas"]["CustomerDetailRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[CustomerProductRead] */
         Envelope_CustomerProductRead_: {
             data: components["schemas"]["CustomerProductRead"];
@@ -10735,6 +12173,16 @@ export interface components {
         /** Envelope[EmployeeRead] */
         Envelope_EmployeeRead_: {
             data: components["schemas"]["EmployeeRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[EventParticipantRead] */
+        Envelope_EventParticipantRead_: {
+            data: components["schemas"]["EventParticipantRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[EventRead] */
+        Envelope_EventRead_: {
+            data: components["schemas"]["EventRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ExpenseClaimDetailRead] */
@@ -10782,9 +12230,9 @@ export interface components {
             data: components["schemas"]["FlowSubscriptionRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
-        /** Envelope[InventoryItemDetailRead] */
-        Envelope_InventoryItemDetailRead_: {
-            data: components["schemas"]["InventoryItemDetailRead"];
+        /** Envelope[GeoRead] */
+        Envelope_GeoRead_: {
+            data: components["schemas"]["GeoRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[InventoryItemRead] */
@@ -10825,6 +12273,21 @@ export interface components {
         /** Envelope[ObjectTypeDefinitionRead] */
         Envelope_ObjectTypeDefinitionRead_: {
             data: components["schemas"]["ObjectTypeDefinitionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[OpportunityContactRead] */
+        Envelope_OpportunityContactRead_: {
+            data: components["schemas"]["OpportunityContactRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[OpportunityDetailRead] */
+        Envelope_OpportunityDetailRead_: {
+            data: components["schemas"]["OpportunityDetailRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[OpportunityItemRead] */
+        Envelope_OpportunityItemRead_: {
+            data: components["schemas"]["OpportunityItemRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[OpportunityRead] */
@@ -10885,6 +12348,16 @@ export interface components {
         /** Envelope[PostBillingAccountEntriesResult] */
         Envelope_PostBillingAccountEntriesResult_: {
             data: components["schemas"]["PostBillingAccountEntriesResult"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[PostObjectEntriesRead] */
+        Envelope_PostObjectEntriesRead_: {
+            data: components["schemas"]["PostObjectEntriesRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[PostObjectStockRead] */
+        Envelope_PostObjectStockRead_: {
+            data: components["schemas"]["PostObjectStockRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[PostShipmentStockRead] */
@@ -10997,6 +12470,11 @@ export interface components {
             data: components["schemas"]["SalesOrderDetailRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[SalesOrderItemRead] */
+        Envelope_SalesOrderItemRead_: {
+            data: components["schemas"]["SalesOrderItemRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[SalesQuotationAdjustmentRead] */
         Envelope_SalesQuotationAdjustmentRead_: {
             data: components["schemas"]["SalesQuotationAdjustmentRead"];
@@ -11005,6 +12483,11 @@ export interface components {
         /** Envelope[SalesQuotationDetailRead] */
         Envelope_SalesQuotationDetailRead_: {
             data: components["schemas"]["SalesQuotationDetailRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[SalesQuotationItemRead] */
+        Envelope_SalesQuotationItemRead_: {
+            data: components["schemas"]["SalesQuotationItemRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ShipmentItemRead] */
@@ -11032,6 +12515,11 @@ export interface components {
             data: components["schemas"]["SkillReachRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[StockReservationRead] */
+        Envelope_StockReservationRead_: {
+            data: components["schemas"]["StockReservationRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[StoreFacilityRead] */
         Envelope_StoreFacilityRead_: {
             data: components["schemas"]["StoreFacilityRead"];
@@ -11050,6 +12538,26 @@ export interface components {
         /** Envelope[TenantSkillRead] */
         Envelope_TenantSkillRead_: {
             data: components["schemas"]["TenantSkillRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[TerritoryGeoRead] */
+        Envelope_TerritoryGeoRead_: {
+            data: components["schemas"]["TerritoryGeoRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[TerritoryMemberRead] */
+        Envelope_TerritoryMemberRead_: {
+            data: components["schemas"]["TerritoryMemberRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[TerritoryRead] */
+        Envelope_TerritoryRead_: {
+            data: components["schemas"]["TerritoryRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[TerritoryResolutionRead] */
+        Envelope_TerritoryResolutionRead_: {
+            data: components["schemas"]["TerritoryResolutionRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[TodoRead] */
@@ -11081,6 +12589,83 @@ export interface components {
         Envelope_WorkflowDefinitionRead_: {
             data: components["schemas"]["WorkflowDefinitionRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** EventParticipantRead */
+        EventParticipantRead: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Event Id */
+            event_id: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Remarks */
+            remarks?: string | null;
+            /** Response */
+            response?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EventRead */
+        EventRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Event No */
+            event_no: string;
+            /** Event Type */
+            event_type?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Status */
+            status: string;
+            /** Subject */
+            subject: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** ExpenseClaimDetailRead */
         ExpenseClaimDetailRead: {
@@ -11233,6 +12818,20 @@ export interface components {
             vendor_id?: string | null;
             /** Vendor Name */
             vendor_name?: string | null;
+        };
+        /** ExpireBillingAccountEntriesRequest */
+        ExpireBillingAccountEntriesRequest: {
+            /** Lines */
+            lines: components["schemas"]["ExpireBillingAccountEntryLine"][];
+        };
+        /** ExpireBillingAccountEntryLine */
+        ExpireBillingAccountEntryLine: {
+            /** Amount */
+            amount: number;
+            /** Description */
+            description?: string | null;
+            /** Entry Id */
+            entry_id: string;
         };
         /**
          * ExpiringBillingAccountEntriesRead
@@ -11533,6 +13132,93 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /**
+         * FulfilmentBacklogRowRead
+         * @description A confirmed order the warehouse has not fully shipped — the
+         *     structured shortage the flow chases (E-22/E-27), with or without a
+         *     promised date.
+         */
+        FulfilmentBacklogRowRead: {
+            /** Customer Name Snapshot */
+            customer_name_snapshot?: string | null;
+            /** Days Waiting */
+            days_waiting: number;
+            /** Employee Id */
+            employee_id: string;
+            /** Lines */
+            lines: components["schemas"]["FulfilmentLineRead"][];
+            /** Open Todo Count */
+            open_todo_count: number;
+            /** Order Id */
+            order_id: string;
+            /** Order No */
+            order_no: string;
+            /** Promised Date */
+            promised_date?: string | null;
+            /** Shipments Posted */
+            shipments_posted: number;
+            /** Status */
+            status: string;
+            /** Store Id */
+            store_id?: string | null;
+            /** Submitted At */
+            submitted_at?: string | null;
+        };
+        /**
+         * FulfilmentLineRead
+         * @description One order line against what has left the warehouse for it: shipped
+         *     is the sum of posted outbound shipment lines for the same product and
+         *     SKU, allocated to order lines in line order when several share one.
+         */
+        FulfilmentLineRead: {
+            /** Line No */
+            line_no?: number | null;
+            /** Order Item Id */
+            order_item_id: string;
+            /** Ordered */
+            ordered: number;
+            /** Outstanding */
+            outstanding: number;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Shipped */
+            shipped: number;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** GeoRead */
+        GeoRead: {
+            /** Abbreviation */
+            abbreviation?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Geo Code */
+            geo_code: string;
+            /** Geo Type */
+            geo_type: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Geo Id */
+            parent_geo_id?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -11578,7 +13264,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released";
+            reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released" | "production";
             /** Sales Order Id */
             sales_order_id?: string | null;
             /** Unit Cost */
@@ -12101,6 +13787,8 @@ export interface components {
         };
         /** LeadRead */
         LeadRead: {
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Company Name */
             company_name?: string | null;
             /** Contact Name */
@@ -12120,6 +13808,8 @@ export interface components {
             email?: string | null;
             /** Employee Id */
             employee_id: string;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Id */
             id: string;
             /** Lead No */
@@ -12197,6 +13887,12 @@ export interface components {
             /** Unit Price */
             unit_price?: number | null;
         };
+        /** ListEnvelope[ActivityRead] */
+        ListEnvelope_ActivityRead_: {
+            /** Data */
+            data: components["schemas"]["ActivityRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ApiKeyOwnerRead] */
         ListEnvelope_ApiKeyOwnerRead_: {
             /** Data */
@@ -12263,6 +13959,24 @@ export interface components {
             data: components["schemas"]["BusinessObjectRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[CampaignMemberRead] */
+        ListEnvelope_CampaignMemberRead_: {
+            /** Data */
+            data: components["schemas"]["CampaignMemberRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CampaignRead] */
+        ListEnvelope_CampaignRead_: {
+            /** Data */
+            data: components["schemas"]["CampaignRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CommunicationEventRead] */
+        ListEnvelope_CommunicationEventRead_: {
+            /** Data */
+            data: components["schemas"]["CommunicationEventRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ContractDocumentRead] */
         ListEnvelope_ContractDocumentRead_: {
             /** Data */
@@ -12323,6 +14037,18 @@ export interface components {
             data: components["schemas"]["EnterprisePilotApplicationRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[EventParticipantRead] */
+        ListEnvelope_EventParticipantRead_: {
+            /** Data */
+            data: components["schemas"]["EventParticipantRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[EventRead] */
+        ListEnvelope_EventRead_: {
+            /** Data */
+            data: components["schemas"]["EventRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ExpenseClaimRead] */
         ListEnvelope_ExpenseClaimRead_: {
             /** Data */
@@ -12371,6 +14097,18 @@ export interface components {
             data: components["schemas"]["FlowSubscriptionRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[FulfilmentBacklogRowRead] */
+        ListEnvelope_FulfilmentBacklogRowRead_: {
+            /** Data */
+            data: components["schemas"]["FulfilmentBacklogRowRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[GeoRead] */
+        ListEnvelope_GeoRead_: {
+            /** Data */
+            data: components["schemas"]["GeoRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[InventoryItemDetailRead] */
         ListEnvelope_InventoryItemDetailRead_: {
             /** Data */
@@ -12411,6 +14149,18 @@ export interface components {
         ListEnvelope_ObjectTypeDefinitionRead_: {
             /** Data */
             data: components["schemas"]["ObjectTypeDefinitionRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[OpportunityContactRead] */
+        ListEnvelope_OpportunityContactRead_: {
+            /** Data */
+            data: components["schemas"]["OpportunityContactRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[OpportunityItemRead] */
+        ListEnvelope_OpportunityItemRead_: {
+            /** Data */
+            data: components["schemas"]["OpportunityItemRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[OpportunityRead] */
@@ -12551,6 +14301,12 @@ export interface components {
             data: components["schemas"]["SalesOrderAdjustmentRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[SalesOrderItemRead] */
+        ListEnvelope_SalesOrderItemRead_: {
+            /** Data */
+            data: components["schemas"]["SalesOrderItemRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[SalesOrderRead] */
         ListEnvelope_SalesOrderRead_: {
             /** Data */
@@ -12561,6 +14317,12 @@ export interface components {
         ListEnvelope_SalesQuotationAdjustmentRead_: {
             /** Data */
             data: components["schemas"]["SalesQuotationAdjustmentRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[SalesQuotationItemRead] */
+        ListEnvelope_SalesQuotationItemRead_: {
+            /** Data */
+            data: components["schemas"]["SalesQuotationItemRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[SalesQuotationRead] */
@@ -12605,6 +14367,24 @@ export interface components {
             data: components["schemas"]["TenantSkillSummary"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[TerritoryGeoRead] */
+        ListEnvelope_TerritoryGeoRead_: {
+            /** Data */
+            data: components["schemas"]["TerritoryGeoRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[TerritoryMemberRead] */
+        ListEnvelope_TerritoryMemberRead_: {
+            /** Data */
+            data: components["schemas"]["TerritoryMemberRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[TerritoryRead] */
+        ListEnvelope_TerritoryRead_: {
+            /** Data */
+            data: components["schemas"]["TerritoryRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[TimesheetHeaderRead] */
         ListEnvelope_TimesheetHeaderRead_: {
             /** Data */
@@ -12640,6 +14420,24 @@ export interface components {
             /** Data */
             data: components["schemas"]["WorkflowDefinitionRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /**
+         * LogEventRequest
+         * @description What the held event produced, for the activity logged from it.
+         */
+        LogEventRequest: {
+            /** Content */
+            content?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Next Action At */
+            next_action_at?: string | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Source Text */
+            source_text?: string | null;
+            /** Subject */
+            subject?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -12730,10 +14528,145 @@ export interface components {
              */
             trigger: "cadence" | "signal" | "manual";
         };
+        /** OpportunityContactDetailRead */
+        OpportunityContactDetailRead: {
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Id */
+            contact_id: string;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Contact Title */
+            contact_title?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Opportunity Id */
+            opportunity_id: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Role */
+            role?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** OpportunityContactRead */
+        OpportunityContactRead: {
+            /** Contact Id */
+            contact_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Primary */
+            is_primary: boolean;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Opportunity Id */
+            opportunity_id: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Role */
+            role?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * OpportunityDetailRead
+         * @description The deal with everything that hangs off it in one read: its lines,
+         *     its cast (with names), the quotations and orders that name it — which
+         *     is where its money actually is — and the record of contact (F-16).
+         */
+        OpportunityDetailRead: {
+            /** Activities */
+            activities?: components["schemas"]["ActivityRead"][];
+            campaign?: components["schemas"]["CampaignRead"] | null;
+            /** Communications */
+            communications?: components["schemas"]["CommunicationEventRead"][];
+            /** Contacts */
+            contacts: components["schemas"]["OpportunityContactDetailRead"][];
+            /** Events */
+            events?: components["schemas"]["EventRead"][];
+            /** Items */
+            items: components["schemas"]["OpportunityItemRead"][];
+            opportunity: components["schemas"]["OpportunityRead"];
+            /** Orders */
+            orders: components["schemas"]["SalesOrderRead"][];
+            /** Quotations */
+            quotations: components["schemas"]["SalesQuotationRead"][];
+        };
+        /** OpportunityItemRead */
+        OpportunityItemRead: {
+            /** Amount */
+            amount?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Opportunity Id */
+            opportunity_id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** OpportunityRead */
         OpportunityRead: {
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Closed At */
             closed_at?: string | null;
+            /** Competitor */
+            competitor?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -12759,10 +14692,16 @@ export interface components {
             id: string;
             /** Lead Id */
             lead_id?: string | null;
+            /** Lost Reason */
+            lost_reason?: string | null;
             /** Opportunity No */
             opportunity_no: string;
+            /** Probability */
+            probability?: number | null;
             /** Remarks */
             remarks?: string | null;
+            /** Source */
+            source?: string | null;
             /** Status */
             status: string;
             /** Title */
@@ -13006,7 +14945,7 @@ export interface components {
             /** Email */
             email: string;
             /** Email Domain */
-            email_domain: string;
+            email_domain?: string | null;
             /**
              * Expires At
              * Format: date-time
@@ -13181,13 +15120,6 @@ export interface components {
             /** Visibility */
             visibility: string;
         };
-        /** PostBillingAccountEntriesRequest */
-        PostBillingAccountEntriesRequest: {
-            /** Idempotency Key */
-            idempotency_key?: string | null;
-            /** Lines */
-            lines: components["schemas"]["PostBillingAccountEntryLine"][];
-        };
         /** PostBillingAccountEntriesResult */
         PostBillingAccountEntriesResult: {
             /** Available Amount */
@@ -13196,28 +15128,34 @@ export interface components {
             balance: number;
             /** Entries */
             entries: components["schemas"]["BillingAccountEntryRead"][];
-            /**
-             * Replayed
-             * @default false
-             */
-            replayed: boolean;
         };
-        /** PostBillingAccountEntryLine */
-        PostBillingAccountEntryLine: {
-            /** Amount */
-            amount: number;
-            /** Description */
-            description?: string | null;
-            /** Effective At */
-            effective_at?: string | null;
-            /** Entity Id */
-            entity_id?: string | null;
-            /** Entity Type */
-            entity_type?: string | null;
-            /** Expires At */
-            expires_at?: string | null;
+        /** PostObjectEntriesRead */
+        PostObjectEntriesRead: {
+            /**
+             * Entries Posted At
+             * Format: date-time
+             */
+            entries_posted_at: string;
+            /** Lines */
+            lines: components["schemas"]["PostedObjectEntryLineRead"][];
+            /** Object Id */
+            object_id: string;
             /** Reason */
             reason: string;
+        };
+        /** PostObjectStockRead */
+        PostObjectStockRead: {
+            /** Lines */
+            lines: components["schemas"]["PostedObjectStockLineRead"][];
+            /** Object Id */
+            object_id: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Stock Posted At
+             * Format: date-time
+             */
+            stock_posted_at: string;
         };
         /** PostShipmentStockRead */
         PostShipmentStockRead: {
@@ -13230,6 +15168,28 @@ export interface components {
              * Format: date-time
              */
             stock_posted_at: string;
+        };
+        /** PostedObjectEntryLineRead */
+        PostedObjectEntryLineRead: {
+            /** Amount */
+            amount: number;
+            /** Balance */
+            balance: number;
+            /** Billing Account Id */
+            billing_account_id: string;
+            /** Entry Id */
+            entry_id: string;
+        };
+        /** PostedObjectStockLineRead */
+        PostedObjectStockLineRead: {
+            /** Detail Id */
+            detail_id: string;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Quantity On Hand */
+            quantity_on_hand: number;
+            /** Quantity On Hand Diff */
+            quantity_on_hand_diff: number;
         };
         /** PostedStockLineRead */
         PostedStockLineRead: {
@@ -14057,6 +16017,27 @@ export interface components {
             /** Quote Total */
             quote_total: number;
         };
+        /**
+         * QuoteOpportunityRequest
+         * @description The quote bridge's few choices: the draft's title (the deal's by
+         *     default), its dates and terms. Lines come from the opportunity's own
+         *     items; prices from each line's `unit_price`, else the customer's
+         *     agreement, else the catalog — and the response says which.
+         */
+        QuoteOpportunityRequest: {
+            /** Delivery Terms */
+            delivery_terms?: string | null;
+            /** Payment Terms */
+            payment_terms?: string | null;
+            /** Quote Date */
+            quote_date?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
         /** ReceivePurchaseOrderLine */
         ReceivePurchaseOrderLine: {
             /** Bin Number */
@@ -14102,6 +16083,24 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** RegistrationPolicyEnvelope */
+        RegistrationPolicyEnvelope: {
+            data: components["schemas"]["RegistrationPolicyRead"];
+        };
+        /**
+         * RegistrationPolicyRead
+         * @description The service-wide switch on who may self-register. On, only a corporate
+         *     mailbox may open a company; off, any deliverable address may, and a
+         *     personal one claims no company domain.
+         */
+        RegistrationPolicyRead: {
+            /** Require Corporate Email */
+            require_corporate_email: boolean;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Updated By */
+            updated_by?: string | null;
+        };
         /** RegistrationVerificationResponse */
         RegistrationVerificationResponse: {
             /** Message */
@@ -14112,6 +16111,13 @@ export interface components {
         RejectRegistrationRequest: {
             /** Reason */
             reason: string;
+        };
+        /** ReleaseStockRequest */
+        ReleaseStockRequest: {
+            /** Description */
+            description?: string | null;
+            /** Lines */
+            lines?: components["schemas"]["ReserveStockLine"][] | null;
         };
         /**
          * RepealPolicyRequest
@@ -14169,6 +16175,24 @@ export interface components {
              * @enum {string}
              */
             visibility: "internal" | "restricted" | "public";
+        };
+        /** ReserveStockLine */
+        ReserveStockLine: {
+            /** Description */
+            description?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Order Item Id */
+            order_item_id?: string | null;
+            /** Quantity */
+            quantity: number;
+        };
+        /** ReserveStockRequest */
+        ReserveStockRequest: {
+            /** Description */
+            description?: string | null;
+            /** Lines */
+            lines: components["schemas"]["ReserveStockLine"][];
         };
         /** ResourceBookingRead */
         ResourceBookingRead: {
@@ -14313,6 +16337,11 @@ export interface components {
             registration: components["schemas"]["PendingRegistrationRead"];
             tenant?: components["schemas"]["TenantRead"] | null;
         };
+        /** ReviseSalesOrderRequest */
+        ReviseSalesOrderRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
         /** ReviseSalesQuotationRequest */
         ReviseSalesQuotationRequest: {
             /** Reason */
@@ -14425,6 +16454,8 @@ export interface components {
             attachments: components["schemas"]["AttachmentRead"][];
             /** Computed Total */
             computed_total: number;
+            /** Fulfilment */
+            fulfilment: components["schemas"]["FulfilmentLineRead"][];
             /** Items */
             items: components["schemas"]["SalesOrderItemDetailRead"][];
             order: components["schemas"]["SalesOrderRead"];
@@ -14432,6 +16463,7 @@ export interface components {
             pending_sku_count: number;
             quotation?: components["schemas"]["SalesQuotationRead"] | null;
             quote_drift?: components["schemas"]["QuoteDriftRead"] | null;
+            superseded_by?: components["schemas"]["SalesOrderRead"] | null;
             /** Unpriced Item Count */
             unpriced_item_count: number;
         };
@@ -14537,6 +16569,54 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** SalesOrderItemRead */
+        SalesOrderItemRead: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /** Is Gift */
+            is_gift: boolean;
+            /** Line No */
+            line_no?: number | null;
+            /** List Price Snapshot */
+            list_price_snapshot?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Order Id */
+            order_id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Promised Date */
+            promised_date?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** SalesOrderRead */
         SalesOrderRead: {
             /** Billing Account Id */
@@ -14574,6 +16654,8 @@ export interface components {
             logistics_company?: string | null;
             /** Logistics Tracking No */
             logistics_tracking_no?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Order Date */
             order_date?: string | null;
             /** Order Kind */
@@ -14610,6 +16692,8 @@ export interface components {
             store_name?: string | null;
             /** Submitted At */
             submitted_at?: string | null;
+            /** Supersedes Order Id */
+            supersedes_order_id?: string | null;
             /** Title */
             title: string;
             /** Total Amount */
@@ -14666,6 +16750,8 @@ export interface components {
             items: components["schemas"]["SalesQuotationItemDetailRead"][];
             /** Pending Sku Count */
             pending_sku_count: number;
+            /** Prior Approval Records */
+            prior_approval_records?: components["schemas"]["ApprovalRecordRead"][];
             quotation: components["schemas"]["SalesQuotationRead"];
             /** Revisions */
             revisions: components["schemas"]["SalesQuotationRead"][];
@@ -14772,6 +16858,54 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** SalesQuotationItemRead */
+        SalesQuotationItemRead: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id: string;
+            /** Is Gift */
+            is_gift: boolean;
+            /** Lead Time */
+            lead_time?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** List Price Snapshot */
+            list_price_snapshot?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Quotation Id */
+            quotation_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
         /** SalesQuotationRead */
         SalesQuotationRead: {
             /** Closed At */
@@ -14803,6 +16937,8 @@ export interface components {
             employee_id: string;
             /** Id */
             id: string;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Outcome Note */
             outcome_note?: string | null;
             /** Payment Terms */
@@ -14836,6 +16972,28 @@ export interface components {
             /** Valid Until */
             valid_until?: string | null;
         };
+        /** SeedGeoTemplateRead */
+        SeedGeoTemplateRead: {
+            /** Created */
+            created: number;
+            /** Existing */
+            existing: number;
+            /** Template */
+            template: string;
+        };
+        /**
+         * SeedGeoTemplateRequest
+         * @description A shipped table of places, loaded once: `cn_provinces` is China's 34
+         *     province-level divisions under a `CN` country geo, coded GB/T 2260.
+         *     Rows already present (by code) are left as they are.
+         */
+        SeedGeoTemplateRequest: {
+            /**
+             * Template
+             * @constant
+             */
+            template: "cn_provinces";
+        };
         /**
          * SendNotificationRequest
          * @description One work event, to one employee.
@@ -14866,6 +17024,8 @@ export interface components {
         };
         /** SendSalesQuotationRequest */
         SendSalesQuotationRequest: {
+            /** Sent At */
+            sent_at?: string | null;
             /** Sent By */
             sent_by?: string | null;
             /** Source */
@@ -15123,6 +17283,29 @@ export interface components {
             /** Withheld */
             withheld?: components["schemas"]["SkillReachEntry"][];
         };
+        /** StockReservationLineRead */
+        StockReservationLineRead: {
+            /** Available To Promise */
+            available_to_promise: number;
+            /** Detail Id */
+            detail_id: string;
+            /** Inventory Item Id */
+            inventory_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** StockReservationRead */
+        StockReservationRead: {
+            /** Lines */
+            lines: components["schemas"]["StockReservationLineRead"][];
+            /** Order Id */
+            order_id: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "reserved" | "reservation_released";
+        };
         /** StoreFacilityRead */
         StoreFacilityRead: {
             /**
@@ -15288,6 +17471,11 @@ export interface components {
             created_at: string;
             /** Email Domain */
             email_domain?: string | null;
+            /**
+             * Flow Runner Enabled
+             * @default true
+             */
+            flow_runner_enabled: boolean;
             /** Id */
             id: string;
             /** Name */
@@ -15414,6 +17602,113 @@ export interface components {
             /** Enabled */
             enabled?: boolean | null;
         };
+        /** TerritoryGeoRead */
+        TerritoryGeoRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Geo Id */
+            geo_id: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Territory Id */
+            territory_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** TerritoryMatchRead */
+        TerritoryMatchRead: {
+            covered_geo: components["schemas"]["GeoRead"];
+            /** Depth */
+            depth: number;
+            territory: components["schemas"]["TerritoryRead"];
+        };
+        /** TerritoryMemberRead */
+        TerritoryMemberRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Employee Id */
+            employee_id: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Role */
+            role?: string | null;
+            /** Territory Id */
+            territory_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /** TerritoryRead */
+        TerritoryRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Manager Employee Id */
+            manager_employee_id?: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Territory Id */
+            parent_territory_id?: string | null;
+            /** Status */
+            status: string;
+            /** Territory Code */
+            territory_code: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * TerritoryResolutionRead
+         * @description Which territories cover a geo: the geo's chain from itself up to the
+         *     root, and every territory covering any geo in it, most specific first.
+         *     `territory` is the answer when exactly one covers the most specific
+         *     level; otherwise it is null and `ambiguous` says why — the choice is
+         *     then a person's, by the workspace's own rule.
+         */
+        TerritoryResolutionRead: {
+            /** Ambiguous */
+            ambiguous: boolean;
+            /** Geo Path */
+            geo_path: components["schemas"]["GeoRead"][];
+            /** Matches */
+            matches: components["schemas"]["TerritoryMatchRead"][];
+            territory?: components["schemas"]["TerritoryRead"] | null;
+        };
         /** TimesheetEntryBase */
         TimesheetEntryBase: {
             /** Client */
@@ -15524,7 +17819,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "contract" | "employee_leave" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -15627,6 +17922,41 @@ export interface components {
              */
             updated_at: string;
         };
+        /** UpdateActivityRequest */
+        UpdateActivityRequest: {
+            /** Activity Type */
+            activity_type?: string | null;
+            /** Communication Event Id */
+            communication_event_id?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Event Id */
+            event_id?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** Next Action At */
+            next_action_at?: string | null;
+            /** Occurred At */
+            occurred_at?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Source Text */
+            source_text?: string | null;
+            /** Subject */
+            subject?: string | null;
+        };
         /** UpdateApiKeyRequest */
         UpdateApiKeyRequest: {
             /** Is Active */
@@ -15728,6 +18058,77 @@ export interface components {
             summary?: string | null;
             /** Title */
             title?: string | null;
+        };
+        /** UpdateCampaignMemberRequest */
+        UpdateCampaignMemberRequest: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Member Status */
+            member_status?: string | null;
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            } | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Responded At */
+            responded_at?: string | null;
+        };
+        /** UpdateCampaignRequest */
+        UpdateCampaignRequest: {
+            /** Actual Cost */
+            actual_cost?: number | null;
+            /** Budget */
+            budget?: number | null;
+            /** Campaign Type */
+            campaign_type?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Expected Revenue */
+            expected_revenue?: number | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Campaign Id */
+            parent_campaign_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Status */
+            status?: string | null;
+        };
+        /** UpdateCommunicationEventRequest */
+        UpdateCommunicationEventRequest: {
+            /** Body */
+            body?: string | null;
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Subject */
+            subject?: string | null;
+            /** Thread Id */
+            thread_id?: string | null;
         };
         /** UpdateContractDocumentRequest */
         UpdateContractDocumentRequest: {
@@ -15887,12 +18288,18 @@ export interface components {
             customer_type?: string | null;
             /** Email */
             email?: string | null;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
             /** Name */
             name?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Payment Terms */
+            payment_terms?: string | null;
             /** Phone */
             phone?: string | null;
             /**
@@ -15903,6 +18310,8 @@ export interface components {
             status: "active" | "archived";
             /** Tax Id */
             tax_id?: string | null;
+            /** Territory Id */
+            territory_id?: string | null;
         };
         /** UpdateEmployeeLeaveRequest */
         UpdateEmployeeLeaveRequest: {
@@ -15947,6 +18356,46 @@ export interface components {
             status: "active" | "inactive";
             /** Timezone */
             timezone?: string | null;
+        };
+        /** UpdateEventParticipantRequest */
+        UpdateEventParticipantRequest: {
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            } | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Response */
+            response?: string | null;
+        };
+        /** UpdateEventRequest */
+        UpdateEventRequest: {
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Event Type */
+            event_type?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Location */
+            location?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Subject */
+            subject?: string | null;
         };
         /** UpdateExpenseClaimRequest */
         UpdateExpenseClaimRequest: {
@@ -16084,6 +18533,23 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** UpdateGeoRequest */
+        UpdateGeoRequest: {
+            /** Abbreviation */
+            abbreviation?: string | null;
+            /** Geo Type */
+            geo_type?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Geo Id */
+            parent_geo_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateInventoryItemRequest */
         UpdateInventoryItemRequest: {
             /** Bin Number */
@@ -16094,6 +18560,8 @@ export interface components {
             expire_date?: string | null;
             /** Facility */
             facility?: string | null;
+            /** Facility Id */
+            facility_id?: string | null;
             /** Lot Id */
             lot_id?: string | null;
             /** Metadata */
@@ -16205,6 +18673,8 @@ export interface components {
         };
         /** UpdateLeadRequest */
         UpdateLeadRequest: {
+            /** Campaign Id */
+            campaign_id?: string | null;
             /** Company Name */
             company_name?: string | null;
             /** Contact Name */
@@ -16215,6 +18685,8 @@ export interface components {
             } | null;
             /** Email */
             email?: string | null;
+            /** Geo Id */
+            geo_id?: string | null;
             /** Phone */
             phone?: string | null;
             /** Remarks */
@@ -16243,8 +18715,52 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** UpdateOpportunityContactRequest */
+        UpdateOpportunityContactRequest: {
+            /** Is Primary */
+            is_primary?: boolean | null;
+            /** Metadata Jsonb */
+            metadata_jsonb?: {
+                [key: string]: unknown;
+            } | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Role */
+            role?: string | null;
+        };
+        /** UpdateOpportunityItemRequest */
+        UpdateOpportunityItemRequest: {
+            /** Amount */
+            amount?: number | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
         /** UpdateOpportunityRequest */
         UpdateOpportunityRequest: {
+            /** Campaign Id */
+            campaign_id?: string | null;
+            /** Competitor */
+            competitor?: string | null;
             /** Currency */
             currency?: string | null;
             /** Custom Fields */
@@ -16261,8 +18777,14 @@ export interface components {
             expected_close_date?: string | null;
             /** Lead Id */
             lead_id?: string | null;
+            /** Lost Reason */
+            lost_reason?: string | null;
+            /** Probability */
+            probability?: number | null;
             /** Remarks */
             remarks?: string | null;
+            /** Source */
+            source?: string | null;
             /** Status */
             status?: string | null;
             /** Title */
@@ -16664,6 +19186,11 @@ export interface components {
             /** Vendor Name Snapshot */
             vendor_name_snapshot?: string | null;
         };
+        /** UpdateRegistrationPolicyRequest */
+        UpdateRegistrationPolicyRequest: {
+            /** Require Corporate Email */
+            require_corporate_email: boolean;
+        };
         /** UpdateResourceBookingRequest */
         UpdateResourceBookingRequest: {
             /** Booking Type */
@@ -16838,6 +19365,10 @@ export interface components {
             remarks?: string | null;
             /** Ship To Address */
             ship_to_address?: string | null;
+            /** Shipped At */
+            shipped_at?: string | null;
+            /** Signed At */
+            signed_at?: string | null;
             /** Source Quote Number */
             source_quote_number?: string | null;
             /** Source Report Text */
@@ -16925,6 +19456,8 @@ export interface components {
             customer_name_snapshot?: string | null;
             /** Delivery Terms */
             delivery_terms?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Outcome Note */
             outcome_note?: string | null;
             /** Payment Terms */
@@ -17049,6 +19582,8 @@ export interface components {
         };
         /** UpdateTenantAdminRequest */
         UpdateTenantAdminRequest: {
+            /** Flow Runner Enabled */
+            flow_runner_enabled?: boolean | null;
             /** Name */
             name?: string | null;
             /** Status */
@@ -17072,6 +19607,36 @@ export interface components {
             status?: ("active" | "archived") | null;
             /** Title */
             title?: string | null;
+        };
+        /** UpdateTerritoryMemberRequest */
+        UpdateTerritoryMemberRequest: {
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Role */
+            role?: string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /** UpdateTerritoryRequest */
+        UpdateTerritoryRequest: {
+            /** Description */
+            description?: string | null;
+            /** Manager Employee Id */
+            manager_employee_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Territory Id */
+            parent_territory_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
         };
         /** UpdateTimesheetEntryRequest */
         UpdateTimesheetEntryRequest: {
@@ -17109,10 +19674,14 @@ export interface components {
         UpdateTodoRequest: {
             /** Completed By */
             completed_by?: string | null;
+            /** Description */
+            description?: string | null;
             /** Due At */
             due_at?: string | null;
             /** Status */
             status?: ("open" | "completed" | "cancelled") | null;
+            /** Title */
+            title?: string | null;
         };
         /** UpdateTypeOptionRequest */
         UpdateTypeOptionRequest: {
@@ -17294,6 +19863,218 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_activities_api_v1_activities_get: {
+        parameters: {
+            query?: {
+                customer_id?: string | null;
+                lead_id?: string | null;
+                opportunity_id?: string | null;
+                contact_id?: string | null;
+                employee_id?: string | null;
+                event_id?: string | null;
+                activity_type?: string | null;
+                outcome?: string | null;
+                /** @description Activities at or after this moment */
+                occurred_from?: string | null;
+                /** @description Activities at or before this moment */
+                occurred_thru?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_activity_api_v1_activities_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateActivityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_activity_api_v1_activities__activity_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                activity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_activity_api_v1_activities__activity_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                activity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_activity_api_v1_activities__activity_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                activity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateActivityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_update_api_key_api_v1_admin_api_keys__api_key_id__patch: {
         parameters: {
             query?: never;
@@ -17722,6 +20503,76 @@ export interface operations {
             };
         };
     };
+    admin_get_registration_policy_api_v1_admin_settings_registration_policy_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_admin_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPolicyEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_update_registration_policy_api_v1_admin_settings_registration_policy_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_admin_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRegistrationPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationPolicyEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_list_tenants_api_v1_admin_tenants_get: {
         parameters: {
             query?: {
@@ -18136,6 +20987,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -18258,6 +21111,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19303,6 +22158,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19354,6 +22211,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19589,7 +22448,7 @@ export interface operations {
             };
         };
     };
-    post_billing_account_entries_api_v1_billing_accounts__account_id__entries_post: {
+    expire_billing_account_entries_api_v1_billing_accounts__account_id__expire_post: {
         parameters: {
             query?: never;
             header?: {
@@ -19607,7 +22466,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PostBillingAccountEntriesRequest"];
+                "application/json": components["schemas"]["ExpireBillingAccountEntriesRequest"];
             };
         };
         responses: {
@@ -19718,6 +22577,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19958,6 +22819,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -20156,6 +23019,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -20316,6 +23181,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -20594,6 +23461,566 @@ export interface operations {
             };
         };
     };
+    post_business_object_entries_api_v1_business_objects__object_id__post_entries_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                object_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PostObjectEntriesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_business_object_stock_api_v1_business_objects__object_id__post_stock_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                object_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PostObjectStockRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaign_members_api_v1_campaign_members_get: {
+        parameters: {
+            query?: {
+                campaign_id?: string | null;
+                lead_id?: string | null;
+                customer_id?: string | null;
+                contact_id?: string | null;
+                member_status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CampaignMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_campaign_member_api_v1_campaign_members_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCampaignMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_campaign_member_api_v1_campaign_members__member_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_member_api_v1_campaign_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_campaign_member_api_v1_campaign_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCampaignMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_campaigns_api_v1_campaigns_get: {
+        parameters: {
+            query?: {
+                employee_id?: string | null;
+                campaign_type?: string | null;
+                parent_campaign_id?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CampaignRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_campaign_api_v1_campaigns_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCampaignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_campaign_api_v1_campaigns__campaign_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                campaign_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_api_v1_campaigns__campaign_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                campaign_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_campaign_api_v1_campaigns__campaign_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                campaign_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCampaignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_campaign_detail_api_v1_campaigns__campaign_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                campaign_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CampaignDetailRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_campaign_api_v1_campaigns__campaign_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                campaign_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_capabilities_api_v1_capabilities_get: {
         parameters: {
             query?: never;
@@ -20694,6 +24121,219 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_communication_events_api_v1_communication_events_get: {
+        parameters: {
+            query?: {
+                channel?: string | null;
+                direction?: string | null;
+                customer_id?: string | null;
+                lead_id?: string | null;
+                opportunity_id?: string | null;
+                contact_id?: string | null;
+                employee_id?: string | null;
+                thread_id?: string | null;
+                message_id?: string | null;
+                /** @description Messages at or after this moment */
+                occurred_from?: string | null;
+                /** @description Messages at or before this moment */
+                occurred_thru?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CommunicationEventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_communication_event_api_v1_communication_events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommunicationEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CommunicationEventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_communication_event_api_v1_communication_events__row_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CommunicationEventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_communication_event_api_v1_communication_events__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_communication_event_api_v1_communication_events__row_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCommunicationEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CommunicationEventRead_"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -20807,6 +24447,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21005,6 +24647,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21166,6 +24810,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21332,6 +24978,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21647,6 +25295,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21847,6 +25497,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22045,10 +25697,15 @@ export interface operations {
                 phone?: string | null;
                 customer_kind?: string | null;
                 customer_type?: string | null;
+                geo_id?: string | null;
+                territory_id?: string | null;
+                owner_employee_id?: string | null;
                 status?: string | null;
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22279,6 +25936,44 @@ export interface operations {
             };
         };
     };
+    get_customer_detail_api_v1_customers__customer_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerDetailRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     resolve_display_names_api_v1_directory_display_names_resolve_post: {
         parameters: {
             query?: never;
@@ -22333,6 +26028,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22611,6 +26308,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22816,6 +26515,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22885,6 +26586,498 @@ export interface operations {
             };
         };
     };
+    list_event_participants_api_v1_event_participants_get: {
+        parameters: {
+            query?: {
+                event_id?: string | null;
+                employee_id?: string | null;
+                contact_id?: string | null;
+                response?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_EventParticipantRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_event_participant_api_v1_event_participants_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventParticipantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventParticipantRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_participant_api_v1_event_participants__row_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventParticipantRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_participant_api_v1_event_participants__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_event_participant_api_v1_event_participants__row_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventParticipantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventParticipantRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events_api_v1_events_get: {
+        parameters: {
+            query?: {
+                employee_id?: string | null;
+                customer_id?: string | null;
+                lead_id?: string | null;
+                opportunity_id?: string | null;
+                event_type?: string | null;
+                status?: string | null;
+                /** @description Events starting at or after this moment */
+                starts_from?: string | null;
+                /** @description Events starting at or before this moment */
+                starts_thru?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_EventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_event_api_v1_events_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_api_v1_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_api_v1_events__event_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_event_api_v1_events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EventRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_event_api_v1_events__event_id__log_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_event_api_v1_events__event_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_expense_claims_api_v1_expense_claims_get: {
         parameters: {
             query?: {
@@ -22896,6 +27089,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23506,6 +27701,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23669,6 +27866,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23868,6 +28067,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24073,6 +28274,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24238,6 +28441,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24437,6 +28642,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24561,6 +28768,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24679,6 +28888,291 @@ export interface operations {
             };
         };
     };
+    list_fulfilment_backlog_api_v1_fulfilment_backlog_get: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                employee_id?: string | null;
+                min_days_waiting?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_FulfilmentBacklogRowRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_geos_api_v1_geos_get: {
+        parameters: {
+            query?: {
+                geo_type?: string | null;
+                parent_geo_id?: string | null;
+                geo_code?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_GeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_geo_api_v1_geos_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGeoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_GeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seed_geo_template_api_v1_geos_seed_template_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedGeoTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedGeoTemplateRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_geo_api_v1_geos__geo_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                geo_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_GeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_geo_api_v1_geos__geo_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                geo_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGeoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_GeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_geo_path_api_v1_geos__geo_id__path_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                geo_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_GeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_inventory_item_details_api_v1_inventory_item_details_get: {
         parameters: {
             query?: {
@@ -24692,6 +29186,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24726,46 +29222,6 @@ export interface operations {
             };
         };
     };
-    create_inventory_item_detail_api_v1_inventory_item_details_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateInventoryItemDetailRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_InventoryItemDetailRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_inventory_items_api_v1_inventory_items_get: {
         parameters: {
             query?: {
@@ -24777,6 +29233,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25014,6 +29472,11 @@ export interface operations {
                 product_id?: string | null;
                 sales_order_item_id?: string | null;
                 purchase_order_item_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25228,6 +29691,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25622,12 +30087,16 @@ export interface operations {
             query?: {
                 employee_id?: string | null;
                 source?: string | null;
+                campaign_id?: string | null;
+                geo_id?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26077,6 +30546,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26273,12 +30744,15 @@ export interface operations {
                 employee_id?: string | null;
                 customer_id?: string | null;
                 lead_id?: string | null;
+                campaign_id?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 keyword?: string | null;
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26469,6 +30943,86 @@ export interface operations {
             };
         };
     };
+    get_opportunity_detail_api_v1_opportunities__opportunity_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityDetailRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quote_opportunity_api_v1_opportunities__opportunity_id__quote_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteOpportunityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_opportunity_api_v1_opportunities__opportunity_id__restore_post: {
         parameters: {
             query?: never;
@@ -26507,6 +31061,408 @@ export interface operations {
             };
         };
     };
+    list_opportunity_contacts_api_v1_opportunity_contacts_get: {
+        parameters: {
+            query?: {
+                opportunity_id?: string | null;
+                contact_id?: string | null;
+                role?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_OpportunityContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_opportunity_contact_api_v1_opportunity_contacts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOpportunityContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_opportunity_contact_api_v1_opportunity_contacts__row_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_opportunity_contact_api_v1_opportunity_contacts__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_opportunity_contact_api_v1_opportunity_contacts__row_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOpportunityContactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityContactRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_opportunity_items_api_v1_opportunity_items_get: {
+        parameters: {
+            query?: {
+                opportunity_id?: string | null;
+                product_id?: string | null;
+                sku_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_OpportunityItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_opportunity_item_api_v1_opportunity_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOpportunityItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_opportunity_item_api_v1_opportunity_items__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_opportunity_item_api_v1_opportunity_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_opportunity_item_api_v1_opportunity_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOpportunityItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OpportunityItemRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_pay_histories_api_v1_pay_histories_get: {
         parameters: {
             query?: {
@@ -26516,6 +31472,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26680,6 +31638,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26724,6 +31684,8 @@ export interface operations {
                 employee_id?: string | null;
                 payment_no?: string | null;
                 reference_no?: string | null;
+                payment_date_from?: string | null;
+                payment_date_thru?: string | null;
                 status?: string | null;
                 unapplied?: boolean;
                 without_open_todo?: boolean;
@@ -26732,6 +31694,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27171,6 +32135,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27334,6 +32300,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27575,6 +32543,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27942,6 +32912,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28140,6 +33112,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28342,6 +33316,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28541,6 +33517,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28741,6 +33719,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29060,6 +34040,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29256,6 +34238,11 @@ export interface operations {
                 po_id?: string | null;
                 po_item_id?: string | null;
                 adjustment_type?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29451,6 +34438,12 @@ export interface operations {
             query?: {
                 po_id?: string | null;
                 purchase_request_item_id?: string | null;
+                sales_order_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29655,6 +34648,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30250,6 +35245,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30619,6 +35616,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30823,6 +35822,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31255,6 +36256,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31451,6 +36454,11 @@ export interface operations {
                 order_id?: string | null;
                 order_item_id?: string | null;
                 adjustment_type?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31647,6 +36655,11 @@ export interface operations {
                 order_id?: string | null;
                 product_id?: string | null;
                 sku_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31667,7 +36680,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ListEnvelope_SalesOrderItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -31707,7 +36720,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesOrderItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -31745,7 +36758,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesOrderItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -31823,7 +36836,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesOrderItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -31848,6 +36861,8 @@ export interface operations {
                 order_no?: string | null;
                 order_kind?: string | null;
                 original_order_id?: string | null;
+                supersedes_order_id?: string | null;
+                opportunity_id?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 without_open_todo?: boolean;
@@ -31855,6 +36870,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32170,6 +37187,90 @@ export interface operations {
             };
         };
     };
+    release_stock_for_order_api_v1_sales_orders__order_id__release_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseStockRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StockReservationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reserve_stock_for_order_api_v1_sales_orders__order_id__reserve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReserveStockRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StockReservationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_sales_order_api_v1_sales_orders__order_id__restore_post: {
         parameters: {
             query?: never;
@@ -32194,6 +37295,48 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revise_sales_order_api_v1_sales_orders__order_id__revise_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseSalesOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -32260,6 +37403,11 @@ export interface operations {
                 quotation_id?: string | null;
                 quotation_item_id?: string | null;
                 adjustment_type?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32456,6 +37604,11 @@ export interface operations {
                 quotation_id?: string | null;
                 product_id?: string | null;
                 sku_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32476,7 +37629,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ListEnvelope_SalesQuotationItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -32516,7 +37669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesQuotationItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -32554,7 +37707,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesQuotationItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -32632,7 +37785,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Envelope_SalesQuotationItemRead_"];
                 };
             };
             /** @description Validation Error */
@@ -32651,7 +37804,9 @@ export interface operations {
             query?: {
                 employee_id?: string | null;
                 customer_id?: string | null;
+                opportunity_id?: string | null;
                 quote_number?: string | null;
+                valid_before?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 without_open_todo?: boolean;
@@ -32659,6 +37814,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33193,6 +38350,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33359,6 +38518,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33989,6 +39150,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34151,6 +39314,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34350,6 +39515,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34627,6 +39794,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34763,6 +39932,571 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_territories_api_v1_territories_get: {
+        parameters: {
+            query?: {
+                parent_territory_id?: string | null;
+                manager_employee_id?: string | null;
+                territory_code?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_TerritoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_territory_api_v1_territories_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTerritoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_territory_api_v1_territories__territory_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                territory_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_territory_api_v1_territories__territory_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                territory_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTerritoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_territory_geos_api_v1_territory_geos_get: {
+        parameters: {
+            query?: {
+                territory_id?: string | null;
+                geo_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_TerritoryGeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_territory_geo_api_v1_territory_geos_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTerritoryGeoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryGeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_territory_geo_api_v1_territory_geos__row_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryGeoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_territory_geo_api_v1_territory_geos__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_territory_members_api_v1_territory_members_get: {
+        parameters: {
+            query?: {
+                territory_id?: string | null;
+                employee_id?: string | null;
+                role?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_TerritoryMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_territory_member_api_v1_territory_members_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTerritoryMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_territory_member_api_v1_territory_members__row_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_territory_member_api_v1_territory_members__row_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_territory_member_api_v1_territory_members__row_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                row_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTerritoryMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryMemberRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_v1_territory_resolution_get: {
+        parameters: {
+            query: {
+                /** @description The place to resolve — a customer's geo, or any geo */
+                geo_id: string;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TerritoryResolutionRead_"];
                 };
             };
             /** @description Validation Error */
@@ -34985,6 +40719,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35320,6 +41056,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35756,6 +41494,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35998,6 +41738,8 @@ export interface operations {
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;

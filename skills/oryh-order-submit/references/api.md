@@ -12,7 +12,7 @@ GET /workflow-definitions?entity_kind=builtin&object_type=sales_order → tenant
 GET /sales-quotations/{id}/detail                       → the won quotation's lines to mirror
 GET /sales-orders?quotation_id={id}                     → dedupe: one won quote, one order
 GET /sales-orders?employee_id={me}&status=draft         → reuse before create
-GET /sales-orders/{order_id}/detail                     → order + items (each with `purchase_items`: purchase lines behind it, with request status) + adjustments + linked quotation + computed_total + adjustments_total + adjusted_total + trail
+GET /sales-orders/{order_id}/detail                     → {order, items (each with `purchase_items`: purchase lines behind it, with request status), adjustments, quotation, quote_drift, approval_records, attachments, computed_total, adjustments_total, adjusted_total, superseded_by}
 ```
 
 ## Create
@@ -127,6 +127,26 @@ PATCH /sales-orders/{order_id}
 The flow agent advances `confirmed → shipped → signed` from these facts;
 `shipped_at`/`signed_at` stamp automatically on those transitions.
 
+## Replacing A Confirmed Order The Warehouse Cannot Ship
+
+```json
+POST /sales-orders/{order_id}/revise
+{"reason": "warehouse short; the customer now wants 2"}
+```
+
+201 → the replacement as a draft, `supersedes_order_id` = the source, with
+`items` inline (lines, adjustments, custom fields and external-document
+links copied). The source becomes `cancelled` in the same call; its
+`/detail` then carries `superseded_by`.
+
+```text
+GET /sales-orders?supersedes_order_id={source order id}
+```
+
+Refusals: 409 while the source is still in an editable state (edit it in
+place), 409 when a shipment already names it, 409 when it is already
+cancelled, 422 on a return.
+
 ## Channel Orders: External Numbers and the Product Map
 
 ```text
@@ -143,10 +163,18 @@ GET /external-product-maps?source=tmall&external_product_id={platform id}&at={or
 GET /external-product-maps?source=tmall&external_name={title verbatim}&at={order date}
                                                         → the same, keyed by the listing's TITLE
                                                           (the common export); spec in external_sku_id
+                                                          as printed (case/width folded by the server).
+                                                          Pass id AND title when the export has both.
 GET /product-matches?title={title}&limit=5              → candidates when the map is silent — a
-                                                          shortlist for the person, never a decision
-POST /external-product-maps {source, external_name, external_sku_id?, product_id, quantity?}
-                                                        → what the person confirmed; title-keyed only
+                                                          shortlist for the person, never a decision;
+                                                          matched_terms, sku_candidates, has_skus
+POST /external-product-maps {source, external_name, external_sku_id?, external_product_id?, product_id, sku_id?, quantity?}
+                                                        → what the person confirmed; undated rows only —
+                                                          a window (effective_from/to) is the catalog desk's
+DELETE /external-product-maps/{id}                      → withdraw an undated row written in error (archive)
+GET /stores?source=tmall                                → the channel's stores, each with fulfilment_facilities
+GET /customers?keyword=                                 → a buyer who is a known account → customer_id
+GET /product-skus?product_id=                           → the variant codes behind a line's sku_id
 ```
 
 ```json
@@ -156,18 +184,22 @@ POST /external-document-links
   "external_kind": "order",
   "external_no": "TM202608280010012345",
   "entity_type": "sales_order",
-  "entity_id": "oryh-order-id"
+  "entity_id": "oryh-order-id",
+  "split": false
 }
 ```
 
-One row per (platform number, oryh document) pair — splits and merges are
-extra rows. Exact duplicate → 409 naming the existing link: a retry, not a
-new fact. The same `POST` with `external_kind: "return"` ties a platform
+One row per (platform number, oryh document) pair. Exact duplicate → 409
+naming the existing link: a retry, not a new fact. The same number
+against a SECOND document of the same kind → 409 naming the first (a
+duplicate import) unless `split: true` declares a split; a merge (three
+platform numbers, one order) is three links and needs no flag. A seller's
+credential links only orders that are its own. The same `POST` with `external_kind: "return"` ties a platform
 return number to whatever recorded the return (`entity_type` also accepts
 `payment`, `business_object`, `inventory_item_detail`, `purchase_order`,
 `invoice` — the capability that governs writing that document governs its
 links). `DELETE /external-document-links/{id}` undoes a mislink; the tuple
-reopens. Order desks may POST title-keyed map rows after a person confirms the candidate; id-keyed rows, edits, effective-date swaps and deletion stay with $oryh-master-data.
+reopens. Order desks POST, PATCH and DELETE undated map rows after a person confirms the candidate; effective-date swaps stay with $oryh-master-data.
 
 ## Returns
 

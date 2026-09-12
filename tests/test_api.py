@@ -1206,7 +1206,7 @@ def test_create_todo_rejects_duplicate_open_todo_for_same_entity(client: TestCli
         headers=api_key_headers(),
     )
     assert duplicate_response.status_code == 409
-    assert duplicate_response.json()["detail"] == "open todo already exists for this entity"
+    assert duplicate_response.json()["detail"].startswith("an open todo already exists for this entity: ")
 
 
 def test_recreating_the_same_open_assignment_returns_it_instead_of_failing(

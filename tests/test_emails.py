@@ -110,7 +110,7 @@ def test_smtp_relay_uses_starttls_without_mailbox_credentials(
     sender, recipients, raw_message = server.sendmail.call_args.args
     assert sender == "service@example.com"
     assert recipients == ["invitee@example.com"]
-    assert "From: oryh <service@example.com>" in raw_message
+    assert "From: Oryh Service <service@example.com>" in raw_message
 
 
 def test_smtp_credentials_must_be_configured_as_a_pair(

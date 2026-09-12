@@ -24,6 +24,8 @@ What makes this side different from receivables:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 {{include:_common/who-you-are-acting-as.md}}

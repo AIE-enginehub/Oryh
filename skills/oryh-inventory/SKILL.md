@@ -1,6 +1,6 @@
 ---
 name: oryh-inventory
-description: Use when a warehouse keeper's agent records what happened to stock in oryh — 收货、发货/领用、盘点、借用/归还, an unexpected box, a return with no order. Posts ledger movements with whatever provenance exists. Requires inventory.manage. Never creates products (oryh-master-data) or places POs (oryh-purchase-order).
+description: Use when a warehouse keeper's agent keeps the stock ledger true in oryh — 库位登记, 盘点导入, 占货/释放, and the stock documents that move goods for reasons no order carries (报损, 调拨, 借用/归还, 生产入库, 杂收). Every ledger row is written by a business act; there is no direct movement write. Requires inventory.manage (which includes shipment.manage — parcels are oryh-shipping). Never creates products (oryh-master-data) or places POs (oryh-purchase-order).
 required_capability: inventory.manage
 ---
 
@@ -9,10 +9,17 @@ required_capability: inventory.manage
 Keep the stock ledger true to the shelf. Stock here is a **ledger**: an
 item's `quantity_on_hand` and `available_to_promise` are running sums of its
 movement rows, nothing edits them directly, and a movement is never deleted —
-a mistake is corrected by a counter-entry. Your job is to get reality into
-that ledger at the moment it happens, with whatever is known at that moment.
+a mistake is corrected by a counter-document.
+**No movement row is typed by hand.** Every row is written by the business act that caused it — a
+shipment posting, a purchase receipt, a count import, an order's hold, or a
+stock document the tenant defined — and the row carries that act as its
+provenance. An agent once heard "ship it", skipped the order and the parcel,
+and wrote a bare ledger row; the write that allowed it is gone —
+`/inventory-item-details` is read-only.
 
 {{include:_common/answer-the-question.md}}
+
+{{include:_common/confirm-before-you-write.md}}
 
 {{include:_common/api-auth-principal.md}}
 
@@ -22,12 +29,13 @@ that ledger at the moment it happens, with whatever is known at that moment.
 
 ## Trigger Examples
 
-- "A carton arrived from SF Express, no idea which order" (record it now)
-- "Zhang from engineering borrowed the impact drill, back on Friday"
 - "We counted the main warehouse, here is the sheet" (stock-take import)
-- "Issue 40 of P-1024 to the Shenzhen site"
-- "These three came back from the customer, I don't know which order"
-- "Something's off — the system says 120 but the shelf has 97"
+- "Something's off — the system says 120 but the shelf has 97" (a count, or a damage report)
+- "Zhang from engineering borrowed the impact drill, back on Friday" (a loan slip)
+- "Move the two returned rolls from the returns area to the main shelf" (a transfer document)
+- "Hold five 14x17 rolls for SO-000012" (a hold)
+- "A carton arrived from SF Express, no idea which order" (a unexplained-receipt document — record it now)
+- "Register a position for PT-HEAD in the Taian transit warehouse"
 
 ## Required Inputs
 
@@ -38,129 +46,146 @@ oryh:
   api_key: "{{ORYH_API_KEY}}"
 ```
 
-- Which item moved: product (or SKU), facility, lot if the workspace tracks
-  lots. `GET /inventory-items?product_id=&facility=` finds the position; a
-  position that does not exist yet is created with `POST /inventory-items`.
-- How much, and which way. A movement is a **difference**, signed: goods
-  arriving are positive, goods leaving are negative.
-- Why, as one of the ledger's reasons: `received | issued | returned |
-  damaged | transfer | adjustment | other` for goods that moved;
-  `reserved` and `reservation_released` are the ATP-only pair (see
-  Reservation below); `initial`, `import_initial` and `import_override`
-  belong to item creation and the count import.
-- Everything else is optional — and that is the point. See below.
+- Which position: product (or SKU), facility, lot if the workspace tracks
+  lots. `GET /inventory-items?product_id=&facility=` finds it; a position
+  that does not exist yet is created with `POST /inventory-items`.
+- What happened, in the shape of the act that makes it true — the table
+  below. The act names the ledger reason; you never pick one.
 
-## Steps
+## Every Movement Has A Door
 
-1. **Find the position** before you post: `GET /inventory-items` filtered by
-   product/SKU and facility. Read back the current `quantity_on_hand`; if the
-   person is issuing more than is on hand, say so before posting, do not post
-   and hope.
-2. **Say what caused the movement, in the shape the cause has.** At most one
-   of the first two:
-   - one of this workspace's orders → `sales_order_id` or `purchase_order_id`
-     (the server checks it exists here). RETURNS live in the same order
-     tables (`order_kind: "return"`), so a return parcel's receipt names the
-     RETURN row via the same `sales_order_id` — that is the inspected-into-
-     stock step of the return's own lifecycle
-   - any other record in the system → (`entity_type`, `entity_id`), a real uuid
-   - an external order — Tmall, JD, another system → `custom_fields`, e.g.
-     `{"source": "tmall", "order_no": "TM2026082112345"}`. Never `entity_id`:
-     that column holds uuids of records this system can resolve, and an
-     external number gets a 422 telling you exactly this. When the number is
-     concrete, ALSO make it queryable after posting:
-     `POST /external-document-links` with the movement as
-     `entity_type: "inventory_item_detail"` — then "which movements belong to
-     JD return JDR-7788" is one indexed lookup, not a prose search.
-   - nothing known → nothing. `description` carries the story.
-3. **Post the movement**: `POST /inventory-item-details` with the item, the
-   signed `quantity_on_hand_diff`, `reason`, `description`, and whatever step
-   2 produced. Posting to an archived item is a 409: reactivate it first if
-   the goods are real.
-4. **Read back** the item after posting and tell the person the new
-   `quantity_on_hand` — that number is the whole reason the ledger exists.
-5. **If something needs following up** — a loan to be returned, a source to
-   be found, a return to be matched — create a todo for it. The ledger
-   records what happened; the coordination fabric records what still has to.
+| What happened | The act that writes the row | Whose |
+|---|---|---|
+| Goods left for a customer, a return parcel arrived, a purchase return went back | `POST /shipments/{id}/post-stock` | $oryh-shipping (`shipment.manage`, included in yours) |
+| Purchase-order goods arrived | `POST /purchase-orders/{id}/receive` | $oryh-purchase-order |
+| A count differs from the system | `POST /inventory-items/bulk` (`import_override`) | you |
+| Goods held for an order / given back | `POST /sales-orders/{id}/reserve` · `/release` | you |
+| Anything else — damage, transfer, loan and return, production receipt, a parcel nobody ordered | a **stock document** the tenant defined, posted once: `POST /business-objects/{id}/post-stock` | you |
+
+`/inventory-item-details` is read-only. A movement you cannot place
+in this table is a question for the person — which door did the goods go
+through? — never a row to type.
 
 ## The Warehouse Records Reality, Not Paperwork
 
 The messiest part of every ERP is the stock ledger, and the mess has one
-cause: the system demands a document the world did not produce. Somebody from
-the third floor borrows a drill. A courier box arrives that no purchase order
-expected. A return shows up and nobody knows which return order it belongs
-to. A traditional system rejects all three, so the keeper writes them in a
-paper ledger, and within a month the system count is fiction.
+cause: the system demands a document the world did not produce, so the
+keeper stops recording and the count becomes fiction. Here the door for
+the undocumented case is a document the TENANT defines in its own words
+— a loan slip, a unexplained-receipt document, a damage report — one sentence in a definition, and from
+then on a two-minute record. The rule stays:
 
-Here the rule is the opposite, and it is the point of this system:
+**Record what actually happened, at the moment it happens, through the
+stock document that names it. A stock document needs a reason, the lines
+and words — never a purchase order, sales order or return invented to
+give it a source.**
 
-**Record what actually happened, with whatever is actually known, at the
-moment it happens. A movement needs a reason, a quantity and words — never a
-document.**
+- **The borrow.** "Zhang from engineering took a drill, says Friday" → a
+  `tool_loan` document (`stock_effect: {reason: "issued", state: "open"}`
+  in its definition) with one line, the whole story in `title` and
+  `payload`, posted at once; a todo for the return. When the drill comes
+  back, a `tool_return` document (`received`) closes the loop — or the
+  tenant defines the loan with a `returned` state that a second document
+  is not needed for. The follow-up lives in the coordination fabric.
+- **The mystery box.** Record the receipt NOW through the workspace's
+  unexplained-receipt document (`received`), the courier's label in the payload, into a staging
+  position if the workspace uses one (`facility` and `bin_number` are free
+  text, so a "PENDING" bin is a legal place). Open a todo to find the
+  source. Never wait for the source to record the arrival.
+- **The orphan return.** A parcel back from a customer is an inbound
+  shipment ($oryh-shipping) — linked to the RETURN row when it is known,
+  filed without one when it is not; when the source is later identified,
+  what to do depends on WHAT was identified — and editing a row is never
+  it: an external return number becomes a link (`POST
+  /external-document-links` with `external_kind: "return"` on the
+  movement, `entity_type: "inventory_item_detail"`), and one of this
+  workspace's own return rows means a counter-document reversing the
+  anonymous receipt and a new leg naming the row.
 
-- **The borrow.** "Zhang from engineering took a drill, says Friday" →
-  `POST /inventory-item-details` with `reason: "issued"`, the quantity, the
-  whole story in `description`, and
-  `custom_fields: {"arrangement": "loan", "holder": "Zhang", "due": "Friday"}`.
-  Then create a todo for the return — the follow-up lives in the coordination
-  fabric, not in a loan module. When the drill comes back, a `received`
-  movement closes the loop and the todo is completed.
-- **The mystery box.** Record the receipt NOW: `reason: "received"`, the
-  quantity, `description` carrying everything the label says (courier,
-  sender, tracking number — `custom_fields` for the structured bits). Book it
-  into a staging location if the workspace uses one — `facility` and
-  `bin_number` are free text, so a "PENDING" bin is a legal place. Open a todo to find
-  the source. Never wait for the source to record the arrival: the box is on
-  the shelf whether or not anyone knows why.
-- **The orphan return.** `reason: "returned"`, quantity, story. When the
-  source is later identified, what to do depends on WHAT was identified —
-  and editing the row is never it:
-  - it belongs to one of this workspace's own orders or RETURN rows → the
-    provenance is a ledger fact, so post a counter-entry reversing the
-    anonymous movement and a new one carrying `sales_order_id` — the return
-    row's id when a return document exists, else the original order's. The ledger then
-    tells the truth twice over: first that goods arrived unexplained, then
-    that the explanation was found.
-  - it is an EXTERNAL return — a JD refund number, a Tmall aftersale — →
-    the row was never wrong, only unnamed. `POST /external-document-links`
-    with `external_kind: "return"`, the platform's number, and the existing
-    movement as `entity_type: "inventory_item_detail"`. A link, not a
-    counter-entry: the frozen row gains a name without being touched.
+**Never fabricate a document of another kind to satisfy the ledger.** A
+fake purchase order "so the receipt has a source" pollutes the document
+system to decorate the stock system. The stock document IS the source, and
+the definition that shaped it says so.
 
-**Never fabricate a document to satisfy the ledger.** A fake purchase order
-"so the receipt has a source" pollutes the document system to decorate the
-stock system, and the next person cannot tell your scaffolding from a real
-order. Provenance is optional by design; absence of a document is a fact like
-any other, and `description` is where it is stated.
+## Stock Documents: The Tenant's Own Doors
 
-**When one informal pattern becomes routine**, stop narrating it and give it a
-shape: define a custom business object — a tool-loan record with its own
-lifecycle, a sample-out slip, whatever the workspace calls it — and let
-movements reference it
-through (`entity_type`, `entity_id`). The ledger composes with tenant objects;
-nothing about this needs a product change.
+A stock document is a business object whose type definition carries a
+`stock_effect`. Reading one:
+
+```text
+GET /object-type-definitions?entity_kind=business_object   → which types post stock, under which reason, from which state
+GET /workflow-definitions?entity_kind=business_object&object_type=damage_report  → the tenant's words on when one is filed and who approves
+```
+
+Filing and posting one, in that order:
+
+1. `POST /business-objects` `{object_type, title, status, payload: {lines:
+   [{inventory_item_id, quantity_on_hand_diff, unit_cost?, description?}],
+   …}}` — lines are SIGNED: a damage report is minus lines, a transfer document is one minus
+   and one plus line on two positions, a production receipt document is plus lines. Whatever
+   else the tenant's schema asks for goes in the payload beside them.
+2. Walk it to the state the definition posts from (`PATCH
+   /business-objects/{id}` `{"status": …}`) — the tenant's approval, in
+   their words; a document created straight in that state is legal when
+   nobody approves.
+3. `POST /business-objects/{id}/post-stock` — **once**. The server posts
+   every line under the definition's reason with the document as
+   provenance (`entity_type: "business_object"`), stamps
+   `payload.stock_posted_at`, and answers a second call with a 409. A
+   wrong posting is a counter-document, never an edit.
+
+Defining a new one is a sentence the admin (or you, holding
+`workflows.publish`) writes in the object-type definition's state machine:
+
+```json
+{"initial": "draft", "states": ["draft", "approved", "rejected"],
+ "transitions": {"draft": ["approved", "rejected"], "approved": [], "rejected": []},
+ "stock_effect": {"reason": "damaged", "state": "approved"}}
+```
+
+`reason` is one of `received | issued | returned | adjustment | damaged |
+transfer | production | other`; the reservation pair and the opening/count
+reasons belong to the bridges that own them and are refused here.
+**When one informal pattern becomes routine**, this is where it gets its
+shape — a tool-loan slip, a sample-out record — and nothing about it needs
+a product change.
 
 ## Reservation: A Hold Is An Availability Fact, Not A Movement
 
-When an order lands and its goods must be held, post an ATP-only ledger
-row: `POST /inventory-item-details` with `reason: "reserved"`,
-`quantity_on_hand_diff: 0`, a negative `available_to_promise_diff`, and
-the `sales_order_id` whose goods these are — available drops, on-hand
-stays, and the hold says whose it is (the server refuses any other
-shape). Whether this workspace reserves at all is the same admin sentence
-that governs picking — a small shop that never holds stock is not wrong,
-and shipping without a hold simply moves both sums together.
+When an order lands and its goods must be held, post the hold through the
+order: `POST /sales-orders/{order_id}/reserve` `{"lines": [{"inventory_item_id",
+"quantity", "order_item_id"?}]}` — the server writes the `reserved` row
+itself (available drops, on-hand stays, the row names the order), refuses a
+position that holds goods the order has no line for, and refuses a hold
+that would push available below zero with the numbers (409): that refusal
+is the conversation to have with sales, not a number to fudge. Whether this
+workspace reserves at all is the same admin sentence that governs picking
+— a small shop that never holds stock is not wrong.
 
 - **Never release what post-stock will.** When the shipment posts, the
   server consumes the hold itself: a `reservation_released` row and the
   `issued` row land in one posting, so ATP is not deducted twice and the
   two sums agree again at rest.
-- **A cancelled order releases by hand**: post `reservation_released`
-  (ATP-only, positive, same `sales_order_id`) with the why in
-  `description`. The ledger then tells the whole story: held, given
-  back, nothing moved.
-- Over-selling shows itself here: a hold that would push available below
-  zero is the conversation to have with sales, not a number to fudge.
+- **A cancelled order releases by hand**: `POST /sales-orders/{order_id}/release`
+  with no lines gives back every outstanding hold of the order; with lines,
+  exactly those quantities. A release larger than what the order still
+  holds at that position is refused (409) — after post-stock there is
+  nothing left to give back.
+
+## Positions
+
+- **A position is (product-or-SKU, facility, lot)**, free text, created on
+  first use (`POST /inventory-items`; a 409 means it exists — reuse it). An
+  `initial_quantity` on creation is the position's opening count and lands
+  as its first ledger row; a position already on file only moves through
+  the doors above.
+- **A position names its facility twice**: the free-text `facility` is its
+  identity, `facility_id` the registry pointer. Positions created before
+  the warehouse was registered carry no pointer — `PATCH
+  /inventory-items/{id}` `{"facility_id": …}` fills it in, and a renamed
+  warehouse then breaks nothing.
+- **Archiving a position** (`DELETE`) keeps its ledger; nothing posts to
+  an archived one until it is set active again.
 
 ## Picking: Whether And How This Workspace Picks
 
@@ -168,7 +193,8 @@ and shipping without a hold simply moves both sums together.
 never a stored switch.** A three-person shop ships straight from the shelf;
 a real warehouse walks a list. Before fulfilling a confirmed order, read
 the tenant's sales_order workflow definition
-(`GET /workflow-definitions?entity_kind=builtin&object_type=sales_order`):
+(`GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` —
+once per session, sent with the order's own reads, not before them):
 if it says picking is required ("pick before shipping" — one sentence is enough),
 create a picklist; if it says nothing about picking, ship directly. The
 admin changes the practice by editing that sentence (or this skill's
@@ -189,47 +215,14 @@ Where picking IS the practice:
 3. **Pack and ship**: `POST /shipments` with `picklist_id` and NO items —
    the server copies the picked lines (picked quantities win; zero picks
    ship nothing), and refuses a picklist that picks for a different order.
-   Walk the shipment (`packed → shipped`), **post-stock once**, then close
-   the run: `PATCH /picklists/{id} {"status": "completed"}`. The order's
-   own `shipped` is the flow agent's write, supported by your shipment.
+   The leg, its walk and post-stock once are $oryh-shipping's — your
+   grant includes them. Then close the run: `PATCH /picklists/{id}
+   {"status": "completed"}`. The order's own `shipped` is the flow agent's
+   write, supported by the shipment.
 
 The picklist is never the stock truth and never a router: stock moves when
 the SHIPMENT posts, and which facility a given order ships from is your
 call when you create the run.
-
-## Shipments: The Freight Leg Is Yours Too
-
-A parcel or a truck is a `/shipments` document — OFBiz Shipment reduced to
-one leg with a `direction`: `outbound` (shipping a sales order, sending a
-purchase return back to its vendor) or `inbound` (a customer return's
-parcel; purchase-order receiving has its own path, below). The linked order
-row must agree with the direction, and the server teaches the matrix on a
-mismatch: sales order → outbound, sales return → inbound, purchase order →
-inbound, purchase return → outbound. Returns live in the order tables, so a
-return's parcel links the RETURN row.
-
-Each line names WHAT moves and, when it touches this warehouse, WHERE:
-`inventory_item_id` is the stock position (product@facility@lot) the goods
-leave or land in. Omit it for drop-ship legs that never touch stock. The line's
-product must match the position's — the server refuses a crossed pair.
-
-**`POST /shipments/{id}/post-stock` is the one bridge to the ledger, and it
-runs ONCE.** Direction decides the sign (outbound issues, inbound receives),
-every movement carries the shipment line as provenance plus the header's
-order link, and `stock_posted_at` makes a second call a 409 — corrections
-are counter-entries, like every ledger fix. Lines without a position are
-reported `skipped_no_position`, never silently absorbed.
-
-**Never book the same goods twice.** Purchase-order receiving stays
-`POST /purchase-orders/{po_id}/receive` ($oryh-purchase-order) — if goods
-entered stock there, do not also post-stock a shipment for them; a shipment
-for a PO leg is then a freight RECORD (tracking, dates, status), not a stock
-mover. One physical movement, one ledger entry, whichever door it came
-through.
-
-The shipment's own life (`draft → packed → shipped → received`, editable in
-draft/packed, tenant-renamable like every machine) is the freight fact the
-flow admin advances order and return statuses FROM.
 
 ## Where Returned Goods Land Is The Tenant's Sentence
 
@@ -237,13 +230,13 @@ OFBiz forces a schema-level choice here — every return receipt creates its
 own inventory item, and everyone pays the management cost. This system does
 not: a "position" is just (product, facility, lot), all free text, and the
 LEDGER already carries which units came back from which return (the
-movement names the shipment line and the return row). So traceability never
+movement names the shipment line and the RETURN row). So traceability never
 requires segregation — segregation is purely an OPERATIONAL choice about
 whether returned goods sit apart until someone inspects them. That choice
 belongs to the tenant, stated in words, not in a parameter:
 
-1. **Read the tenant's rule first**:
-   `GET /workflow-definitions?entity_kind=builtin&object_type=sales_return`.
+1. **Read the tenant's rule** — once per session, in the same wave as the
+   return's own reads: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_return`.
    If the definition states a receiving policy — "returns land in the
    quarantine area, transfer to main after inspection", "returns go
    straight back to the original position",
@@ -256,10 +249,12 @@ belongs to the tenant, stated in words, not in a parameter:
    → that movement's `inventory_item_id`. No issue movement on record (the
    order predates stock tracking, or shipped drop-ship) → the product's position
    at the facility the person names, and ask when nothing names one.
-3. **Segregating tenants have a second leg**: after inspection, moving
-   goods quarantine → main is a `transfer` pair in the ledger (one movement
-   out, one in), exactly like any internal move. The return document's
-   `inspected` state is the flow marker; the transfer is the goods fact.
+3. **The parcel itself is the inbound shipment** ($oryh-shipping) whose
+   line names that position. **Segregating tenants have a second step**:
+   after inspection, moving goods quarantine → main is a transfer document — a stock
+   document with `stock_effect.reason: "transfer"`, one minus line and one
+   plus line, posted once. The return document's `inspected` state is the
+   flow marker; the transfer is the goods fact.
 
 The tenant admin changes this rule by SAYING it — their agent publishes a
 new `sales_return` workflow definition version carrying the sentence
@@ -277,25 +272,58 @@ editing the item; a position not yet on file is created with an
 `import_initial` opening; `product_code` (and `sku_code`) must already
 exist. The full row contract is in [references/api.md](references/api.md).
 
+**The server takes at most 500 rows per call** (a 422 above that). Do not
+discover this by trying: write the normalised rows to a JSON file and run the
+bundled script from this skill's directory —
+
+```text
+python3 scripts/bulk_import.py --kind inventory rows.json --expected-rows N
+python3 scripts/bulk_import.py --kind inventory rows.json --expected-rows N --apply
+```
+
+It chunks at the cap, sends in order, dry-runs by default, stops at the
+first bad chunk, and reports cumulatively with every row index global to
+your file.
+
+**`--expected-rows N` is the sheet's own count, and it is not optional.**
+Read N off the sheet's last row number before extracting anything; never
+count the rows you extracted and hand that number back. A file reader that
+stops at 1,000 lines gives you 999 rows and says nothing — a stock take of
+999 positions out of 1,000 then imports cleanly and reports success, and the
+missing position surfaces weeks later as a shortage. With N given, the script
+refuses to send when fewer rows reached it and tells you to re-read the sheet
+in parts.
+
+**One row per position** — (product-or-sku, facility, lot). Before the dry
+run, look for two rows on the same position in the file; the server reports
+the second as a per-row error, and under `abort` that error stops the chunk.
+Two counts of one shelf is a question for the person, not a row to drop.
+
+**Report the whole chain, every time**: *"sheet 1,000 rows → 1,000 sent in 2
+chunks → 998 created, 2 unchanged, 0 failed."* Every number from the
+responses, none from memory. A person who reads "999 imported" cannot tell a
+999-row sheet from a lost row; the chain can.
+
 ## What This Skill Never Does
 
-- Refuse to record a movement because no document exists. Absence of a
-  document is a fact; state it in `description`.
+- Type a ledger row. There is no endpoint for it; every movement is a
+  shipment posting, a purchase receipt, a count, a hold, or a stock
+  document posted once.
+- Refuse to record what happened because no order exists. The tenant's
+  stock documents are the door for exactly that; absence of an order is a
+  fact the document states.
 - Fabricate a purchase order, sales order or return order to give a movement
   a source.
-- Edit a quantity directly, or edit or delete a movement. Counter-entry, every
-  time.
-- Put an external order number in `entity_id`. It is not a uuid and the
-  column promises resolvability; `custom_fields` is its home.
+- Edit a quantity directly, or edit or delete a movement. Counter-document,
+  every time.
+- Ship. The parcel, its walk and `/post-stock` are $oryh-shipping's —
+  included in your grant, taught there.
 - Create products, SKUs, vendors or customers — that is `$oryh-master-data`,
   a different capability. A stock sheet naming an unknown product code is a
   per-row error to report, not a product to invent.
-- Receive goods against a purchase order by posting movements yourself:
-  `POST /purchase-orders/{po_id}/receive` (`$oryh-purchase-order`) does that
-  and stamps the order on the ledger. This skill is for everything that
-  arrives WITHOUT one.
+- Receive goods against a purchase order: `POST /purchase-orders/{po_id}/receive`
+  (`$oryh-purchase-order`) does that and stamps the order on the ledger.
 
 ## Reference
 
-[references/api.md](references/api.md) — movements, picklists, shipments
-and the count-import row contract.
+- [references/api.md](references/api.md): request templates and the fields each read returns.

@@ -23,6 +23,10 @@
 >   then carries `meta.total`, `meta.page`, `meta.page_size`. Omit both for
 >   the complete list, which on a large collection is the slow mistake. To
 >   count, send `page=1&size=1` and read `meta.total`.
+> - **Sorting.** `order_by=` a column name, `-` prefix for descending,
+>   comma-separated for several (`-created_at,order_no`). Any column of the
+>   row may be named; an unknown one answers 422 listing the sortable
+>   columns. Omit it for the collection's own order.
 > - **Detail.** The record's own URL (collection plus id) is the record; its
 >   `/detail` sibling, where the contract lists one, is the record with its
 >   lines, applications and trail in one read. Take the one that answers the

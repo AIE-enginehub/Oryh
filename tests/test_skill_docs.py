@@ -640,20 +640,29 @@ def test_every_money_skill_says_who_its_holder_is() -> None:
 
 
 def test_the_warehouse_doctrine_is_written_where_the_agent_reads() -> None:
-    """The ledger ACCEPTS an undocumented movement — but the agent only records
-    one if its instructions say to. The doctrine is the half that turns the
-    mechanism into behaviour: record reality first, never fabricate a document,
-    resolve later by counter-entry. A refactor that drops the section leaves
-    the mechanism intact and the behaviour gone, which no API test can see.
+    """The ledger takes no row typed by hand — every movement is a business
+    act — and the undocumented case has a door the tenant defines (a stock
+    document with a `stock_effect`). The doctrine is the half that turns the
+    mechanism into behaviour: record reality now through that door, never
+    fabricate an order to give it a source, correct by counter-document. A
+    refactor that drops the section leaves the mechanism intact and the
+    behaviour gone, which no API test can see.
     """
     body = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
     assert "## The Warehouse Records Reality, Not Paperwork" in body
+    assert "## Every Movement Has A Door" in body
     for sentence in (
-        "never a\ndocument",
-        "Never fabricate a document",
-        "counter-entry",
+        "No movement row is typed by hand",
+        "`/inventory-item-details` is read-only",
+        "Never fabricate a document of another kind",
+        "counter-document",
+        "stock_effect",
+        "/post-stock",
     ):
         assert sentence in body, f"the doctrine lost: {sentence!r}"
+    shipper = (PRODUCT_SKILLS_DIR / "oryh-shipping" / "SKILL.md").read_text(encoding="utf-8")
+    assert "required_capability: shipment.manage" in shipper
+    assert "Is A Shipment" in shipper and "never a ledger row" in shipper
 
 
 def test_channel_order_translation_is_taught_where_each_agent_reads() -> None:
@@ -750,10 +759,11 @@ def test_the_hold_doctrine_is_written_where_the_keeper_reads() -> None:
     what it will), and a cancelled order releases by hand. Losing them
     either double-deducts availability or leaves phantom holds forever."""
     keeper = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
-    assert '"reserved"' in keeper and "quantity_on_hand_diff: 0" in keeper.replace("`", ""), \
-        "the hold's exact shape is taught, not guessed"
+    assert "/reserve" in keeper and "`reserved` row" in keeper, \
+        "the hold goes through the order; the server writes its shape"
     assert "Never release what post-stock will" in keeper
-    assert "releases by hand" in keeper, "a cancelled order gives its hold back explicitly"
+    assert "releases by hand" in keeper and "/release" in keeper, \
+        "a cancelled order gives its hold back explicitly"
 
 
 def test_picking_is_a_sentence_the_agents_read_not_a_switch() -> None:
@@ -1054,12 +1064,13 @@ def test_returns_as_order_rows_are_taught_where_each_agent_reads() -> None:
     assert "Purchase Return" in payables and "inbound" in payables, \
         "the vendor's refund coming home is the payables desk's inbound exception"
 
-    keeper_api = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
-    assert "/post-stock" in keeper_api and "ONCE" in keeper_api, \
+    shipper = (PRODUCT_SKILLS_DIR / "oryh-shipping" / "SKILL.md").read_text(encoding="utf-8")
+    assert "/post-stock" in shipper and "once" in shipper, \
         "the once-only bridge is the rule that stops double-booked goods"
-    assert "Never book the same goods twice" in keeper_api, \
+    assert "Never book the same goods twice" in shipper, \
         "/receive and shipments both reach the ledger — without this warning " \
         "the same parcel lands twice"
+    keeper_api = (PRODUCT_SKILLS_DIR / "oryh-inventory" / "SKILL.md").read_text(encoding="utf-8")
     assert "object_type=sales_return" in keeper_api and "original position" in keeper_api, \
         "where returned goods land is the tenant's sentence in the sales_return " \
         "definition, defaulting to the original position — losing this teaching " \
@@ -1073,3 +1084,55 @@ def test_returns_as_order_rows_are_taught_where_each_agent_reads() -> None:
             "the kinds apart writes order states onto returns and loops on 409s"
         assert "sales_return" in flow, \
             "the return decision reads the sales_return definition and machine"
+
+
+def test_the_matching_rules_are_a_calibration_not_a_config() -> None:
+    """One generic matching skill for every workspace; what differs per
+    workspace is data. The rules live in the skill's `calibration` (rendered,
+    never forked), the confirmed pairings in the map. A skill that stored
+    rules in a map row's metadata or in a custom object would be a config
+    switch wearing prose, and a rule that let the agent pick silently would
+    undo the person-in-the-middle doctrine the order desk already carries."""
+    matching = (PRODUCT_SKILLS_DIR / "oryh-product-matching" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Workspace calibration" in matching
+    assert "PATCH /skills/{skill_ref}" in matching and "skill_ref: oryh-product-matching" in matching
+    assert "never turn a" in matching and "shortlist into a silent choice" in matching
+    assert "Never pick a look-alike yourself" in matching
+    assert "$oryh-master-data" in matching, "dated swaps and deletions stay with the catalog desk"
+    assert matching.index("The map answers first") < matching.index("Only the lines the map did not answer") \
+        < matching.index("Ask the person once") < matching.index("Record what the person confirmed"), \
+        "reads first, the person in the middle, writes last"
+    seller = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "$oryh-product-matching" in seller, "the order desk must know where the rules live"
+    curator = (PRODUCT_SKILLS_DIR / "oryh-master-data" / "SKILL.md").read_text(encoding="utf-8")
+    assert "$oryh-product-matching" in curator
+
+
+def test_every_skill_that_writes_business_data_confirms_first() -> None:
+    """A person's sentence is a request; what reaches the database is the
+    agent's reading of it. Every person-facing skill that documents a write
+    carries the confirmation rule — one confirmation per intent, showing the
+    facts about to be written, guesses labelled. The unattended flow skills
+    are outside it (they advance by the definition and never write content),
+    and the notifier sends messages, not records."""
+    outside = {
+        "approval-notifier",  # messages, not business records; driven by the flow skills
+        "oryh-help",  # answers questions; its references quote the manual, it writes nothing
+    }
+    missing = []
+    for path in sorted(PRODUCT_SKILLS_DIR.iterdir()):
+        if not path.is_dir() or path.name == "_common" or path.name in outside:
+            continue
+        head = (path / "SKILL.md").read_text(encoding="utf-8")
+        if "distribution_mode: targeted" in head.split("---", 2)[1]:
+            continue  # the runner's; nobody is there to answer
+        docs = "\n".join(p.read_text(encoding="utf-8") for p in path.rglob("*.md") if p.name != "api-contract.md")
+        writes = {m.group(1) for m in REQUEST_LINE.finditer(docs)} & {"POST", "PUT", "PATCH", "DELETE"}
+        if writes and "{{include:_common/confirm-before-you-write.md}}" not in head:
+            missing.append(path.name)
+    assert missing == [], f"{missing} document writes and never say to confirm first"
+    fragment = (PRODUCT_SKILLS_DIR / "_common" / "confirm-before-you-write.md").read_text(encoding="utf-8")
+    assert "One confirmation per intent, not per call" in fragment
+    assert "Mark what you supplied" in fragment
+    assert "Wait for an explicit yes" in fragment
+    assert "Reads need no confirmation" in fragment

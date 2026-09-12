@@ -36,6 +36,8 @@ from app.models import (
     ExpenseItem,
     Contract,
     Invoice,
+    Campaign,
+    Event,
     Lead,
     Picklist,
     Opportunity,
@@ -65,6 +67,8 @@ from app.schemas import (
     ExpenseClaimRead,
     ContractRead,
     InvoiceRead,
+    CampaignRead,
+    EventRead,
     LeadRead,
     PicklistRead,
     OpportunityRead,
@@ -147,6 +151,13 @@ def paginated_envelope(data, *, total: int, page: int, page_size: int) -> dict:
 
 
 MAX_PAGE_SIZE = 200
+ORDER_BY_DOC = (
+    "Sort order: a column name, `-` prefix for descending, comma-separated for "
+    "several (e.g. -created_at,order_no). Any column of the row may be named; an "
+    "unknown name answers 422 listing the sortable columns. Omit for the "
+    "collection's own order (newest first for documents)."
+)
+
 PAGE_SIZE_DOC = (
     "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says "
     "what was used). Sending page or size turns paging on: the response carries "
@@ -182,6 +193,42 @@ def page_only_pagination(
     return requested_pagination(page, size, default)
 
 
+def sort_clauses(stmt, sort: str | None) -> list:
+    """`order_by=-created_at,order_no` → ORDER BY clauses on the statement's
+    main entity. Any real column may be named — the console sorts whatever
+    column it shows — and an unknown name is a 422 that lists what is
+    sortable, so nobody guesses twice. Descending puts NULLs last, ascending
+    first, which is what a person reading the column expects."""
+    if not sort or not sort.strip():
+        return []
+    descriptions = stmt.column_descriptions
+    entity = descriptions[0].get("entity") if descriptions else None
+    table = getattr(entity, "__table__", None)
+    if table is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="this collection does not accept order_by",
+        )
+    clauses = []
+    for part in sort.split(","):
+        name = part.strip()
+        if not name:
+            continue
+        descending = name.startswith("-")
+        name = name.lstrip("-+")
+        if name not in table.columns:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"order_by names {name!r}, which is not a column here; sortable: "
+                    + ", ".join(sorted(c.key for c in table.columns))
+                ),
+            )
+        column = getattr(entity, name)
+        clauses.append(column.desc().nulls_last() if descending else column.asc().nulls_first())
+    return clauses
+
+
 def list_rows(
     db: Session,
     stmt,
@@ -194,6 +241,7 @@ def list_rows(
     read_model: type | None = None,
     by_alias: bool = True,
     render=None,
+    sort: str | None = None,
 ) -> dict:
     """The one list tail behind every collection endpoint: equality filters,
     a keyword scan across the endpoint's columns, the family's exact ordering,
@@ -233,7 +281,8 @@ def list_rows(
     if render is None:
         def render(rows):
             return [read_model.model_validate(row).model_dump(by_alias=by_alias) for row in rows]
-    ordered = stmt.order_by(*order_by)
+    # a caller's `order_by=` leads; the family's own order stays as the tiebreak
+    ordered = stmt.order_by(*sort_clauses(stmt, sort), *order_by)
     if pagination is None:
         data = render(db.scalars(ordered).all())
         return envelope(data, len(data))
@@ -437,6 +486,26 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         owner_checked=False, attributed_delete=False,
         number_prefix="SH-", number_field="shipment_no", lock_scope="shipment_number",
     ),
+    Campaign: DocumentFamily(
+        # marketing's, run for everyone: no owner-own limit, no approval half,
+        # no lines. What it earned is read from the leads and deals naming it.
+        "campaign", "campaign details", "campaign",
+        "campaign.manage", CampaignRead, "campaign",
+        lambda d: {"campaign_no": d.campaign_no, "name": d.name},
+        "campaign", advance_permission=None,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="CMP-", number_field="campaign_no", lock_scope="campaign_number",
+    ),
+    Event: DocumentFamily(
+        # a scheduled contact: personal like the lead, approval-free; planned,
+        # then held or cancelled. No lines — participants are their own rows.
+        "event", "event details", "event",
+        "crm.own", EventRead, "event",
+        lambda d: {"event_no": d.event_no, "subject": d.subject},
+        "event", advance_permission=None,
+        attributed_delete=False,
+        number_prefix="EV-", number_field="event_no", lock_scope="event_number",
+    ),
     Lead: DocumentFamily(
         # the pipeline's front door: personal like a quotation (my leads are
         # mine to work), approval-free like a shipment — one grant files AND
@@ -533,26 +602,6 @@ def require_active_row(
         )
     return row
 
-
-def require_entity_uuid(entity_id: str | None) -> None:
-    """`entity_id` promises resolvability — the column is uuid-typed, and a
-    Tmall order number there was a 500 from inside the column type, not an
-    answer. The refusal names where the reference DOES go, because the
-    caller's need is real; only the column is wrong."""
-    if entity_id is None:
-        return
-    try:
-        uuid.UUID(entity_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                f"entity_id must be the uuid of a record in this system — "
-                f"{entity_id!r} is not one. An external order "
-                "(Tmall, JD, another system) goes in `custom_fields`, e.g. "
-                '{"source": "tmall", "order_no": "..."}'
-            ),
-        )
 
 
 def require_contract_for(db: Session, tenant_id: str, contract_id: str | None, side: str):
@@ -1266,9 +1315,13 @@ def _item_write_gate(db: Session, actor: Actor, family: ItemFamily, parent_id: s
     return parent
 
 
-def list_items(db: Session, tenant_id: str, model, filters: dict[str, str | None]) -> dict:
+def list_items(
+    db: Session, tenant_id: str, model, filters: dict[str, str | None], *, where=(),
+    pagination: tuple[int, int] | None = None, sort: str | None = None,
+) -> dict:
     """One list shape for every line family: live lines of live documents,
-    equality filters, the family's own ordering."""
+    equality filters, the family's own ordering. `where` carries the odd
+    filter that is not an equality on the line's own column."""
     family = ITEM_FAMILIES[model]
     stmt = (
         select(model)
@@ -1277,15 +1330,18 @@ def list_items(db: Session, tenant_id: str, model, filters: dict[str, str | None
             model.tenant_id == tenant_id,
             model.deleted_at.is_(None),
             family.parent_model.deleted_at.is_(None),
+            *where,
         )
     )
     return list_rows(
         db, stmt,
         filters={getattr(model, column): value for column, value in filters.items()},
         order_by=family.list_order(model),
-        pagination=None,
+        pagination=pagination,
+        sort=sort,
         render=lambda rows: [_item_read(family, row) for row in rows],
     )
+
 
 
 def build_item(db: Session, actor: Actor, model, payload, *, parent=None):
@@ -1334,7 +1390,9 @@ def build_item(db: Session, actor: Actor, model, payload, *, parent=None):
         if list_price_snapshot is None and (product_id or sku_id):
             # capture the catalog truth at writing time; an explicit payload
             # value (e.g. a customer-tier price list) wins
-            list_price_snapshot = catalog_list_price(db, tenant_id, product_id, sku_id)
+            list_price_snapshot = catalog_list_price(
+                db, tenant_id, product_id, sku_id, currency=getattr(parent, "currency", None),
+            )
         values["list_price_snapshot"] = list_price_snapshot
     item = model(
         tenant_id=tenant_id,
@@ -1460,13 +1518,23 @@ def update_item(db: Session, actor: Actor, model, item_id: str, payload) -> dict
         if family.capture_list_price and refs_changed and "list_price_snapshot" not in updates:
             # the snapshot follows the new reference (None when uncataloged);
             # an old product's price must never survive a product swap
-            item.list_price_snapshot = catalog_list_price(db, tenant_id, product_id, sku_id)
+            document = db.get(family.parent_model, getattr(item, family.parent_field))
+            item.list_price_snapshot = catalog_list_price(
+                db, tenant_id, product_id, sku_id, currency=getattr(document, "currency", None),
+            )
         updates.pop("product_id", None)
         updates.pop("sku_id", None)
         updates.pop("product_name_snapshot", None)
         updates.pop("unit", None)
     if "custom_fields" in updates:
         item.custom_fields_jsonb = updates.pop("custom_fields")
+    # F-28: a stored amount is an override, and an override written for the
+    # OLD price is stale the moment the price or quantity changes. Unless this
+    # write sets amount itself, drop it so the line reads as price × quantity
+    # again (a gift line as 0) — the quotation detail, the flow's tiers and
+    # the order's quote_drift all read the effective amount.
+    if any(field in updates for field in ("quantity", "unit_price", "is_gift")) and "amount" not in updates:
+        item.amount = None
     for field, value in updates.items():
         setattr(item, field, value)
     # Every field the caller sent, including the product/sku block popped above
@@ -1734,18 +1802,28 @@ def normalize_product_context(
     return product.id, sku_id, product_name_snapshot or product.name, unit or product.unit
 
 
-def catalog_list_price(db: Session, tenant_id: str, product_id: str | None, sku_id: str | None) -> float | None:
+def catalog_list_price(
+    db: Session, tenant_id: str, product_id: str | None, sku_id: str | None, *, currency: str | None = None,
+) -> float | None:
     """The catalog reference price for a line: sku price overrides product
     price; None when the catalog is silent. Captured onto the line as
-    list_price_snapshot so the discount stays derivable after catalog edits."""
+    list_price_snapshot so the discount stays derivable after catalog edits.
+    When the document's `currency` is given and the catalog prices the
+    product in another one, the answer is None: a CNY list price beside a
+    USD unit price reads as an 87% discount (E-20), and no snapshot is
+    better than a wrong one."""
     if sku_id:
         sku = get_scoped_or_404(db, ProductSku, tenant_id, sku_id)
+        product = get_scoped_or_404(db, Product, tenant_id, sku.product_id)
+        if currency and product.currency and product.currency.upper() != currency.upper():
+            return None
         if sku.list_price is not None:
             return float(sku.list_price)
-        product = get_scoped_or_404(db, Product, tenant_id, sku.product_id)
         return float(product.list_price) if product.list_price is not None else None
     if product_id:
         product = get_scoped_or_404(db, Product, tenant_id, product_id)
+        if currency and product.currency and product.currency.upper() != currency.upper():
+            return None
         return float(product.list_price) if product.list_price is not None else None
     return None
 
@@ -2008,6 +2086,7 @@ def _adjustment_write_gate(db: Session, actor: Actor, family: AdjustmentFamily, 
 def list_adjustments(
     db: Session, tenant_id: str, model, *,
     parent_id: str | None, item_id: str | None, adjustment_type: str | None,
+    pagination: tuple[int, int] | None = None, sort: str | None = None,
 ) -> dict:
     family = ADJUSTMENT_FAMILIES[model]
     stmt = select(model).where(model.tenant_id == tenant_id, model.deleted_at.is_(None))
@@ -2019,7 +2098,8 @@ def list_adjustments(
             model.adjustment_type: adjustment_type,
         },
         order_by=(model.created_at.asc(), model.id.asc()),
-        pagination=None,
+        pagination=pagination,
+        sort=sort,
         render=lambda rows: [_adjustment_read(family, row) for row in rows],
     )
 

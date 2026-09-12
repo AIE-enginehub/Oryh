@@ -22,6 +22,8 @@ A requirement usually decomposes across several of these. "a discount over 10% n
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/custom-object-is-never-silent.md}}
 
 ## Trigger Examples
@@ -46,7 +48,9 @@ Everything else comes from the conversation and from the tenant's own records.
 
 1. **Identity**: `GET /auth/me` — confirm `skills.manage` is present. Publishing policy instead needs `workflows.publish`; say so if that's where the requirement lands.
 2. **Interview**: get the requirement in the admin's own words. Ask for: who performs it (which roles), what triggers it, what the agent must do step by step, what it must never do, and what "done" looks like. Capture verbatim phrasing for iron rules — the admin's wording is usually better than yours.
-3. **Read the tenant's reality** (all read-only):
+3. **Read the tenant's reality** (all read-only, and ONE batch — five reads
+   that depend on nothing but the interview; for a calibration-only change
+   (5a) the registry read alone is enough):
    - `GET /object-type-definitions` — which builtin and custom objects exist,
      and their **state machines** (read those: only `draft` and `submitted` are
      guaranteed names, everything else this workspace may have renamed). A

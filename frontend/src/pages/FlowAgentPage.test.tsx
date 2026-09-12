@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   listFlowRuns: vi.fn(),
   setFlowSubscriptionEnabled: vi.fn(),
   clearFlowSubscriptionPark: vi.fn(),
+  getFlowRunnerAvailability: vi.fn(),
 }));
 
 vi.mock("../api/flows", async () => {
@@ -57,8 +58,13 @@ function run(overrides: Partial<FlowRun>): FlowRun {
   } as FlowRun;
 }
 
-function page(runs: FlowRun[], subscriptions: FlowSubscription[] = [subscription]) {
+function page(
+  runs: FlowRun[],
+  subscriptions: FlowSubscription[] = [subscription],
+  platformEnabled = true,
+) {
   api.listFlowSubscriptions.mockResolvedValue(subscriptions);
+  api.getFlowRunnerAvailability.mockResolvedValue({ flow_runner_enabled: platformEnabled });
   api.listFlowRuns.mockResolvedValue({
     data: runs,
     meta: { total: runs.length, page: 1, page_size: 20, pages: 1 },
@@ -157,6 +163,25 @@ describe("FlowAgentPage", () => {
     await waitFor(() =>
       expect(api.setFlowSubscriptionEnabled).toHaveBeenCalledWith("sub-1", false),
     );
+  });
+
+  it("says so when the platform, not the tenant, has paused driving", async () => {
+    // Switched on, last ran hours ago: without the platform's word this would
+    // read as "the driving service may be down" and tell them to contact us
+    // about an outage. The truth is a decision, and the page must say whose.
+    const stale = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    page([], [{ ...subscription, last_run_at: stale }], false);
+    expect(await screen.findByText("ORYH 已暂停对贵公司的托管推进")).toBeInTheDocument();
+    expect(screen.getByText("平台已暂停")).toBeInTheDocument();
+    expect(screen.queryByText("有流程没有在推进")).not.toBeInTheDocument();
+    // enrolment is untouched: the tenant's own switch is still theirs to use
+    expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
+  });
+
+  it("does not raise the platform banner over a workspace that is being driven", async () => {
+    page([run({})]);
+    expect(await screen.findByText("运行中")).toBeInTheDocument();
+    expect(screen.queryByText("ORYH 已暂停对贵公司的托管推进")).not.toBeInTheDocument();
   });
 
   it("says that switching a parked one on clears the stop", async () => {

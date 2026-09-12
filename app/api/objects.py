@@ -21,6 +21,8 @@ from __future__ import annotations
 import uuid
 import json
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from types import SimpleNamespace
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -29,6 +31,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    require_active_row,
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     DOCUMENT_FAMILIES,
     apply_status_change,
@@ -57,6 +61,7 @@ from app.models import (
     ApprovalRecord,
     AuditLog,
     BillingAccount,
+    BillingAccountEntry,
     BusinessObject,
     BusinessObjectLink,
     Employee,
@@ -64,7 +69,11 @@ from app.models import (
     ExpenseClaim,
     ExpenseItem,
     Contract,
+    InventoryItem,
+    InventoryItemDetail,
     Invoice,
+    Campaign,
+    Event,
     Lead,
     Picklist,
     Opportunity,
@@ -77,8 +86,10 @@ from app.models import (
     ResourceBooking,
     SalesOrder,
     Shipment,
+    SalesOrderAdjustment,
     SalesOrderItem,
     SalesQuotation,
+    SalesQuotationAdjustment,
     SalesQuotationItem,
     TimesheetEntry,
     TimesheetHeader,
@@ -87,6 +98,12 @@ from app.models import (
     WorkflowDefinition,
 )
 from app.schemas import (
+    PostObjectEntriesEnvelope,
+    PostObjectEntriesRead,
+    PostedObjectEntryLineRead,
+    PostObjectStockEnvelope,
+    PostObjectStockRead,
+    PostedObjectStockLineRead,
     ApprovalRecordEnvelope,
     ApprovalRecordListEnvelope,
     ApprovalRecordRead,
@@ -139,7 +156,9 @@ from app.services.object_types import (
     refuse_shadow_of_shipped,
     validate_business_object_payload,
 )
+from app.services.inventory_import import post_inventory_detail
 from app.services.state_machines import (
+    get_definition,
     editable_states,
     ensure_valid_state_machine,
     get_builtin_machine,
@@ -148,6 +167,38 @@ from app.services.state_machines import (
     validate_business_object_status,
     validate_business_object_status_filter,
 )
+
+def effective_document_total(db: Session, tenant_id: str, entity_type: str, document_id: str) -> float | None:
+    """What a quotation or order adds up to when its header declares nothing:
+    every live line's effective amount (a stored amount, else price ×
+    quantity, a gift as 0) plus its signed adjustments. None when a line is
+    unpriced — a partial sum would read as a smaller deal."""
+    if entity_type == "sales_quotation":
+        item_model, adj_model, parent_field, adj_field = SalesQuotationItem, SalesQuotationAdjustment, "quotation_id", "quotation_id"
+    elif entity_type == "sales_order":
+        item_model, adj_model, parent_field, adj_field = SalesOrderItem, SalesOrderAdjustment, "order_id", "order_id"
+    else:
+        return None
+    total = 0.0
+    for item in db.scalars(select(item_model).where(
+        item_model.tenant_id == tenant_id, getattr(item_model, parent_field) == document_id,
+        item_model.deleted_at.is_(None),
+    )):
+        if item.amount is not None:
+            total += float(item.amount)
+        elif item.unit_price is not None:
+            total += float(item.unit_price) * float(item.quantity)
+        elif getattr(item, "is_gift", False):
+            continue
+        else:
+            return None
+    for adjustment in db.scalars(select(adj_model).where(
+        adj_model.tenant_id == tenant_id, getattr(adj_model, adj_field) == document_id,
+        adj_model.deleted_at.is_(None),
+    )):
+        total += float(adjustment.amount)
+    return round(total, 2)
+
 
 router = APIRouter()
 
@@ -320,6 +371,10 @@ def same_todo_assignment(existing: Todo, payload: CreateTodoRequest) -> bool:
     interprets them — it only has to notice when they differ."""
     if (existing.todo_type or None) != (payload.todo_type or None):
         return False
+    # F-17: a different next step on the same record is a different
+    # assignment, not a retry — it used to be swallowed as the open one
+    if (existing.title or "") != (payload.title or ""):
+        return False
     existing_metadata = existing.metadata_jsonb or {}
     requested_metadata = payload.metadata or {}
     return all(
@@ -467,6 +522,7 @@ def list_approval_targets(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
     if not include_deleted:
@@ -486,6 +542,7 @@ def list_approval_targets(
         ),
         order_by=(BusinessObject.created_at.desc(), BusinessObject.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ApprovalTargetRead,
     )
 
@@ -661,6 +718,7 @@ def list_object_type_definitions(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(ObjectTypeDefinition).where(ObjectTypeDefinition.tenant_id == tenant_id),
@@ -677,6 +735,7 @@ def list_object_type_definitions(
         ),
         order_by=(ObjectTypeDefinition.object_type.asc(), ObjectTypeDefinition.id.asc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=ObjectTypeDefinitionRead, by_alias=False,
     )
 
@@ -810,6 +869,18 @@ def get_object_directory(
         "lead": db.scalar(
             select(func.count()).select_from(Lead).where(
                 Lead.tenant_id == tenant_id
+            )
+        )
+        or 0,
+        "campaign": db.scalar(
+            select(func.count()).select_from(Campaign).where(
+                Campaign.tenant_id == tenant_id
+            )
+        )
+        or 0,
+        "event": db.scalar(
+            select(func.count()).select_from(Event).where(
+                Event.tenant_id == tenant_id
             )
         )
         or 0,
@@ -1070,6 +1141,7 @@ def list_business_objects(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     validate_business_object_status_filter(db, tenant_id, object_type, status_filter)
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
@@ -1103,6 +1175,7 @@ def list_business_objects(
         ),
         order_by=(BusinessObject.created_at.desc(), BusinessObject.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=BusinessObjectRead,
     )
 
@@ -1165,6 +1238,244 @@ def get_business_object(
     if not include_deleted:
         ensure_business_object_not_deleted(business_object)
     return envelope(BusinessObjectRead.model_validate(business_object).model_dump(by_alias=True))
+
+
+@router.post(
+    "/business-objects/{object_id}/post-stock",
+    response_model=PostObjectStockEnvelope,
+    response_model_exclude_unset=True,
+)
+def post_business_object_stock(
+    object_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """The bridge from a tenant-defined stock document to the ledger, once.
+    The object's type definition carries `stock_effect: {reason, state}`;
+    the object's `payload.lines` carry `[{inventory_item_id,
+    quantity_on_hand_diff, unit_cost?, description?}]` (signed, so a
+    调拨单 is one document with a minus line and a plus line). Posting
+    is allowed only in the declared state — the tenant's approval, in
+    their words — and a second call is a 409: the ledger is append-only,
+    a correction is a counter-document."""
+    tenant_id = actor.tenant_id
+    require_permission(actor, "inventory.manage")
+    business_object = db.scalar(
+        select(BusinessObject)
+        .where(BusinessObject.tenant_id == tenant_id, BusinessObject.id == object_id)
+        .with_for_update()
+    )
+    if business_object is None or business_object.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business object not found")
+    definition = get_definition(db, tenant_id, "business_object", business_object.object_type)
+    effect = (definition.state_machine or {}).get("stock_effect") if definition is not None else None
+    if not effect:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"object type {business_object.object_type!r} declares no stock_effect — a stock "
+                "document's definition names the ledger reason and the state that posts: "
+                '`"stock_effect": {"reason": "damaged", "state": "approved"}`'
+            ),
+        )
+    if business_object.status != effect["state"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} posts stock in state {effect['state']!r}; "
+                f"this one is {business_object.status!r}"
+            ),
+        )
+    lines = (business_object.payload_jsonb or {}).get("lines")
+    if not isinstance(lines, list) or not lines:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="payload.lines must be a non-empty list of {inventory_item_id, quantity_on_hand_diff}",
+        )
+    already = db.scalar(select(InventoryItemDetail.id).where(
+        InventoryItemDetail.tenant_id == tenant_id,
+        InventoryItemDetail.entity_type == "business_object",
+        InventoryItemDetail.entity_id == business_object.id,
+    ).limit(1))
+    if already is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} {business_object.id} already posted its stock effect — "
+                "the ledger is append-only; a correction is a counter-document"
+            ),
+        )
+    report = []
+    for index, line in enumerate(lines):
+        if not isinstance(line, dict) or not line.get("inventory_item_id"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payload.lines[{index}] needs inventory_item_id",
+            )
+        try:
+            diff = float(line.get("quantity_on_hand_diff"))
+        except (TypeError, ValueError):
+            diff = 0.0
+        if diff == 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payload.lines[{index}] needs a non-zero signed quantity_on_hand_diff",
+            )
+        item = require_active_row(
+            db, InventoryItem, tenant_id, str(line["inventory_item_id"]), "inventory item",
+            detail=f"payload.lines[{index}]: inventory item is archived — set it active before posting",
+        )
+        unit_cost = line.get("unit_cost")
+        detail = post_inventory_detail(
+            db, item=item, quantity_on_hand_diff=diff, reason=effect["reason"],
+            description=line.get("description") or f"{business_object.object_type} {business_object.title}",
+            entity_type="business_object", entity_id=business_object.id,
+            unit_cost=float(unit_cost) if unit_cost is not None else None,
+            created_by=attributed(actor, None),
+        )
+        report.append(PostedObjectStockLineRead(
+            inventory_item_id=item.id, detail_id=detail.id, quantity_on_hand_diff=diff,
+            quantity_on_hand=float(item.quantity_on_hand),
+        ))
+    posted_at = datetime.now(timezone.utc)
+    business_object.payload_jsonb = {**(business_object.payload_jsonb or {}), "stock_posted_at": posted_at.isoformat()}
+    record_audit(
+        db, tenant_id=tenant_id, action="business_object.stock_posted",
+        entity_type="business_object", entity_id=business_object.id, actor=actor.label,
+        detail={"object_type": business_object.object_type, "reason": effect["reason"], "lines": len(report)},
+    )
+    db.commit()
+    return envelope(PostObjectStockRead(
+        object_id=business_object.id, reason=effect["reason"], stock_posted_at=posted_at, lines=report,
+    ).model_dump(by_alias=True))
+
+
+@router.post(
+    "/business-objects/{object_id}/post-entries",
+    response_model=PostObjectEntriesEnvelope,
+    response_model_exclude_unset=True,
+)
+def post_business_object_entries(
+    object_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """The bridge from a tenant-defined account document to the account
+    ledger, once. The type's state machine carries `account_effect:
+    {reason, state}`; the object's `payload.lines` carry
+    `[{billing_account_id, amount, expires_at?, description?}]` (signed, so
+    a 划转单 is a minus line on one account and a plus line on another).
+    Posting is allowed only in the declared state; each account's floor and
+    status are checked by the same helper the settlement path uses; the
+    poster needs `billing_account.post` for each account's unit type. A
+    second call is a 409 — a correction is a counter-document."""
+    from app.api.billing import get_active_account_or_404, post_account_entries
+
+    tenant_id = actor.tenant_id
+    business_object = db.scalar(
+        select(BusinessObject)
+        .where(BusinessObject.tenant_id == tenant_id, BusinessObject.id == object_id)
+        .with_for_update()
+    )
+    if business_object is None or business_object.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business object not found")
+    definition = get_definition(db, tenant_id, "business_object", business_object.object_type)
+    effect = (definition.state_machine or {}).get("account_effect") if definition is not None else None
+    if not effect:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"object type {business_object.object_type!r} declares no account_effect — an account "
+                "document's definition names the ledger reason and the state that posts: "
+                '`"account_effect": {"reason": "earned", "state": "approved"}`'
+            ),
+        )
+    if business_object.status != effect["state"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} posts entries in state {effect['state']!r}; "
+                f"this one is {business_object.status!r}"
+            ),
+        )
+    lines = (business_object.payload_jsonb or {}).get("lines")
+    if not isinstance(lines, list) or not lines:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="payload.lines must be a non-empty list of {billing_account_id, amount}",
+        )
+    already = db.scalar(select(BillingAccountEntry.id).where(
+        BillingAccountEntry.tenant_id == tenant_id,
+        BillingAccountEntry.entity_type == "business_object",
+        BillingAccountEntry.entity_id == business_object.id,
+    ).limit(1))
+    if already is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} {business_object.id} already posted its entries — "
+                "the ledger is append-only; a correction is a counter-document"
+            ),
+        )
+    by_account: dict[str, list] = {}
+    for index, line in enumerate(lines):
+        if not isinstance(line, dict) or not line.get("billing_account_id"):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payload.lines[{index}] needs billing_account_id",
+            )
+        try:
+            amount = float(line.get("amount"))
+        except (TypeError, ValueError):
+            amount = 0.0
+        if amount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payload.lines[{index}] needs a non-zero signed amount",
+            )
+        if Decimal(str(line.get("amount"))).as_tuple().exponent < -2:
+            # the ledger records cents (review R09): a half-cent the balance
+            # rounds one way and the row another parts the sum from the total
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"payload.lines[{index}].amount carries more than two decimals — the ledger records cents, quantise before posting",
+            )
+        expires_at = line.get("expires_at")
+        if expires_at is not None:
+            try:
+                expires_at = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"payload.lines[{index}].expires_at is not an ISO datetime",
+                )
+        by_account.setdefault(str(line["billing_account_id"]), []).append(SimpleNamespace(
+            amount=round(amount, 2), reason=effect["reason"],
+            description=line.get("description") or f"{business_object.object_type} {business_object.title}",
+            entity_type="business_object", entity_id=business_object.id,
+            expires_at=expires_at, effective_at=None,
+        ))
+    report = []
+    for account_id, account_lines in by_account.items():
+        account = get_active_account_or_404(db, tenant_id, account_id)
+        written = post_account_entries(db, actor, account, account_lines)
+        db.flush()
+        for entry in written:
+            report.append(PostedObjectEntryLineRead(
+                billing_account_id=account.id, entry_id=entry.id, amount=float(entry.amount),
+                balance=round(float(account.balance or 0), 2),
+            ))
+    posted_at = datetime.now(timezone.utc)
+    business_object.payload_jsonb = {**(business_object.payload_jsonb or {}), "entries_posted_at": posted_at.isoformat()}
+    record_audit(
+        db, tenant_id=tenant_id, action="business_object.entries_posted",
+        entity_type="business_object", entity_id=business_object.id, actor=actor.label,
+        detail={"object_type": business_object.object_type, "reason": effect["reason"], "lines": len(report)},
+    )
+    db.commit()
+    return envelope(PostObjectEntriesRead(
+        object_id=business_object.id, reason=effect["reason"], entries_posted_at=posted_at, lines=report,
+    ).model_dump(by_alias=True))
 
 
 @router.get(
@@ -1411,6 +1722,7 @@ def list_business_object_links(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(BusinessObjectLink).where(BusinessObjectLink.tenant_id == tenant_id),
@@ -1427,6 +1739,7 @@ def list_business_object_links(
         ),
         order_by=(BusinessObjectLink.created_at.desc(), BusinessObjectLink.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=BusinessObjectLinkRead,
     )
 
@@ -1532,6 +1845,7 @@ def list_approval_records(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     pagination = requested_pagination(page, size)
     return list_rows(
@@ -1561,11 +1875,21 @@ def list_approval_records(
             else (ApprovalRecord.acted_at.desc(), ApprovalRecord.id.desc())
         ),
         pagination=pagination,
+        sort=order_by,
         read_model=ApprovalRecordRead,
     )
 
 
 TODO_TARGET_MODELS = {family.object_type: model for model, family in DOCUMENT_FAMILIES.items()}
+
+
+def _numbered_title(number: str, title: str | None) -> str:
+    """`QT-000009 放射科报价` — unless the title already starts with the number
+    (F-61: the todo used to read `SO202609001 SO202609001 …`)."""
+    text = (title or "").strip()
+    if not text or text.startswith(number):
+        return text or number
+    return f"{number} {text}"
 
 
 def attach_todo_targets(db: Session, tenant_id: str, rows: list[dict]) -> None:
@@ -1610,13 +1934,13 @@ def attach_todo_targets(db: Session, tenant_id: str, rows: list[dict]) -> None:
                     summary.unit = "amount"
                     summary.currency = doc.currency
                 elif entity_type == "sales_quotation":
-                    summary.title = f"{doc.quote_number} {doc.title or ''}".strip()
+                    summary.title = _numbered_title(doc.quote_number, doc.title)
                     summary.customer_name = doc.customer_name_snapshot
                     summary.amount = float(doc.total_amount) if doc.total_amount is not None else None
                     summary.unit = "amount"
                     summary.currency = doc.currency
                 elif entity_type == "sales_order":
-                    summary.title = f"{doc.order_no} {doc.title or ''}".strip()
+                    summary.title = _numbered_title(doc.order_no, doc.title)
                     summary.customer_name = doc.customer_name_snapshot
                     summary.amount = float(doc.total_amount) if doc.total_amount is not None else None
                     summary.unit = "amount"
@@ -1628,6 +1952,10 @@ def attach_todo_targets(db: Session, tenant_id: str, rows: list[dict]) -> None:
                 # row here would report it as `missing` — the same word used for
                 # an id that names nothing, which is a different problem with a
                 # different fix.
+                if entity_type in ("sales_quotation", "sales_order") and summary.amount is None:
+                    # F-60: the skills recommend leaving the header total empty
+                    # and letting the lines speak; the queue used to show null
+                    summary.amount = effective_document_total(db, tenant_id, entity_type, doc.id)
                 summary.deleted = doc.deleted_at is not None
                 summaries[(entity_type, doc.id)] = summary
         elif entity_type in ("business_object", "approval_target"):
@@ -1776,6 +2104,7 @@ def list_todos(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     stmt = select(Todo).where(Todo.tenant_id == tenant_id)
     if due_before is not None:
@@ -1797,6 +2126,7 @@ def list_todos(
         ),
         order_by=(Todo.created_at.desc(), Todo.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=TodoRead,
     )
     if include == "target" and result["data"]:
@@ -1820,7 +2150,10 @@ def create_todo(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "todos.assign")
+    # F-17: assigning work to OTHERS is the todos.assign grant; a note to
+    # oneself ("call them back Thursday") is anyone's, on their own employee
+    if actor.employee_id is None or payload.employee_id != actor.employee_id:
+        require_permission(actor, "todos.assign")
     todo, created = assign_todo(db, actor, payload)
     db.commit()
     db.refresh(todo)
@@ -1860,15 +2193,15 @@ def assign_todo(db: Session, actor: Actor, payload: CreateTodoRequest) -> tuple[
         )
     )
     if existing is not None:
-        # Idempotency on the assignment's natural key, matching how approval
-        # records answer a retry: a flow agent that crashed after writing —
-        # or was fired twice for one signal — gets the assignment it already
-        # made back, instead of an error it cannot distinguish from a real one.
-        # A DIFFERENT assignment colliding with the open one is still a
-        # conflict: the flow moved on and this caller's view is stale.
         if same_todo_assignment(existing, payload):
             return existing, False
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="open todo already exists for this entity")
+        # one open todo per person per record (the table's own index); a new
+        # next step on the same record updates the open one rather than
+        # standing beside it — the detail names it so the caller can
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"an open todo already exists for this entity: {existing.id} — PATCH it with the new title, or complete it first",
+        )
     todo = Todo(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
@@ -2068,6 +2401,10 @@ def update_todo(
     updates = payload.model_dump(exclude_unset=True)
     if "due_at" in updates:
         todo.due_at = updates.pop("due_at")
+    if "title" in updates:
+        todo.title = updates.pop("title")
+    if "description" in updates:
+        todo.description = updates.pop("description")
     if "status" in updates:
         was = todo.status
         todo.status = updates["status"]
@@ -2281,6 +2618,19 @@ def create_approval_record(
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "approval.record")
+    if payload.action == "submitted" and not (actor.bypasses_permissions or actor.write_scope is not None):
+        # the submission fact is written by /submit; a person's credential
+        # records decisions. The workspace's own flow agents (the tenant
+        # service key, ORYH's hosted runner) may backfill the seq-1 fact for
+        # documents that predate it — a person may not manufacture one.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "action 'submitted' is the server's fact, written when the document is submitted — "
+                "a person records decisions (approved, rejected, returned, commented); the flow "
+                "agent's credential may backfill a missing submission"
+            ),
+        )
     if actor.write_scope is not None:
         require_hosted_write_scope(
             actor, payload.entity_type,

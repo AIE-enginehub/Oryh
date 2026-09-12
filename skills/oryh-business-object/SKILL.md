@@ -12,6 +12,8 @@ Store tenant-specific business facts when the object is not a built-in module (t
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/custom-object-is-never-silent.md}}
 
 ## Trigger Examples
@@ -59,7 +61,7 @@ The rest is business context from the conversation or the calling customer skill
    is the same two-sources-of-truth with a worse name, and once the shadow has
    rows nothing merges them back. If they confirm it genuinely means something
    else in this company, name it after what makes it different.
-1. **Check the type definition first**: `GET /object-type-definitions?object_type=<type>` — if it exists, the payload must conform to its JSON Schema (422 with the failing path otherwise) and status changes obey its state machine. Types without a definition are free-form with the default status set.
+1. **Check the type definition first** — in ONE wave with rule 2; and for a plain field edit on an existing object, rule 1 alone (the schema) is all a write needs: `GET /object-type-definitions?object_type=<type>` — if it exists, the payload must conform to its JSON Schema (422 with the failing path otherwise) and status changes obey its state machine. Types without a definition are free-form with the default status set.
 2. **Read the tenant's submission requirements**: `GET /workflow-definitions?entity_kind=business_object&object_type=<type>` — the active definition's submission requirements (required evidence, numbering conventions, who reviews) shapes the conversation before you write; the flow admin calibrates against the same text, so a requirement skipped here is a guaranteed rework round. No definition → only the schema applies; never invent requirements.
 3. **Payload is a full replacement on PATCH**: read the object, merge changes in the agent, send the complete payload. Sending only changed keys deletes the rest.
 4. **Statuses are the coarse lifecycle, not workflow position.** Do not advance `status` from this skill — that requires `business_object.advance` (flow admin / admin credential). While an approval flow runs, the object's status does not move; progress lives in approval records and todos.

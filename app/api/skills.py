@@ -8,7 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import PAGE_SIZE_DOC, envelope, paginated_envelope, requested_pagination
-from app.api.deps import Actor, attributed, get_actor, require_permission
+from app.api.deps import has_permission, Actor, attributed, get_actor, require_permission
 from app.api.roles import custom_capability_names
 from app.db.session import get_db
 from app.core.permissions import validate_permission_grammar
@@ -205,7 +205,9 @@ def get_skill(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "skills.manage")
+    # the calibrating desk reads the skill it may calibrate
+    if not has_permission(actor, "skills.calibrate", scope=skill_ref):
+        require_permission(actor, "skills.manage")
     tenant_id = actor.tenant_id
     skill = get_skill_or_404(db, tenant_id, skill_ref)
     data = TenantSkillRead.model_validate(skill)
@@ -240,9 +242,13 @@ def update_skill(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_permission(actor, "skills.manage")
     skill = get_skill_or_404(db, actor.tenant_id, skill_ref)
     updates = payload.model_dump(exclude_unset=True)
+    # calibration alone is the narrow grant's write; anything else is the registry's
+    if set(updates) <= {"calibration"} and has_permission(actor, "skills.calibrate", scope=skill.name):
+        pass
+    else:
+        require_permission(actor, "skills.manage")
     if "required_capability" in updates:
         validate_required_capability(db, actor.tenant_id, updates["required_capability"])
     if "files" in updates:

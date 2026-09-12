@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.config import settings
 from app.services.emails import outbox
 from conftest import provision_tenant
 
@@ -295,7 +296,7 @@ def test_one_run_one_person_one_mail_listing_every_todo(client, workspace):
     assert response.json()["data"]["delivered"] is True
     assert len(outbox.messages) == 1
     mail = outbox.messages[0]
-    assert "3 项" in mail.subject
+    assert ("3 项" in mail.subject) if settings.resolved_locale == "zh" else ("3 items" in mail.subject)
     for n in (1, 2, 3):
         assert f"- 审批 第{n}周工时" in mail.body
     assert "/console/todos" in mail.body
@@ -303,7 +304,8 @@ def test_one_run_one_person_one_mail_listing_every_todo(client, workspace):
     trail = client.get(
         "/api/v1/audit-logs", headers=headers, params={"action": "notification.sent"}
     ).json()["data"][0]["detail"]
-    assert trail["todo_ids"] == ids and trail["title"] == "3 项工作"
+    assert trail["todo_ids"] == ids
+    assert trail["title"] == ("3 项工作" if settings.resolved_locale == "zh" else "3 items")
 
 
 def test_a_single_todo_needs_no_title_and_reads_as_one_item(client, workspace):
@@ -315,7 +317,8 @@ def test_a_single_todo_needs_no_title_and_reads_as_one_item(client, workspace):
         json={"employee_id": employee_id, "event": "assigned", "todo_ids": [todo_id]},
     )
     assert response.status_code == 202, response.text
-    assert outbox.messages[0].subject == "有一项工作需要你处理：审批 第1周工时"
+    expected = "有一项工作需要你处理：审批 第1周工时" if settings.resolved_locale == "zh" else "Work assigned to you: 审批 第1周工时"
+    assert outbox.messages[0].subject == expected
 
 
 def test_the_list_is_refused_whole_when_one_item_is_somebody_elses(client, workspace):

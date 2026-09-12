@@ -35,6 +35,8 @@ The three facts that follow from that:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 {{include:_common/who-you-are-acting-as.md}}
@@ -196,9 +198,10 @@ contribution type, and settle it with an outbound payment. Social insurance is
 collected by the tax authority and the housing fund by the fund centre — two
 payables, two payments.
 
-**Per person, in order**: read the terms in force
-(`GET /employees/{id}/pay-history?in_force_on=2026-07-01`), work out each
-figure, then file. When you need attendance or commission figures, get them from
+**Read for everybody at once, then file per person**: the terms in force
+(`GET /employees/{id}/pay-history?in_force_on=2026-07-01`) for every person
+in the run go out as ONE batch — forty people is forty reads in one wave, not
+forty waits. Work out each figure, then file each payslip. When you need attendance or commission figures, get them from
 the timesheets and the settlement ledger — never assume a full month.
 
 If the workspace also produces a payslip **document** — a PDF handed to the

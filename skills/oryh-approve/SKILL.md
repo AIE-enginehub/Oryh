@@ -6,8 +6,8 @@ required_capability: approval.record
 
 # Oryh Approve
 
-**One approver, one action, two writes.** Read the document, record the
-decision as a fact, close your own todo. That is the whole contract, and it
+**One approver, one action, one write.** Read the document, record the
+decision as a fact; the server closes your own todo in the same transaction. That is the whole contract, and it
 is the same for every document type — what changes between them is only
 *what you must look at before deciding*.
 
@@ -60,6 +60,8 @@ next free one in the round.
 ## Steps
 
 {{include:_common/answer-the-question.md}}
+
+{{include:_common/confirm-before-you-write.md}}
 
 {{include:_common/fewer-round-trips.md}}
 
@@ -177,9 +179,10 @@ it is acceptable. Line by line:
     say so in the comment instead of pretending.
   - Gift lines (`is_gift: true`) are 0-value by design — judge whether the
     giveaway itself is acceptable, not the "discount".
-  - Header gap: the declared `total_amount` vs `computed_total`. Rounding the
-    total down is
-    normal; a material gap is an extra discount and must be judged as one.
+  - Header gap: the declared `total_amount` vs `adjusted_total` (lines plus
+    the typed adjustments — the same number the flow agent routed on).
+    Rounding the total down is normal; a material gap is an extra discount
+    and must be judged as one.
   - Validity: a `valid_until` far out locks the price in for that long.
   - Terms: payment and delivery terms are commitments too (net 60 is financing
     the customer).
@@ -204,7 +207,8 @@ works by
 changing the bank account on an otherwise genuine invoice, and everything else
 about the request looks right. Before approving:
   - **Compare `counterparty_account` on the payment against the account on the
-    vendor's own record** (`GET /vendors/{vendor_id}`). A mismatch is not a
+    vendor's own record** (`GET /vendors/{vendor_id}` — one batch with the
+    bills' `/detail` reads below; nothing here waits on anything else). A mismatch is not a
     typo to be tolerated — it is the thing this check exists for. Say so in the
     comment and `returned` it; a changed account is confirmed out of band with
     the supplier, never over the same email thread that carried the invoice.

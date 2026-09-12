@@ -43,7 +43,7 @@ needs_demo_seed = pytest.mark.skipif(
 
 MEMBER_BASE = [
     "timesheet.submit_own", "leave.submit_own", "expense.submit_own",
-    "business_object.write:*", "todos.complete_own", "booking.own",
+    "business_object.write:*", "todos.complete_own", "booking.own", "crm.own",
 ]
 
 # Verbatim from seed_demo.seed_starbridge. A drift here is a drift in what the

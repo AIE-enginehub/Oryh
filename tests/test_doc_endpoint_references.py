@@ -89,7 +89,16 @@ def _served() -> tuple[set[tuple[str, str]], set[str]]:
 
 
 def _spec_docs() -> list[pathlib.Path]:
-    return [p for p in sorted(DOCS.rglob("*.md")) if not _RECORDS.search(p.stem)]
+    # plans name endpoints that do not exist YET, by design: a plan that had to
+    # describe only what is already served could not plan anything
+    # review-evidence holds raw agent transcripts: real ids in paths, truncated
+    # paths, and calls the run made to endpoints that were wrong at the time —
+    # that is what they record, not what the docs promise
+    return [
+        p for p in sorted(DOCS.rglob("*.md"))
+        if not _RECORDS.search(p.stem)
+        and not ({"plans", "review-evidence"} & set(p.relative_to(DOCS).parts))
+    ]
 
 
 def _unresolved(doc: pathlib.Path) -> list[str]:

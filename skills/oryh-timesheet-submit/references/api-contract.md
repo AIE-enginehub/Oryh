@@ -6,6 +6,43 @@ Every endpoint this skill names, with the parameters the server actually
 accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
+## DELETE /projects/{project_id}
+
+Delete Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## DELETE /timesheet-entries/{entry_id}
+
+Delete Timesheet Entry
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entry_id` | path | string | yes |  |
+
+## DELETE /timesheet-headers/{header_id}
+
+Delete Timesheet Header
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `header_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+
+## DELETE /type-options/{type_option_id}
+
+Archive Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
 ## GET /approval-records
 
 List Approval Records
@@ -18,10 +55,39 @@ List Approval Records
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /approval-records/{approval_record_id}
+
+Get Approval Record
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `approval_record_id` | path | string | yes |  |
 
 ## GET /auth/me
 
 Me
+
+## GET /employees
+
+List Employees
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /employees/{employee_id}
+
+Get Employee
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
 
 ## GET /projects
 
@@ -33,6 +99,35 @@ List Projects
 | `status` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /projects/{project_id}
+
+Get Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /timesheet-entries
+
+List Timesheet Entries
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `header_id` | query | string | no |  |
+| `employee_id` | query | string | no |  |
+| `project_id` | query | string | no |  |
+| `work_date_from` | query | date | no |  |
+| `work_date_to` | query | date | no |  |
+
+## GET /timesheet-entries/{entry_id}
+
+Get Timesheet Entry
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entry_id` | path | string | yes |  |
 
 ## GET /timesheet-headers
 
@@ -47,6 +142,16 @@ List Timesheet Headers
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /timesheet-headers/{header_id}
+
+Get Timesheet Header
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `header_id` | path | string | yes |  |
+| `include_deleted` | query | boolean | no |  |
 
 ## GET /timesheet-headers/{header_id}/detail
 
@@ -56,6 +161,31 @@ Get Timesheet Detail
 |---|---|---|---|---|
 | `header_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
+
+## GET /todos
+
+List Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `due_before` | query | date-time | no |  |
+| `include` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /todos/{todo_id}
+
+Get Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
 
 ## GET /type-options
 
@@ -80,6 +210,35 @@ List Workflow Definitions
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /workflow-definitions/{definition_id}
+
+Get Workflow Definition
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `definition_id` | path | string | yes |  |
+
+## PATCH /projects/{project_id}
+
+Update Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `client` | string (≤200 chars) | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
 
 ## PATCH /timesheet-entries/{entry_id}
 
@@ -131,8 +290,26 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `completed_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
 | `due_at` | date-time | optional |  |
 | `status` | `open` | `completed` | `cancelled` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
+## PATCH /type-options/{type_option_id}
+
+Update Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤2000 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
 
 ## POST /approval-records
 
@@ -144,7 +321,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `contract` | `employee_leave` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |
@@ -155,6 +332,22 @@ Body:
 | `round_no` | integer (≥1.0) | optional |  |
 | `sequence_no` | integer (≥1.0) | optional |  |
 | `source` | `web` | `api` | `ai` | `system` | optional |  |
+
+## POST /projects
+
+Create Project
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `project_name` | string (≤200 chars) | required |  |
+| `client` | string (≤200 chars) | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
 
 ## POST /timesheet-entries
 
@@ -237,6 +430,47 @@ Body:
 | `source` | `web` | `api` | `ai` | `system` | optional |  |
 | `submitted_by` | string | optional |  |
 
+## POST /todos
+
+Create Todo
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `employee_id` | string | required |  |
+| `entity_id` | string | required |  |
+| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+| `title` | string (≤200 chars) | required |  |
+| `created_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `due_at` | date-time | optional |  |
+| `metadata` | object | optional |  |
+| `status` | `open` | `completed` | `cancelled` | optional |  |
+| `todo_type` | string (≤50 chars) | optional |  |
+
+## POST /todos/bulk
+
+Bulk Create Todos
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `employee_id` | string | required |  |
+  | `entity_id` | string | required |  |
+  | `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+  | `title` | string (≤200 chars) | required |  |
+  | `created_by` | string (≤100 chars) | optional |  |
+  | `description` | string (≤2000 chars) | optional |  |
+  | `due_at` | date-time | optional |  |
+  | `metadata` | object | optional |  |
+  | `status` | `open` | `completed` | `cancelled` | optional |  |
+  | `todo_type` | string (≤50 chars) | optional |  |
+| `on_error` | `abort` | `skip` | optional |  |
+
 ## POST /type-options
 
 Create Type Option
@@ -249,3 +483,17 @@ Body:
 | `name` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
 | `description` | string (≤2000 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
+
+## POST /workflow-definitions
+
+Publish Workflow Definition
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `definition_text` | string (≤20000 chars) | required |  |
+| `object_type` | string (≤100 chars) | required |  |
+| `created_by` | string (≤100 chars) | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `name` | string (≤100 chars) | optional |  |

@@ -1,5 +1,5 @@
 import { useFocusTrap } from "../useFocusTrap";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { useI18n } from "../../i18n";
 
 type ConfirmDialogProps = {
@@ -13,6 +13,8 @@ type ConfirmDialogProps = {
   tone?: "danger" | "primary";
   busyLabel?: string;
   scrimLabel?: string;
+  // the facts about to be written, when the confirmation is a write
+  children?: ReactNode;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -28,6 +30,7 @@ export function ConfirmDialog({
   tone = "danger",
   busyLabel,
   scrimLabel,
+  children,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -65,6 +68,7 @@ export function ConfirmDialog({
         <span className={tone === "danger" ? "danger-kicker" : "eyebrow"}>{resolvedKicker}</span>
         <h2 id={`${id}-title`}>{title}</h2>
         <p id={`${id}-description`}>{description}</p>
+        {children}
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className="dialog-actions">
           <button ref={cancelRef} className="button" type="button" disabled={busy} onClick={onCancel}>{text("取消", "Cancel")}</button>

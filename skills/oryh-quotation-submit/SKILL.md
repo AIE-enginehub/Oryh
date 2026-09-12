@@ -25,6 +25,28 @@ already ended belongs to $oryh-data-migration — it keeps their original
 numbers, imports terminal states as-is, and handles hundreds of thousands of
 rows. This skill files ONE quotation the principal is working on now.
 
+## A Draft The Deal Bridge Made
+
+`POST /opportunities/{id}/quote` ($oryh-crm) hands you a draft with the
+deal's lines already priced and the basis per line. Before you touch it,
+read it back as if a colleague wrote it: the product names (a line from
+the catalog carries the catalog's name; a free-text line carries what the
+deal said), each `unit_price` against its `price_basis`, the `quantity`,
+and the totals — then edit lines, add adjustments, and submit as any
+quotation. What the bridge did not copy on purpose: the deal lines'
+internal `notes`.
+
+## Revising Under A Condition
+
+An approver may pass a revision with a condition attached in their
+`comment` ("put the 4-hour after-sales response in the contract"). When you `revise`, the new revision
+starts a NEW trail — the condition does not follow by itself. Read
+`/detail` → `prior_approval_records` on the new revision, carry every
+condition into the document it governs (`delivery_terms`, `payment_terms`,
+or the order's contract terms), and name it in the read-back before the
+re-submit. A condition dropped between v1 and v2 is the most common way a
+promise to a customer disappears.
+
 ## Trigger Examples
 
 - "Quote this company" / "Draw up a quotation"
@@ -47,6 +69,8 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/fail-fast-on-master-data.md}}
@@ -61,14 +85,14 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 4. **In-flight duplicate check**: `GET /sales-quotations?employee_id={me}&status=submitted` and `?status=sent` — an open quotation for the same customer and scope means revise or wait, not a second number. This is a conversation, not a hard stop.
 
-   **Steps 2, 3 and 4 are one batch: the definition read, the draft query
-   and both in-flight queries are four independent reads — send them in
-   one turn.** They feed nothing into each other; sequencing them
-   quadruples the wait for no reason.
+   **Steps 2, 3, 4 and the step-5 lookups are ONE wave: the definition, the
+   draft query, both in-flight queries, the customer lookup and every line's
+   product lookup depend on nothing but the person's words — send them
+   together the moment the names are known.** Sequencing them multiplies
+   the wait for no reason. Only the SKU lookups wait, because they need a
+   product id.
 
-5. **Match master data** (read-only, all optional — and ONE batch: the
-   customer lookup and every line's product lookup go out together the moment
-   the names are known from conversation):
+5. **Match master data** (read-only, all optional, in the wave above):
    - Customer: `GET /customers?keyword={name}` or `?tax_id=`. Confident match → `customer_id` (name backfills the snapshot); otherwise the principal's words go in `customer_name_snapshot`. Per-quote contact fields (`contact_name/phone/email`) are THIS deal's buyer — may differ from the master record.
    - Product per line: `GET /products?keyword=`. A confident match auto-captures `list_price_snapshot` — quote your `unit_price` against it knowingly.
    - **A matched customer may have negotiated terms**: `GET /customer-products?customer_id=`

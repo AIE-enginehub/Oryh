@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   clearFlowSubscriptionPark,
   driverState,
+  getFlowRunnerAvailability,
   isStalled,
   listFlowRuns,
   listFlowSubscriptions,
@@ -86,6 +87,7 @@ function outcomeOf(run: FlowRun, text: Text): { tone: string; label: string; not
 const STATE_TONE: Record<DriverState, string> = {
   parked: "failed",
   silent: "failed",
+  paused: "completed",
   off: "completed",
   starting: "running",
   running: "open",
@@ -96,6 +98,7 @@ function stateLabel(state: DriverState, text: Text): string {
     case "parked": return text("已暂停", "Stopped");
     case "silent": return text("未在运行", "Not running");
     case "off": return text("已关闭", "Off");
+    case "paused": return text("平台已暂停", "Paused by ORYH");
     case "starting": return text("准备中", "Starting");
     default: return text("运行中", "Running");
   }
@@ -112,6 +115,13 @@ export function FlowAgentPage() {
     queryKey: ["flow-subscriptions"],
     queryFn: listFlowSubscriptions,
   });
+  const availability = useQuery({
+    queryKey: ["flow-runner-availability"],
+    queryFn: getFlowRunnerAvailability,
+  });
+  // Unknown reads as on: while the tenant record is still loading, the rows
+  // should not flash "paused" at a workspace that is being driven.
+  const platformEnabled = availability.data?.flow_runner_enabled !== false;
   const runs = useQuery({
     queryKey: ["flow-runs", { page }],
     queryFn: () => listFlowRuns({ page, size: PAGE_SIZE }),
@@ -140,7 +150,9 @@ export function FlowAgentPage() {
   // Both mean "enabled, and yet nothing is being driven" — the one case that has
   // to interrupt the reader, because only a person resolves either.
   const parked = rows.filter((row) => row.parked_at);
-  const silent = rows.filter((row) => driverState(row) === "silent");
+  const stateOf = (row: FlowSubscription): DriverState =>
+    driverState(row, Date.now(), platformEnabled);
+  const silent = rows.filter((row) => stateOf(row) === "silent");
 
   return (
     <div className="page flow-agent-page">
@@ -155,6 +167,23 @@ export function FlowAgentPage() {
           </p>
         </div>
       </header>
+
+      {!platformEnabled && (
+        <section className="flow-park-banner" role="status">
+          <h2>{text("ORYH 已暂停对贵公司的托管推进", "ORYH has paused hosted driving for your company")}</h2>
+          <ul>
+            <li>
+              <span>
+                {text(
+                  "下面的流程保持原样开启，但在平台恢复之前，托管代理不会推进任何单据。这不是你们的设置造成的，也不需要改动任何开关。",
+                  "Everything below stays enrolled as it is, but the hosted agent will not advance any document until ORYH resumes. Nothing on your side caused this, and none of your switches need changing.",
+                )}
+              </span>
+              <small>{text("如需了解原因或恢复时间，请联系我们。", "Contact us for the reason and when it resumes.")}</small>
+            </li>
+          </ul>
+        </section>
+      )}
 
       {(parked.length > 0 || silent.length > 0) && (
         <section className="flow-park-banner" role="status">
@@ -233,14 +262,14 @@ export function FlowAgentPage() {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id} className={
-                    ["parked", "silent"].includes(driverState(row)) ? "flow-row-parked" : undefined
+                    ["parked", "silent"].includes(stateOf(row)) ? "flow-row-parked" : undefined
                   }>
                     <td><strong>{row.entity_type}</strong></td>
                     <td><code>{row.driver_skill}</code></td>
                     <td>{text(`${row.cadence_seconds} 秒`, `${row.cadence_seconds}s`)}</td>
                     <td>
-                      <span className={`activity-status ${STATE_TONE[driverState(row)]}`}>
-                        {stateLabel(driverState(row), text)}
+                      <span className={`activity-status ${STATE_TONE[stateOf(row)]}`}>
+                        {stateLabel(stateOf(row), text)}
                       </span>
                     </td>
                     <td className="row-actions">

@@ -32,6 +32,8 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/fail-fast-on-master-data.md}}
@@ -49,7 +51,7 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
 
 4. **Read each receipt** the principal provides. Extract: invoice number, invoice date, seller, total including tax, tax amount, buyer name, invoice type. Anything you cannot read confidently is a question for the principal, never a guess.
-5. **Validate every receipt BEFORE writing** — see "Validate before writing" below. Check duplicates first: `GET /expense-items?invoice_number={n}` — a hit means this invoice was already claimed; stop and tell the principal.
+5. **Validate every receipt BEFORE writing** — see "Validate before writing" below. Check duplicates first: `GET /expense-items?invoice_number={n}` for every receipt that has a number, **all in one batch** (one query per number, sent together, not one per turn) — a hit means this invoice was already claimed; stop and tell the principal.
 6. **Upload evidence first**: `POST /attachments` per receipt file (base64),
    **all files in one batch** — uploads do not depend on each other.
    Idempotent per file content, and the response code says which happened:
@@ -115,7 +117,7 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 - Never silently "fix" an amount, date, or merchant — a correction the principal didn't see is worse than the error.
 - If the principal confirms an unusual fact (the ¥3,000 dinner was a client banquet), record it exactly as stated and put the clarification in `notes`. Judging reasonableness is the approver's job; yours is faithful capture plus honest flagging.
 
-**Pre-submit read-back:** before step 9, `GET /expense-claims/{id}/detail` and echo the complete claim **from that response** — each receipt's line and the total — then get an explicit confirmation. Submission hands the record to the approval flow; changing it afterwards costs a return round.
+**Pre-submit read-back:** before step 9, echo the complete claim — each receipt's line and the total — **from the response you hold**: the step-7 create response carries every item as stored. Re-read `GET /expense-claims/{id}/detail` only if items were added or changed after that create (a returned claim you are fixing, a line added with `POST /expense-items`); then that response is the one to echo. Get an explicit confirmation. Submission hands the record to the approval flow; changing it afterwards costs a return round.
 
 Echoing it from memory is what this step exists to prevent, and doing so has already cost a live session: an agent listed two lines to a person whose draft held three, and refused the submission they then confirmed. The count you read out must be the count that just came back.
 

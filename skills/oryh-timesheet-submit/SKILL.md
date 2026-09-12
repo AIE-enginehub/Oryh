@@ -30,6 +30,8 @@ Everything else comes from conversation: the period, the hours, the original des
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/fail-fast-on-master-data.md}}

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ 'zh-CN' if locale == 'zh' else 'en' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -192,20 +192,20 @@
   <aside class="side">
     <div class="brand">
       <div class="logo">c</div>
-      <div><b>oryh</b><span class="env">{{ nav_tenant or '管理控制台' }}</span></div>
+      <div><b>oryh</b><span class="env">{{ nav_tenant or ('管理控制台' if locale == 'zh' else 'Admin console') }}</span></div>
     </div>
     <nav class="nav">
-      <div class="group">工作入口</div>
-      <a href="/console/dashboard"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>进入控制台</a>
+      <div class="group">{{ '工作入口' if locale == 'zh' else 'Work' }}</div>
+      <a href="/console/dashboard"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>{{ '进入控制台' if locale == 'zh' else 'Open the console' }}</a>
 
-      <div class="group">设备连接</div>
-      <a href="/web/connect" class="{{ 'active' if path == '/web/connect' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>获取连接技能</a>
-      <a href="/web/device" class="{{ 'active' if path == '/web/device' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>授权新设备</a>
+      <div class="group">{{ '设备连接' if locale == 'zh' else 'Devices' }}</div>
+      <a href="/web/connect" class="{{ 'active' if path == '/web/connect' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>{{ '获取连接技能' if locale == 'zh' else 'Get the connect skill' }}</a>
+      <a href="/web/device" class="{{ 'active' if path == '/web/device' }}"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>{{ '授权新设备' if locale == 'zh' else 'Authorise a device' }}</a>
     </nav>
     <div class="who">
       <div class="avatar">{{ (nav_name or actor.role)[:1] | upper }}</div>
       <div class="meta"><b>{{ nav_name or actor.role }}</b><span>{{ actor.role }}{% if nav_sub %} · {{ nav_sub }}{% endif %}</span></div>
-      <form method="post" action="/web/logout"><button title="退出登录"><svg class="ic" style="width:17px;height:17px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2M9 12h11M17 9l3 3-3 3"/></svg></button></form>
+      <form method="post" action="/web/logout"><button title="{{ '退出登录' if locale == 'zh' else 'Sign out' }}"><svg class="ic" style="width:17px;height:17px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2M9 12h11M17 9l3 3-3 3"/></svg></button></form>
     </div>
   </aside>
   <main class="main">

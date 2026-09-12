@@ -135,8 +135,10 @@ def test_the_bridge_respects_the_machine_and_master_data(pipeline) -> None:
                            json={"customer_id": existing})
     assert attached.status_code == 200
     body = attached.json()["data"]
-    assert body["customer"]["id"] == existing and "contact" not in body, \
-        "naming an existing customer attaches — the rolodex is not force-fed"
+    assert body["customer"]["id"] == existing
+    # the lead's person joins the existing customer's rolodex too (F-03),
+    # deduplicated by phone, so the deal's cast can name them
+    assert body["contact"]["customer_id"] == existing and body["contact"]["name"] == "王姐"
 
 
 def test_an_opportunity_closes_with_a_stamp_and_freezes(pipeline) -> None:

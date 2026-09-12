@@ -227,14 +227,20 @@ def test_the_segregation_policy_is_a_position_not_a_schema(dock) -> None:
     assert [m["reason"] for m in traced] == ["returned"], \
         "traceability rides the ledger, not the segregation"
 
-    # inspection passed: the transfer pair moves goods 退货区 → main
+    # inspection passed: the transfer 退货区 → main is a stock document the
+    # tenant defined — one 调拨单, a minus line and a plus line, posted once
     main_before = dock["qoh"]()
-    for item_id, diff in ((quarantine, -2.0), (dock["position"], 2.0)):
-        moved = client.post("/api/v1/inventory-item-details", headers=keeper, json={
-            "inventory_item_id": item_id, "quantity_on_hand_diff": diff,
-            "reason": "transfer", "description": "验收合格,退货区转主仓",
-            "entity_type": "sales_order", "entity_id": ret["id"]})
-        assert moved.status_code == 201, moved.text
+    client.post("/api/v1/object-type-definitions", headers=admin, json={
+        "object_type": "stock_transfer", "title": "调拨单",
+        "state_machine": {"initial": "approved", "states": ["approved"], "transitions": {"approved": []},
+                          "stock_effect": {"reason": "transfer", "state": "approved"}}})
+    transfer = client.post("/api/v1/business-objects", headers=admin, json={
+        "object_type": "stock_transfer", "title": "验收合格,退货区转主仓", "status": "approved",
+        "payload": {"return_order_id": ret["id"], "lines": [
+            {"inventory_item_id": quarantine, "quantity_on_hand_diff": -2},
+            {"inventory_item_id": dock["position"], "quantity_on_hand_diff": 2}]}}).json()["data"]
+    moved = client.post(f"/api/v1/business-objects/{transfer['id']}/post-stock", headers=keeper)
+    assert moved.status_code == 200, moved.text
     assert qty(quarantine) == 0 and dock["qoh"]() == main_before + 2
 
 

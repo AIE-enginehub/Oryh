@@ -35,6 +35,7 @@ const CustomersPage = lazy(() => import("./pages/CustomersPage").then(module => 
 const EmployeesPage = lazy(() => import("./pages/EmployeesPage").then(module => ({ default: module.EmployeesPage })));
 const ObjectDetailPage = lazy(() => import("./pages/ObjectDetailPage").then(module => ({ default: module.ObjectDetailPage })));
 const ObjectTypesPage = lazy(() => import("./pages/ObjectTypesPage").then(module => ({ default: module.ObjectTypesPage })));
+const DataBrowserPage = lazy(() => import("./pages/DataBrowserPage").then(module => ({ default: module.DataBrowserPage })));
 const ObjectsPage = lazy(() => import("./pages/ObjectsPage").then(module => ({ default: module.ObjectsPage })));
 const ProductsPage = lazy(() => import("./pages/ProductsPage").then(module => ({ default: module.ProductsPage })));
 const ProjectsPage = lazy(() => import("./pages/ProjectsPage").then(module => ({ default: module.ProjectsPage })));
@@ -265,6 +266,8 @@ function ConsoleRoutes() {
         <Route element={<TenantConfigurationBoundary />}>
           <Route path="/objects" element={<ObjectsPage />} />
           <Route path="/objects/:entityType/:recordId" element={<ObjectDetailPage />} />
+          <Route path="/data" element={<DataBrowserPage />} />
+          <Route path="/data/:resource" element={<DataBrowserPage />} />
         </Route>
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />

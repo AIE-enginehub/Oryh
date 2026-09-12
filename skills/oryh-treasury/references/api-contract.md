@@ -14,6 +14,47 @@ Delete Fin Account
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
 
+## DELETE /payments/{payment_id}
+
+Delete Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+
+## DELETE /type-options/{type_option_id}
+
+Archive Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
+## GET /employees
+
+List Employees
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /employees/{employee_id}
+
+Get Employee
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+
 ## GET /fin-account-transactions
 
 List Fin Account Transactions
@@ -31,6 +72,7 @@ List Fin Account Transactions
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /fin-accounts
 
@@ -43,6 +85,7 @@ List Fin Accounts
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /fin-accounts/{account_id}
 
@@ -65,6 +108,8 @@ List Payments
 | `employee_id` | query | string | no |  |
 | `payment_no` | query | string | no |  |
 | `reference_no` | query | string | no |  |
+| `payment_date_from` | query | date | no |  |
+| `payment_date_thru` | query | date | no |  |
 | `status` | query | string | no |  |
 | `unapplied` | query | boolean | no |  |
 | `without_open_todo` | query | boolean | no |  |
@@ -72,6 +117,58 @@ List Payments
 | `include_deleted` | query | boolean | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /payments/{payment_id}
+
+Get Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+## GET /payments/{payment_id}/attachments/{attachment_id}/content
+
+Get Payment Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
+
+## GET /payments/{payment_id}/detail
+
+Get Payment Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+| `include_deleted` | query | boolean | no |  |
+
+## GET /todos
+
+List Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `due_before` | query | date-time | no |  |
+| `include` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /todos/{todo_id}
+
+Get Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
 
 ## GET /type-options
 
@@ -119,6 +216,69 @@ Body:
 | `name` | string (≤200 chars) | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## PATCH /payments/{payment_id}
+
+Update Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `amount` | number (≤9999999999.99) | optional |  |
+| `attachment_id` | string | optional |  |
+| `bank_account` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `counterparty_account` | string (≤200 chars) | optional |  |
+| `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `customer_id` | string | optional |  |
+| `payee_employee_id` | string | optional |  |
+| `payment_date` | date | optional |  |
+| `payment_method` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `reference_no` | string (≤100 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `status` | string (≤30 chars) | optional |  |
+| `vendor_id` | string | optional |  |
+
+## PATCH /todos/{todo_id}
+
+Update Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `completed_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `due_at` | date-time | optional |  |
+| `status` | `open` | `completed` | `cancelled` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
+## PATCH /type-options/{type_option_id}
+
+Update Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤2000 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
 
 ## POST /fin-account-transactions
 
@@ -183,3 +343,117 @@ Body:
 | `opening_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## POST /payments
+
+Create Payment
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `amount` | number (≤9999999999.99) | required |  |
+| `direction` | `inbound` | `outbound` | required |  |
+| `employee_id` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `bank_account` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `counterparty_account` | string (≤200 chars) | optional |  |
+| `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `customer_id` | string | optional |  |
+| `payee_employee_id` | string | optional |  |
+| `payment_date` | date | optional |  |
+| `payment_method` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `payment_no` | string (≤64 chars) | optional |  |
+| `reference_no` | string (≤100 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `source_report_text` | string (≤10000 chars) | optional |  |
+| `status` | string (≤30 chars) | optional |  |
+| `vendor_id` | string | optional |  |
+
+## POST /payments/bulk
+
+Bulk Import Payments
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `rows` | array of objects (fields below) | required |  |
+| ↳ each `rows[]` item: | | | |
+  | `amount` | number (≤9999999999.99) | required |  |
+  | `direction` | `inbound` | `outbound` | required |  |
+  | `payment_no` | string (≤64 chars) | required |  |
+  | `bank_account` | string (≤200 chars) | optional |  |
+  | `counterparty_account` | string (≤200 chars) | optional |  |
+  | `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
+  | `currency` | string (≤3 chars) | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `customer_code` | string (≤64 chars) | optional |  |
+  | `customer_id` | string | optional |  |
+  | `employee_code` | string (≤64 chars) | optional |  |
+  | `employee_id` | string | optional |  |
+  | `payee_employee_code` | string (≤64 chars) | optional |  |
+  | `payee_employee_id` | string | optional |  |
+  | `payment_date` | date | optional |  |
+  | `payment_method` | string (≤30 chars) | optional |  |
+  | `reference_no` | string (≤100 chars) | optional |  |
+  | `remarks` | string (≤2000 chars) | optional |  |
+  | `status` | string (≤30 chars) | optional |  |
+  | `vendor_code` | string (≤64 chars) | optional |  |
+  | `vendor_id` | string | optional |  |
+| `dry_run` | boolean | optional |  |
+| `on_error` | `abort` | `skip` | optional |  |
+| `on_missing_reference` | `error` | `snapshot` | optional |  |
+
+## POST /payments/{payment_id}/apply
+
+Apply Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `lines` | array of objects (fields below) | required |  |
+| ↳ each `lines[]` item: | | | |
+  | `amount_applied` | number (≥-9999999999.99, ≤9999999999.99) | required |  |
+  | `applied_to_id` | string | required |  |
+  | `applied_to_type` | `invoice` | `expense_claim` | `billing_account` | `payment` | required |  |
+  | `invoice_item_id` | string | optional |  |
+  | `note` | string (≤500 chars) | optional |  |
+| `idempotency_key` | string (≤64 chars) | optional |  |
+
+## POST /payments/{payment_id}/restore
+
+Restore Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+## POST /payments/{payment_id}/submit
+
+Submit Payment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `payment_id` | path | string | yes |  |
+
+## POST /type-options
+
+Create Type Option
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `family` | string | required |  |
+| `name` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |

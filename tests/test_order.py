@@ -516,3 +516,95 @@ def test_a_zero_quotation_gives_no_percentage(client: TestClient) -> None:
     ).json()["data"]["quote_drift"]
     assert drift["amount"] == 800.00
     assert drift["percent"] is None
+
+
+def test_a_confirmed_order_the_warehouse_cannot_ship_is_revised_not_edited(client: TestClient) -> None:
+    """The tenant's own answer to "confirmed, but we cannot ship it as
+    written": cancel it and raise a new one. As one server fact — a draft
+    copied from the source that names it in `supersedes_order_id`, the
+    source cancelled and its credit released in the same transaction — so
+    the link is a column the next reader follows, not a remark."""
+    employee_id = create_employee(client)
+    customer = create_customer(client)
+    order = create_order(client, employee_id, customer_id=customer["id"], ship_to_address="老地址", total_amount=300.0)
+    create_item(client, order["id"], product_name_snapshot="保温杯", quantity=3, unit_price=100.0, line_no=1)
+    client.post(
+        "/api/v1/sales-order-adjustments",
+        json={"order_id": order["id"], "adjustment_type": "shipping", "amount": 12.0},
+        headers=api_key_headers(),
+    )
+    link = client.post(
+        "/api/v1/external-document-links",
+        json={"source": "tmall", "external_kind": "order", "external_no": "TM-9001",
+              "entity_type": "sales_order", "entity_id": order["id"]},
+        headers=api_key_headers(),
+    )
+    assert link.status_code == 201, link.text
+
+    # a draft is edited, not revised
+    assert client.post(
+        f"/api/v1/sales-orders/{order['id']}/revise", json={}, headers=api_key_headers()
+    ).status_code == 409
+
+    client.post(f"/api/v1/sales-orders/{order['id']}/submit", json={}, headers=api_key_headers())
+    client.patch(f"/api/v1/sales-orders/{order['id']}", json={"status": "confirmed"}, headers=api_key_headers())
+    # confirmed: the lines are closed
+    assert client.post(
+        "/api/v1/sales-order-items",
+        json={"order_id": order["id"], "product_name_snapshot": "x", "quantity": 1},
+        headers=api_key_headers(),
+    ).status_code == 409
+
+    revised = client.post(
+        f"/api/v1/sales-orders/{order['id']}/revise",
+        json={"reason": "仓库缺货，客户改要 2 个"},
+        headers=api_key_headers(),
+    )
+    assert revised.status_code == 201, revised.text
+    draft = revised.json()["data"]
+    assert draft["supersedes_order_id"] == order["id"]
+    assert draft["status"] == "draft" and draft["order_no"] != order["order_no"]
+    assert draft["ship_to_address"] == "老地址" and draft["remarks"] == "仓库缺货，客户改要 2 个"
+    assert [(i["product_name_snapshot"], i["quantity"]) for i in draft["items"]] == [("保温杯", 3.0)]
+
+    source = client.get(f"/api/v1/sales-orders/{order['id']}", headers=api_key_headers()).json()["data"]
+    assert source["status"] == "cancelled"
+
+    # the draft is editable again — that is the point
+    items = client.get(f"/api/v1/sales-order-items?order_id={draft['id']}", headers=api_key_headers()).json()["data"]
+    assert client.patch(
+        f"/api/v1/sales-order-items/{items[0]['id']}", json={"quantity": 2}, headers=api_key_headers()
+    ).status_code == 200
+
+    detail = client.get(f"/api/v1/sales-orders/{draft['id']}/detail", headers=api_key_headers()).json()["data"]
+    assert [a["adjustment_type"] for a in detail["adjustments"]] == ["shipping"]
+    old_detail = client.get(f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()).json()["data"]
+    assert old_detail["superseded_by"]["id"] == draft["id"]
+
+    # the platform number now names both — the dedup check finds the live one
+    links = client.get(
+        "/api/v1/external-document-links?source=tmall&external_kind=order&external_no=TM-9001",
+        headers=api_key_headers(),
+    ).json()["data"]
+    assert sorted(l["entity_id"] for l in links) == sorted([order["id"], draft["id"]])
+
+    # the reverse list filter
+    by_source = client.get(
+        f"/api/v1/sales-orders?supersedes_order_id={order['id']}", headers=api_key_headers()
+    ).json()["data"]
+    assert [row["id"] for row in by_source] == [draft["id"]]
+
+    # a cancelled order is not revised twice
+    assert client.post(
+        f"/api/v1/sales-orders/{order['id']}/revise", json={}, headers=api_key_headers()
+    ).status_code == 409
+
+
+def test_a_return_is_reversed_never_revised(client: TestClient) -> None:
+    employee_id = create_employee(client)
+    order = create_order(client, employee_id, status="confirmed")
+    ret = create_order(client, employee_id, order_kind="return", original_order_id=order["id"])
+    client.post(f"/api/v1/sales-orders/{ret['id']}/submit", json={}, headers=api_key_headers())
+    client.patch(f"/api/v1/sales-orders/{ret['id']}", json={"status": "approved"}, headers=api_key_headers())
+    response = client.post(f"/api/v1/sales-orders/{ret['id']}/revise", json={}, headers=api_key_headers())
+    assert response.status_code == 422, response.text

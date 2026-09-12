@@ -33,6 +33,8 @@ BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
     "contract",
     "lead",
     "opportunity",
+    "campaign",
+    "event",
     "invoice",
     "payment",
     "billing_account",

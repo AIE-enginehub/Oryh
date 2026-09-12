@@ -94,7 +94,10 @@ def flow_runner_tenants(_: Bootstrap, db: Db):
     synced — is absent rather than silently driven.
 
     Suspended tenants are excluded here rather than left for the per-request
-    check to refuse, so the runner does not spend a pass discovering it.
+    check to refuse, so the runner does not spend a pass discovering it. So is
+    a tenant whose platform switch (`Tenant.flow_runner_enabled`) is off — the
+    operator's lever, distinct from the tenant's per-family one, and dropping
+    the tenant from this list is how the runner learns to stop driving it.
     """
     rows = db.execute(
         select(Tenant.id, Tenant.name, func.count(FlowSubscription.id))
@@ -102,6 +105,7 @@ def flow_runner_tenants(_: Bootstrap, db: Db):
         .where(
             FlowSubscription.enabled.is_(True),
             Tenant.status == "active",
+            Tenant.flow_runner_enabled.is_(True),
         )
         .group_by(Tenant.id, Tenant.name)
         .order_by(Tenant.name)
@@ -139,6 +143,14 @@ def issue_flow_runner_credential(tenant_id: str, _: Bootstrap, db: Db):
     tenant = db.get(Tenant, tenant_id)
     if tenant is None or tenant.status != "active":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    if not tenant.flow_runner_enabled:
+        # The platform said no for this company. Refused for the same reason
+        # as the no-subscription case below: a key minted here would be turned
+        # away on its first request anyway.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="hosted flow runner is switched off for this tenant",
+        )
     subscriptions = db.scalars(
         select(FlowSubscription).where(FlowSubscription.tenant_id == tenant_id)
     ).all()

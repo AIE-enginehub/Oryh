@@ -49,6 +49,8 @@ the answer to a question that named one thing.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/fewer-round-trips.md}}
 
 {{include:_common/stay-current.md}}

@@ -22,12 +22,15 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     archive_row,
     commit_or_conflict,
@@ -36,7 +39,6 @@ from app.api.common import (
     list_rows,
     requested_pagination,
     require_active_row,
-    require_entity_uuid,
     status_scope,
 )
 from app.api.deps import Actor, attributed, get_actor, require_permission
@@ -57,6 +59,27 @@ from app.schemas import (
 )
 from app.services.treasury import post_fin_account_trans
 from app.services.type_options import require_type_option
+
+def require_entity_uuid(entity_id: str | None) -> None:
+    """`entity_id` promises resolvability — the column is uuid-typed, and a
+    Tmall order number there was a 500 from inside the column type, not an
+    answer. The refusal names where the reference DOES go, because the
+    caller's need is real; only the column is wrong."""
+    if entity_id is None:
+        return
+    try:
+        uuid.UUID(entity_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"entity_id must be the uuid of a record in this system — "
+                f"{entity_id!r} is not one. An external order "
+                "(Tmall, JD, another system) goes in `custom_fields`, e.g. "
+                '{"source": "tmall", "order_no": "..."}'
+            ),
+        )
+
 
 router = APIRouter()
 
@@ -176,6 +199,7 @@ def list_fin_accounts(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     _require_treasury(actor)
     return list_rows(
@@ -189,6 +213,7 @@ def list_fin_accounts(
         keyword_columns=(FinAccount.name, FinAccount.institution, FinAccount.account_number),
         order_by=(FinAccount.created_at.asc(), FinAccount.id.asc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=FinAccountRead,
     )
 
@@ -301,6 +326,7 @@ def list_fin_account_transactions(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     _require_treasury(actor)
     stmt = (
@@ -348,6 +374,7 @@ def list_fin_account_transactions(
         order_by=(FinAccountTrans.trans_date.desc(), FinAccountTrans.created_at.desc(),
                   FinAccountTrans.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=FinAccountTransRead,
     )
 

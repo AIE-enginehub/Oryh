@@ -303,6 +303,36 @@ DEFAULT_LEAD_MACHINE: dict = {
     "editable_states": ["new", "contacted", "qualified"],
 }
 
+# Shipped default for a marketing campaign — a trade fair, a webinar, a
+# mailing. Not personal (marketing runs it for everyone) and approval-free:
+# one functional grant files and advances. Its worth is read from the leads
+# and opportunities that name it, never stored on it.
+DEFAULT_CAMPAIGN_MACHINE: dict = {
+    "initial": "planned",
+    "states": ["planned", "active", "completed", "cancelled"],
+    "transitions": {
+        "planned": ["active", "cancelled"],
+        "active": ["completed", "cancelled"],
+        "completed": [],
+        "cancelled": [],
+    },
+    "editable_states": ["planned", "active"],
+}
+
+# Shipped default for a scheduled event — a visit, a meeting, a demo. It
+# is planned, then it happened or it did not; what was said is the
+# activity logged from it, not a state of the event.
+DEFAULT_EVENT_MACHINE: dict = {
+    "initial": "planned",
+    "states": ["planned", "held", "cancelled"],
+    "transitions": {
+        "planned": ["held", "cancelled"],
+        "held": [],
+        "cancelled": ["planned"],
+    },
+    "editable_states": ["planned"],
+}
+
 DEFAULT_OPPORTUNITY_MACHINE: dict = {
     "initial": "open",
     "states": ["open", "quoting", "negotiating", "won", "lost"],
@@ -382,6 +412,8 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "contract": DEFAULT_CONTRACT_MACHINE,
     "lead": DEFAULT_LEAD_MACHINE,
     "opportunity": DEFAULT_OPPORTUNITY_MACHINE,
+    "campaign": DEFAULT_CAMPAIGN_MACHINE,
+    "event": DEFAULT_EVENT_MACHINE,
     "invoice": DEFAULT_INVOICE_MACHINE,
     "payment": DEFAULT_PAYMENT_MACHINE,
 }
@@ -433,6 +465,10 @@ STATE_ROLES["contract"] = ()
 # without stamping, and the fact is PATCHed by whoever knows it)
 STATE_ROLES["lead"] = ("converted",)
 STATE_ROLES["opportunity"] = ()
+# a campaign has no server anchor: nothing is written to it by a bridge
+STATE_ROLES["campaign"] = ()
+# the log bridge (/events/{id}/log) lands the event in `held`
+STATE_ROLES["event"] = ("held",)
 
 
 def state_for_role(machine: dict, object_type: str, role: str) -> str:
@@ -454,6 +490,18 @@ def state_for_role(machine: dict, object_type: str, role: str) -> str:
             ),
         )
     return name
+
+
+# the ledger reasons a tenant-defined stock document may post under: goods
+# that moved for a reason no builtin document carries. The reservation pair
+# and the opening/count reasons stay with the bridges that own them.
+STOCK_DOCUMENT_REASONS = frozenset(
+    {"received", "issued", "returned", "adjustment", "damaged", "transfer", "production", "other"}
+)
+# account-ledger reasons that have their own door and may not be posted by a
+# tenant-defined account document: money moves through payments, expiry
+# through the sweep, opening balances through the account's creation
+RESERVED_ACCOUNT_REASONS = frozenset({"deposit", "charge", "refund", "expired", "initial", "import_initial"})
 
 
 def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: str) -> None:
@@ -491,6 +539,35 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
     for role, target in roles.items():
         if target not in state_set:
             fail(f"roles[{role!r}] names {target!r}, which is not a declared state")
+    effect = machine.get("stock_effect")
+    if effect is not None:
+        # a tenant-defined stock document: 报损单, 调拨单, 借用单, 生产入库单.
+        # The definition names the ledger reason its lines post under and
+        # the state in which posting is allowed — the tenant's approval
+        # state, whatever they call it. Builtin documents post through their
+        # own bridges (shipments, purchase receipt, the count import).
+        if entity_kind != "business_object":
+            fail("stock_effect belongs to a business object type; builtin documents post stock through their own bridges")
+        if not isinstance(effect, dict):
+            fail("stock_effect must be an object {reason, state}")
+        if effect.get("reason") not in STOCK_DOCUMENT_REASONS:
+            fail(f"stock_effect.reason must be one of {sorted(STOCK_DOCUMENT_REASONS)}")
+        if effect.get("state") not in state_set:
+            fail("stock_effect.state must be one of states — the state whose entry lets the lines post")
+    account = machine.get("account_effect")
+    if account is not None:
+        # a tenant-defined account document: 积分发放单, 积分兑换单, 余额调整单,
+        # 划转单. It names the account-ledger reason its lines post under
+        # (from the tenant's billing_account_entry_reason vocabulary, checked
+        # at posting) and the state that posts.
+        if entity_kind != "business_object":
+            fail("account_effect belongs to a business object type")
+        if not isinstance(account, dict) or not isinstance(account.get("reason"), str) or not account.get("reason"):
+            fail("account_effect must be an object {reason, state}")
+        if account["reason"] in RESERVED_ACCOUNT_REASONS:
+            fail(f"account_effect.reason {account['reason']!r} has its own door (payments, the expiry sweep, the account's opening balance)")
+        if account.get("state") not in state_set:
+            fail("account_effect.state must be one of states — the state whose entry lets the lines post")
     if entity_kind == "builtin":
         required = STATE_ROLES.get(object_type)
         if required is None:

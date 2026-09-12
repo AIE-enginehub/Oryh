@@ -1,6 +1,6 @@
 ---
 name: oryh-master-data
-description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map ("天猫这个商品对应我们哪个货"). Dry run before writing. Requires master_data.manage; other skills only read it.
+description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map ("天猫这个商品对应我们哪个货"). Dry run before writing. Requires master_data.manage; other skills only read it. Also customer contacts (the rolodex), geos and territories.
 required_capability: master_data.manage
 ---
 
@@ -28,6 +28,8 @@ artifact correctly, and the two failure modes are silent ones:
 Both are resolved the same way: **ask the person**. They have the file open.
 
 {{include:_common/answer-the-question.md}}
+
+{{include:_common/confirm-before-you-write.md}}
 
 {{include:_common/archived-is-history.md}}
 
@@ -166,9 +168,12 @@ decided to send.
      POST /products/bulk  {"rows": [...], "dry_run": true}
    When you can run Python, prefer the bundled script — write the normalised
    rows to a JSON file and run (from this skill's directory):
-     python3 scripts/bulk_import.py --kind products rows.json
+     python3 scripts/bulk_import.py --kind products rows.json --expected-rows N
    It dry-runs by default, chunks large files, keeps row indexes global to
-   your file, and aggregates a changed-fields histogram. Either way, report
+   your file, and aggregates a changed-fields histogram. `N` is the sheet's
+   own data-row count, read off its last row number: a file reader that stops
+   at 1,000 lines hands you 999 rows and says nothing, and the script refuses
+   to send a file that lost rows on the way. Either way, report
    what the response says — 47 to create, 12 to update, 3 with problems — and
    for the updates, say WHICH fields move (the response names them). "12
    updates, all of them price-only" is the sentence that lets a person catch a
@@ -355,9 +360,10 @@ desk's to curate.
   product map uses, so "which store did this order belong to" is
   answerable. The code must already be registered under `/sales-channels`.
 - **Fulfilment is a standing answer, not a router.** `/store-facilities`
-  rows say which facilities MAY ship for a store (priority ranks them, one
-  row per pair, archived pairs revive); which facility a given order
-  actually ships from stays the warehouse's call on the shipment.
+  rows say which facilities MAY ship for a store (`priority` 1 is the
+  first choice, larger numbers later, one row per pair, archived pairs
+  revive); which facility a given order actually ships from stays the
+  warehouse's call on the shipment, made down that list.
 
 ## The Rolodex: People At A Customer
 
@@ -424,7 +430,11 @@ the import a one-desk job. When a salesperson reports an unmapped listing,
 this is the desk that fixes it: `POST /external-product-maps` with
 `source`, the platform's ids or title, the catalog `product_id`, and the
 multiplier. Never map by name similarity without the person confirming — a
-wrong mapping ships the wrong goods silently.
+wrong mapping ships the wrong goods silently. How this workspace's titles
+are read — its title grammar, noise words, bundle conventions — is not a map
+row: it is the calibration on $oryh-product-matching, one `PATCH
+/skills/{skill_ref}` with `{"calibration": …}` by an admin, rendered into
+every copy of that skill on the next sync.
 
 **A listing's meaning changes over time, and the map records WHEN.**
 Platforms rank the listing, not its contents, so a merchant who fought for a
@@ -445,6 +455,31 @@ allowed — only two OPEN-ended rows for one (source, listing, product) are
 refused. If the person cannot name the exact day, record their best date and
 say out loud that orders ON the boundary day may need a hand check.
 
+## Places And Territories
+
+Where a customer is, and whose it therefore is, are two facts kept apart:
+
+- **Geos** (`/geos`) are places in a hierarchy — country → province → city →
+  district, plus postal codes and the workspace's own regions — each naming
+  its parent, coded by the workspace (`geo_code`, GB/T 2260 for Chinese
+  divisions). `POST /geos/seed-template {"template": "cn_provinces"}` loads
+  China's 34 province-level divisions under `CN` once; cities and districts
+  are added as the workspace needs them, never invented from an address.
+- **Territories** (`/territories`) are named sets of geos with people. `territory_code` is the workspace's own short code (`ZJ`, `EAST-1`) — ask for it, never invent one; it is the row's identity and does not change. "Wang Qiang is responsible for Zhejiang" is BOTH `manager_employee_id` on the territory and a `manager` member row — the first names who answers for it, the second lists who works it:
+  coverage rows (`/territory-geos`: a territory covering Zhejiang covers
+  everything under it) and members (`/territory-members`, role from the
+  `territory_member_role` options). Territories nest.
+- **A customer's `geo_id` is where it is; its `territory_id` is who covers
+  it.** `GET /territory-resolution?geo_id=` walks the geo's chain and answers
+  with every covering territory, most specific first; when exactly one
+  covers the most specific level the server fills `territory_id` on the
+  customer itself (on create, on a geo change, and when a lead converts).
+  When several do, `ambiguous` is true, `territory_id` stays empty, and a
+  person assigns it by the workspace's own rule. `owner_employee_id` is
+  the account's salesperson; the conversion bridge sets it to the lead's
+  owner and a manager reassigns it. `payment_terms` is free text the order
+  and invoice desks copy in by default.
+
 ## What This Skill Never Does
 
 - Invent, derive, or auto-number a missing code.
@@ -452,6 +487,7 @@ say out loud that orders ON the boundary day may need a hand check.
   confirms every pairing; a wrong map row ships wrong goods with no error
   anywhere.
 - Write anything before showing the column mapping AND a dry run.
+- Invent a geo from an address string, or assign a territory the resolver called ambiguous without a person choosing.
 - Guess which column is the price when more than one could be.
 - Force a price column into a type that does not mean it. A missing type is
   something to propose (`POST /type-options`), never something to approximate.

@@ -221,3 +221,39 @@ def test_the_hash_reads_the_calibration_TEXT_not_just_its_presence() -> None:
     assert skill_files_hash(files, "list titles only") != skill_files_hash(
         files, "include the linked record's detail"
     )
+
+
+def test_a_desk_may_calibrate_one_skill_without_the_registry() -> None:
+    """The order desk meets an unmapped listing and needs to add a matching
+    rule — a calibration write, not skill management. `skills.calibrate`,
+    scoped to the skill, writes calibration and reads that skill; files,
+    audience and status, and every other skill, stay behind skills.manage."""
+    from app.services.emails import outbox
+    from conftest import make_client, provision_tenant
+
+    with make_client([]) as client:
+        t = provision_tenant(client, company_name="Cal Co", email="admin@cal.example")
+        admin = {"X-API-Key": t["plain_text_api_key"]}
+        emp = client.post("/api/v1/employees", json={"name": "desk"}, headers=admin).json()["data"]["id"]
+        client.post("/api/v1/roles", headers=admin,
+                    json={"name": "order_desk", "permissions": ["order.submit_own", "skills.calibrate:oryh-product-matching"]})
+        uid = client.post("/api/v1/auth/invitations", headers=admin,
+                          json={"email": "desk@cal.example", "role": "order_desk", "employee_id": emp}).json()["data"]["id"]
+        token = next(l.rsplit("token=", 1)[1].strip() for l in outbox.messages[-1].body.splitlines() if "token=" in l)
+        client.post("/api/v1/auth/invitations/accept", json={"token": token, "password": "invitee-pass1"})
+        desk = {"X-API-Key": client.post("/api/v1/tenant/api-keys", json={"label": "desk", "user_id": uid},
+                                          headers=admin).json()["data"]["plain_text_api_key"]}
+
+        read = client.get("/api/v1/skills/oryh-product-matching", headers=desk)
+        assert read.status_code == 200, read.text
+        assert client.get("/api/v1/skills/oryh-crm", headers=desk).status_code == 403, "scoped to one skill"
+
+        written = client.patch("/api/v1/skills/oryh-product-matching", headers=desk,
+                               json={"calibration": "Tmall titles: strip 包邮 before scoring."})
+        assert written.status_code == 200, written.text
+        assert written.json()["data"]["kind"] == "product", "a calibration never forks"
+        assert client.patch("/api/v1/skills/oryh-crm", headers=desk, json={"calibration": "x"}).status_code == 403
+        assert client.patch("/api/v1/skills/oryh-product-matching", headers=desk,
+                            json={"calibration": "y", "status": "archived"}).status_code == 403, "only calibration"
+        assert client.patch("/api/v1/skills/oryh-product-matching", headers=desk,
+                            json={"files": {"SKILL.md": "---\nname: oryh-product-matching\ndescription: x\n---\n"}}).status_code == 403

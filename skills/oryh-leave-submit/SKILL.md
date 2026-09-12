@@ -17,6 +17,8 @@ balance is correct immediately, with no data to migrate.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/api-auth-principal.md}}
 
 {{include:_common/leave-balance.md}}

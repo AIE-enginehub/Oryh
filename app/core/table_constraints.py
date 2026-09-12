@@ -49,7 +49,7 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
         "approved", "commented", "rejected", "returned", "submitted",
     ),
     ("approval_records", "entity_type"): (
-        "approval_target", "business_object", "contract", "employee_leave", "expense_claim",
+        "approval_target", "business_object", "campaign", "contract", "employee_leave", "event", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",
@@ -107,11 +107,12 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     # `20260813_0054` drops it; `tests/test_table_constraints.py` keeps any
     # extensible family from acquiring one again.
     ("todos", "entity_type"): (
-        "approval_target", "business_object", "contract", "employee_leave", "expense_claim",
+        "approval_target", "business_object", "campaign", "contract", "employee_leave", "event", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist", "project",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",
     ),
+    ("communication_events", "direction"): ("inbound", "outbound"),
     ("shipments", "direction"): ("inbound", "outbound"),
     ("todos", "status"): ("cancelled", "completed", "open"),
     ("users", "status"): ("active", "disabled", "invited"),

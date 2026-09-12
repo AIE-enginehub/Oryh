@@ -67,10 +67,12 @@ def test_the_capability_exists() -> None:
 
 def test_a_keeper_moves_stock_and_cannot_touch_the_catalog(desks) -> None:
     keeper = desks["key_holding"]("inventory.manage")
-    moved = desks["client"].post("/api/v1/inventory-item-details", headers=keeper, json={
-        "inventory_item_id": desks["item"], "quantity_on_hand_diff": -1, "reason": "issued",
-        "description": "one out"})
-    assert moved.status_code == 201, moved.text
+    leg = desks["client"].post("/api/v1/shipments", headers=keeper, json={
+        "direction": "outbound", "items": [
+            {"product_id": desks["product"], "quantity": 1, "inventory_item_id": desks["item"]}]})
+    assert leg.status_code == 201, leg.text
+    moved = desks["client"].post(f"/api/v1/shipments/{leg.json()['data']['id']}/post-stock", headers=keeper)
+    assert moved.status_code == 200, moved.text
 
     catalog = desks["client"].post("/api/v1/products", headers=keeper,
                                    json={"name": "Gadget", "product_code": "G-1"})
@@ -87,10 +89,43 @@ def test_a_catalog_administrator_no_longer_moves_stock(desks) -> None:
                                    json={"name": "Gadget", "product_code": "G-2"})
     assert catalog.status_code == 201, catalog.text
 
-    moved = desks["client"].post("/api/v1/inventory-item-details", headers=admin_only, json={
-        "inventory_item_id": desks["item"], "quantity_on_hand_diff": -1, "reason": "issued"})
+    moved = desks["client"].post("/api/v1/inventory-items/bulk", headers=admin_only, json={
+        "rows": [{"product_code": "W-1", "facility": "main", "quantity": 5}], "dry_run": True})
     assert moved.status_code == 403, moved.text
     assert "inventory.manage" in moved.json()["detail"]
+    leg = desks["client"].post("/api/v1/shipments", headers=admin_only, json={"direction": "inbound"})
+    assert leg.status_code == 403 and "shipment.manage" in leg.json()["detail"]
+
+
+def test_the_freight_desk_ships_and_cannot_touch_the_shelf(desks) -> None:
+    """`shipment.manage` is split out of `inventory.manage` the same way:
+    the order desk that ships what it sold files and posts the leg, and
+    reaches no position, no count, no hold. And the keeper still ships —
+    the wider grant implies the narrower one, so no role lost anything."""
+    c = desks["client"]
+    shipper = desks["key_holding"]("shipment.manage")
+    leg = c.post("/api/v1/shipments", headers=shipper, json={
+        "direction": "outbound", "items": [
+            {"product_id": desks["product"], "quantity": 1, "inventory_item_id": desks["item"]}]})
+    assert leg.status_code == 201, leg.text
+    posted = c.post(f"/api/v1/shipments/{leg.json()['data']['id']}/post-stock", headers=shipper)
+    assert posted.status_code == 200, posted.text
+    shelf = {
+        "POST /inventory-items": c.post("/api/v1/inventory-items", headers=shipper,
+                                        json={"product_id": desks["product"], "facility": "b"}),
+        "PATCH /inventory-items/{id}": c.patch(f"/api/v1/inventory-items/{desks['item']}",
+                                               headers=shipper, json={"bin_number": "A1"}),
+        "POST /inventory-items/bulk": c.post("/api/v1/inventory-items/bulk", headers=shipper,
+                                             json={"rows": [{"product_code": "W-1", "facility": "main",
+                                                             "quantity": 5}], "dry_run": True}),
+        "POST /picklists": c.post("/api/v1/picklists", headers=shipper, json={"items": []}),
+    }
+    reachable = {route: r.status_code for route, r in shelf.items() if r.status_code != 403}
+    assert not reachable, f"the freight desk reached the shelf: {reachable}"
+    assert c.post("/api/v1/inventory-item-details", headers=desks["key_holding"]("inventory.manage"),
+                  json={"inventory_item_id": desks["item"], "quantity_on_hand_diff": 1,
+                        "reason": "received"}).status_code in (404, 405), \
+        "there is no generic ledger write for anyone"
 
 
 def test_every_inventory_write_is_on_the_new_gate(desks) -> None:

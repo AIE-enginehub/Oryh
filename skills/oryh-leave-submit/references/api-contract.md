@@ -19,6 +19,23 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 
+## DELETE /policies/{policy_id}
+
+Delete Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+| `reason` | query | string (≤500 chars) | no |  |
+
+## DELETE /type-options/{type_option_id}
+
+Archive Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
 ## GET /employee-leaves
 
 List Employee Leaves
@@ -35,6 +52,7 @@ List Employee Leaves
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /employee-leaves/{leave_id}
 
@@ -44,6 +62,18 @@ Get Employee Leave
 |---|---|---|---|---|
 | `leave_id` | path | string | yes |  |
 
+## GET /employees
+
+List Employees
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
 ## GET /employees/{employee_id}
 
 Get Employee
@@ -51,6 +81,31 @@ Get Employee
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
+
+## GET /employees/{employee_id}/pay-history
+
+Get Employee Pay History
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+| `component` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+
+## GET /employees/{employee_id}/todos
+
+List Employee Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /policies
 
@@ -67,6 +122,49 @@ List Policies
 | `include_deleted` | query | boolean | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /policies/{policy_id}
+
+Get Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+
+## GET /policies/{policy_id}/attachments/{attachment_id}/content
+
+Get Policy Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
+
+## GET /todos
+
+List Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `due_before` | query | date-time | no |  |
+| `include` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /todos/{todo_id}
+
+Get Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
 
 ## GET /type-options
 
@@ -91,6 +189,15 @@ List Workflow Definitions
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+
+## GET /workflow-definitions/{definition_id}
+
+Get Workflow Definition
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `definition_id` | path | string | yes |  |
 
 ## PATCH /employee-leaves/{leave_id}
 
@@ -112,6 +219,85 @@ Body:
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string | optional |  |
 | `thru_date` | date | optional |  |
+
+## PATCH /employees/{employee_id}
+
+Update Employee
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `email` | string (≤320 chars) | optional |  |
+| `employee_code` | string (≤64 chars) | optional |  |
+| `hire_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `status` | `active` | `inactive` | optional |  |
+| `timezone` | string (≤100 chars) | optional |  |
+
+## PATCH /policies/{policy_id}
+
+Update Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `attachment_id` | string | optional |  |
+| `body` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## PATCH /todos/{todo_id}
+
+Update Todo
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `todo_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `completed_by` | string (≤100 chars) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `due_at` | date-time | optional |  |
+| `status` | `open` | `completed` | `cancelled` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
+## PATCH /type-options/{type_option_id}
+
+Update Type Option
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `type_option_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤2000 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `title` | string (≤200 chars) | optional |  |
 
 ## POST /employee-leaves
 
@@ -146,3 +332,114 @@ Submit Employee Leave
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `leave_id` | path | string | yes |  |
+
+## POST /employees
+
+Create Employee
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `email` | string (≤320 chars) | optional |  |
+| `employee_code` | string (≤64 chars) | optional |  |
+| `hire_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `status` | `active` | `inactive` | optional |  |
+| `timezone` | string (≤100 chars) | optional |  |
+
+## POST /policies
+
+Create Policy
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+| `code` | string (≤50 chars) | required |  |
+| `title` | string (≤200 chars) | required |  |
+| `attachment_id` | string | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /policies/{policy_id}/publish
+
+Publish Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_from` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /policies/{policy_id}/repeal
+
+Repeal Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_thru` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /policies/{policy_id}/visibility
+
+Rescope Policy
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `policy_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `visibility` | `internal` | `restricted` | `public` | required |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+
+## POST /type-options
+
+Create Type Option
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `family` | string | required |  |
+| `name` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+
+## POST /workflow-definitions
+
+Publish Workflow Definition
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `definition_text` | string (≤20000 chars) | required |  |
+| `object_type` | string (≤100 chars) | required |  |
+| `created_by` | string (≤100 chars) | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `name` | string (≤100 chars) | optional |  |

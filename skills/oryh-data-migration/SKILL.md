@@ -18,6 +18,8 @@ not mean starting over, and one departed customer must not stop the run.
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/custom-object-is-never-silent.md}}
 
 ## Trigger Examples

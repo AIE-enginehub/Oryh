@@ -81,7 +81,7 @@ GET    /stores/{store_id}        → includes fulfilment_facilities, preferred f
 PATCH  /stores/{store_id} · DELETE → archive; orders keep their pointer
 
 GET    /store-facilities?store_id=&facility_id=&status=
-POST   /store-facilities         → {store_id, facility_id, priority?}; 409 if the pair exists — PATCH it (archived revives)
+POST   /store-facilities         → {store_id, facility_id, priority?} — 1 is the first choice; 409 if the pair exists — PATCH it (archived revives)
 PATCH  /store-facilities/{link_id} · DELETE → archive
 ```
 
@@ -435,7 +435,7 @@ The external ORDER number is not master data: it lands in
 
 ## Inventory
 
-The stock ledger is not master data. `/inventory-items`,
+The stock ledger is not master data. `/inventory-items`, the read-only
 `/inventory-item-details` and the stock-count import (`POST
 /inventory-items/bulk`) moved to `$oryh-inventory`, under their own capability
 `inventory.manage` — held by the warehouse, not by default by a catalog
@@ -461,3 +461,24 @@ Enforced by the database, per company: two products in one tenant cannot share
 a `product_code`. A single `POST` colliding with an existing code returns
 `409` naming it. In a bulk upsert the same collision is not an error at all —
 it is the update path, which is the entire point.
+
+## Geos And Territories
+
+```text
+GET    /geos?geo_type=&parent_geo_id=&status=&keyword=
+POST   /geos                          → {geo_code, name, geo_type, parent_geo_id?, abbreviation?}
+PATCH  /geos/{id}                     → name, geo_type, parent_geo_id, abbreviation, status (active | archived)
+GET    /geos/{id}/path                → the geo and its ancestors, root first
+POST   /geos/seed-template            → {"template": "cn_provinces"} → {created, existing}
+GET    /territories?parent_territory_id=&manager_employee_id=&status=&keyword=
+POST   /territories                   → {territory_code, name, parent_territory_id?, manager_employee_id?, description?}
+PATCH  /territories/{id}
+GET    /territory-resolution?geo_id= → {geo_path, matches[{territory, covered_geo, depth}], territory | null, ambiguous}
+GET    /territory-geos?territory_id=&geo_id=      POST {territory_id, geo_id}      DELETE /territory-geos/{id}
+GET    /territory-members?territory_id=&employee_id=&role=   POST {territory_id, employee_id, role?, valid_from?, valid_until?}
+PATCH  /territory-members/{id}        DELETE /territory-members/{id}
+```
+
+Customers carry `geo_id`, `territory_id`, `owner_employee_id`, `payment_terms`
+(`?geo_id=`, `?territory_id=`, `?owner_employee_id=` on the list); leads
+carry `geo_id`. All of it is `master_data.manage`; everyone reads.

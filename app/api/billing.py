@@ -44,7 +44,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
+    requested_pagination,
     _run_document_import,
     account_position,
     allocate_document_number,
@@ -156,7 +158,7 @@ from app.schemas import (
     PaymentListEnvelope,
     PaymentRead,
     PostBillingAccountEntriesEnvelope,
-    PostBillingAccountEntriesRequest,
+    ExpireBillingAccountEntriesRequest,
     PostBillingAccountEntriesResult,
     PurchaseProductReferenceRead,
     PurchaseSkuReferenceRead,
@@ -695,6 +697,7 @@ def list_invoices(
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """The receivables/payables work queues live here.
 
@@ -758,6 +761,7 @@ def list_invoices(
         ),
         order_by=(Invoice.created_at.desc(), Invoice.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=InvoiceRead,
     )
 
@@ -1317,6 +1321,9 @@ def list_invoice_items(
     product_id: str | None = None,
     sales_order_item_id: str | None = None,
     purchase_order_item_id: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     tenant_id = actor.tenant_id
     stmt = (
@@ -1344,7 +1351,8 @@ def list_invoice_items(
             InvoiceItem.created_at.asc(),
             InvoiceItem.id.asc(),
         ),
-        pagination=None,
+        pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=InvoiceItemRead,
     )
 
@@ -1774,6 +1782,7 @@ def list_billing_accounts(
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """`over_limit=true` is the credit-risk queue: accounts whose balance has
     gone past the credit line they were given."""
@@ -1805,6 +1814,7 @@ def list_billing_accounts(
         ),
         order_by=(BillingAccount.created_at.desc(), BillingAccount.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=BillingAccountRead,
     )
 
@@ -2065,64 +2075,61 @@ def get_billing_account_detail(
 
 
 @router.post(
-    "/billing-accounts/{account_id}/entries",
+    "/billing-accounts/{account_id}/expire",
     response_model=PostBillingAccountEntriesEnvelope,
     response_model_exclude_unset=True,
 )
-def post_billing_account_entries(
+def expire_billing_account_entries(
     account_id: str,
-    payload: PostBillingAccountEntriesRequest,
+    payload: ExpireBillingAccountEntriesRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Record movement on an account — the twin of the purchase order's receive
-    endpoint and the payment's apply endpoint.
-
-    What the server guarantees: the balance never falls below the credit line,
-    a frozen account takes nothing, the reason is a word this workspace uses,
-    and a retry with the same key posts once. What it does NOT do is decide how
-    many points a purchase earns or what they are worth — those rules live in
-    the tenant's workflow definition, and nothing here converts between units.
-    """
+    """The expiry sweep's write: each line names an earn batch (`entry_id`)
+    and how much of it lapses. The server holds the sweep to its facts — the
+    batch is this account's, carried an expiry, has not been expired yet,
+    and the amount is at most the batch — and writes the `expired` row
+    pointing at the batch, which is what makes a re-run skip it. HOW MUCH of
+    a batch survived redemption (FIFO, LIFO, pool) is the workspace's rule;
+    the agent applies it and says so. There is no other way to write an
+    `expired` row."""
     tenant_id = actor.tenant_id
     account = get_active_account_or_404(db, tenant_id, account_id)
-    if payload.idempotency_key:
-        replay = account_entries_replay(db, tenant_id, account.id, payload.idempotency_key)
-        if replay:
-            ensure_replay_matches(
-                [(round(float(row.amount), 2), row.reason) for row in replay],
-                [(round(float(line.amount), 2), line.reason) for line in payload.lines],
-                key=payload.idempotency_key, label="set of account entries",
+    lines = []
+    for index, line in enumerate(payload.lines):
+        batch = db.scalar(select(BillingAccountEntry).where(
+            BillingAccountEntry.tenant_id == tenant_id,
+            BillingAccountEntry.billing_account_id == account.id,
+            BillingAccountEntry.id == line.entry_id,
+        ))
+        if batch is None or float(batch.amount) <= 0 or batch.expires_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"lines[{index}]: {line.entry_id} is not an earn batch with an expiry on this account",
             )
-            balance = float(account.balance or 0)
-            return envelope(
-                PostBillingAccountEntriesResult(
-                    entries=[BillingAccountEntryRead.model_validate(row) for row in replay],
-                    balance=round(balance, 2),
-                    available_amount=round(balance + float(account.credit_limit or 0), 2),
-                    replayed=True,
-                ).model_dump(by_alias=True)
+        already = db.scalar(select(BillingAccountEntry.id).where(
+            BillingAccountEntry.tenant_id == tenant_id,
+            BillingAccountEntry.reason == "expired",
+            BillingAccountEntry.entity_type == "billing_account_entry",
+            BillingAccountEntry.entity_id == batch.id,
+        ).limit(1))
+        if already is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"lines[{index}]: batch {batch.id} was already expired by entry {already}",
             )
-    written = post_account_entries(
-        db, actor, account, payload.lines, idempotency_key=payload.idempotency_key
-    )
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        replay = account_entries_replay(db, tenant_id, account.id, payload.idempotency_key or "")
-        if not replay:
-            raise
-        db.refresh(account)
-        balance = float(account.balance or 0)
-        return envelope(
-            PostBillingAccountEntriesResult(
-                entries=[BillingAccountEntryRead.model_validate(row) for row in replay],
-                balance=round(balance, 2),
-                available_amount=round(balance + float(account.credit_limit or 0), 2),
-                replayed=True,
-            ).model_dump(by_alias=True)
-        )
+        if line.amount > float(batch.amount) + 1e-9:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"lines[{index}]: batch {batch.id} holds {float(batch.amount):.2f}, not {line.amount:.2f}",
+            )
+        lines.append(SimpleNamespace(
+            amount=-line.amount, reason="expired",
+            description=line.description or f"batch of {float(batch.amount):.2f} expired {batch.expires_at.date().isoformat()}",
+            entity_type="billing_account_entry", entity_id=batch.id, expires_at=None, effective_at=None,
+        ))
+    written = post_account_entries(db, actor, account, lines)
+    db.commit()
     db.refresh(account)
     for entry in written:
         db.refresh(entry)
@@ -2182,6 +2189,7 @@ def list_billing_account_entries(
     entity_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries posted through POST /billing-accounts/{id}/entries."""
@@ -2195,6 +2203,7 @@ def list_billing_account_entries(
         },
         order_by=(BillingAccountEntry.effective_at.desc(), BillingAccountEntry.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=BillingAccountEntryRead,
     )
 
@@ -2537,6 +2546,8 @@ def list_payments(
     employee_id: str | None = None,
     payment_no: str | None = None,
     reference_no: str | None = None,
+    payment_date_from: date | None = None,
+    payment_date_thru: date | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     unapplied: bool = False,
     without_open_todo: bool = False,
@@ -2544,6 +2555,7 @@ def list_payments(
     include_deleted: bool = False,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """`unapplied=true` is the 认领队列: money that arrived or went out and has
     not been matched to a document yet. On the inbound side that is 预收款 plus
@@ -2553,6 +2565,12 @@ def list_payments(
     stmt = select(Payment).where(Payment.tenant_id == tenant_id)
     # a payment settling someone else's payslip carries their net pay
     stmt = hide_payroll_payments(stmt, actor)
+    # a bounded window for "which paid payments make up this bank debit":
+    # the treasury agent used to page the whole outbound history
+    if payment_date_from is not None:
+        stmt = stmt.where(Payment.payment_date >= payment_date_from)
+    if payment_date_thru is not None:
+        stmt = stmt.where(Payment.payment_date <= payment_date_thru)
     if not include_deleted:
         stmt = stmt.where(Payment.deleted_at.is_(None))
     if unapplied:
@@ -2580,6 +2598,7 @@ def list_payments(
         ),
         order_by=(Payment.created_at.desc(), Payment.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=PaymentRead,
     )
 
@@ -3165,6 +3184,7 @@ def list_payment_applications(
     invoice_item_id: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries recorded through POST /payments/{id}/apply.
@@ -3213,6 +3233,7 @@ def list_payment_applications(
         },
         order_by=(PaymentApplication.applied_at.desc(), PaymentApplication.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=PaymentApplicationRead,
     )
 

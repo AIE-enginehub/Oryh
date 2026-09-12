@@ -237,6 +237,17 @@ def send_enterprise_pilot_application_status_email(
 
 def send_tenant_welcome_email(*, to: str, tenant_name: str, password: str) -> None:
     login_url = f"{canonical_link_base(purpose='tenant welcome')}/console/login"
+    if not _zh():
+        outbox.send(
+            to=to,
+            subject=f"Your Oryh workspace \"{tenant_name}\" is ready",
+            body=(
+                f"Your company \"{tenant_name}\" is now live on Oryh and you are its administrator.\n\n"
+                f"Sign in: {login_url}\nAccount: {to}\nInitial password: {password}\n\n"
+                f"Keep it safe and change it after your first sign-in.\n"
+            ),
+        )
+        return
     outbox.send(
         to=to,
         subject=f"您的 oryh 工作空间「{tenant_name}」已开通 / Your oryh workspace is ready",
@@ -256,6 +267,17 @@ def send_tenant_welcome_email(*, to: str, tenant_name: str, password: str) -> No
 
 def send_password_reset_email(*, to: str, tenant_name: str, password: str) -> None:
     login_url = f"{canonical_link_base(purpose='password reset')}/console/login"
+    if not _zh():
+        outbox.send(
+            to=to,
+            subject=f"Your Oryh password for \"{tenant_name}\" was reset",
+            body=(
+                f"An administrator reset your Oryh password for \"{tenant_name}\"; all existing sessions were signed out.\n\n"
+                f"Sign in: {login_url}\nAccount: {to}\nNew password: {password}\n\n"
+                f"If you did not ask for this, contact your administrator at once.\n"
+            ),
+        )
+        return
     outbox.send(
         to=to,
         subject=f"您在「{tenant_name}」的 oryh 密码已重置 / Your oryh password was reset",
@@ -275,6 +297,20 @@ def send_password_reset_email(*, to: str, tenant_name: str, password: str) -> No
 
 def send_password_reset_link_email(*, to: str, tenant_name: str, token: str) -> None:
     link = f"{canonical_link_base(purpose='password reset')}/web/invitations/accept?mode=reset&token={token}"
+    if not _zh():
+        outbox.send(
+            to=to,
+            subject=f"Reset your Oryh password for \"{tenant_name}\"",
+            body=(
+                f"A password reset was requested for your account in \"{tenant_name}\".\n\n"
+                f"Open this one-time link to choose a new password:\n{link}\n\n"
+                f"The link expires in {settings.password_reset_token_ttl_minutes} minutes. Your current password and "
+                f"sessions stay valid until the reset completes; afterwards every old session is signed out. "
+                f"If you received several reset emails, only the newest link works.\n\n"
+                f"If you did not expect this, ignore this email and tell your workspace administrator.\n"
+            ),
+        )
+        return
     outbox.send(
         to=to,
         subject=f"重置您在「{tenant_name}」的 oryh 密码 / Reset your oryh password",
@@ -291,6 +327,40 @@ def send_password_reset_link_email(*, to: str, tenant_name: str, token: str) -> 
             f"if you receive multiple reset emails, only the newest link works.\n"
         ),
     )
+
+
+def send_self_registration_notice_email(
+    *, to: str, tenant_name: str, tenant_slug: str, admin_email: str
+) -> None:
+    """Tell a platform operator that a workspace created itself.
+
+    With review switched off, mailbox verification alone provisions the
+    tenant, and the review queue — which used to be how an operator learned a
+    company had arrived — is empty. What the operator still owes the tenant is
+    the hosted flow agent: provisioning writes its subscriptions, but the
+    hosted key is minted by the platform and the runner learns of tenants from
+    a credentials file. Until `enroll-hosted-flow-agent.sh` runs, that
+    workspace's approval queues are enrolled on paper and driven by nobody.
+    """
+    if _zh():
+        subject = f"新工作区自助开通：{tenant_name}（{tenant_slug}）"
+        body = (
+            f"一家公司通过邮箱验证自助注册，工作区已经开通，无需审核。\n\n"
+            f"公司：{tenant_name}\n标识：{tenant_slug}\n管理员：{admin_email}\n\n"
+            f"它的托管流程代理尚未登记：订阅已随开通写入，但托管密钥要由平台签发，runner 也只从凭据文件里认识租户。"
+            f"在运维目录里运行 enroll-hosted-flow-agent.sh {tenant_slug}，它的审批队列才会被驱动。\n"
+        )
+    else:
+        subject = f"New workspace registered itself: {tenant_name} ({tenant_slug})"
+        body = (
+            f"A company registered through mailbox verification alone; its workspace exists and needed no review.\n\n"
+            f"Company: {tenant_name}\nSlug: {tenant_slug}\nAdministrator: {admin_email}\n\n"
+            f"Its hosted flow agent is not enrolled yet: provisioning wrote the subscriptions, but the hosted key is "
+            f"minted by the platform and the runner learns of tenants from its credentials file. Run "
+            f"enroll-hosted-flow-agent.sh {tenant_slug} from the environment directory; until then its approval "
+            f"queues are enrolled on paper and driven by nobody.\n"
+        )
+    outbox.send(to=to, subject=subject, body=body)
 
 
 def send_invitation_email(*, to: str, tenant_name: str, token: str) -> None:
@@ -316,13 +386,30 @@ def send_invitation_email(*, to: str, tenant_name: str, token: str) -> None:
 # never passed in. That turns "never guess an address" from a rule an agent has
 # to remember into something it cannot do.
 
-NOTIFICATION_SUBJECTS = {
+NOTIFICATION_SUBJECTS_ZH = {
     "assigned": "有一项工作需要你处理：{title}",
     "assigned_many": "有 {count} 项工作需要你处理",
     "returned": "你的单据被退回，请修改后重新提交：{title}",
     "approved": "你的单据已通过：{title}",
     "rejected": "你的单据已被驳回：{title}",
 }
+NOTIFICATION_SUBJECTS_EN = {
+    "assigned": "Work assigned to you: {title}",
+    "assigned_many": "{count} items assigned to you",
+    "returned": "Returned for rework: {title}",
+    "approved": "Approved: {title}",
+    "rejected": "Rejected: {title}",
+}
+
+
+def _zh() -> bool:
+    """Whether the server writes Chinese. One content locale for everything the
+    server itself says (seeds, catalogue, these mails): the hosted service is
+    Chinese, a standalone deployment English unless ORYH_LOCALE says otherwise."""
+    return settings.resolved_locale == "zh"
+
+
+NOTIFICATION_SUBJECTS = NOTIFICATION_SUBJECTS_ZH  # kept for callers that import the name
 
 
 def send_work_notification(
@@ -345,25 +432,39 @@ def send_work_notification(
     what to fix. Summarising it would make it a different instruction, so
     nothing here reformats it.
     """
-    subject = NOTIFICATION_SUBJECTS.get(event, "工作通知：{title}").format(title=title)
-    lines = [f"{recipient_name}：", ""]
+    if _zh():
+        subjects, fallback = NOTIFICATION_SUBJECTS_ZH, "工作通知：{title}"
+        opening = f"{recipient_name}："
+        said = {
+            "assigned_many": "有 {count} 项工作分配给你：", "assigned": "有一项工作分配给你：{title}",
+            "returned": "你提交的《{title}》被退回，需要修改后重新提交。",
+            "approved": "你提交的《{title}》已通过审批。", "rejected": "你提交的《{title}》已被驳回。",
+            "actor": "处理人：{actor}", "detail": "说明（原文）：", "link": "处理入口：{link}",
+            "footer": "本邮件由 oryh 自动发送，请勿直接回复。",
+        }
+    else:
+        subjects, fallback = NOTIFICATION_SUBJECTS_EN, "Work notification: {title}"
+        opening = f"{recipient_name},"
+        said = {
+            "assigned_many": "{count} items were assigned to you:", "assigned": "Work was assigned to you: {title}",
+            "returned": "Your \"{title}\" was returned and needs rework before you resubmit it.",
+            "approved": "Your \"{title}\" was approved.", "rejected": "Your \"{title}\" was rejected.",
+            "actor": "Handled by: {actor}", "detail": "Comment (verbatim):", "link": "Your queue: {link}",
+            "footer": "Sent automatically by Oryh; do not reply to this email.",
+        }
+    subject = subjects.get(event, fallback).format(title=title)
+    lines = [opening, ""]
     if event == "assigned" and items:
-        subject = NOTIFICATION_SUBJECTS["assigned_many"].format(count=len(items))
-        lines.append(f"有 {len(items)} 项工作分配给你：")
+        subject = subjects["assigned_many"].format(count=len(items))
+        lines.append(said["assigned_many"].format(count=len(items)))
         lines += [f"- {item}" for item in items]
-    elif event == "assigned":
-        lines.append(f"有一项工作分配给你：{title}")
-    elif event == "returned":
-        lines.append(f"你提交的《{title}》被退回，需要修改后重新提交。")
-    elif event == "approved":
-        lines.append(f"你提交的《{title}》已通过审批。")
-    elif event == "rejected":
-        lines.append(f"你提交的《{title}》已被驳回。")
+    elif event in ("assigned", "returned", "approved", "rejected"):
+        lines.append(said[event].format(title=title))
     else:
         lines.append(title)
     if actor_name:
-        lines.append(f"处理人：{actor_name}")
+        lines.append(said["actor"].format(actor=actor_name))
     if detail:
-        lines += ["", "说明（原文）：", detail]
-    lines += ["", f"处理入口：{link}", "", "本邮件由 oryh 自动发送，请勿直接回复。"]
+        lines += ["", said["detail"], detail]
+    lines += ["", said["link"].format(link=link), "", said["footer"]]
     outbox.send(to=to, subject=subject, body="\n".join(lines))

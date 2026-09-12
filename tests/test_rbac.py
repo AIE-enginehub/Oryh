@@ -567,8 +567,9 @@ def test_member_purchase_baseline(client: TestClient) -> None:
 
 
 def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> None:
-    """todos.assign is not in the member baseline: assigning work is routing,
-    the flow/admin side's write. Members still complete their own todos."""
+    """todos.assign is not in the member baseline: assigning work to someone
+    else is routing, the flow/admin side's write. A member's own reminder is
+    not routing (F-17), and members still complete their own todos."""
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
@@ -585,20 +586,32 @@ def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> Non
         headers=service,
     ).json()["data"]["id"]
 
-    # a member key cannot mint todos — not for a colleague, not even for itself
-    for target in (colleague_id, employee_id):
-        denied = client.post(
-            "/api/v1/todos",
-            json={
-                "employee_id": target,
-                "entity_type": "timesheet_header",
-                "entity_id": header_id,
-                "title": "看一下这份工时",
-            },
-            headers=member["headers"],
-        )
-        assert denied.status_code == 403, denied.text
-        assert "todos.assign" in denied.json()["detail"]
+    # a member key cannot route work to a colleague …
+    denied = client.post(
+        "/api/v1/todos",
+        json={
+            "employee_id": colleague_id,
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "title": "看一下这份工时",
+        },
+        headers=member["headers"],
+    )
+    assert denied.status_code == 403, denied.text
+    assert "todos.assign" in denied.json()["detail"]
+    # … but may leave itself a reminder on the same record
+    own = client.post(
+        "/api/v1/todos",
+        json={
+            "employee_id": employee_id,
+            "entity_type": "timesheet_header",
+            "entity_id": header_id,
+            "title": "看一下这份工时",
+        },
+        headers=member["headers"],
+    )
+    assert own.status_code == 201, own.text
+    client.patch(f"/api/v1/todos/{own.json()['data']['id']}", json={"status": "completed"}, headers=member["headers"])
 
     # the flow side (service credential) assigns; the member completes its own
     todo_id = client.post(

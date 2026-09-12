@@ -25,6 +25,26 @@ from app.schemas import (
 
 router = APIRouter(prefix="/web")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+def page_locale(request: Request) -> str:
+    """`zh` or `en`, decided in this order: an explicit `?lang=`, the browser's
+    first preferred language, then the deployment's brand (the China service
+    is `oryhcn`, and a visitor there who states no preference reads Chinese).
+
+    The console shell has always been Chinese; the sign-in and registration
+    pages around it were English only, which on oryh.cn meant a Chinese
+    company registering through an English form. A page is localised by
+    having a `<name>.zh.html` beside it — `render` picks it up on its own, so
+    a page with no translation simply stays English."""
+    forced = request.query_params.get("lang")
+    if forced in ("zh", "en"):
+        return forced
+    preferred = (request.headers.get("accept-language") or "").split(",")[0].strip().lower()
+    if preferred:
+        return "zh" if preferred.startswith("zh") else "en"
+    return "zh" if settings.skill_brand == "oryhcn" else "en"
 
 
 def get_web_actor(
@@ -74,10 +94,15 @@ def render(
     # the registration flow — belongs to the hosted service and is not part of
     # the open core, so a standalone deployment must not link to pages it does
     # not serve. A template that links off to the site guards on this.
+    locale = page_locale(request)
+    if locale == "zh":
+        localised = template[: -len(".html")] + ".zh.html"
+        if (TEMPLATE_DIR / localised).is_file():
+            template = localised
     return templates.TemplateResponse(
         request,
         template,
-        {"actor": actor, "edition": settings.resolved_edition, **nav, **context},
+        {"actor": actor, "edition": settings.resolved_edition, "locale": locale, **nav, **context},
     )
 
 

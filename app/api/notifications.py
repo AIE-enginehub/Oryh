@@ -36,6 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import Actor, get_actor, require_permission
+from app.core.config import settings
 from app.core.request_context import resolved_base_url
 from app.db.session import get_db
 from app.models import Employee, Todo
@@ -121,7 +122,10 @@ def send_notification(
     # the todos are the message: their titles, in the order the caller named
     # them, with `title` as the one-line summary only when the caller gave one
     items = [todo.title for todo in todos]
-    title = payload.title or (items[0] if len(items) == 1 else f"{len(items)} 项工作")
+    title = payload.title or (
+        items[0] if len(items) == 1
+        else (f"{len(items)} 项工作" if settings.resolved_locale == "zh" else f"{len(items)} items")
+    )
     send_work_notification(
         to=employee.email,
         recipient_name=employee.name,

@@ -1488,9 +1488,10 @@ def test_the_write_then_decide_skills_are_told_to_re_read_first() -> None:
         assert include in text, f"{name} submits what it wrote without re-reading it"
 
     # the expense skill's own read-back must name its source, since a read-back
-    # that does not say "from the response" is what failed
+    # that does not say "from the response" is what failed — and the source is
+    # the create response it already holds, not a second read of the same rows
     expense = (PRODUCT_SKILLS_DIR / "oryh-expense-submit" / "SKILL.md").read_text(encoding="utf-8")
-    assert "/detail` and echo the complete claim **from that response**" in expense
+    assert "**from the response you hold**" in expense and "create response carries every item" in expense
 
 
 def test_a_scoped_grant_receives_the_skill_gated_on_the_bare_verb(client: TestClient) -> None:

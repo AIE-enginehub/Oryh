@@ -44,6 +44,8 @@ oryh:
 
 {{include:_common/answer-the-question.md}}
 
+{{include:_common/confirm-before-you-write.md}}
+
 {{include:_common/archived-is-history.md}}
 
 {{include:_common/read-before-you-decide.md}}
@@ -116,8 +118,10 @@ oryh:
      is the salaries" or nothing at all; they do not know a batch number
      exists. For an outbound line no single payment explains — or any line
      whose counterparty or description says payroll, disbursement or salaries —
-     read the paid outbound payments (`GET /payments?direction=outbound&status=paid`,
-     page through the period), group them by `reference_no`, sum each group,
+     read the paid outbound payments of the line's own window — ONE query,
+     `GET /payments?direction=outbound&status=paid&payment_date_from=&payment_date_thru=`
+     (the debit's date, a week either side; never the whole history) —
+     group them by `reference_no`, sum each group,
      and the group whose sum equals the line's amount IS the batch. Propose
      it with its count ("12 salary payments under PAYROLL-2026-08 sum to
      exactly this debit — link them?"), link on a yes, and say the batch

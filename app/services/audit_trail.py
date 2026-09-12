@@ -41,7 +41,18 @@ from typing import Any
 from sqlalchemy import event, inspect as sa_inspect
 from sqlalchemy.orm import Session
 
-from app.models import AuditLog
+
+
+def _audit_log_model():
+    """Resolved lazily: app/models.py imports this module at its foot to
+    install the listeners, so a module-level `from app.models import AuditLog`
+    here is a cycle whenever THIS module is imported first — which is what
+    `alembic heads` does through migration 0026 → provisioning → here, and
+    what left the migration entrypoint dead while the API process (which
+    imports models first) ran fine."""
+    from app.models import AuditLog
+
+    return AuditLog
 
 # Columns whose VALUE must never reach the trail. The change is still recorded —
 # a rotated credential is exactly the kind of event a trail exists for — but the
@@ -274,7 +285,7 @@ def _gather(session: Session, *_: object) -> None:
     claimed = session.info.setdefault("audit_semantic", set())
 
     for entry in session.new:
-        if isinstance(entry, AuditLog):
+        if isinstance(entry, _audit_log_model()):
             claimed.add((entry.entity_type, entry.entity_id))
 
     for instance in session.new:
@@ -307,12 +318,12 @@ def _emit(session: Session) -> None:
         return
     claimed = set(session.info.get("audit_semantic", set()))
     for entry in session.new:
-        if isinstance(entry, AuditLog):
+        if isinstance(entry, _audit_log_model()):
             claimed.add((entry.entity_type, entry.entity_id))
 
     session.info["audit_pending"] = []
     fresh = [
-        AuditLog(**values)
+        _audit_log_model()(**values)
         for values in pending
         if (values["entity_type"], values["entity_id"]) not in claimed
     ]

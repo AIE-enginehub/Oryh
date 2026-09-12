@@ -32,6 +32,7 @@ from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     apply_status_change,
     commit_or_conflict,
@@ -205,6 +206,7 @@ def list_employees(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     return list_rows(
         db, select(Employee).where(Employee.tenant_id == tenant_id),
@@ -213,6 +215,7 @@ def list_employees(
         keyword_columns=(Employee.name,),
         order_by=(Employee.created_at.desc(), Employee.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=EmployeeRead,
     )
 
@@ -289,6 +292,7 @@ def list_employee_todos(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     get_scoped_or_404(db, Employee, tenant_id, employee_id)
     stmt = select(Todo).where(
@@ -311,6 +315,7 @@ def list_employee_todos(
         ),
         order_by=(Todo.created_at.desc(), Todo.id.desc()),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=TodoRead,
     )
     for row in result["data"]:
@@ -339,6 +344,7 @@ def list_employee_leaves(
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """The rows an agent computes a balance FROM.
 
@@ -381,6 +387,7 @@ def list_employee_leaves(
             EmployeeLeave.id.desc(),
         ),
         pagination=requested_pagination(page, size),
+        sort=order_by,
         read_model=EmployeeLeaveRead,
     )
 
@@ -617,6 +624,7 @@ def list_pay_histories(
     in_force_on: date | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
 ):
     """Salaries are the one thing in this system a credential does not get to
     read merely by belonging to the workspace. Without `payroll.read` an actor
@@ -638,6 +646,7 @@ def list_pay_histories(
         filters={PayHistory.employee_id: employee_id, PayHistory.component: component},
         order_by=(PayHistory.effective_from.desc(), PayHistory.id.desc()),
         pagination=page_only_pagination(page, size, default=50),
+        sort=order_by,
         read_model=PayHistoryRead,
     )
 

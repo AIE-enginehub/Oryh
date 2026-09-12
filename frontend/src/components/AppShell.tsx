@@ -47,19 +47,14 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
     group.items.some((item) => item.createLabel),
   );
   const displayName = bootstrap.user.name || bootstrap.user.email;
-  const currentGroup = navigation.find((group) =>
-    group.items.some(
-      (item) =>
-        item.href === location.pathname ||
-        (item.href === "/objects" &&
-          /^\/objects\/[^/]+\/[^/]+\/?$/.test(location.pathname)),
-    ),
-  );
-  const currentPage = currentGroup?.items.find(
-    (item) =>
-      item.href === location.pathname ||
-      (item.href === "/objects" && location.pathname.startsWith("/objects/")),
-  );
+  // a page owns its sub-routes: /objects/… is the objects page, /data/… the
+  // data browser — the shell's title and active nav item follow the owner
+  const owns = (item: { href: string }) =>
+    item.href === location.pathname ||
+    (item.href === "/objects" && /^\/objects\/[^/]+\/[^/]+\/?$/.test(location.pathname)) ||
+    (item.href === "/data" && /^\/data\/[^/]+\/?$/.test(location.pathname));
+  const currentGroup = navigation.find((group) => group.items.some(owns));
+  const currentPage = currentGroup?.items.find(owns);
   const roleLabel =
     bootstrap.role === "admin"
       ? text("租户管理员", "Tenant administrator")

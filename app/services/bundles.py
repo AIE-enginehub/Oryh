@@ -470,6 +470,10 @@ def rewrite_skill_references(content: str, name_map: dict[str, str]) -> str:
     backticked = re.compile(r"`(" + alternation + r")`")
     content = sigil.sub(lambda m: "$" + name_map[m.group(1)], content)
     content = backticked.sub(lambda m: "`" + name_map[m.group(1)] + "`", content)
+    # F-55: a markdown link into a sibling skill's directory
+    # (`../oryh-x/references/patterns.md`) points at the installed name too
+    relative = re.compile(r"\.\./(" + alternation + r")/")
+    content = relative.sub(lambda m: "../" + name_map[m.group(1)] + "/", content)
     return content
 
 
@@ -871,7 +875,12 @@ def build_bundle_zip(
         for path, content in read_skill_dir(PRODUCT_SKILLS_DIR / "oryh-connect").items():
             rendered = apply_brand(
                 rewrite_skill_references(
-                    render_content(content, {"ORYH_BASE_URL": context["ORYH_BASE_URL"]}),
+                    render_content(content, {
+                        "ORYH_BASE_URL": context["ORYH_BASE_URL"],
+                        # F-02: connect names the API base too — a bundle used
+                        # to ship it as the literal placeholder
+                        "ORYH_API_BASE_URL": context["ORYH_API_BASE_URL"],
+                    }),
                     connect_map,
                 )
             )
