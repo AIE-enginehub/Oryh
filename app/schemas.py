@@ -160,7 +160,10 @@ class RequestModel(BaseModel):
     into a confident wrong report with no error anywhere to read.
     tests/test_request_strictness.py enumerates the models this must cover."""
 
-    model_config = ConfigDict(extra="forbid")
+    # NaN and Infinity never enter: a NaN quantity is not equal to zero, so it
+    # walked past every "non-zero" check and died only at JSON serialisation
+    # (review N11) — the boundary is where a number is refused
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 T = TypeVar("T")
@@ -177,6 +180,9 @@ class EnvelopeMeta(BaseModel):
     # any inline round transition — so nothing has to be re-read to verify
     completed_todo_ids: list[str] | None = None
     document_status: str | None = None
+    # a dry run (`?validate_only=true`): every check ran, nothing was written
+    validate_only: bool | None = None
+    written: bool | None = None
 
 
 class ListEnvelope(BaseModel, Generic[T]):
@@ -2114,6 +2120,11 @@ class CreateContractRequest(ContractBase):
     title: str = Field(min_length=1, max_length=200)
     contract_no: str | None = Field(default=None, max_length=64)
     items: list[ContractItemBase] = Field(default_factory=list, max_length=500)
+    # the file(s) the contract IS, and the clauses located inside them — filed
+    # with the contract (gap 7). An inline term names its document by
+    # `document_index` into this request's `documents`, since no ids exist yet.
+    documents: list["InlineContractDocument"] = Field(default_factory=list, max_length=100)
+    terms: list["InlineContractTerm"] = Field(default_factory=list, max_length=500)
 
     @model_validator(mode="after")
     def _has_a_counterparty(self) -> "CreateContractRequest":
@@ -2193,6 +2204,10 @@ class ContractDocumentBase(RequestModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class InlineContractDocument(ContractDocumentBase):
+    attachment_id: str
+
+
 class CreateContractDocumentRequest(ContractDocumentBase):
     contract_id: str
     attachment_id: str
@@ -2241,6 +2256,10 @@ class ContractTermBase(RequestModel):
     page_no: int | None = Field(default=None, ge=1, le=99999)
     sort_order: int | None = Field(default=None, ge=0, le=9999)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class InlineContractTerm(ContractTermBase):
+    document_index: int | None = Field(default=None, ge=0, le=99)
 
 
 class CreateContractTermRequest(ContractTermBase):
@@ -5083,6 +5102,25 @@ class TimesheetEntryBase(RequestModel):
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
 
+class SaveTimesheetDocumentEntry(RequestModel):
+    id: str | None = None
+    work_date: date
+    hours: float = Field(gt=0, le=24)
+    work_type: WorkType = "regular"
+    project_id: str | None = None
+    task: str | None = Field(default=None, max_length=200)
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class SaveTimesheetDocumentRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    intent_id: str = Field(min_length=1, max_length=100)
+    period_start: date
+    period_end: date
+    source_report_text: str = Field(default="", max_length=10000)
+    entries: list[SaveTimesheetDocumentEntry] = Field(min_length=1, max_length=100)
+
+
 class CreateTimesheetEntryRequest(TimesheetEntryBase):
     header_id: str
     employee_id: str
@@ -5751,6 +5789,9 @@ ExpenseClaimDetailEnvelope = Envelope[ExpenseClaimDetailRead]
 
 
 class PurchaseRequestDetailRead(BaseModel):
+    # a hash of the header, live lines and adjustments as read — what
+    # `POST …/save` takes as expected_revision
+    revision: str | None = None
     request: PurchaseRequestRead
     items: list[PurchaseRequestItemDetailRead]
     approval_records: list[ApprovalRecordRead]
@@ -5797,6 +5838,8 @@ class CreateSalesQuotationRequest(SalesQuotationBase):
     # draft. Each row follows CreateSalesQuotationItemRequest's rules minus
     # quotation_id, which is the document being created.
     items: list[SalesQuotationItemBase] = Field(default_factory=list, max_length=200)
+    # stated with the document, as bulk import already allows (gap 6)
+    adjustments: list[InlineAdjustmentRow] = Field(default_factory=list, max_length=50)
     title: str = Field(max_length=200)
 
 
@@ -6016,6 +6059,25 @@ class SalesQuotationAdjustmentBase(RequestModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class InlineAdjustmentRow(RequestModel):
+    """An adjustment stated with the document it belongs to: the same fields
+    the standalone create takes, and `item_index` (0-based into the same
+    request's `items`) instead of a line id that does not exist yet. Omitted
+    = a header-level adjustment."""
+    adjustment_type: SalesAdjustmentType
+    description: str | None = Field(default=None, max_length=500)
+    amount: float = Field(ge=-9_999_999.99, le=9_999_999.99)
+    source_percentage: float | None = Field(default=None, ge=0, le=100)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    item_index: int | None = Field(default=None, ge=0, le=199)
+
+
+class SaveAdjustmentRow(InlineAdjustmentRow):
+    # an existing adjustment's id keeps it (and updates it); no id adds one;
+    # an adjustment not listed is removed
+    id: str | None = None
+
+
 class CreateSalesQuotationAdjustmentRequest(SalesQuotationAdjustmentBase):
     quotation_id: str
     # pins the adjustment to one line; omitted = a header-level adjustment
@@ -6136,6 +6198,8 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
     # transaction, and a bad row rolls the order back instead of leaving an
     # empty PO behind
     items: list[PurchaseOrderItemBase] = Field(default_factory=list, max_length=200)
+    # stated with the document, as bulk import already allows (gap 6)
+    adjustments: list[InlineAdjustmentRow] = Field(default_factory=list, max_length=50)
 
 
 class UpdatePurchaseOrderRequest(RequestModel):
@@ -6194,9 +6258,10 @@ PurchaseOrderEnvelope = Envelope[PurchaseOrderRead]
 
 
 class PurchaseOrderCreatedRead(PurchaseOrderRead):
-    """Reads back the lines that rode the create call."""
+    """Reads back the lines and adjustments that rode the create call."""
 
     items: list[PurchaseOrderItemRead] = Field(default_factory=list)
+    adjustments: list["PurchaseOrderAdjustmentRead"] = Field(default_factory=list)
 
 
 PurchaseOrderCreatedEnvelope = Envelope[PurchaseOrderCreatedRead]
@@ -6341,6 +6406,9 @@ class PurchaseOrderItemDetailRead(PurchaseOrderItemRead):
 
 
 class PurchaseOrderDetailRead(BaseModel):
+    # a hash of the header, live lines and adjustments as read — what
+    # `POST …/save` takes as expected_revision
+    revision: str | None = None
     po: PurchaseOrderRead
     items: list[PurchaseOrderItemDetailRead]
     adjustments: list[PurchaseOrderAdjustmentRead]
@@ -7288,6 +7356,9 @@ ApplyPaymentEnvelope = Envelope[ApplyPaymentResult]
 
 
 class SalesQuotationDetailRead(BaseModel):
+    # a hash of the header, live lines and adjustments as read — what
+    # `POST …/save` takes as expected_revision
+    revision: str | None = None
     quotation: SalesQuotationRead
     items: list[SalesQuotationItemDetailRead]
     approval_records: list[ApprovalRecordRead]
@@ -7358,6 +7429,8 @@ class CreateSalesOrderRequest(SalesOrderBase):
     # returns only: the order this return reverses (one order, many returns)
     original_order_id: str | None = None
     items: list[SalesOrderItemBase] = Field(default_factory=list, max_length=200)
+    # stated with the document, as bulk import already allows (gap 6)
+    adjustments: list[InlineAdjustmentRow] = Field(default_factory=list, max_length=50)
 
 
 class UpdateSalesOrderRequest(RequestModel):
@@ -7621,7 +7694,70 @@ class FulfilmentBacklogRowRead(BaseModel):
 FulfilmentBacklogEnvelope = ListEnvelope[FulfilmentBacklogRowRead]
 
 
+# --- whole-document saves: lines and adjustments restated in one call ------------
+#
+# `POST /<collection>/{id}/save` restates a document's live lines (and, where
+# the family has them, its adjustments) as a DIFF against what is there: a row
+# with an id updates that line, a row without one adds a line, a live line
+# not listed is removed. The header stays with PATCH. `expected_revision` is
+# the detail's `revision` when the caller read it; a stale one is a 409, so
+# two agents editing one draft cannot overwrite each other blind. The gates
+# are the single-row paths' gates: editable state, owner, capability.
+
+
+class SaveSalesQuotationItem(SalesQuotationItemBase):
+    id: str | None = None
+
+
+class SaveSalesOrderItem(SalesOrderItemBase):
+    id: str | None = None
+
+
+class SavePurchaseOrderItem(PurchaseOrderItemBase):
+    id: str | None = None
+
+
+class SavePurchaseRequestItem(PurchaseRequestItemBase):
+    id: str | None = None
+
+
+class SaveSalesQuotationRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveSalesQuotationItem] = Field(min_length=1, max_length=200)
+    adjustments: list[SaveAdjustmentRow] = Field(default_factory=list, max_length=50)
+
+
+class SaveSalesOrderRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveSalesOrderItem] = Field(min_length=1, max_length=200)
+    adjustments: list[SaveAdjustmentRow] = Field(default_factory=list, max_length=50)
+
+
+class SavePurchaseOrderRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SavePurchaseOrderItem] = Field(min_length=1, max_length=200)
+    adjustments: list[SaveAdjustmentRow] = Field(default_factory=list, max_length=50)
+
+
+class SavePurchaseRequestRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SavePurchaseRequestItem] = Field(min_length=1, max_length=200)
+
+
+class SavedLinesRead(BaseModel):
+    id: str
+    revision: str
+    items: list[dict[str, Any]]
+    adjustments: list[dict[str, Any]] = Field(default_factory=list)
+
+
+SavedLinesEnvelope = Envelope[SavedLinesRead]
+
+
 class SalesOrderDetailRead(BaseModel):
+    # a hash of the header, live lines and adjustments as read — what
+    # `POST …/save` takes as expected_revision
+    revision: str | None = None
     order: SalesOrderRead
     items: list[SalesOrderItemDetailRead]
     # what has shipped against each line (posted outbound legs) — the fact

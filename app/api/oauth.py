@@ -24,8 +24,8 @@ from typing import Annotated
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import select, update
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api import auth as auth_api
@@ -68,10 +68,12 @@ def authorization_server_metadata():
         "authorization_endpoint": f"{base}/oauth/authorize",
         "token_endpoint": f"{base}/oauth/token",
         "device_authorization_endpoint": f"{base}/oauth/device_authorization",
+        "revocation_endpoint": f"{base}/oauth/revoke",
         "response_types_supported": ["code"],
         "grant_types_supported": ["authorization_code", "refresh_token", DEVICE_GRANT],
         "code_challenge_methods_supported": ["S256"],
         "token_endpoint_auth_methods_supported": ["none"],
+        "revocation_endpoint_auth_methods_supported": ["none"],
         "scopes_supported": [],
         "service_documentation": f"{base}/docs",
     }
@@ -421,6 +423,63 @@ async def token_endpoint(request: Request, db: Annotated[Session, Depends(get_db
     if grant == DEVICE_GRANT:
         return _device(db, p)
     return _oauth_error(400, "unsupported_grant_type", f"grant_type must be one of authorization_code, refresh_token, {DEVICE_GRANT}")
+
+
+@router.post("/oauth/revoke")
+async def revoke_endpoint(request: Request, db: Annotated[Session, Depends(get_db)]):
+    """RFC 7009 — "Disconnect" in the client is a revocation on the server.
+
+    Without this the client only forgot its copy: the key stayed live until
+    its 24-hour expiry, the refresh token stayed good until first use, and
+    Access credentials kept showing a device that no longer existed. Now a
+    client that advertises disconnect calls here, and the row is deactivated
+    the same way the person would have from the console.
+
+    Either half of the pair revokes the whole pair — the access token, the
+    current refresh token, or the one just rotated out (a lost-response
+    retry may hold only that). Only the interactive pairs this door mints
+    are reachable: a company service key is not an OAuth token and is not
+    revocable by whoever holds it. The client is public (no secret), so
+    proof of possession is the token itself; that is the safe direction,
+    since holding it already means full use and revoking only narrows.
+    Unknown or already-dead tokens answer 200 like live ones (§2.2): the
+    endpoint does not confirm what exists.
+    """
+    p = await _grant_params(request)
+    token = p.get("token", "")
+    if not token:
+        return _oauth_error(400, "invalid_request", "token is required")
+    hint = p.get("token_type_hint", "")
+    if hint and hint not in ("access_token", "refresh_token"):
+        return _oauth_error(400, "unsupported_token_type", "token_type_hint must be access_token or refresh_token")
+    presented = hash_api_key(token)
+    api_key = db.scalar(
+        select(ApiKey).where(
+            ApiKey.is_active.is_(True),
+            ApiKey.refresh_token_hash.is_not(None),
+            or_(
+                ApiKey.key_hash == presented,
+                ApiKey.refresh_token_hash == presented,
+                ApiKey.prior_refresh_token_hash == presented,
+            ),
+        )
+    )
+    if api_key is not None:
+        bind_tenant_context(db, api_key.tenant_id)
+        actor = f"user:{api_key.user_id}" if api_key.user_id else f"key:{api_key.id}"
+        db.info["audit_actor"] = actor
+        api_key.is_active = False
+        record_audit(
+            db,
+            tenant_id=api_key.tenant_id,
+            action="oauth.revoked",
+            entity_type="api_key",
+            entity_id=api_key.id,
+            actor=actor,
+            detail={"label": api_key.label, "presented": "refresh_token" if presented != api_key.key_hash else "access_token"},
+        )
+        db.commit()
+    return Response(status_code=200, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
 
 
 @router.post("/oauth/device_authorization")

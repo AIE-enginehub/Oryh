@@ -3,7 +3,7 @@
 # oryh-billing-account: API contract
 
 Every endpoint this skill names, with the parameters the server actually
-accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
+accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
 ## DELETE /billing-accounts/{account_id}
@@ -82,6 +82,12 @@ List Billing Account Entries
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_at_from` | query | date-time | no | rows whose effective_at is at or after this |
+| `effective_at_thru` | query | date-time | no | rows whose effective_at is at or before this |
+| `expires_at_from` | query | date-time | no | rows whose expires_at is at or after this |
+| `expires_at_thru` | query | date-time | no | rows whose expires_at is at or before this |
 
 ## GET /billing-accounts
 
@@ -103,6 +109,12 @@ List Billing Accounts
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `valid_from_from` | query | date | no | rows whose valid_from is on or after this |
+| `valid_from_thru` | query | date | no | rows whose valid_from is on or before this |
+| `valid_until_from` | query | date | no | rows whose valid_until is on or after this |
+| `valid_until_thru` | query | date | no | rows whose valid_until is on or before this |
 
 ## GET /billing-accounts/{account_id}
 
@@ -146,6 +158,8 @@ List Business Objects
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /business-objects/{business_object_id}
 
@@ -176,6 +190,10 @@ List Employees
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `hire_date_from` | query | date | no | rows whose hire_date is on or after this |
+| `hire_date_thru` | query | date | no | rows whose hire_date is on or before this |
 
 ## GET /employees/{employee_id}
 
@@ -198,6 +216,9 @@ List Invoice Items
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `sku_id` | query | string | no |  |
 
 ## GET /invoice-items/{item_id}
 
@@ -220,6 +241,8 @@ List Object Type Definitions
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /object-type-definitions/{definition_id}
 
@@ -252,6 +275,15 @@ List Payments
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `paid_at_from` | query | date-time | no | rows whose paid_at is at or after this |
+| `paid_at_thru` | query | date-time | no | rows whose paid_at is at or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `currency` | query | string | no |  |
 
 ## GET /payments/{payment_id}
 
@@ -295,6 +327,13 @@ List Todos
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `completed_at_from` | query | date-time | no | rows whose completed_at is at or after this |
+| `completed_at_thru` | query | date-time | no | rows whose completed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_at_from` | query | date-time | no | rows whose due_at is at or after this |
+| `due_at_thru` | query | date-time | no | rows whose due_at is at or before this |
+| `todo_type` | query | string | no |  |
 
 ## GET /todos/{todo_id}
 

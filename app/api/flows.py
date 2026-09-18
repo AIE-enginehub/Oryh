@@ -20,6 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.common import ORDER_BY_DOC, PAGE_SIZE_DOC, envelope, get_tenant_id, list_rows, requested_pagination
+from app.api.common import ListFilters, list_filters
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import FlowRun, FlowSubscription
@@ -61,6 +62,7 @@ def list_flow_subscriptions(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(FlowSubscription, ranges=('created_at', 'parked_at'), equals=('api_key_id',)))] = None,
 ):
     """What the platform drives in this workspace — the tenant's own answer to
     "where has our routing been handed over", and the runner's answer to "what
@@ -82,6 +84,7 @@ def list_flow_subscriptions(
         render=lambda rows: subscription_reads_with_last_run(db, tenant_id, rows),
         pagination=requested_pagination(page, size),
         sort=order_by,
+        extra=extra,
     )
 
 
@@ -233,6 +236,7 @@ def list_flow_runs(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(FlowRun, ranges=('created_at', 'finished_at', 'started_at'), equals=()))] = None,
 ):
     """Newest first: the last run is the question people actually ask.
 
@@ -256,6 +260,7 @@ def list_flow_runs(
         read_model=FlowRunRead,
         pagination=requested_pagination(page, size),
         sort=order_by,
+        extra=extra,
     )
 
 

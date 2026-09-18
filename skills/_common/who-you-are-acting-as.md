@@ -2,8 +2,8 @@
 
 One key, one identity, and the server decides it — not you.
 
-You already know it: this bundle was rendered for one person, and their
-employee id and skill list are in it. `GET /auth/me` would answer the same
+You already know it: these instructions were rendered for one person, and
+their employee id is in them, as is the list of skills that reach them. `GET /auth/me` would answer the same
 question; do not spend a call on it. That answer is fixed for the whole
 session: nothing you do earlier in a conversation changes who a
 later write is attributed to. For a **user-bound key the server records the
@@ -60,11 +60,11 @@ Two people share a surname; nobody shares an id.
 
 ### Which workspace, and where it runs
 
-Two separate facts, and the manifest states them separately:
+Two separate facts, and `GET /auth/me` states them separately:
 
 | Field | Answers |
 |---|---|
-| `tenant.id`, `tenant.slug`, `tenant.name` | WHICH COMPANY this bundle serves |
+| `tenant.id`, `tenant.slug`, `tenant.name` | WHICH COMPANY these skills serve |
 | `environment_id` | WHICH DEPLOYMENT serves it — a test box, a private install |
 
 A deployment name is not a company. A city, "test", "staging" name machines;
@@ -74,8 +74,8 @@ An agent that read the environment as a tenant refused a legitimate payment on
 cross-tenant grounds — nothing leaked, but a real approval stalled on a
 distinction that did not exist.
 
-**Cross-tenant means one thing: a `tenant_id` different from the one in your
-manifest.** That is the only comparison. Not the environment, not the URL, not
+**Cross-tenant means one thing: a `tenant_id` different from the one
+`GET /auth/me` names.** That is the only comparison. Not the environment, not the URL, not
 a city in how somebody phrased the request. In practice you will almost never
 see one — every credential belongs to exactly one workspace and the server
 filters everything else out before you see it, so a document you can read is a

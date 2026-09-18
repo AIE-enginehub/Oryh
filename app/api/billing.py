@@ -44,6 +44,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     requested_pagination,
@@ -698,6 +701,7 @@ def list_invoices(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Invoice, ranges=('created_at', 'due_date', 'invoice_date', 'issued_at', 'period_end', 'period_start', 'submitted_at',), equals=('attachment_id', 'contract_id', 'currency', 'invoice_type', 'project_id')))] = None,
 ):
     """The receivables/payables work queues live here.
 
@@ -763,6 +767,7 @@ def list_invoices(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=InvoiceRead,
+        extra=extra,
     )
 
 
@@ -776,6 +781,7 @@ def create_invoice(
     payload: CreateInvoiceRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "invoice.manage", payload.direction)
@@ -834,7 +840,7 @@ def create_invoice(
                 "`total_amount` when the amount is agreed as one figure (汇总开票)"
             ),
         )
-    initial_status = require_machine_state(db, tenant_id, Invoice, payload.status)
+    initial_status = require_machine_state(db, actor, Invoice, payload.status)
     invoice_no = payload.invoice_no or allocate_number(db, Invoice, tenant_id)
     invoice = Invoice(
         tenant_id=tenant_id,
@@ -879,6 +885,8 @@ def create_invoice(
             # order's occupation has already transferred here rather than
             # double-counting
             ensure_within_credit(db, charged_account, label="invoice")
+        if validate_only:
+            return dry_run_readback(db, invoice, InvoiceRead, items, InvoiceItemRead, "items")
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -1324,6 +1332,7 @@ def list_invoice_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(InvoiceItem, ranges=('created_at',), equals=('sku_id',)))] = None,
 ):
     tenant_id = actor.tenant_id
     stmt = (
@@ -1354,6 +1363,7 @@ def list_invoice_items(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=InvoiceItemRead,
+        extra=extra,
     )
 
 
@@ -1783,6 +1793,7 @@ def list_billing_accounts(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BillingAccount, ranges=('created_at', 'valid_from', 'valid_until'), equals=()))] = None,
 ):
     """`over_limit=true` is the credit-risk queue: accounts whose balance has
     gone past the credit line they were given."""
@@ -1816,6 +1827,7 @@ def list_billing_accounts(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=BillingAccountRead,
+        extra=extra,
     )
 
 
@@ -2095,8 +2107,19 @@ def expire_billing_account_entries(
     `expired` row."""
     tenant_id = actor.tenant_id
     account = get_active_account_or_404(db, tenant_id, account_id)
+    # the account is locked before any batch is judged: the "not yet expired"
+    # check and the write must be one critical section (review N02)
+    account = lock_for_update(db, tenant_id, BillingAccount, account.id) or account
+    now = datetime.now(timezone.utc)
+    seen: set[str] = set()
     lines = []
     for index, line in enumerate(payload.lines):
+        if line.entry_id in seen:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"lines[{index}]: batch {line.entry_id} appears twice — one line per batch, the amount summed",
+            )
+        seen.add(line.entry_id)
         batch = db.scalar(select(BillingAccountEntry).where(
             BillingAccountEntry.tenant_id == tenant_id,
             BillingAccountEntry.billing_account_id == account.id,
@@ -2106,6 +2129,12 @@ def expire_billing_account_entries(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"lines[{index}]: {line.entry_id} is not an earn batch with an expiry on this account",
+            )
+        expires_at = batch.expires_at if batch.expires_at.tzinfo else batch.expires_at.replace(tzinfo=timezone.utc)
+        if expires_at > now:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"lines[{index}]: batch {batch.id} expires {expires_at.date().isoformat()} — it has not lapsed yet",
             )
         already = db.scalar(select(BillingAccountEntry.id).where(
             BillingAccountEntry.tenant_id == tenant_id,
@@ -2190,6 +2219,7 @@ def list_billing_account_entries(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BillingAccountEntry, ranges=('created_at', 'effective_at', 'expires_at'), equals=()))] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries posted through POST /billing-accounts/{id}/entries."""
@@ -2205,6 +2235,7 @@ def list_billing_account_entries(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=BillingAccountEntryRead,
+        extra=extra,
     )
 
 
@@ -2556,6 +2587,7 @@ def list_payments(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Payment, ranges=('created_at', 'paid_at', 'submitted_at'), equals=('attachment_id', 'contract_id', 'currency')))] = None,
 ):
     """`unapplied=true` is the 认领队列: money that arrived or went out and has
     not been matched to a document yet. On the inbound side that is 预收款 plus
@@ -2600,6 +2632,7 @@ def list_payments(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=PaymentRead,
+        extra=extra,
     )
 
 
@@ -2614,10 +2647,11 @@ def create_payment(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """An outbound payment normally starts at `draft` and is walked through
-    付款审批; an inbound receipt is money that already arrived, so it is created
-    directly in whatever state says so — create accepts any state of the
-    tenant's machine, as every builtin does."""
+    """An outbound payment starts at the machine's `initial` and is walked
+    through 付款审批 — creating it further along takes `payment.advance`, the
+    grant that walk needs. An inbound receipt is money that already arrived,
+    so a `payment.record` holder creates it directly in whatever state says
+    so: there is nothing to approve."""
     tenant_id = actor.tenant_id
     require_permission(actor, "payment.record")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
@@ -2626,7 +2660,9 @@ def create_payment(
         require_type_option(db, tenant_id, "payment_method", payload.payment_method)
     if payload.attachment_id:
         get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
-    initial_status = require_machine_state(db, tenant_id, Payment, payload.status)
+    initial_status = require_machine_state(
+        db, actor, Payment, payload.status, advance_exempt=payload.direction == "inbound",
+    )
     payment_no = payload.payment_no or allocate_number(db, Payment, tenant_id)
     _require_contract_side(db, tenant_id, payload.contract_id, payload.direction,
                            CONTRACT_SIDE_BY_PAYMENT_DIRECTION, "payment")
@@ -3185,6 +3221,7 @@ def list_payment_applications(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PaymentApplication, ranges=('created_at',), equals=()))] = None,
 ):
     """Read-only: the ledger has no update or delete. Corrections are
     counter-entries recorded through POST /payments/{id}/apply.
@@ -3235,6 +3272,7 @@ def list_payment_applications(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=PaymentApplicationRead,
+        extra=extra,
     )
 
 

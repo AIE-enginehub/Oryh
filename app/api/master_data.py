@@ -32,6 +32,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ensure_document_not_deleted,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
@@ -361,6 +363,7 @@ def list_vendors(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Vendor, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(Vendor).where(Vendor.tenant_id == tenant_id),
@@ -371,6 +374,7 @@ def list_vendors(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=VendorRead,
+        extra=extra,
     )
 
 
@@ -462,6 +466,7 @@ def list_customers(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Customer, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(Customer).where(Customer.tenant_id == tenant_id),
@@ -483,6 +488,7 @@ def list_customers(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=CustomerRead,
+        extra=extra,
     )
 
 
@@ -634,6 +640,7 @@ def list_facilities(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Facility, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(Facility).where(Facility.tenant_id == tenant_id),
@@ -644,6 +651,7 @@ def list_facilities(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         read_model=FacilityRead,
+        extra=extra,
     )
 
 
@@ -773,6 +781,7 @@ def list_sales_channels(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesChannel, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(SalesChannel).where(SalesChannel.tenant_id == tenant_id),
@@ -783,6 +792,7 @@ def list_sales_channels(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         read_model=SalesChannelRead,
+        extra=extra,
     )
 
 
@@ -878,6 +888,7 @@ def list_stores(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Store, ranges=('created_at',), equals=('sales_channel_id',)))] = None,
 ):
     stmt = select(Store).options(selectinload(Store.sales_channel)).where(Store.tenant_id == tenant_id)
     if source:
@@ -914,6 +925,7 @@ def list_stores(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         render=with_fulfilment,
+        extra=extra,
     )
 
 
@@ -1016,6 +1028,7 @@ def list_store_facilities(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(StoreFacility, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(StoreFacility).where(StoreFacility.tenant_id == tenant_id),
@@ -1033,6 +1046,7 @@ def list_store_facilities(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         read_model=StoreFacilityRead,
+        extra=extra,
     )
 
 
@@ -1106,6 +1120,7 @@ def list_product_images(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ProductImage, ranges=('created_at',), equals=('attachment_id',)))] = None,
 ):
     return list_rows(
         db, select(ProductImage).where(ProductImage.tenant_id == tenant_id),
@@ -1119,6 +1134,7 @@ def list_product_images(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         read_model=ProductImageRead,
+        extra=extra,
     )
 
 
@@ -1345,6 +1361,7 @@ def list_bills_of_materials(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BillOfMaterials, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db,
@@ -1358,7 +1375,28 @@ def list_bills_of_materials(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=BillOfMaterialsRead,
+        extra=extra,
     )
+
+
+def build_bom_line(db: Session, tenant_id: str, bom: BillOfMaterials, line, *, index: int | None = None, recipes: dict | None = None, checked: bool = False) -> BomItem:
+    """One validated recipe line, inline with the recipe's create or
+    standalone — one constructor (gap 4). `checked` = the create already
+    judged the component before the recipe row existed (see there)."""
+    if not checked:
+        _require_component(db, tenant_id, bom.product_id, line.component_product_id, recipes=recipes)
+    item = BomItem(
+        tenant_id=tenant_id,
+        bom_id=bom.id,
+        line_no=line.line_no if line.line_no is not None else index,
+        component_product_id=line.component_product_id,
+        quantity=line.quantity,
+        unit=line.unit,
+        scrap_rate=line.scrap_rate,
+        description=line.description,
+    )
+    db.add(item)
+    return item
 
 
 @router.post("/bills-of-materials", response_model=BillOfMaterialsEnvelope,
@@ -1367,15 +1405,18 @@ def create_bill_of_materials(
     payload: CreateBillOfMaterialsRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     require_master_data_manage(actor)
     tenant_id = actor.tenant_id
     _require_makeable_parent(db, tenant_id, payload.product_id)
     ensure_code_available(db, BillOfMaterials, tenant_id, "bom_code", payload.bom_code)
     recipes: dict[str, list[BomItem]] = {}
+    # the lines are judged BEFORE the recipe row is flushed: an active recipe
+    # per product is a unique index, so a second active recipe with a bad
+    # component must answer 422 for the component, not 409 for the index
     for line in payload.items:
-        _require_component(db, tenant_id, payload.product_id, line.component_product_id,
-                           recipes=recipes)
+        _require_component(db, tenant_id, payload.product_id, line.component_product_id, recipes=recipes)
     bom = BillOfMaterials(
         tenant_id=tenant_id,
         product_id=payload.product_id,
@@ -1392,19 +1433,15 @@ def create_bill_of_materials(
         if payload.status == "active":
             _demote_others(db, BillOfMaterials, tenant_id, {"product_id": payload.product_id},
                           (BillOfMaterials.status, "active", "archived"), keep_id=bom.id)
-        db.add_all([
-            BomItem(
-                tenant_id=tenant_id,
-                bom_id=bom.id,
-                line_no=line.line_no if line.line_no is not None else index,
-                component_product_id=line.component_product_id,
-                quantity=line.quantity,
-                unit=line.unit,
-                scrap_rate=line.scrap_rate,
-                description=line.description,
-            )
+        items = [
+            build_bom_line(db, tenant_id, bom, line, index=index, recipes=recipes, checked=True)
             for index, line in enumerate(payload.items, start=1)
-        ])
+        ]
+        if validate_only:
+            db.flush()
+            data = _bom_read(db, tenant_id, bom, with_items=True)
+            db.rollback()
+            return {"data": data, "meta": {"validate_only": True, "written": False}}
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -1575,6 +1612,7 @@ def list_bom_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BomItem, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db,
@@ -1584,6 +1622,7 @@ def list_bom_items(
         pagination=page_only_pagination(page, size, default=100),
         sort=order_by,
         read_model=BomItemRead,
+        extra=extra,
     )
 
 
@@ -1598,18 +1637,7 @@ def create_bom_item(
     tenant_id = actor.tenant_id
     bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, payload.bom_id)
     _require_bom_editable(bom)
-    _require_component(db, tenant_id, bom.product_id, payload.component_product_id)
-    item = BomItem(
-        tenant_id=tenant_id,
-        bom_id=bom.id,
-        line_no=payload.line_no,
-        component_product_id=payload.component_product_id,
-        quantity=payload.quantity,
-        unit=payload.unit,
-        scrap_rate=payload.scrap_rate,
-        description=payload.description,
-    )
-    db.add(item)
+    item = build_bom_line(db, tenant_id, bom, payload)
     db.commit()
     db.refresh(item)
     return envelope(BomItemRead.model_validate(item).model_dump(by_alias=True))
@@ -1714,6 +1742,7 @@ def list_product_categories(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ProductCategory, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
     if root_only:
@@ -1730,6 +1759,7 @@ def list_product_categories(
         pagination=page_only_pagination(page, size, default=200),
         sort=order_by,
         read_model=ProductCategoryRead,
+        extra=extra,
     )
 
 
@@ -1831,6 +1861,7 @@ def list_products(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Product, ranges=('created_at',), equals=('currency',)))] = None,
 ):
     return list_rows(
         db, select(Product).where(Product.tenant_id == tenant_id),
@@ -1848,6 +1879,7 @@ def list_products(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         render=lambda products: product_reads_with_sku_stats(db, tenant_id, products),
+        extra=extra,
     )
 
 
@@ -2248,6 +2280,7 @@ def list_product_skus(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ProductSku, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(ProductSku).where(ProductSku.tenant_id == tenant_id),
@@ -2260,6 +2293,7 @@ def list_product_skus(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=ProductSkuRead,
+        extra=extra,
     )
 
 
@@ -2388,6 +2422,7 @@ def list_product_prices(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ProductPrice, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(ProductPrice).where(ProductPrice.tenant_id == tenant_id),
@@ -2403,6 +2438,7 @@ def list_product_prices(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=ProductPriceRead,
+        extra=extra,
     )
 
 
@@ -2518,6 +2554,7 @@ def list_supplier_products(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SupplierProduct, ranges=('created_at',), equals=('currency',)))] = None,
 ):
     return list_rows(
         db, select(SupplierProduct).where(SupplierProduct.tenant_id == tenant_id),
@@ -2535,6 +2572,7 @@ def list_supplier_products(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=SupplierProductRead,
+        extra=extra,
     )
 
 
@@ -2638,6 +2676,7 @@ def list_customer_products(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(CustomerProduct, ranges=('created_at',), equals=('currency',)))] = None,
 ):
     return list_rows(
         db, select(CustomerProduct).where(CustomerProduct.tenant_id == tenant_id),
@@ -2651,6 +2690,7 @@ def list_customer_products(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=CustomerProductRead,
+        extra=extra,
     )
 
 
@@ -2752,6 +2792,7 @@ def list_customer_contacts(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(CustomerContact, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(CustomerContact).where(CustomerContact.tenant_id == tenant_id),
@@ -2776,6 +2817,7 @@ def list_customer_contacts(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=CustomerContactRead,
+        extra=extra,
     )
 
 
@@ -2950,6 +2992,7 @@ def list_external_product_maps(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ExternalProductMap, ranges=('created_at', 'effective_from', 'effective_to'), equals=('sku_id',)))] = None,
 ):
     stmt = select(ExternalProductMap).where(ExternalProductMap.tenant_id == tenant_id)
     if external_product_id and external_name:
@@ -2997,6 +3040,7 @@ def list_external_product_maps(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=ExternalProductMapRead,
+        extra=extra,
     )
 
 
@@ -3193,6 +3237,7 @@ def list_inventory_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(InventoryItem, ranges=('created_at', 'expire_date', 'received_at'), equals=('currency', 'facility_id')))] = None,
 ):
     stmt = select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)
     # "" is a real position ("" is the default lot, and a facility may be
@@ -3212,6 +3257,7 @@ def list_inventory_items(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=InventoryItemRead,
+        extra=extra,
     )
 
 
@@ -3363,6 +3409,7 @@ def list_inventory_item_details(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(InventoryItemDetail, ranges=('created_at', 'effective_at'), equals=()))] = None,
 ):
     stmt = (
         select(InventoryItemDetail)
@@ -3392,6 +3439,7 @@ def list_inventory_item_details(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=InventoryItemDetailRead,
+        extra=extra,
     )
 
 
@@ -3443,6 +3491,18 @@ def _order_lines_by_goods(db: Session, order: SalesOrder) -> dict[tuple[str, str
     return lines
 
 
+def _lock_position(db: Session, tenant_id: str, item_id: str) -> InventoryItem:
+    """The row lock before any running sum is read (review N02): two holds
+    that both read ATP=10 both passed and left -4. `populate_existing` so the
+    locked read replaces whatever stale value the session already held."""
+    return db.scalar(
+        select(InventoryItem)
+        .where(InventoryItem.tenant_id == tenant_id, InventoryItem.id == item_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def _position_for_order(db: Session, order: SalesOrder, inventory_item_id: str) -> InventoryItem:
     """The position a hold names must hold goods the order sells: a hold
     on a shelf the order never mentions is a typo the ledger would keep."""
@@ -3491,8 +3551,12 @@ def reserve_stock_for_order(
             detail=f"order {order.order_no} is {order.status}, a state nothing follows — there is nothing to hold for",
         )
     report = []
-    for line in payload.lines:
+    # a stable lock order across requests (by position id), and one lock per
+    # position however many lines name it — the bound check then sees the
+    # earlier line of the same request already applied
+    for line in sorted(payload.lines, key=lambda l: l.inventory_item_id):
         item = _position_for_order(db, order, line.inventory_item_id)
+        item = _lock_position(db, tenant_id, item.id)
         _require_hold_within_bounds(db, item, "reserved", -line.quantity, order.id)
         detail = post_inventory_detail(
             db, item=item, quantity_on_hand_diff=0, available_to_promise_diff=-line.quantity,
@@ -3546,11 +3610,12 @@ def release_stock_for_order(
         ).all()
         wanted = [(position_id, -float(total), None) for position_id, total in held if -float(total) > 1e-9]
     report = []
-    for position_id, quantity, words in wanted:
+    for position_id, quantity, words in sorted(wanted, key=lambda w: w[0]):
         item = require_active_row(
             db, InventoryItem, tenant_id, position_id, "inventory item",
             detail="inventory item is archived — set it active before releasing its hold",
         )
+        item = _lock_position(db, tenant_id, item.id)
         _require_hold_within_bounds(db, item, "reservation_released", quantity, order.id)
         detail = post_inventory_detail(
             db, item=item, quantity_on_hand_diff=0, available_to_promise_diff=quantity,

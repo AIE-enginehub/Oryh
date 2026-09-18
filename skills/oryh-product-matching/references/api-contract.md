@@ -3,7 +3,7 @@
 # oryh-product-matching: API contract
 
 Every endpoint this skill names, with the parameters the server actually
-accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
+accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
 ## DELETE /external-product-maps/{map_id}
@@ -66,6 +66,10 @@ List Employees
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `hire_date_from` | query | date | no | rows whose hire_date is on or after this |
+| `hire_date_thru` | query | date | no | rows whose hire_date is on or before this |
 
 ## GET /employees/{employee_id}
 
@@ -92,6 +96,13 @@ List External Product Maps
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_to_from` | query | date | no | rows whose effective_to is on or after this |
+| `effective_to_thru` | query | date | no | rows whose effective_to is on or before this |
+| `sku_id` | query | string | no |  |
 
 ## GET /external-product-maps/{map_id}
 
@@ -122,6 +133,8 @@ List Product Skus
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /product-skus/{sku_id}
 
@@ -144,6 +157,9 @@ List Products
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `currency` | query | string | no |  |
 
 ## GET /products/{product_id}
 
@@ -174,6 +190,8 @@ List Sales Channels
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /sales-channels/{channel_id}
 
@@ -236,6 +254,13 @@ List Todos
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `completed_at_from` | query | date-time | no | rows whose completed_at is at or after this |
+| `completed_at_thru` | query | date-time | no | rows whose completed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_at_from` | query | date-time | no | rows whose due_at is at or after this |
+| `due_at_thru` | query | date-time | no | rows whose due_at is at or before this |
+| `todo_type` | query | string | no |  |
 
 ## GET /todos/{todo_id}
 

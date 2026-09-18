@@ -57,9 +57,13 @@ The three facts that follow from that:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs payroll.manage, payroll.read,
+<!-- /only -->
                                   # invoice.manage:payroll, payment.record, payment.apply
   employee_id: "{{EMPLOYEE_ID}}"  # the HR officer recorded on what you file
 ```
@@ -241,10 +245,14 @@ POST /payments
   "payee_employee_id": "...",
   "amount": 16150.6,
   "payment_method": "bank_transfer",
-  "reference_no": "PAYROLL-2026-07",
-  "status": "paid"
+  "reference_no": "PAYROLL-2026-07"
 }
 ```
+
+Leave `status` out: the payout starts in the machine's initial state, and
+`POST /payments/{payment_id}/submit` hands it to approval. Creating it
+already `submitted`, `approved` or `paid` is advancing it, and needs
+`payment.advance` — the 403 names it.
 
 Then match each payout to that person's payslip:
 
@@ -266,9 +274,8 @@ without one applies twice. A repeat with the same key returns `replayed: true`
 and writes nothing.
 
 Whether the batch needs approval before the bank sees it is the workspace's
-decision, in its workflow definition — `the hosted workflow admin agent` runs it.
-Do not create the payout in a terminal state to skip a queue you were told
-about.
+decision, in its workflow definition — `the hosted workflow admin agent` runs it,
+and whoever holds `payment.advance` marks it `paid` once the bank run is done.
 
 ## After it comes back returned
 

@@ -30,6 +30,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     archive_row,
@@ -200,6 +202,7 @@ def list_fin_accounts(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(FinAccount, ranges=('created_at',), equals=('currency',)))] = None,
 ):
     _require_treasury(actor)
     return list_rows(
@@ -215,6 +218,7 @@ def list_fin_accounts(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=FinAccountRead,
+        extra=extra,
     )
 
 
@@ -327,6 +331,7 @@ def list_fin_account_transactions(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(FinAccountTrans, ranges=('created_at',), equals=('entity_id', 'entity_type')))] = None,
 ):
     _require_treasury(actor)
     stmt = (
@@ -376,6 +381,7 @@ def list_fin_account_transactions(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=FinAccountTransRead,
+        extra=extra,
     )
 
 

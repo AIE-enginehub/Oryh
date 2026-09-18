@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.permissions import ALL_PERMISSIONS, SYSTEM_CAPABILITY_NAMES, permissions_cover, permissions_cover_any_scope
 from app.core.request_context import resolved_api_base_url, resolved_base_url
 from app.models import Role, Tenant, TenantSkill, TenantSkillAssignment, User
+from app.services.delivery import for_delivery
 from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
 
 # Placeholders rendered into skill files at download time. The registry only
@@ -853,7 +854,7 @@ def build_bundle_zip(
         for skill in skills:
             for path, content in skill.files_jsonb.items():
                 rendered = apply_brand(
-                    rewrite_skill_references(render_content(content, context), name_map)
+                    rewrite_skill_references(render_content(for_delivery(content, "bundle"), context), name_map)
                 )
                 if path == "SKILL.md":
                     rendered = set_frontmatter_name(rendered, name_map[skill.name])
@@ -875,7 +876,7 @@ def build_bundle_zip(
         for path, content in read_skill_dir(PRODUCT_SKILLS_DIR / "oryh-connect").items():
             rendered = apply_brand(
                 rewrite_skill_references(
-                    render_content(content, {
+                    render_content(for_delivery(content, "bundle"), {
                         "ORYH_BASE_URL": context["ORYH_BASE_URL"],
                         # F-02: connect names the API base too — a bundle used
                         # to ship it as the literal placeholder
@@ -908,7 +909,7 @@ def build_connect_skill_zip() -> bytes:
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         for path, content in files.items():
             rendered = apply_brand(
-                rewrite_skill_references(render_content(content, context), connect_map)
+                rewrite_skill_references(render_content(for_delivery(content, "bundle"), context), connect_map)
             )
             if path == "SKILL.md":
                 rendered = set_frontmatter_name(rendered, connect_name)

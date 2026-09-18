@@ -58,6 +58,7 @@ def test_discovery_documents_point_at_this_server() -> None:
         assert meta["token_endpoint"].endswith("/oauth/token")
         assert meta["code_challenge_methods_supported"] == ["S256"]
         assert "urn:ietf:params:oauth:grant-type:device_code" in meta["grant_types_supported"]
+        assert meta["revocation_endpoint"].endswith("/oauth/revoke") and meta["revocation_endpoint_auth_methods_supported"] == ["none"]
         resource = client.get("/.well-known/oauth-protected-resource/mcp").json()
         assert resource["resource"].endswith("/mcp") and resource["authorization_servers"] == [meta["issuer"]]
 
@@ -100,6 +101,61 @@ def test_authorization_code_with_pkce_mints_the_interactive_key_pair() -> None:
         refreshed = client.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
         assert refreshed.status_code == 200 and refreshed.json()["access_token"] != tokens["access_token"], \
             "the refresh grant rotates the pair, same as /auth/token/refresh"
+
+
+def _connect(client: TestClient, person: dict) -> dict:
+    verifier, challenge = _pkce()
+    _login(client, person["email"], person["password"])
+    code = _authorize(client, challenge)["code"][0]
+    exchanged = client.post("/oauth/token", data={
+        "grant_type": "authorization_code", "code": code, "code_verifier": verifier,
+        "client_id": CLIENT_ID, "redirect_uri": REDIRECT})
+    assert exchanged.status_code == 200, exchanged.text
+    client.cookies.clear()
+    return exchanged.json()
+
+
+def test_disconnect_in_the_client_revokes_the_pair_on_the_server() -> None:
+    with make_client([]) as client:
+        person = _person(client)
+        tokens = _connect(client, person)
+        bearer = {"Authorization": f"Bearer {tokens['access_token']}"}
+        assert client.get("/api/v1/auth/me", headers=bearer).status_code == 200
+
+        revoked = client.post("/oauth/revoke", data={"token": tokens["access_token"], "token_type_hint": "access_token"})
+        assert revoked.status_code == 200 and revoked.headers["cache-control"] == "no-store"
+        assert client.get("/api/v1/auth/me", headers=bearer).status_code == 401, "the access token is dead"
+        refreshed = client.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]})
+        assert refreshed.status_code == 400 and refreshed.json()["error"] == "invalid_grant", \
+            "and so is its refresh token — the whole pair goes, not one half"
+        again = client.post("/oauth/revoke", data={"token": tokens["access_token"]})
+        assert again.status_code == 200, "a dead or unknown token answers like a live one (RFC 7009 §2.2)"
+
+        keys = client.get("/api/v1/tenant/api-keys", headers=person["service"]).json()["data"]
+        mine = [k for k in keys if (k.get("label") or "").startswith("oauth:")]
+        assert mine and all(k["is_active"] is False for k in mine), "Access credentials shows the device as revoked"
+        trail = client.get("/api/v1/audit-logs", headers=person["service"], params={"action": "oauth.revoked"}).json()["data"]
+        assert len(trail) == 1 and trail[0]["entity_id"] == mine[0]["id"]
+
+
+def test_the_refresh_token_revokes_the_pair_too_and_a_service_key_is_out_of_reach() -> None:
+    with make_client([]) as client:
+        person = _person(client)
+        tokens = _connect(client, person)
+        rotated = client.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"]}).json()
+        # the retry copy a client may still hold after a lost response
+        assert client.post("/oauth/revoke", data={"token": tokens["refresh_token"], "token_type_hint": "refresh_token"}).status_code == 200
+        assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {rotated['access_token']}"}).status_code == 401, \
+            "the superseded refresh token still names the pair, and revoking it kills the current key"
+
+        service_plain = person["service"]["X-API-Key"]
+        assert client.post("/oauth/revoke", data={"token": service_plain}).status_code == 200
+        assert client.get("/api/v1/tenant/api-keys", headers=person["service"]).status_code == 200, \
+            "a company service key is not an OAuth token: whoever holds it cannot revoke it here"
+
+        assert client.post("/oauth/revoke", data={}).status_code == 400
+        hinted = client.post("/oauth/revoke", data={"token": "x", "token_type_hint": "id_token"})
+        assert hinted.status_code == 400 and hinted.json()["error"] == "unsupported_token_type"
 
 
 def test_the_redirect_must_be_the_clients_own_host_or_loopback() -> None:

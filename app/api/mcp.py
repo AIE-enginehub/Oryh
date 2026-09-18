@@ -40,6 +40,7 @@ from app.services.bundles import (
     tenant_slug,
 )
 from app.services.bundles import render_content
+from app.services.delivery import for_delivery
 
 router = APIRouter(include_in_schema=False)
 
@@ -103,12 +104,16 @@ TOOLS: list[dict] = [
         "Call any oryh REST operation exactly as the skills document it: method, path under /api/v1 "
         "(e.g. /customers, /sales-orders/{id}/submit), optional query and JSON body. The response is "
         "the API's own envelope; a 4xx is returned as an error with the API's detail — read it, it "
-        "names the fix. Paths outside the OpenAPI contract are refused.",
+        "names the fix. Paths outside the OpenAPI contract are refused. Give every write an "
+        "idempotency_key (a UUID you make up for that one act): if the call is cut off, repeat it "
+        "with the same key and body — the server answers what the first attempt did and writes "
+        "nothing twice.",
         {
             "method": {"type": "string", "enum": ["GET", "POST", "PATCH", "PUT", "DELETE"]},
             "path": {"type": "string"},
             "query": {"type": "object", "additionalProperties": True},
             "body": {"type": "object", "additionalProperties": True},
+            "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 200},
         },
         ["method", "path"],
     ),
@@ -160,7 +165,8 @@ def _normalise_path(path: str) -> str:
     return path
 
 
-async def _dispatch(request: Request, method: str, path: str, query: dict | None, body: Any) -> dict:
+async def _dispatch(request: Request, method: str, path: str, query: dict | None, body: Any,
+                    idempotency_key: str | None = None) -> dict:
     """Run the REST operation in process, as the same principal: the
     incoming credential headers travel with the call, so the audit stamp
     and every guard are the REST ones."""
@@ -171,6 +177,10 @@ async def _dispatch(request: Request, method: str, path: str, query: dict | None
     for name in ("authorization", "x-api-key", "cookie", "x-csrf-token"):
         if name in request.headers:
             headers[name] = request.headers[name]
+    if idempotency_key:
+        # Travels into the in-process call like any other header, where the
+        # idempotency middleware sees it (app/core/idempotency.py).
+        headers["Idempotency-Key"] = str(idempotency_key)
     transport = httpx.ASGITransport(app=request.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://oryh.internal") as client:
         response = await client.request(method, path, params=query or None, json=body if body is not None else None, headers=headers)
@@ -189,7 +199,8 @@ async def _dispatch(request: Request, method: str, path: str, query: dict | None
 
 async def _call_tool(request: Request, name: str, args: dict) -> dict:
     if name == "oryh_request":
-        return await _dispatch(request, str(args.get("method", "GET")).upper(), str(args.get("path", "")), args.get("query"), args.get("body"))
+        return await _dispatch(request, str(args.get("method", "GET")).upper(), str(args.get("path", "")), args.get("query"), args.get("body"),
+                               idempotency_key=args.get("idempotency_key"))
     if name == "oryh_list":
         return await _dispatch(request, READ, f"/{str(args.get('collection', '')).strip('/')}", args.get("filters"), None)
     if name == "oryh_get":
@@ -213,12 +224,27 @@ async def _call_tool(request: Request, name: str, args: dict) -> dict:
 # --- prompts and resources: the skills, by the caller's reach ------------------
 
 
+# Skills about keeping installed bundle files current mean nothing over a
+# connection that always serves the registry's current text.
+BUNDLE_ONLY_SKILLS = frozenset({"oryh-skill-sync"})
+
+
 def _skills(db: Session, actor: Actor):
     permissions = service_permissions() if actor.kind == "service" else actor.permissions
-    return eligible_skills(
-        db, actor.tenant_id, permissions,
-        user_id=actor.user_id, role=actor.role, ignore_audience=actor.kind == "service",
-    )
+    return [
+        skill for skill in eligible_skills(
+            db, actor.tenant_id, permissions,
+            user_id=actor.user_id, role=actor.role, ignore_audience=actor.kind == "service",
+        )
+        if skill.name not in BUNDLE_ONLY_SKILLS
+    ]
+
+
+def _is_mcp_resource(path: str) -> bool:
+    """A skill's reading material. Bundled scripts run on the person's machine
+    and `agents/*.yaml` configures a local runtime; neither is text for an MCP
+    agent, and a script served as markdown invites it to reimplement one."""
+    return path != "SKILL.md" and path.endswith(".md") and not path.startswith(("scripts/", "agents/"))
 
 
 def _render_context(db: Session, actor: Actor) -> dict[str, str]:
@@ -237,7 +263,7 @@ def _render_context(db: Session, actor: Actor) -> dict[str, str]:
 
 
 def _render(content: str, context: dict[str, str]) -> str:
-    return apply_brand(render_content(content, context))
+    return apply_brand(render_content(for_delivery(content, "mcp"), context))
 
 
 def _prompt_entries(db: Session, actor: Actor) -> list[dict]:
@@ -251,7 +277,7 @@ def _resource_entries(db: Session, actor: Actor) -> list[dict]:
     entries = []
     for skill in _skills(db, actor):
         for path in sorted(skill.files_jsonb):
-            if path == "SKILL.md":
+            if not _is_mcp_resource(path):
                 continue
             entries.append({
                 "uri": f"oryh://skills/{skill.name}/{path}",
@@ -315,7 +341,7 @@ async def _handle(request: Request, db: Session, actor: Actor, message: dict) ->
         uri = str(params.get("uri", ""))
         match = re.match(r"^oryh://skills/([^/]+)/(.+)$", uri)
         skill = next((s for s in _skills(db, actor) if match and s.name == match.group(1)), None)
-        if skill is None or match.group(2) not in skill.files_jsonb or match.group(2) == "SKILL.md":
+        if skill is None or match.group(2) not in skill.files_jsonb or not _is_mcp_resource(match.group(2)):
             return _err(request_id, -32602, f"no resource {uri!r} reaches this credential")
         text = _render(skill.files_jsonb[match.group(2)], _render_context(db, actor))
         return _ok(request_id, {"contents": [{"uri": uri, "mimeType": "text/markdown", "text": text}]})

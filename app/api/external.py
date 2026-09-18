@@ -30,6 +30,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     commit_or_conflict,
@@ -112,6 +114,7 @@ def list_external_document_links(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ExternalDocumentLink, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db,
@@ -127,6 +130,7 @@ def list_external_document_links(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ExternalDocumentLinkRead,
+        extra=extra,
     )
 
 

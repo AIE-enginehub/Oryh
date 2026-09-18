@@ -459,3 +459,57 @@ def test_a_settled_payout_closes_again_even_to_a_money_handler(workspace: dict) 
     assert payout_id not in {
         row["id"] for row in client.get("/api/v1/payments", headers=finance).json()["data"]
     }
+
+
+def test_filing_a_payout_already_paid_is_advancing_it(workspace: dict) -> None:
+    """Create used to accept any state of the machine, so the submit half could
+    skip the approval half by naming the end state up front: HR, holding only
+    `payment.record`, created the payout `paid`. Starting past `initial` now
+    takes the grant the walk there would — the 出纳's `payment.advance`."""
+    client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
+    hr, cashier, payee = keys["hr_admin"], keys["cashier_lead"], employees["plain"]
+    body = {"direction": "outbound", "employee_id": employees["hr_admin"],
+            "payee_employee_id": payee, "amount": 15000.0, "reference_no": "PAYROLL-2026-07"}
+
+    for state in ("paid", "approved", "submitted"):
+        skipped = client.post("/api/v1/payments", json={**body, "status": state}, headers=hr)
+        assert skipped.status_code == 403, (state, skipped.text)
+        assert "payment.advance" in skipped.json()["detail"]
+    assert client.get("/api/v1/payments", headers=workspace["root"]).json()["data"] == []
+
+    # naming the initial state is not a move; the advance holder may start anywhere
+    assert client.post("/api/v1/payments", json={**body, "status": "draft"},
+                       headers=hr).status_code == 201
+    paid = client.post("/api/v1/payments", json={**body, "status": "paid"}, headers=cashier)
+    assert paid.status_code == 201, paid.text
+    assert paid.json()["data"]["status"] == "paid"
+
+
+def test_an_inbound_receipt_is_recorded_paid_without_the_advance_grant(workspace: dict) -> None:
+    """The deliberate exception, and the receivables skill relies on it: money
+    that already arrived has nothing to approve, so `payment.record` alone
+    creates the receipt in its terminal state."""
+    client, keys, employees, root = (
+        workspace["client"], workspace["keys"], workspace["employees"], workspace["root"]
+    )
+    customer_id = client.post("/api/v1/customers", json={"name": "星桥客户"},
+                              headers=root).json()["data"]["id"]
+    receipt = client.post(
+        "/api/v1/payments",
+        json={"direction": "inbound", "employee_id": employees["finance_reviewer"],
+              "customer_id": customer_id, "amount": 800.0, "status": "paid"},
+        headers=keys["finance_reviewer"],
+    )
+    assert receipt.status_code == 201, receipt.text
+    assert receipt.json()["data"]["status"] == "paid"
+
+
+def test_a_member_cannot_file_an_expense_claim_already_approved(workspace: dict) -> None:
+    """Every family whose advancement is its own grant has the same door."""
+    client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
+    body = {"employee_id": employees["plain"], "title": "差旅"}
+    approved = client.post("/api/v1/expense-claims", json={**body, "status": "approved"},
+                           headers=keys["plain"])
+    assert approved.status_code == 403, approved.text
+    assert "expense.advance" in approved.json()["detail"]
+    assert client.post("/api/v1/expense-claims", json=body, headers=keys["plain"]).status_code == 201

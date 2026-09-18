@@ -39,8 +39,12 @@ The per-line POST below remains for adding to an existing draft.
 
 `order_no` omitted → server allocates `SO-NNNNNN` (duplicates 409; bring the
 tenant's own convention when it has one). `quotation_id` backfills
-`source_quote_number` automatically. Status starts at `draft`; create accepts
-any declared state when recording an already-agreed fact.
+`source_quote_number` automatically. Status starts at `draft`; creating it in a
+later state — recording an already-agreed fact — takes `order.advance`.
+
+Adjustments may also ride the create: `"adjustments": [{"adjustment_type": "discount", "amount": -10, "item_index": 0}]`
+beside `items`, `item_index` naming a line of the same request (omitted = header-level) —
+a discounted quote is one call, and `?validate_only=true` tries the whole of it first.
 
 ## Items
 
@@ -60,6 +64,27 @@ POST /sales-order-items
 `list_price_snapshot` auto-captures from the catalog (explicit value — e.g.
 carried from the quotation — wins). Items editable only while
 `draft`/`returned` (409 otherwise).
+
+## Restating The Whole Document
+
+```text
+GET  /sales-orders/{id}/detail                          → revision (a hash of header, live lines, adjustments)
+POST /sales-orders/{id}/save?validate_only=true         → the same run, nothing written
+POST /sales-orders/{id}/save
+{"expected_revision": "<detail.revision>",
+ "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+           {...full line without id...}],                → added through the POST rules
+ "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
+                 {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
+```
+
+A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
+(and anything pointing at it), a live line not listed is removed with the
+same audit a DELETE writes, `item_index` names a line of THIS request.
+Stale `expected_revision` → 409: read `/detail` again and restate. The
+header stays with PATCH; the editable-state gate is the same one every
+line write passes. One call replaces N PATCH/DELETE round trips when a
+person reworks a draft.
 
 ## Submit
 
@@ -213,7 +238,8 @@ PATCH /sales-orders/{id}  {"original_order_id": "..."}    → an orphan return m
 
 Create accepts any state of the RETURN machine (`draft → submitted → approved
 → in_transit → received → inspected → refunded`; rejected/cancelled as
-exits) — a platform-synced return arrives mid-flow as a fact. 422s that
+exits) — a platform-synced return arrives mid-flow as a fact. Any state but
+the machine's initial needs `order.advance` (403), on orders too. 422s that
 teach: `original_order_id` on an order, an original that is itself a return,
 a `billing_account_id` or `quotation_id` on a return (the refund is a
 payment document; a return fulfils no quotation). An unscoped `?status=` is

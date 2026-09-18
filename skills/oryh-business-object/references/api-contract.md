@@ -3,7 +3,7 @@
 # oryh-business-object: API contract
 
 Every endpoint this skill names, with the parameters the server actually
-accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
+accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
 ## DELETE /business-object-links/{link_id}
@@ -77,6 +77,12 @@ List Approval Records
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `acted_at_from` | query | date-time | no | rows whose acted_at is at or after this |
+| `acted_at_thru` | query | date-time | no | rows whose acted_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `approver_id` | query | string | no |  |
+| `source` | query | string | no |  |
 
 ## GET /approval-records/{approval_record_id}
 
@@ -116,6 +122,8 @@ List Business Object Links
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /business-object-links/{link_id}
 
@@ -140,6 +148,8 @@ List Business Objects
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /business-objects/{business_object_id}
 
@@ -177,6 +187,8 @@ List Customers
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /customers/{customer_id}
 
@@ -205,6 +217,10 @@ List Employees
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `hire_date_from` | query | date | no | rows whose hire_date is on or after this |
+| `hire_date_thru` | query | date | no | rows whose hire_date is on or before this |
 
 ## GET /employees/{employee_id}
 
@@ -227,6 +243,8 @@ List Object Type Definitions
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /object-type-definitions/{definition_id}
 
@@ -249,6 +267,9 @@ List Products
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `currency` | query | string | no |  |
 
 ## GET /products/{product_id}
 
@@ -281,6 +302,14 @@ List Timesheet Headers
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `period_end_from` | query | date | no | rows whose period_end is on or after this |
+| `period_end_thru` | query | date | no | rows whose period_end is on or before this |
+| `period_start_from` | query | date | no | rows whose period_start is on or after this |
+| `period_start_thru` | query | date | no | rows whose period_start is on or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
 
 ## GET /timesheet-headers/{header_id}
 
@@ -316,6 +345,13 @@ List Todos
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `completed_at_from` | query | date-time | no | rows whose completed_at is at or after this |
+| `completed_at_thru` | query | date-time | no | rows whose completed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_at_from` | query | date-time | no | rows whose due_at is at or after this |
+| `due_at_thru` | query | date-time | no | rows whose due_at is at or before this |
+| `todo_type` | query | string | no |  |
 
 ## GET /todos/{todo_id}
 
@@ -752,6 +788,34 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `restored_by` | string (≤100 chars) | optional |  |
+
+## POST /timesheet-headers/{header_id}/save
+
+Save Timesheet Document
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `header_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `entries` | array of objects (fields below) | required |  |
+| ↳ each `entries[]` item: | | | |
+  | `hours` | number (≤24.0) | required |  |
+  | `work_date` | date | required |  |
+  | `id` | string | optional |  |
+  | `notes` | string (≤2000 chars) | optional |  |
+  | `project_id` | string | optional |  |
+  | `task` | string (≤200 chars) | optional |  |
+  | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `expected_revision` | string (≤64 chars) | required |  |
+| `intent_id` | string (≤100 chars) | required |  |
+| `period_end` | date | required |  |
+| `period_start` | date | required |  |
+| `source_report_text` | string (≤10000 chars) | optional |  |
 
 ## POST /timesheet-headers/{header_id}/submit
 

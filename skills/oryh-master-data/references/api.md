@@ -1,11 +1,13 @@
 # Oryh Master Data API Reference
 
+<!-- only: bundle -->
 Use with:
 
 - header: `X-API-Key: <the principal's user-bound key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
-- capability: `master_data.manage` (the bundle only carries this skill when
-  the principal's role has it)
+<!-- /only -->
+Capability: `master_data.manage` (the bundle only carries this skill when
+the principal's role has it)
 
 {{include:_common/api-conventions.md}}
 
@@ -121,16 +123,18 @@ Request:
 }
 ```
 
-- `rows` — 1 to 500 entries. Longer files are chunked by the caller — or by
-  the bundled `scripts/bulk_import.py`, which chunks, keeps reported indexes
-  global to your file, and stops after a bad chunk in abort mode:
-
-  Run from this skill's directory; the path is relative to it.
+- `rows` — 1 to 500 entries. Longer files are chunked by the caller, in
+  order, with each chunk's offset added to the row indexes it reports, and
+  stop after a bad chunk in abort mode.
+  <!-- only: bundle -->
+  The bundled `scripts/bulk_import.py` does exactly that. Run it from
+  this skill's directory; the path is relative to it.
 
   ```text
   python3 scripts/bulk_import.py --kind products rows.json            (dry run)
   python3 scripts/bulk_import.py --kind products rows.json --apply
   ```
+  <!-- /only -->
 - `dry_run` (default `false`) — runs the identical write path and rolls back.
   The preview therefore cannot disagree with the real write.
 - `on_error` — `"abort"` (default: any bad row and NOTHING is written) or

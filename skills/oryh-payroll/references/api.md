@@ -1,6 +1,8 @@
 # Payroll API
 
+<!-- only: bundle -->
 Every path hangs off `api_base_url` exactly as given — no version prefix to add.
+<!-- /only -->
 
 Everything here is behind `payroll.read`. Without that capability a credential
 sees only the records of the employee it is linked to, and someone else's
@@ -171,10 +173,13 @@ POST /payments
   "amount": 16550.6,
   "currency": "CNY",
   "payment_method": "bank_transfer",
-  "reference_no": "PAYROLL-2026-07",
-  "status": "paid"
+  "reference_no": "PAYROLL-2026-07"
 }
 ```
+
+`status` omitted = the machine's initial state; `POST /payments/{payment_id}/submit`
+sends it to approval. A non-initial `status` on create needs `payment.advance`
+(403 otherwise).
 
 ```json
 POST /payments/{payment_id}/apply

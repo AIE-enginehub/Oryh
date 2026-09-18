@@ -21,9 +21,13 @@ Turn a set of business-object records into a briefing. This is the read/aggregat
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"        # the manager's own user-bound key
+<!-- /only -->
 ```
 
 `object_type` (e.g. `daily_report`) and the scope of the summary (time window, a payload field like `department`, a specific employee) come from the conversation — never hardcoded, so the same skill works for any object type a tenant defines.

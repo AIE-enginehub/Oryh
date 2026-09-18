@@ -282,17 +282,29 @@ def _body_fields(spec: dict, operation: dict) -> list[dict] | None:
     order, with `required` — the console builds its form from these. None
     when the operation takes no body; [] when the body has no scalar field
     (a verb that takes nothing an admin types)."""
+    fields, _unrenderable = _body_contract(spec, operation)
+    return fields
+
+
+def _body_contract(spec: dict, operation: dict) -> tuple[list[dict] | None, list[str]]:
+    """The renderable fields, and the REQUIRED fields the console cannot
+    render (objects, arrays). An operation with any of the latter cannot be
+    submitted from the console's form: it used to be shown anyway and sent
+    `{}` (review N04) — four visible verbs that were a guaranteed 422."""
     body = operation.get("requestBody")
     if not body:
-        return None
+        return None, []
     schema = _deref(spec, body.get("content", {}).get("application/json", {}).get("schema"))
     if not schema:
-        return None
+        return None, []
     required = set(schema.get("required", []))
     fields = []
+    unrenderable = []
     for name, sub in schema.get("properties", {}).items():
         scalar = _scalar(spec, sub)
         if scalar is None:
+            if name in required:
+                unrenderable.append(name)
             continue
         raw = _deref(spec, sub)
         field = {"name": name, "required": name in required, **scalar}
@@ -301,7 +313,7 @@ def _body_fields(spec: dict, operation: dict) -> list[dict] | None:
         if raw.get("description"):
             field["description"] = raw["description"]
         fields.append(field)
-    return fields
+    return fields, unrenderable
 
 
 def _writes(spec: dict, short: str) -> dict:
@@ -327,17 +339,28 @@ def _writes(spec: dict, short: str) -> dict:
         if paths[record].get("delete"):
             out["remove"] = True
         actions = []
+        # the record path's parameter NAME is not part of the match: a verb
+        # written as `/{collection}/{object_id}/post-stock` beside a record
+        # path of `/{collection}/{business_object_id}` is the same record
+        # (review N04 — two ledger bridges were invisible for this)
+        record_pattern = re.escape(collection) + r"/\{[^/}]+\}"
         for path, item in paths.items():
-            match = re.fullmatch(re.escape(record) + r"/([a-z][a-z0-9-]*)", path)
+            match = re.fullmatch(record_pattern + r"/([a-z][a-z0-9-]*)", path)
             if not match or "post" not in item:
                 continue
             verb = item["post"]
-            actions.append({
+            fields, unrenderable = _body_contract(spec, verb)
+            action = {
                 "verb": match.group(1),
                 "path": path,
                 "summary": verb.get("summary") or match.group(1).replace("-", " ").capitalize(),
-                "fields": _body_fields(spec, verb) or [],
-            })
+                "fields": fields or [],
+            }
+            if unrenderable:
+                # shown as what it is: a verb an agent or the API drives,
+                # not a form the console can fill in
+                action["unsupported"] = unrenderable
+            actions.append(action)
         actions.sort(key=lambda a: a["verb"])
         out["actions"] = actions
         out["recordPath"] = record

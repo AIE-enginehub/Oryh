@@ -113,6 +113,15 @@ phishing tell.
 
 So admin issuance doubles as the "kill every session of this user" lever,
 while day-to-day multi-device life never destroys a sibling credential.
+
+A third way out is the client's own: `POST /oauth/revoke` (RFC 7009, advertised
+as `revocation_endpoint` in the authorization-server metadata) takes the
+access token or either refresh token of an interactive pair and deactivates
+the row — the same act as revoking the device under Access credentials. MCP
+clients that offer "disconnect" call it, so the server no longer keeps a live
+key for a device the person has already removed. Only pairs minted by the
+OAuth and device doors are reachable; a company service key is not an OAuth
+token, and presenting one there changes nothing. Audited as `oauth.revoked`.
 Self-service sync (`GET /my/skill-bundle`) still never mints or rotates
 anything — it re-renders with the key presented.
 

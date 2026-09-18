@@ -37,9 +37,13 @@ A requirement usually decomposes across several of these. "a discount over 10% n
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the admin's user-bound key (skills.manage)
+<!-- /only -->
 ```
 
 Everything else comes from the conversation and from the tenant's own records.

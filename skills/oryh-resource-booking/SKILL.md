@@ -29,9 +29,13 @@ The caller should provide a parameter block like this:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
+<!-- /only -->
   resource_request:
     resource_type: "meeting_room"
     search:
@@ -47,11 +51,13 @@ oryh:
       notes: "Need a screen"
 ```
 
+<!-- only: bundle -->
 Minimum required values:
 
 - `base_url`
 - `api_key`
 
+<!-- /only -->
 ## Parameter Semantics
 
 - The credential is the identity: with a user-bound key, `booked_by_employee_id` must be the principal's own employee (the server enforces it); cancellation attribution is filled server-side.
@@ -64,10 +70,15 @@ Minimum required values:
 
 ## HTTP conventions
 
+<!-- only: bundle -->
 - Send `X-API-Key: <api_key>` on every authenticated request.
 - Use the API base path `/api/v1`.
+<!-- /only -->
+<!-- only: mcp -->
+- Make every call with the `oryh_request` tool; the connection carries the identity.
+<!-- /only -->
 - Expect responses in `{ "data": ..., "meta": ... }`.
-- Do not send `tenant_id`. The server derives tenant scope from `X-API-Key`.
+- Do not send `tenant_id`. The server derives tenant scope from the credential.
 
 ## Core rules
 

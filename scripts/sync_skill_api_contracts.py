@@ -180,7 +180,7 @@ def render(skill_dir: Path, spec: dict, ops: dict) -> str | None:
         return None
     lines = [HEADER.rstrip("\n"), "", f"# {skill_dir.name}: API contract", "",
              "Every endpoint this skill names, with the parameters the server actually",
-             "accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and",
+             "accepts. Paths are relative to the API root. Responses are `{data, meta}` and",
              "lists page with `page`/`size` (see the conventions in this skill).", ""]
     for method, npath in found:
         path, op = ops[(method, npath)]

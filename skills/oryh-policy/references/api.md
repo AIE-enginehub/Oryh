@@ -1,6 +1,8 @@
 # Policy API
 
+<!-- only: bundle -->
 Every path hangs off `api_base_url` exactly as given — no version prefix to add.
+<!-- /only -->
 
 {{include:_common/api-conventions.md}}
 

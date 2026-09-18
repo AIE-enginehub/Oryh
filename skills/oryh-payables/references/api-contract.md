@@ -3,7 +3,7 @@
 # oryh-payables: API contract
 
 Every endpoint this skill names, with the parameters the server actually
-accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
+accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
 ## DELETE /billing-accounts/{account_id}
@@ -119,6 +119,12 @@ List Approval Records
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `acted_at_from` | query | date-time | no | rows whose acted_at is at or after this |
+| `acted_at_thru` | query | date-time | no | rows whose acted_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `approver_id` | query | string | no |  |
+| `source` | query | string | no |  |
 
 ## GET /approval-records/{approval_record_id}
 
@@ -164,6 +170,12 @@ List Billing Accounts
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `valid_from_from` | query | date | no | rows whose valid_from is on or after this |
+| `valid_from_thru` | query | date | no | rows whose valid_from is on or before this |
+| `valid_until_from` | query | date | no | rows whose valid_until is on or after this |
+| `valid_until_thru` | query | date | no | rows whose valid_until is on or before this |
 
 ## GET /billing-accounts/{account_id}
 
@@ -204,6 +216,9 @@ List Contract Terms
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `document_id` | query | string | no |  |
 
 ## GET /contracts
 
@@ -222,6 +237,18 @@ List Contracts
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_to_from` | query | date | no | rows whose effective_to is on or after this |
+| `effective_to_thru` | query | date | no | rows whose effective_to is on or before this |
+| `signed_at_from` | query | date-time | no | rows whose signed_at is at or after this |
+| `signed_at_thru` | query | date-time | no | rows whose signed_at is at or before this |
+| `signed_date_from` | query | date | no | rows whose signed_date is on or after this |
+| `signed_date_thru` | query | date | no | rows whose signed_date is on or before this |
+| `currency` | query | string | no |  |
+| `employee_id` | query | string | no |  |
 
 ## GET /contracts/{contract_id}
 
@@ -259,6 +286,10 @@ List Employees
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `hire_date_from` | query | date | no | rows whose hire_date is on or after this |
+| `hire_date_thru` | query | date | no | rows whose hire_date is on or before this |
 
 ## GET /employees/{employee_id}
 
@@ -282,6 +313,13 @@ List Expense Claims
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `claim_date_from` | query | date | no | rows whose claim_date is on or after this |
+| `claim_date_thru` | query | date | no | rows whose claim_date is on or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `currency` | query | string | no |  |
 
 ## GET /expense-claims/{claim_id}
 
@@ -323,6 +361,9 @@ List Invoice Items
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `sku_id` | query | string | no |  |
 
 ## GET /invoice-items/{item_id}
 
@@ -359,6 +400,25 @@ List Invoices
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_date_from` | query | date | no | rows whose due_date is on or after this |
+| `due_date_thru` | query | date | no | rows whose due_date is on or before this |
+| `invoice_date_from` | query | date | no | rows whose invoice_date is on or after this |
+| `invoice_date_thru` | query | date | no | rows whose invoice_date is on or before this |
+| `issued_at_from` | query | date-time | no | rows whose issued_at is at or after this |
+| `issued_at_thru` | query | date-time | no | rows whose issued_at is at or before this |
+| `period_end_from` | query | date | no | rows whose period_end is on or after this |
+| `period_end_thru` | query | date | no | rows whose period_end is on or before this |
+| `period_start_from` | query | date | no | rows whose period_start is on or after this |
+| `period_start_thru` | query | date | no | rows whose period_start is on or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `currency` | query | string | no |  |
+| `invoice_type` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /invoices/{invoice_id}
 
@@ -399,6 +459,8 @@ List Object Type Definitions
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /object-type-definitions/{definition_id}
 
@@ -421,6 +483,8 @@ List Payment Applications
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /payments
 
@@ -445,6 +509,15 @@ List Payments
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `paid_at_from` | query | date-time | no | rows whose paid_at is at or after this |
+| `paid_at_thru` | query | date-time | no | rows whose paid_at is at or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `currency` | query | string | no |  |
 
 ## GET /payments/{payment_id}
 
@@ -489,6 +562,14 @@ List Purchase Orders
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `order_date_from` | query | date | no | rows whose order_date is on or after this |
+| `order_date_thru` | query | date | no | rows whose order_date is on or before this |
+| `promised_date_from` | query | date | no | rows whose promised_date is on or after this |
+| `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
+| `contract_id` | query | string | no |  |
+| `currency` | query | string | no |  |
 
 ## GET /purchase-orders/{po_id}
 
@@ -527,6 +608,9 @@ List Supplier Products
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `currency` | query | string | no |  |
 
 ## GET /supplier-products/{supplier_product_id}
 
@@ -552,6 +636,13 @@ List Todos
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `completed_at_from` | query | date-time | no | rows whose completed_at is at or after this |
+| `completed_at_thru` | query | date-time | no | rows whose completed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_at_from` | query | date-time | no | rows whose due_at is at or after this |
+| `due_at_thru` | query | date-time | no | rows whose due_at is at or before this |
+| `todo_type` | query | string | no |  |
 
 ## GET /todos/{todo_id}
 
@@ -982,6 +1073,10 @@ Body:
 
 Create Contract
 
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
+
 Body:
 
 | field | type | | notes |
@@ -994,6 +1089,15 @@ Body:
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `customer_id` | string | optional |  |
+| `documents` | array of objects (fields below) | optional |  |
+| ↳ each `documents[]` item: | | | |
+  | `attachment_id` | string | required |  |
+  | `caption` | string (≤200 chars) | optional |  |
+  | `document_type` | string (≤50 chars) | optional |  |
+  | `extracted_text` | string (≤2000000 chars) | optional |  |
+  | `metadata` | object | optional |  |
+  | `page_no` | integer (≥1.0, ≤99999.0) | optional |  |
+  | `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
 | `effective_from` | date | optional |  |
 | `effective_to` | date | optional |  |
 | `employee_id` | string | optional |  |
@@ -1014,6 +1118,18 @@ Body:
 | `signed_date` | date | optional |  |
 | `status` | string (≤50 chars) | optional |  |
 | `summary` | string (≤10000 chars) | optional |  |
+| `terms` | array of objects (fields below) | optional |  |
+| ↳ each `terms[]` item: | | | |
+  | `content` | string (≤20000 chars) | required |  |
+  | `term_type` | string (≤50 chars) | required |  |
+  | `clause_ref` | string (≤50 chars) | optional |  |
+  | `document_id` | string | optional |  |
+  | `document_index` | integer (≥0.0, ≤99.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `page_no` | integer (≥1.0, ≤99999.0) | optional |  |
+  | `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+  | `summary` | string (≤2000 chars) | optional |  |
+  | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
 | `vendor_id` | string | optional |  |
 
@@ -1131,6 +1247,10 @@ Body:
 ## POST /invoices
 
 Create Invoice
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
 
 Body:
 
@@ -1375,12 +1495,24 @@ Submit Payment
 
 Create Purchase Order
 
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
+
 Body:
 
 | field | type | | notes |
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `vendor_id` | string | required |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
 | `contract_no` | string (≤64 chars) | optional |  |
@@ -1504,6 +1636,49 @@ Restore Purchase Order
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `po_id` | path | string | yes |  |
+
+## POST /purchase-orders/{po_id}/save
+
+Save Purchase Order Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `po_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
+  | `attachment_id` | string | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional |  |
+  | `line_no` | integer (≥1.0) | optional |  |
+  | `notes` | string (≤2000 chars) | optional |  |
+  | `po_id` | string | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string (≤200 chars) | optional |  |
+  | `promised_date` | date | optional |  |
+  | `purchase_request_item_id` | string | optional |  |
+  | `quantity` | number (≤9999999.99) | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string (≤200 chars) | optional |  |
+  | `tax_rate` | number (≥0.0, ≤100.0) | optional |  |
+  | `unit` | string (≤50 chars) | optional |  |
+  | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `id` | string | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
 
 ## POST /supplier-products
 

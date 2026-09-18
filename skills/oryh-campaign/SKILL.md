@@ -29,9 +29,13 @@ EARNED is never written here: it is the leads and opportunities carrying
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # campaign.manage
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # the campaign's owner unless another is named
 ```
 

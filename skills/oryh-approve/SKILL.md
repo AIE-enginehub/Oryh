@@ -33,9 +33,13 @@ clearing a rep to send — belongs to the flow skills
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"          # the approver's own user-bound key
+<!-- /only -->
   approval_step:
     entity_type: "expense_claim"  # timesheet_header | expense_claim | purchase_request | sales_quotation | sales_order
     entity_id: "document-id"

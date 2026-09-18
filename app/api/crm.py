@@ -33,6 +33,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
@@ -151,6 +153,7 @@ def list_leads(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Lead, ranges=('created_at',), equals=('converted_customer_id',)))] = None,
 ):
     validate_status_filter(db, tenant_id, "lead", status_filter)
     stmt = select(Lead).where(Lead.tenant_id == tenant_id)
@@ -179,6 +182,7 @@ def list_leads(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=LeadRead,
+        extra=extra,
     )
 
 
@@ -193,7 +197,7 @@ def create_lead(
     require_permission(actor, "crm.own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, Lead, payload.status)
+    initial_status = require_machine_state(db, actor, Lead, payload.status)
     if payload.campaign_id:
         get_active_document_or_404(db, Campaign, tenant_id, payload.campaign_id)
     if payload.geo_id:
@@ -443,6 +447,7 @@ def list_opportunities(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Opportunity, ranges=('closed_at', 'created_at', 'expected_close_date'), equals=('currency', 'source')))] = None,
 ):
     validate_status_filter(db, tenant_id, "opportunity", status_filter)
     stmt = select(Opportunity).where(Opportunity.tenant_id == tenant_id)
@@ -469,6 +474,7 @@ def list_opportunities(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=OpportunityRead,
+        extra=extra,
     )
 
 
@@ -483,7 +489,7 @@ def create_opportunity(
     require_permission(actor, "crm.own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, Opportunity, payload.status)
+    initial_status = require_machine_state(db, actor, Opportunity, payload.status)
     customer_id, snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
@@ -616,6 +622,7 @@ def list_campaigns(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Campaign, ranges=('created_at', 'end_date', 'start_date'), equals=('currency',)))] = None,
 ):
     validate_status_filter(db, tenant_id, "campaign", status_filter)
     stmt = select(Campaign).where(Campaign.tenant_id == tenant_id)
@@ -641,6 +648,7 @@ def list_campaigns(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=CampaignRead,
+        extra=extra,
     )
 
 
@@ -674,7 +682,7 @@ def create_campaign(
     _campaign_write(actor)
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     _campaign_fields(db, tenant_id, payload)
-    initial_status = require_machine_state(db, tenant_id, Campaign, payload.status)
+    initial_status = require_machine_state(db, actor, Campaign, payload.status)
     campaign_no = payload.campaign_no or allocate_number(db, Campaign, tenant_id)
     campaign = Campaign(
         tenant_id=tenant_id,
@@ -847,6 +855,7 @@ def list_campaign_members(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(CampaignMember, ranges=('created_at', 'responded_at'), equals=()))] = None,
 ):
     stmt = select(CampaignMember).where(CampaignMember.tenant_id == tenant_id)
     return list_rows(
@@ -864,6 +873,7 @@ def list_campaign_members(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=CampaignMemberRead,
+        extra=extra,
     )
 
 
@@ -1026,6 +1036,7 @@ def list_opportunity_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(OpportunityItem, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(OpportunityItem).where(OpportunityItem.tenant_id == tenant_id)
     return list_rows(
@@ -1039,6 +1050,7 @@ def list_opportunity_items(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=OpportunityItemRead,
+        extra=extra,
     )
 
 
@@ -1109,6 +1121,14 @@ def update_opportunity_item(
         item.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
         setattr(item, field, value)
+    if "product_id" in updates and item.product_id and "product_name_snapshot" not in updates:
+        # the name follows the product it now names (review N05): a line
+        # switched from A to B kept A's name and quoted B under it
+        item.product_name_snapshot = db.get(Product, item.product_id).name
+        if "sku_id" not in updates and item.sku_id:
+            sku = db.get(ProductSku, item.sku_id)
+            if sku is None or sku.product_id != item.product_id:
+                item.sku_id = None
     if not (item.product_id or (item.product_name_snapshot or "").strip()):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             detail="a line names a product — by id, or by name when the catalog has none")
@@ -1165,6 +1185,7 @@ def list_opportunity_contacts(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(OpportunityContact, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(OpportunityContact).where(OpportunityContact.tenant_id == tenant_id)
     return list_rows(
@@ -1178,6 +1199,7 @@ def list_opportunity_contacts(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=OpportunityContactRead,
+        extra=extra,
     )
 
 
@@ -1412,8 +1434,10 @@ def quote_opportunity(
             line_no=item.line_no or index,
             product_id=item.product_id,
             sku_id=item.sku_id,
-            product_name_snapshot=item.product_name_snapshot or (
-                db.get(Product, item.product_id).name if item.product_id else None
+            # a cataloged product is quoted under its catalog name; the free-text
+            # snapshot serves only a line the catalog does not have
+            product_name_snapshot=(
+                db.get(Product, item.product_id).name if item.product_id else item.product_name_snapshot
             ),
             spec=item.spec,
             quantity=item.quantity,

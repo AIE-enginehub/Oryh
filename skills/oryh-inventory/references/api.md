@@ -1,12 +1,14 @@
 # Oryh Inventory API Reference
 
+<!-- only: bundle -->
 Use with:
 
 - header: `X-API-Key: <the principal's user-bound key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
-- capability: `inventory.manage` (the bundle only carries this skill when the
-  principal's role has it; it includes `shipment.manage`); reads are
-  tenant-visible
+<!-- /only -->
+Capability: `inventory.manage` (the bundle only carries this skill when the
+principal's role has it; it includes `shipment.manage`); reads are
+tenant-visible
 
 {{include:_common/api-conventions.md}}
 
@@ -28,7 +30,13 @@ arrivals needs no configuration.
 
 ```text
 GET    /inventory-item-details?inventory_item_id=&reason=&entity_type=&entity_id=&sales_order_id=&purchase_order_id=
+         &effective_at_from=&effective_at_thru=&created_at_from=&created_at_thru=
 ```
+
+A period of the ledger is `effective_at_from` / `effective_at_thru`
+(inclusive, ISO timestamps) — "what moved in September" is one call, not
+a scan; `created_at_*` is when the row was written, which for a back-dated
+document is not the same day.
 
 There is no `POST`: every row is written by one of the doors below and
 carries it — `entity_type` `shipment_item` / `purchase_order_item` /
@@ -169,7 +177,7 @@ GET /employees?keyword=                → who a todo goes to
 ## Finding The Product
 
 ```text
-GET /products?keyword=              → by name or code; `?product_code=` exact
+GET /products?keyword=<code>        → matches name or code; pick the row whose product_code equals it exactly
 GET /product-skus?product_id=       → the product's SKUs; `?sku_code=` exact
 GET /product-matches?title=&limit=5 → candidates for a platform title
 ```

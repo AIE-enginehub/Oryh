@@ -19,8 +19,10 @@ anything else, and answer in the person's own words and language.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   api_key: "{{ORYH_API_KEY}}"            # the person's own key; live-fact reads only
+<!-- /only -->
 ```
 
 {{include:_common/api-auth-principal.md}}

@@ -30,6 +30,7 @@ from app.schemas import (
 )
 from app.services.audit import record_audit
 from app.services.bundles import can_run, role_permissions
+from app.services.delivery import delivery_blocks_error
 
 router = APIRouter(prefix="/skills")
 
@@ -60,6 +61,14 @@ def validate_files(files: dict[str, str]) -> None:
                 detail=f"invalid file path: {path!r} (relative paths only, no '..')",
             )
         total += len(content.encode("utf-8"))
+        # a broken `only` block would leak one delivery's instructions into
+        # the other, or swallow the rest of the file
+        problem = delivery_blocks_error(content)
+        if problem:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{path}: {problem}",
+            )
     if total > MAX_TOTAL_FILE_BYTES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

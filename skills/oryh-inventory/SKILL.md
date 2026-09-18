@@ -42,8 +42,10 @@ and wrote a bare ledger row; the write that allowed it is gone —
 ```yaml
 oryh:
   base_url: "{{ORYH_BASE_URL}}"
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"
   api_key: "{{ORYH_API_KEY}}"
+<!-- /only -->
 ```
 
 - Which position: product (or SKU), facility, lot if the workspace tracks
@@ -126,8 +128,8 @@ Filing and posting one, in that order:
    else the tenant's schema asks for goes in the payload beside them.
 2. Walk it to the state the definition posts from (`PATCH
    /business-objects/{id}` `{"status": …}`) — the tenant's approval, in
-   their words; a document created straight in that state is legal when
-   nobody approves.
+   their words. Creating the document straight in that state takes
+   `business_object.advance` for its type, the grant the walk itself needs.
 3. `POST /business-objects/{id}/post-stock` — **once**. The server posts
    every line under the definition's reason with the document as
    provenance (`entity_type: "business_object"`), stamps
@@ -273,7 +275,9 @@ editing the item; a position not yet on file is created with an
 exist. The full row contract is in [references/api.md](references/api.md).
 
 **The server takes at most 500 rows per call** (a 422 above that). Do not
-discover this by trying: write the normalised rows to a JSON file and run the
+discover this by trying:
+<!-- only: bundle -->
+write the normalised rows to a JSON file and run the
 bundled script from this skill's directory —
 
 ```text
@@ -284,15 +288,29 @@ python3 scripts/bulk_import.py --kind inventory rows.json --expected-rows N --ap
 It chunks at the cap, sends in order, dry-runs by default, stops at the
 first bad chunk, and reports cumulatively with every row index global to
 your file.
+<!-- /only -->
+<!-- only: mcp -->
+split the normalised rows into chunks of 500 in order and send
+each as one `oryh_request` to `POST /inventory-items/bulk` — every chunk with
+`"dry_run": true` first, then again for real once every dry run is clean.
+Stop at the first bad chunk, and add each chunk's offset to the row indexes it
+reports so every index is global to the file.
+<!-- /only -->
 
-**`--expected-rows N` is the sheet's own count, and it is not optional.**
+**The sheet's own row count, N, is not optional.**
 Read N off the sheet's last row number before extracting anything; never
 count the rows you extracted and hand that number back. A file reader that
 stops at 1,000 lines gives you 999 rows and says nothing — a stock take of
 999 positions out of 1,000 then imports cleanly and reports success, and the
-missing position surfaces weeks later as a shortage. With N given, the script
-refuses to send when fewer rows reached it and tells you to re-read the sheet
-in parts.
+missing position surfaces weeks later as a shortage.
+<!-- only: bundle -->
+Pass it as `--expected-rows N`: the script refuses to send when fewer rows
+reached it and tells you to re-read the sheet in parts.
+<!-- /only -->
+<!-- only: mcp -->
+Compare N with the rows you are about to send; when fewer reached you, do not
+send — re-read the sheet in parts.
+<!-- /only -->
 
 **One row per position** — (product-or-sku, facility, lot). Before the dry
 run, look for two rows on the same position in the file; the server reports

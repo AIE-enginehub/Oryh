@@ -34,9 +34,13 @@ not mean starting over, and one departed customer must not stop the run.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs tenant.act_for_any_employee
+<!-- /only -->
 ```
 
 Plus the workbook(s), on the person's machine — read them where they are.
@@ -90,10 +94,17 @@ unresolvable reference."
    and every failing document by its number. This is the moment to decide the
    reference policy below.
 5. **Import in chunks of 500**, in order, reporting cumulative progress.
+<!-- only: bundle -->
    Prefer the bundled `scripts/import_documents.py` when you can run Python
    (in this skill's directory — the path is relative to it) —
    it chunks, keeps a running summary, and collects every problem document
    into one list instead of drowning the person in per-chunk output.
+<!-- /only -->
+<!-- only: mcp -->
+   Send each chunk as one bulk call, keep row indexes global to the file,
+   keep a running summary, and collect every problem document into one
+   list instead of drowning the person in per-chunk output.
+<!-- /only -->
 6. **Report the problem documents** at the end: their numbers, grouped by
    cause (unknown customer / unknown product / missing salesperson). That
    list is the person's work item, not a failure of the import.

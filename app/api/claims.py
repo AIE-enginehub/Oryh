@@ -18,6 +18,8 @@ router.
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import hashlib
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -26,6 +28,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     apply_status_change,
@@ -92,12 +97,14 @@ from app.schemas import (
     SubmitTimesheetRequest,
     TimesheetDetailRead,
     TimesheetEntryRead,
+    TimesheetEntryBase,
     TimesheetHeaderListEnvelope,
     TimesheetHeaderRead,
     UpdateExpenseClaimRequest,
     UpdateExpenseItemRequest,
     UpdateTimesheetEntryRequest,
     UpdateTimesheetHeaderRequest,
+    SaveTimesheetDocumentRequest,
 )
 from app.services.type_options import require_type_option
 from app.services.state_machines import validate_status_filter
@@ -124,17 +131,7 @@ def normalize_project_context(
     return project.id, project_name_snapshot or project.project_name
 
 
-def _dry_run_readback(db: Session, document, read_model, rows, row_model, key: str):
-    """What a validate-only create would have returned, then nothing written.
-
-    Rendered BEFORE the rollback, while the flushed rows still carry their
-    ids and defaults, so the caller sees the exact shape a real write gives
-    — minus the ids surviving. The envelope says so in `meta`."""
-    db.flush()  # ids and defaults exist only once the rows have hit the transaction
-    data = read_model.model_validate(document).model_dump(by_alias=True)
-    data[key] = [row_model.model_validate(row).model_dump(by_alias=True) for row in rows]
-    db.rollback()
-    return {"data": data, "meta": {"validate_only": True, "written": False}}
+_dry_run_readback = dry_run_readback  # the shared helper, see app/api/common.py
 
 
 # --- timesheets: hours worked, asserted by the person who worked them --------
@@ -156,6 +153,7 @@ def list_timesheet_headers(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(TimesheetHeader, ranges=('created_at', 'period_end', 'period_start', 'submitted_at'), equals=()))] = None,
 ):
     validate_status_filter(db, tenant_id, "timesheet_header", status_filter)
     stmt = select(TimesheetHeader).where(TimesheetHeader.tenant_id == tenant_id)
@@ -186,6 +184,7 @@ def list_timesheet_headers(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TimesheetHeaderRead,
+        extra=extra,
     )
 
 
@@ -206,7 +205,7 @@ def create_timesheet_header(
     require_permission(actor, "timesheet.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, TimesheetHeader, payload.status)
+    initial_status = require_machine_state(db, actor, TimesheetHeader, payload.status)
     header = TimesheetHeader(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
@@ -286,7 +285,7 @@ def update_timesheet_header(
     db: Annotated[Session, Depends(get_db)],
 ):
     tenant_id = actor.tenant_id
-    header = get_active_document_or_404(db, TimesheetHeader, tenant_id, header_id)
+    header = _locked_timesheet(db, tenant_id, header_id)
     # members only touch their own headers; approvers never patch status —
     # flow advancement is the workflow admin's write (service/admin credential)
     enforce_member_employee(actor, header.employee_id)
@@ -312,6 +311,7 @@ def delete_timesheet_header(
     actor: Annotated[Actor, Depends(get_actor)] = None,
     db: Annotated[Session, Depends(get_db)] = None,
 ):
+    _locked_timesheet(db, actor.tenant_id, header_id, allow_deleted=True)
     return delete_document(db, actor, TimesheetHeader, header_id, payload)
 
 
@@ -332,6 +332,7 @@ def submit_timesheet_header(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
+    _locked_timesheet(db, actor.tenant_id, header_id)
     return submit_document(db, actor, TimesheetHeader, header_id)
 
 
@@ -360,7 +361,9 @@ def get_timesheet_detail(
         entries=[TimesheetEntryRead.model_validate(entry) for entry in entries],
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
     )
-    return envelope(detail.model_dump(by_alias=True))
+    data = detail.model_dump(by_alias=True)
+    data["revision"] = timesheet_document_revision(header, entries)
+    return envelope(data)
 
 
 @router.get("/timesheet-entries")
@@ -414,7 +417,7 @@ def build_timesheet_entry(
     if header is None:
         if not payload.header_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="header_id is required")
-        header = get_active_document_or_404(db, TimesheetHeader, tenant_id, payload.header_id)
+        header = _locked_timesheet(db, tenant_id, payload.header_id)
         ensure_document_editable(db, header)
     elif payload.header_id and payload.header_id != header.id:
         raise HTTPException(
@@ -449,6 +452,106 @@ def build_timesheet_entry(
     )
     db.add(entry)
     return entry
+
+
+def _locked_timesheet(db, tenant_id, header_id, *, allow_deleted=False):
+    """Serialize aggregate saves against the legacy header/row write endpoints."""
+    header = db.scalar(select(TimesheetHeader).where(
+        TimesheetHeader.id == header_id, TimesheetHeader.tenant_id == tenant_id,
+    ).with_for_update().execution_options(populate_existing=True))
+    if header is None:
+        raise HTTPException(404, "TimesheetHeader not found")
+    if not allow_deleted:
+        ensure_document_not_deleted(header)
+    return header
+
+
+def timesheet_document_revision(header, entries):
+    """Covers the complete aggregate, including changes through legacy row APIs."""
+    snapshot = {
+        "header": TimesheetHeaderRead.model_validate(header).model_dump(mode="json"),
+        "entries": [TimesheetEntryRead.model_validate(row).model_dump(mode="json")
+                    for row in sorted(entries, key=lambda row: row.id)],
+    }
+    return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
+
+
+@router.post("/timesheet-headers/{header_id}/save")
+def save_timesheet_document(
+    header_id: str,
+    payload: SaveTimesheetDocumentRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """Save header and all live rows in one transaction; omitted row ids are deleted.
+
+    Existing row identities and unedited metadata survive. A stale aggregate is rejected,
+    and dry runs execute the same validation then roll back every change and audit row.
+    """
+    require_permission(actor, "timesheet.submit_own")
+    header = _locked_timesheet(db, actor.tenant_id, header_id)
+    enforce_member_employee(actor, header.employee_id)
+    ensure_document_editable(db, header)
+    entries = list(db.scalars(select(TimesheetEntry).where(
+        TimesheetEntry.tenant_id == actor.tenant_id, TimesheetEntry.header_id == header_id,
+        TimesheetEntry.deleted_at.is_(None),
+    )))
+    if timesheet_document_revision(header, entries) != payload.expected_revision:
+        raise HTTPException(409, "Timesheet changed; reload before saving")
+    if payload.period_end < payload.period_start:
+        raise HTTPException(422, "Invalid timesheet period")
+    by_id = {row.id: row for row in entries}
+    supplied = [row.id for row in payload.entries if row.id]
+    if len(supplied) != len(set(supplied)) or any(id not in by_id for id in supplied):
+        raise HTTPException(422, "Entry ids must be unique live rows of this timesheet")
+    totals = {}
+    for row in payload.entries:
+        totals[row.work_date] = totals.get(row.work_date, 0) + row.hours
+    if any(hours > 24 + 1e-9 for hours in totals.values()):
+        raise HTTPException(422, "Daily hours cannot exceed 24")
+    try:
+        header.period_start, header.period_end = payload.period_start, payload.period_end
+        header.source_report_text = payload.source_report_text
+        for row in payload.entries:
+            # Reuse all reference, ownership and period checks from single-row writes.
+            candidate = build_timesheet_entry(
+                db, actor, TimesheetEntryBase(**row.model_dump(exclude={"id"})), header=header,
+            )
+            if row.id:
+                existing = by_id[row.id]
+                db.expunge(candidate)
+                edited_fields = ("work_date", "hours", "work_type", "project_id", "task", "notes")
+                changed_fields = [field for field in edited_fields
+                                  if getattr(existing, field) != getattr(candidate, field)]
+                if "project_id" in changed_fields:
+                    existing.project_name_snapshot = candidate.project_name_snapshot
+                for field in changed_fields:
+                    setattr(existing, field, getattr(candidate, field))
+                if changed_fields:
+                    values = row.model_dump(mode="json")
+                    record_line_audit(db, actor, TimesheetHeader, header_id, existing.id, "line_changed",
+                                      changed={field: values[field] for field in changed_fields})
+            else:
+                db.flush()
+                record_line_audit(db, actor, TimesheetHeader, header_id, candidate.id, "line_added")
+        for id, row in by_id.items():
+            if id not in supplied:
+                row.deleted_at = datetime.now(timezone.utc)
+                record_line_audit(db, actor, TimesheetHeader, header_id, id, "line_removed")
+        header.custom_fields_jsonb = {**(header.custom_fields_jsonb or {}), "oryh_client_save_intent_id": payload.intent_id}
+        db.flush()
+        if validate_only:
+            db.rollback()
+            return {"data": {"id": header_id}, "meta": {"validate_only": True, "written": False}}
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "A timesheet already exists for this period")
+    except Exception:
+        db.rollback()
+        raise
+    return envelope({"id": header_id})
 
 
 @router.post("/timesheet-entries", status_code=status.HTTP_201_CREATED)
@@ -492,7 +595,7 @@ def update_timesheet_entry(
     entry = get_scoped_or_404(db, TimesheetEntry, tenant_id, entry_id)
     if entry.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="TimesheetEntry not found")
-    header = get_active_document_or_404(db, TimesheetHeader, tenant_id, entry.header_id)
+    header = _locked_timesheet(db, tenant_id, entry.header_id)
     ensure_document_editable(db, header)
     enforce_member_employee(actor, header.employee_id)
     updates = payload.model_dump(exclude_unset=True)
@@ -535,7 +638,7 @@ def delete_timesheet_entry(
     entry = get_scoped_or_404(db, TimesheetEntry, tenant_id, entry_id)
     if entry.deleted_at is not None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    header = get_active_document_or_404(db, TimesheetHeader, tenant_id, entry.header_id)
+    header = _locked_timesheet(db, tenant_id, entry.header_id)
     ensure_document_editable(db, header)
     enforce_member_employee(actor, header.employee_id)
     entry.deleted_at = datetime.now(timezone.utc)
@@ -565,6 +668,7 @@ def list_expense_claims(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ExpenseClaim, ranges=('claim_date', 'created_at', 'submitted_at'), equals=('currency',)))] = None,
 ):
     validate_status_filter(db, tenant_id, "expense_claim", status_filter)
     stmt = select(ExpenseClaim).where(ExpenseClaim.tenant_id == tenant_id)
@@ -592,6 +696,7 @@ def list_expense_claims(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ExpenseClaimRead,
+        extra=extra,
     )
 
 
@@ -609,7 +714,7 @@ def create_expense_claim(
     require_permission(actor, "expense.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, ExpenseClaim, payload.status)
+    initial_status = require_machine_state(db, actor, ExpenseClaim, payload.status)
     claim = ExpenseClaim(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,

@@ -21,8 +21,10 @@ This copy serves **one employer**. Its key, its manifest and its directory all b
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"   # every path below hangs off THIS
   api_key: "{{ORYH_API_KEY}}"                # the principal's user-bound key, for THIS company
+<!-- /only -->
   install_dir: <where this company's {{INSTALL_DIR}}/ directory lives locally —
                 the installed manifest.json carries it>
 ```

@@ -71,8 +71,10 @@ rather than leaving a duplicate beside it.
 ```yaml
 oryh:
   base_url: "{{ORYH_BASE_URL}}"
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"
   api_key: "{{ORYH_API_KEY}}"
+<!-- /only -->
 ```
 
 The file itself is on the person's machine — read it where it is. Nothing is
@@ -166,6 +168,7 @@ decided to send.
 
 4. DRY RUN first, always:
      POST /products/bulk  {"rows": [...], "dry_run": true}
+   <!-- only: bundle -->
    When you can run Python, prefer the bundled script — write the normalised
    rows to a JSON file and run (from this skill's directory):
      python3 scripts/bulk_import.py --kind products rows.json --expected-rows N
@@ -173,14 +176,25 @@ decided to send.
    your file, and aggregates a changed-fields histogram. `N` is the sheet's
    own data-row count, read off its last row number: a file reader that stops
    at 1,000 lines hands you 999 rows and says nothing, and the script refuses
-   to send a file that lost rows on the way. Either way, report
+   to send a file that lost rows on the way.
+   <!-- /only -->
+   <!-- only: mcp -->
+   A file over 500 rows goes in chunks of 500, in order, each its own call;
+   add each chunk's offset to the row indexes it reports. Before sending,
+   compare the rows you hold with the sheet's own data-row count, read off
+   its last row number: a file reader that stops at 1,000 lines hands you 999
+   rows and says nothing — when rows are missing, re-read the sheet in parts.
+   <!-- /only -->
+   Either way, report
    what the response says — 47 to create, 12 to update, 3 with problems — and
    for the updates, say WHICH fields move (the response names them). "12
    updates, all of them price-only" is the sentence that lets a person catch a
    bad mapping before it lands.
 
-5. Get explicit confirmation, then re-send with dry_run false (script: add
-   `--apply`).
+5. Get explicit confirmation, then re-send with dry_run false.
+   <!-- only: bundle -->
+   With the script, add `--apply`.
+   <!-- /only -->
    - Errors present? Default is `on_error: "abort"` — nothing is written and
      the person fixes the file. Offer `"skip"` only if they would rather
      import the good rows now and handle the rest after; say plainly how many

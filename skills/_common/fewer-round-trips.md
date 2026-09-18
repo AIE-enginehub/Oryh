@@ -2,8 +2,8 @@
 > seconds of the person's time, and the count is what they feel — not the
 > server, which answers in tens of milliseconds.
 >
-> **You already know who you are.** This bundle was rendered for one person,
-> and their employee id is in this file: `{{EMPLOYEE_ID}}`. Use it wherever a
+> **You already know who you are.** These instructions were rendered for one
+> person, and their employee id is in them: `{{EMPLOYEE_ID}}`. Use it wherever a
 > call wants `employee_id`; do not spend a request on `GET /auth/me` to learn
 > it. (If that value came out blank, this principal has no employee record
 > linked — that is a real condition to report, not something to retry another

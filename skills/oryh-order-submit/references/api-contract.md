@@ -3,7 +3,7 @@
 # oryh-order-submit: API contract
 
 Every endpoint this skill names, with the parameters the server actually
-accepts. Paths hang off `api_base_url`. Responses are `{data, meta}` and
+accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
 ## DELETE /customer-contacts/{contact_id}
@@ -129,6 +129,8 @@ List Customer Contacts
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /customer-contacts/{contact_id}
 
@@ -151,6 +153,9 @@ List Customer Products
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `currency` | query | string | no |  |
 
 ## GET /customer-products/{customer_product_id}
 
@@ -178,6 +183,8 @@ List Customers
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /customers/{customer_id}
 
@@ -206,6 +213,10 @@ List Employees
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `hire_date_from` | query | date | no | rows whose hire_date is on or after this |
+| `hire_date_thru` | query | date | no | rows whose hire_date is on or before this |
 
 ## GET /employees/{employee_id}
 
@@ -229,6 +240,8 @@ List External Document Links
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /external-document-links/{link_id}
 
@@ -255,6 +268,13 @@ List External Product Maps
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_to_from` | query | date | no | rows whose effective_to is on or after this |
+| `effective_to_thru` | query | date | no | rows whose effective_to is on or before this |
+| `sku_id` | query | string | no |  |
 
 ## GET /external-product-maps/{map_id}
 
@@ -285,6 +305,8 @@ List Product Skus
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /product-skus/{sku_id}
 
@@ -306,6 +328,8 @@ List Sales Order Adjustments
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
 ## GET /sales-order-adjustments/{adjustment_id}
 
@@ -327,6 +351,11 @@ List Sales Order Items
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `promised_date_from` | query | date | no | rows whose promised_date is on or after this |
+| `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
+| `attachment_id` | query | string | no |  |
 
 ## GET /sales-order-items/{item_id}
 
@@ -359,6 +388,21 @@ List Sales Orders
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `order_date_from` | query | date | no | rows whose order_date is on or after this |
+| `order_date_thru` | query | date | no | rows whose order_date is on or before this |
+| `promised_date_from` | query | date | no | rows whose promised_date is on or after this |
+| `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
+| `shipped_at_from` | query | date-time | no | rows whose shipped_at is at or after this |
+| `shipped_at_thru` | query | date-time | no | rows whose shipped_at is at or before this |
+| `signed_at_from` | query | date-time | no | rows whose signed_at is at or after this |
+| `signed_at_thru` | query | date-time | no | rows whose signed_at is at or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `contract_id` | query | string | no |  |
+| `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /sales-orders/{order_id}
 
@@ -405,6 +449,21 @@ List Sales Quotations
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `closed_at_from` | query | date-time | no | rows whose closed_at is at or after this |
+| `closed_at_thru` | query | date-time | no | rows whose closed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `quote_date_from` | query | date | no | rows whose quote_date is on or after this |
+| `quote_date_thru` | query | date | no | rows whose quote_date is on or before this |
+| `sent_at_from` | query | date-time | no | rows whose sent_at is at or after this |
+| `sent_at_thru` | query | date-time | no | rows whose sent_at is at or before this |
+| `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
+| `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
+| `valid_until_from` | query | date | no | rows whose valid_until is on or after this |
+| `valid_until_thru` | query | date | no | rows whose valid_until is on or before this |
+| `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
+| `revision_of_id` | query | string | no |  |
 
 ## GET /sales-quotations/{quotation_id}
 
@@ -450,6 +509,17 @@ List Shipments
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `expected_date_from` | query | date | no | rows whose expected_date is on or after this |
+| `expected_date_thru` | query | date | no | rows whose expected_date is on or before this |
+| `received_at_from` | query | date-time | no | rows whose received_at is at or after this |
+| `received_at_thru` | query | date-time | no | rows whose received_at is at or before this |
+| `shipped_at_from` | query | date-time | no | rows whose shipped_at is at or after this |
+| `shipped_at_thru` | query | date-time | no | rows whose shipped_at is at or before this |
+| `stock_posted_at_from` | query | date-time | no | rows whose stock_posted_at is at or after this |
+| `stock_posted_at_thru` | query | date-time | no | rows whose stock_posted_at is at or before this |
+| `picklist_id` | query | string | no |  |
 
 ## GET /shipments/{shipment_id}
 
@@ -472,6 +542,9 @@ List Stores
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `sales_channel_id` | query | string | no |  |
 
 ## GET /stores/{store_id}
 
@@ -497,6 +570,13 @@ List Todos
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `completed_at_from` | query | date-time | no | rows whose completed_at is at or after this |
+| `completed_at_thru` | query | date-time | no | rows whose completed_at is at or before this |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `due_at_from` | query | date-time | no | rows whose due_at is at or after this |
+| `due_at_thru` | query | date-time | no | rows whose due_at is at or before this |
+| `todo_type` | query | string | no |  |
 
 ## GET /todos/{todo_id}
 
@@ -1020,12 +1100,24 @@ Body:
 
 Create Sales Order
 
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
+
 Body:
 
 | field | type | | notes |
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contact_name` | string (≤200 chars) | optional |  |
 | `contact_phone` | string (≤50 chars) | optional |  |
@@ -1199,6 +1291,50 @@ Body:
 |---|---|---|---|
 | `reason` | string (≤2000 chars) | optional |  |
 
+## POST /sales-orders/{order_id}/save
+
+Save Sales Order Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
+  | `attachment_id` | string | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional |  |
+  | `is_gift` | boolean | optional |  |
+  | `line_no` | integer (≥1.0) | optional |  |
+  | `list_price_snapshot` | number (≥0.0, ≤9999999.99) | optional |  |
+  | `notes` | string (≤2000 chars) | optional |  |
+  | `order_id` | string | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string (≤200 chars) | optional |  |
+  | `promised_date` | date | optional |  |
+  | `quantity` | number (≤9999999.99) | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string (≤200 chars) | optional |  |
+  | `tax_rate` | number (≥0.0, ≤100.0) | optional |  |
+  | `unit` | string (≤50 chars) | optional |  |
+  | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `id` | string | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
+
 ## POST /sales-orders/{order_id}/submit
 
 Submit Sales Order
@@ -1218,12 +1354,24 @@ Body:
 
 Create Sales Quotation
 
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
+
 Body:
 
 | field | type | | notes |
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
 | `contact_email` | string (≤320 chars) | optional |  |
 | `contact_name` | string (≤200 chars) | optional |  |
 | `contact_phone` | string (≤50 chars) | optional |  |
@@ -1370,6 +1518,50 @@ Body:
 | `revised_by` | string | optional |  |
 | `source` | `web` | `api` | `ai` | `system` | optional |  |
 
+## POST /sales-quotations/{quotation_id}/save
+
+Save Sales Quotation Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `quotation_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
+  | `attachment_id` | string | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional |  |
+  | `is_gift` | boolean | optional |  |
+  | `lead_time` | string (≤100 chars) | optional |  |
+  | `line_no` | integer (≥1.0) | optional |  |
+  | `list_price_snapshot` | number (≥0.0, ≤9999999.99) | optional |  |
+  | `notes` | string (≤2000 chars) | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string (≤200 chars) | optional |  |
+  | `quantity` | number (≤9999999.99) | optional |  |
+  | `quotation_id` | string | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string (≤200 chars) | optional |  |
+  | `tax_rate` | number (≥0.0, ≤100.0) | optional |  |
+  | `unit` | string (≤50 chars) | optional |  |
+  | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `adjustments` | array of objects (fields below) | optional |  |
+| ↳ each `adjustments[]` item: | | | |
+  | `adjustment_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
+  | `amount` | number (≥-9999999.99, ≤9999999.99) | required |  |
+  | `description` | string (≤500 chars) | optional |  |
+  | `id` | string | optional |  |
+  | `item_index` | integer (≥0.0, ≤199.0) | optional |  |
+  | `metadata` | object | optional |  |
+  | `source_percentage` | number (≥0.0, ≤100.0) | optional |  |
+
 ## POST /sales-quotations/{quotation_id}/send
 
 Send Sales Quotation
@@ -1404,6 +1596,10 @@ Body:
 ## POST /shipments
 
 Create Shipment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `validate_only` | query | boolean | no |  |
 
 Body:
 

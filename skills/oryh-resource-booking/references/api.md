@@ -1,9 +1,11 @@
 # Oryh Resource Booking API Reference
 
+<!-- only: bundle -->
 Use these templates with:
 
 - header: `X-API-Key: <api_key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
+<!-- /only -->
 
 {{include:_common/api-conventions.md}}
 

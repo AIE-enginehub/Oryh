@@ -32,6 +32,8 @@ from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     apply_status_change,
@@ -207,6 +209,7 @@ def list_employees(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Employee, ranges=('created_at', 'hire_date'), equals=()))] = None,
 ):
     return list_rows(
         db, select(Employee).where(Employee.tenant_id == tenant_id),
@@ -217,6 +220,7 @@ def list_employees(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=EmployeeRead,
+        extra=extra,
     )
 
 
@@ -345,6 +349,7 @@ def list_employee_leaves(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(EmployeeLeave, ranges=('created_at', 'from_date', 'submitted_at', 'thru_date'), equals=('reason',)))] = None,
 ):
     """The rows an agent computes a balance FROM.
 
@@ -389,6 +394,7 @@ def list_employee_leaves(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=EmployeeLeaveRead,
+        extra=extra,
     )
 
 
@@ -411,7 +417,7 @@ def create_employee_leave(
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
     require_type_option(db, tenant_id, "leave_type", payload.leave_type)
-    initial_status = require_machine_state(db, tenant_id, EmployeeLeave, payload.status)
+    initial_status = require_machine_state(db, actor, EmployeeLeave, payload.status)
     if payload.thru_date < payload.from_date:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -625,6 +631,7 @@ def list_pay_histories(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PayHistory, ranges=('created_at', 'effective_from', 'effective_thru'), equals=('currency',)))] = None,
 ):
     """Salaries are the one thing in this system a credential does not get to
     read merely by belonging to the workspace. Without `payroll.read` an actor
@@ -648,6 +655,7 @@ def list_pay_histories(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=PayHistoryRead,
+        extra=extra,
     )
 
 

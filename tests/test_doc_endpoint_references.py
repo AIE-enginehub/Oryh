@@ -49,7 +49,7 @@ _NOT_API = ("/web/", "/static/", "/assets/")
 # Documents that record what happened rather than specify what is true — and
 # design documents (`*-design.md`), which name the endpoints they PROPOSE;
 # those become true only when the design is built, and the doc says so.
-_RECORDS = re.compile(r"finding|scenario|-plan$|report|-design$")
+_RECORDS = re.compile(r"finding|scenario|-plan$|report|-design$|review")
 
 
 def _normalise(path: str) -> str:

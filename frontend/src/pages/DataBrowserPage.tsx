@@ -269,7 +269,9 @@ function DataList({ resource }: { resource: CatalogResource }) {
                             <summary className="text-action">{text("动作", "Actions")}</summary>
                             <div className="row-menu-list">
                               {resource.actions!.map((action) => (
-                                <button key={action.verb} className="text-action" type="button" onClick={(event) => { (event.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); runAction(action, row); }}>{action.verb}</button>
+                                action.unsupported
+                                  ? <button key={action.verb} className="text-action" type="button" disabled title={text(`需要 ${action.unsupported.join(", ")}：由 Agent 或 API 执行`, `Needs ${action.unsupported.join(", ")}: driven by an agent or the API`)}>{action.verb}</button>
+                                  : <button key={action.verb} className="text-action" type="button" onClick={(event) => { (event.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); runAction(action, row); }}>{action.verb}</button>
                               ))}
                             </div>
                           </details>

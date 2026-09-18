@@ -34,6 +34,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # cannot resolve here. The built site is where those links live.
 RECORDS = {"ops", "artifacts", "test-results", "site", "public", "docsite"}
 SKIP = {".git", ".venv", "node_modules", "__pycache__", ".claude", "dist", "build"}
+# `workbuddy/playbooks/` is a build source in the same way: each file becomes a
+# skill's SKILL.md, and its `references/api-contract.md` is generated beside it
+# by `workbuddy/scripts/build.py`. The links resolve in `workbuddy/skills/`,
+# which is checked here, and `workbuddy/scripts/validate.py` checks them too.
+BUILD_SOURCES = {("workbuddy", "playbooks")}
 
 _LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 
@@ -43,6 +48,7 @@ def _markdown_files() -> list[pathlib.Path]:
         path for path in ROOT.rglob("*.md")
         if not (set(path.relative_to(ROOT).parts) & SKIP)
         and path.relative_to(ROOT).parts[0] not in RECORDS
+        and path.relative_to(ROOT).parts[:2] not in BUILD_SOURCES
     ]
 
 

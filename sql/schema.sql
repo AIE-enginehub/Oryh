@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260910_0093
+-- Alembic revision: 20260915_0095
 --
 
 --
@@ -984,6 +984,25 @@ CREATE TABLE oryh.geos (
 
 
 --
+-- Name: idempotency_records; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.idempotency_records (
+    id uuid NOT NULL,
+    scope_hash character varying(64) NOT NULL,
+    key character varying(200) NOT NULL,
+    fingerprint character varying(64) NOT NULL,
+    method character varying(8) NOT NULL,
+    path character varying(500) NOT NULL,
+    status_code integer,
+    response_headers text,
+    response_body text,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: inventory_item_details; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1151,7 +1170,7 @@ CREATE TABLE oryh.oauth_authorization_codes (
     code_hash character varying(64) NOT NULL,
     client_id character varying(500) NOT NULL,
     redirect_uri character varying(1000) NOT NULL,
-    code_challenge character varying(128) NOT NULL,
+    code_challenge text NOT NULL,
     resource character varying(500),
     scope character varying(500),
     tenant_id uuid NOT NULL,
@@ -2945,6 +2964,14 @@ ALTER TABLE ONLY oryh.geos
 
 
 --
+-- Name: idempotency_records idempotency_records_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.idempotency_records
+    ADD CONSTRAINT idempotency_records_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: inventory_item_details inventory_item_details_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3614,6 +3641,14 @@ ALTER TABLE ONLY oryh.type_options
 
 ALTER TABLE ONLY oryh.type_options
     ADD CONSTRAINT type_options_tenant_family_name_uk UNIQUE (tenant_id, family, name);
+
+
+--
+-- Name: idempotency_records uq_idempotency_records_scope_key; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.idempotency_records
+    ADD CONSTRAINT uq_idempotency_records_scope_key UNIQUE (scope_hash, key);
 
 
 --
@@ -4834,6 +4869,13 @@ CREATE INDEX invoices_tenant_idx ON oryh.invoices USING btree (tenant_id);
 --
 
 CREATE INDEX invoices_vendor_idx ON oryh.invoices USING btree (vendor_id);
+
+
+--
+-- Name: ix_idempotency_records_created_at; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_idempotency_records_created_at ON oryh.idempotency_records USING btree (created_at);
 
 
 --

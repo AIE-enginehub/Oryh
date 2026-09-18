@@ -24,6 +24,9 @@ export type CatalogAction = {
   path: string;
   summary: string;
   fields: CatalogWriteField[];
+  // required body fields the console cannot render (objects, arrays): the
+  // verb is shown, disabled, as one an agent or the API drives
+  unsupported?: string[];
 };
 export type CatalogResource = {
   key: string;

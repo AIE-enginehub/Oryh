@@ -18,6 +18,7 @@ router.
 
 from __future__ import annotations
 
+import math
 import uuid
 import json
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     require_active_row,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
@@ -499,6 +502,36 @@ def resolve_acted_at(supplied: datetime | None, target) -> datetime:
     return acted
 
 
+# What a writer files a custom object in when its type has no machine: a new
+# record, or one handed in for review — the only way `write` alone submits,
+# since every later status move is `advance`.
+UNMACHINED_FILING_STATES = frozenset({"open", "in_review"})
+
+
+def require_filing_status(db: Session, actor: Actor, object_type: str, status_value: str) -> None:
+    """A create is a status move when it starts past where filing starts.
+
+    Create used to accept any declared state ("record a fact already
+    mid-flow"), so `business_object.write` alone could POST an object already
+    `approved` — the approval its tenant routed it through skipped at the door,
+    while the same holder could not PATCH open → approved. Builtin documents
+    close this in `require_machine_state`; this is the same wall for custom
+    types. Filing states are the machine's `initial` and the state its
+    `roles.submitted` names; with no machine, `open` and `in_review`. A
+    stock or account document files in `initial` only (review N01): its
+    posting state must never be reachable without `advance`. Anything else
+    takes `business_object.advance` for the type, as the PATCH would."""
+    machine = get_business_object_machine(db, actor.tenant_id, object_type)
+    if machine is None:
+        filing = UNMACHINED_FILING_STATES
+    elif machine.get("stock_effect") or machine.get("account_effect"):
+        filing = {machine.get("initial")}
+    else:
+        filing = {machine.get("initial"), (machine.get("roles") or {}).get("submitted")}
+    if status_value not in filing:
+        require_permission(actor, "business_object.advance", object_type)
+
+
 def ensure_todo_entity_exists(db: Session, tenant_id: str, entity_type: str, entity_id: str) -> None:
     ensure_referenced_entity_exists(
         db, tenant_id, entity_type, entity_id, allowed=ALLOWED_TODO_ENTITY_TYPES, label="todo"
@@ -523,6 +556,7 @@ def list_approval_targets(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BusinessObject, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
     if not include_deleted:
@@ -544,6 +578,7 @@ def list_approval_targets(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ApprovalTargetRead,
+        extra=extra,
     )
 
 
@@ -563,6 +598,7 @@ def create_approval_target(
     validate_business_object_status(
         db, actor.tenant_id, payload.target_type, current=None, new=payload.status
     )
+    require_filing_status(db, actor, payload.target_type, payload.status)
     approval_target = BusinessObject(
         tenant_id=actor.tenant_id,
         object_type=payload.target_type,
@@ -719,6 +755,7 @@ def list_object_type_definitions(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ObjectTypeDefinition, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(ObjectTypeDefinition).where(ObjectTypeDefinition.tenant_id == tenant_id),
@@ -737,6 +774,7 @@ def list_object_type_definitions(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ObjectTypeDefinitionRead, by_alias=False,
+        extra=extra,
     )
 
 
@@ -1142,6 +1180,7 @@ def list_business_objects(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BusinessObject, ranges=('created_at',), equals=()))] = None,
 ):
     validate_business_object_status_filter(db, tenant_id, object_type, status_filter)
     stmt = select(BusinessObject).where(BusinessObject.tenant_id == tenant_id)
@@ -1177,6 +1216,7 @@ def list_business_objects(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=BusinessObjectRead,
+        extra=extra,
     )
 
 
@@ -1197,12 +1237,20 @@ def create_business_object(
     validate_business_object_status(
         db, actor.tenant_id, payload.object_type, current=None, new=payload.status
     )
+    require_filing_status(db, actor, payload.object_type, payload.status)
+    content = dict(payload.payload or {})
+    definition = get_definition(db, actor.tenant_id, "business_object", payload.object_type)
+    machine = definition.state_machine if definition is not None else None
+    if machine and (machine.get("stock_effect") or machine.get("account_effect")):
+        # the document remembers the definition it was filed under, so a
+        # later edit of the type's effect cannot re-interpret it at posting time
+        content["definition_version"] = definition.version
     business_object = BusinessObject(
         tenant_id=actor.tenant_id,
         object_type=payload.object_type,
         title=payload.title,
         summary=payload.summary,
-        payload_jsonb=payload.payload,
+        payload_jsonb=content,
         source_text=payload.source_text,
         status=payload.status,
         created_by=attributed(actor, payload.created_by),
@@ -1240,6 +1288,55 @@ def get_business_object(
     return envelope(BusinessObjectRead.model_validate(business_object).model_dump(by_alias=True))
 
 
+def _posted_at(business_object: BusinessObject) -> str | None:
+    payload = business_object.payload_jsonb or {}
+    return payload.get("stock_posted_at") or payload.get("entries_posted_at")
+
+
+def _refuse_edit_of_posted(business_object: BusinessObject, updates: dict) -> None:
+    """Once a document has posted, the ledger rows cite it: its content is
+    the evidence of what was posted (review N01). Its status may still move
+    (approved → closed); its payload, title and type may not."""
+    if _posted_at(business_object) and set(updates) - {"status"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} {business_object.id} posted to the ledger at "
+                f"{_posted_at(business_object)} — its content is frozen; a correction is a counter-document"
+            ),
+        )
+
+
+def _require_same_definition(business_object: BusinessObject, definition) -> None:
+    """The document posts under the definition it was filed under. A type
+    whose effect changed since is a different rule; the document is
+    re-filed (or the change reverted), never re-interpreted."""
+    filed = (business_object.payload_jsonb or {}).get("definition_version")
+    if filed is not None and definition is not None and filed != definition.version:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} {business_object.id} was filed under definition "
+                f"version {filed}; the type is now version {definition.version} — re-file it under "
+                "the current definition rather than posting it under a rule it was not approved by"
+            ),
+        )
+
+
+def _effect_invariants(kind: str, reason: str, lines: list[dict], key: str) -> None:
+    """The invariants a reason carries that prose cannot enforce (review
+    N01): a transfer moves the same goods between positions and nets to
+    zero; a transfer between accounts nets to zero too."""
+    if reason != "transfer":
+        return
+    total = sum(float(line.get(key) or 0) for line in lines)
+    if len(lines) < 2 or abs(total) > 1e-9:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"a {kind} transfer is at least two lines that net to zero; these net to {total:g}",
+        )
+
+
 @router.post(
     "/business-objects/{object_id}/post-stock",
     response_model=PostObjectStockEnvelope,
@@ -1269,6 +1366,7 @@ def post_business_object_stock(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business object not found")
     definition = get_definition(db, tenant_id, "business_object", business_object.object_type)
     effect = (definition.state_machine or {}).get("stock_effect") if definition is not None else None
+    _require_same_definition(business_object, definition)
     if not effect:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1305,6 +1403,19 @@ def post_business_object_stock(
                 "the ledger is append-only; a correction is a counter-document"
             ),
         )
+    _effect_invariants("stock", effect["reason"], [l for l in lines if isinstance(l, dict)], "quantity_on_hand_diff")
+    if effect["reason"] == "transfer":
+        # the same goods, moved: every line's position holds one product
+        positions = {
+            str(l.get("inventory_item_id")): db.get(InventoryItem, str(l.get("inventory_item_id")))
+            for l in lines if isinstance(l, dict) and l.get("inventory_item_id")
+        }
+        goods = {(p.product_id, p.sku_id) for p in positions.values() if p is not None}
+        if len(goods) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="a transfer moves one product between positions; these lines name different goods",
+            )
     report = []
     for index, line in enumerate(lines):
         if not isinstance(line, dict) or not line.get("inventory_item_id"):
@@ -1316,7 +1427,7 @@ def post_business_object_stock(
             diff = float(line.get("quantity_on_hand_diff"))
         except (TypeError, ValueError):
             diff = 0.0
-        if diff == 0:
+        if diff == 0 or not math.isfinite(diff):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"payload.lines[{index}] needs a non-zero signed quantity_on_hand_diff",
@@ -1381,6 +1492,7 @@ def post_business_object_entries(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business object not found")
     definition = get_definition(db, tenant_id, "business_object", business_object.object_type)
     effect = (definition.state_machine or {}).get("account_effect") if definition is not None else None
+    _require_same_definition(business_object, definition)
     if not effect:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1428,7 +1540,7 @@ def post_business_object_entries(
             amount = float(line.get("amount"))
         except (TypeError, ValueError):
             amount = 0.0
-        if amount == 0:
+        if amount == 0 or not math.isfinite(amount):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"payload.lines[{index}] needs a non-zero signed amount",
@@ -1455,9 +1567,20 @@ def post_business_object_entries(
             entity_type="business_object", entity_id=business_object.id,
             expires_at=expires_at, effective_at=None,
         ))
+    _effect_invariants("balance", effect["reason"], [l for l in lines if isinstance(l, dict)], "amount")
     report = []
-    for account_id, account_lines in by_account.items():
+    # accounts are locked in id order whatever order the lines came in — two
+    # transfers written back to front would otherwise deadlock (review N02)
+    units: set[tuple[str, str]] = set()
+    for account_id in sorted(by_account):
+        account_lines = by_account[account_id]
         account = get_active_account_or_404(db, tenant_id, account_id)
+        units.add((account.unit_type, account.unit))
+        if effect["reason"] == "transfer" and len(units) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="a transfer moves one unit between accounts; these accounts are counted in different units",
+            )
         written = post_account_entries(db, actor, account, account_lines)
         db.flush()
         for entry in written:
@@ -1610,6 +1733,7 @@ def update_business_object(
             ),
         )
     final_type = business_object.object_type
+    _refuse_edit_of_posted(business_object, updates)
     # content and status are two grants: the hosted flow agent holds
     # `advance` and deliberately not `write`, and a status-only PATCH is
     # exactly what it sends (review R10). Anything but status needs `write`.
@@ -1670,6 +1794,14 @@ def delete_business_object(
     require_permission(actor, "business_object.write", business_object.object_type)
     if business_object.deleted_at is not None:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if _posted_at(business_object):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{business_object.object_type} {business_object.id} posted to the ledger and is the "
+                "source of those rows — it cannot be deleted; file a counter-document"
+            ),
+        )
     business_object.deleted_at = datetime.now(timezone.utc)
     business_object.deleted_by = attributed(actor, payload.deleted_by if payload else None)
     business_object.delete_reason = payload.delete_reason if payload else None
@@ -1723,6 +1855,7 @@ def list_business_object_links(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(BusinessObjectLink, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(BusinessObjectLink).where(BusinessObjectLink.tenant_id == tenant_id),
@@ -1741,6 +1874,7 @@ def list_business_object_links(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=BusinessObjectLinkRead,
+        extra=extra,
     )
 
 
@@ -1846,6 +1980,7 @@ def list_approval_records(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ApprovalRecord, ranges=('acted_at', 'created_at'), equals=('approver_id', 'source')))] = None,
 ):
     pagination = requested_pagination(page, size)
     return list_rows(
@@ -1877,6 +2012,7 @@ def list_approval_records(
         pagination=pagination,
         sort=order_by,
         read_model=ApprovalRecordRead,
+        extra=extra,
     )
 
 
@@ -2105,6 +2241,7 @@ def list_todos(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Todo, ranges=('completed_at', 'created_at', 'due_at',), equals=('todo_type',)))] = None,
 ):
     stmt = select(Todo).where(Todo.tenant_id == tenant_id)
     if due_before is not None:
@@ -2128,6 +2265,7 @@ def list_todos(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TodoRead,
+        extra=extra,
     )
     if include == "target" and result["data"]:
         attach_todo_targets(db, tenant_id, result["data"])

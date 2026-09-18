@@ -44,8 +44,10 @@ of forty pages, and never your memory of them.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   api_key: "{{ORYH_API_KEY}}"            # the contract desk's key (contract.manage:purchase / :sales)
+<!-- /only -->
 ```
 
 ## Filing a contract

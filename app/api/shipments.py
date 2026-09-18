@@ -32,6 +32,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
@@ -206,6 +209,7 @@ def list_picklists(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Picklist, ranges=('created_at',), equals=()))] = None,
 ):
     validate_status_filter(db, tenant_id, "picklist", status_filter)
     stmt = select(Picklist).where(Picklist.tenant_id == tenant_id)
@@ -224,7 +228,44 @@ def list_picklists(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=PicklistRead,
+        extra=extra,
     )
+
+
+def build_picklist_line(db: Session, tenant_id: str, picklist: Picklist, line, *, index: int | None = None) -> PicklistItem:
+    """One validated pick line, inline with the run's create or standalone
+    — one constructor, so the two paths cannot drift (gap 4)."""
+    _require_line_position(db, tenant_id, line.product_id, line.sku_id, line.inventory_item_id)
+    item = PicklistItem(
+        tenant_id=tenant_id,
+        picklist_id=picklist.id,
+        line_no=line.line_no if line.line_no is not None else index,
+        product_id=line.product_id,
+        sku_id=line.sku_id,
+        inventory_item_id=line.inventory_item_id,
+        quantity=line.quantity,
+        picked_quantity=line.picked_quantity,
+        description=line.description,
+    )
+    db.add(item)
+    return item
+
+
+def build_shipment_line(db: Session, tenant_id: str, shipment: Shipment, line, *, index: int | None = None) -> ShipmentItem:
+    """One validated freight line, inline or standalone — the same rules."""
+    _require_line_position(db, tenant_id, line.product_id, line.sku_id, line.inventory_item_id)
+    item = ShipmentItem(
+        tenant_id=tenant_id,
+        shipment_id=shipment.id,
+        line_no=line.line_no if line.line_no is not None else index,
+        product_id=line.product_id,
+        sku_id=line.sku_id,
+        quantity=line.quantity,
+        inventory_item_id=line.inventory_item_id,
+        description=line.description,
+    )
+    db.add(item)
+    return item
 
 
 @router.post("/picklists", status_code=status.HTTP_201_CREATED)
@@ -232,6 +273,7 @@ def create_picklist(
     payload: CreatePicklistRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "inventory.manage")
@@ -239,11 +281,7 @@ def create_picklist(
         get_scoped_or_404(db, SalesOrder, tenant_id, payload.sales_order_id)
     if payload.facility_id:
         get_scoped_or_404(db, Facility, tenant_id, payload.facility_id)
-    initial_status = require_machine_state(db, tenant_id, Picklist, payload.status)
-    for line in payload.items:
-        _require_line_position(
-            db, tenant_id, line.product_id, line.sku_id, line.inventory_item_id
-        )
+    initial_status = require_machine_state(db, actor, Picklist, payload.status)
     picklist_no = payload.picklist_no or allocate_number(db, Picklist, tenant_id)
     picklist = Picklist(
         tenant_id=tenant_id,
@@ -258,20 +296,11 @@ def create_picklist(
     try:
         db.flush()
         items = [
-            PicklistItem(
-                tenant_id=tenant_id,
-                picklist_id=picklist.id,
-                line_no=line.line_no if line.line_no is not None else index,
-                product_id=line.product_id,
-                sku_id=line.sku_id,
-                inventory_item_id=line.inventory_item_id,
-                quantity=line.quantity,
-                picked_quantity=line.picked_quantity,
-                description=line.description,
-            )
+            build_picklist_line(db, tenant_id, picklist, line, index=index)
             for index, line in enumerate(payload.items, start=1)
         ]
-        db.add_all(items)
+        if validate_only:
+            return dry_run_readback(db, picklist, PicklistRead, items, PicklistItemRead, "items")
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -377,6 +406,7 @@ def list_picklist_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PicklistItem, ranges=('created_at',), equals=('product_id', 'sku_id')))] = None,
 ):
     return list_rows(
         db,
@@ -391,6 +421,7 @@ def list_picklist_items(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=PicklistItemRead,
+        extra=extra,
     )
 
 
@@ -405,21 +436,7 @@ def create_picklist_item(
     require_permission(actor, "inventory.manage")
     picklist = get_active_document_or_404(db, Picklist, tenant_id, payload.picklist_id)
     ensure_document_editable(db, picklist)
-    _require_line_position(
-        db, tenant_id, payload.product_id, payload.sku_id, payload.inventory_item_id
-    )
-    item = PicklistItem(
-        tenant_id=tenant_id,
-        picklist_id=picklist.id,
-        line_no=payload.line_no,
-        product_id=payload.product_id,
-        sku_id=payload.sku_id,
-        inventory_item_id=payload.inventory_item_id,
-        quantity=payload.quantity,
-        picked_quantity=payload.picked_quantity,
-        description=payload.description,
-    )
-    db.add(item)
+    item = build_picklist_line(db, tenant_id, picklist, payload)
     db.commit()
     db.refresh(item)
     return envelope(PicklistItemRead.model_validate(item).model_dump(by_alias=True))
@@ -482,6 +499,7 @@ def list_shipments(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Shipment, ranges=('created_at', 'expected_date', 'received_at', 'shipped_at', 'stock_posted_at'), equals=('picklist_id',)))] = None,
 ):
     validate_status_filter(db, tenant_id, "shipment", status_filter)
     stmt = select(Shipment).where(Shipment.tenant_id == tenant_id)
@@ -513,6 +531,7 @@ def list_shipments(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ShipmentRead,
+        extra=extra,
     )
 
 
@@ -521,6 +540,7 @@ def create_shipment(
     payload: CreateShipmentRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "shipment.manage")
@@ -530,7 +550,7 @@ def create_shipment(
     picklist = _require_picklist_context(
         db, tenant_id, payload.picklist_id, payload.sales_order_id
     )
-    initial_status = require_machine_state(db, tenant_id, Shipment, payload.status)
+    initial_status = require_machine_state(db, actor, Shipment, payload.status)
     lines = list(payload.items)
     if picklist is not None and not lines:
         # the handoff: pack what was picked. Picked quantities win over asked
@@ -565,10 +585,6 @@ def create_shipment(
                     "record picks (or pass items explicitly)"
                 ),
             )
-    for line in lines:
-        _require_line_position(
-            db, tenant_id, line.product_id, line.sku_id, line.inventory_item_id
-        )
     shipment_no = payload.shipment_no or allocate_number(db, Shipment, tenant_id)
     shipment = Shipment(
         tenant_id=tenant_id,
@@ -591,19 +607,11 @@ def create_shipment(
     try:
         db.flush()
         items = [
-            ShipmentItem(
-                tenant_id=tenant_id,
-                shipment_id=shipment.id,
-                line_no=line.line_no if line.line_no is not None else index,
-                product_id=line.product_id,
-                sku_id=line.sku_id,
-                quantity=line.quantity,
-                inventory_item_id=line.inventory_item_id,
-                description=line.description,
-            )
+            build_shipment_line(db, tenant_id, shipment, line, index=index)
             for index, line in enumerate(lines, start=1)
         ]
-        db.add_all(items)
+        if validate_only:
+            return dry_run_readback(db, shipment, ShipmentRead, items, ShipmentItemRead, "items")
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -776,6 +784,16 @@ def post_shipment_stock(
         elif shipment.purchase_order_id:
             linked = db.get(PurchaseOrder, shipment.purchase_order_id)
         reason = "returned" if linked is not None and linked.order_kind == "return" else "received"
+    # the positions this leg moves are locked, in id order, before the hold
+    # is summed: two legs of one order releasing the same hold at once each
+    # saw the whole of it (review N02)
+    for position_id in sorted({line.inventory_item_id for line in lines if line.inventory_item_id}):
+        db.scalar(
+            select(InventoryItem)
+            .where(InventoryItem.tenant_id == tenant_id, InventoryItem.id == position_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
     held = _outstanding_holds(db, shipment) if sign < 0 and shipment.sales_order_id else {}
     report: list[PostedStockLineRead] = []
     for line in lines:
@@ -838,6 +856,7 @@ def list_shipment_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ShipmentItem, ranges=('created_at',), equals=('sku_id',)))] = None,
 ):
     return list_rows(
         db,
@@ -853,6 +872,7 @@ def list_shipment_items(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ShipmentItemRead,
+        extra=extra,
     )
 
 
@@ -866,20 +886,7 @@ def create_shipment_item(
     require_permission(actor, "shipment.manage")
     shipment = get_active_document_or_404(db, Shipment, tenant_id, payload.shipment_id)
     ensure_document_editable(db, shipment)
-    _require_line_position(
-        db, tenant_id, payload.product_id, payload.sku_id, payload.inventory_item_id
-    )
-    item = ShipmentItem(
-        tenant_id=tenant_id,
-        shipment_id=shipment.id,
-        line_no=payload.line_no,
-        product_id=payload.product_id,
-        sku_id=payload.sku_id,
-        quantity=payload.quantity,
-        inventory_item_id=payload.inventory_item_id,
-        description=payload.description,
-    )
-    db.add(item)
+    item = build_shipment_line(db, tenant_id, shipment, payload)
     db.commit()
     db.refresh(item)
     return envelope(ShipmentItemRead.model_validate(item).model_dump(by_alias=True))

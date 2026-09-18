@@ -25,6 +25,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
+    inline_adjustments,
+    document_revision,
+    save_document_lines,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     _run_document_import,
@@ -98,6 +104,9 @@ from app.models import (
     Todo,
 )
 from app.schemas import (
+    SaveSalesQuotationRequest,
+    SaveSalesOrderRequest,
+    SavedLinesEnvelope,
     FulfilmentBacklogEnvelope,
     FulfilmentBacklogRowRead,
     FulfilmentLineRead,
@@ -308,6 +317,7 @@ def list_sales_quotations(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesQuotation, ranges=('closed_at', 'created_at', 'quote_date', 'sent_at', 'submitted_at', 'valid_until',), equals=('currency', 'project_id', 'revision_of_id')))] = None,
 ):
     validate_status_filter(db, tenant_id, "sales_quotation", status_filter)
     stmt = select(SalesQuotation).where(SalesQuotation.tenant_id == tenant_id)
@@ -345,6 +355,7 @@ def list_sales_quotations(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=SalesQuotationRead,
+        extra=extra,
     )
 
 
@@ -353,12 +364,13 @@ def create_sales_quotation(
     payload: CreateSalesQuotationRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "quotation.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, SalesQuotation, payload.status)
+    initial_status = require_machine_state(db, actor, SalesQuotation, payload.status)
     customer_id, customer_name_snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
@@ -401,6 +413,12 @@ def create_sales_quotation(
             build_item(db, actor, SalesQuotationItem, row, parent=quotation)
             for row in payload.items
         ]
+        adjustments = inline_adjustments(db, actor, SalesQuotationAdjustment, quotation, items, payload.adjustments)
+        if validate_only:
+            return dry_run_readback(
+                db, quotation, SalesQuotationRead, items, SalesQuotationItemRead, "items",
+                extra={"adjustments": [SalesQuotationAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments]},
+            )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -415,6 +433,10 @@ def create_sales_quotation(
         data["items"] = [
             SalesQuotationItemRead.model_validate(item).model_dump(by_alias=True)
             for item in items
+        ]
+    if adjustments:
+        data["adjustments"] = [
+            SalesQuotationAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments
         ]
     return envelope(data)
 
@@ -849,6 +871,7 @@ def get_sales_quotation_detail(
     computed_total = float(sum(amount for amount in effective_amounts if amount is not None))
     adjustments_total = float(sum(adjustment.amount for adjustment in adjustments))
     detail = SalesQuotationDetailRead(
+        revision=document_revision(db, SalesQuotation, quotation),
         quotation=SalesQuotationRead.model_validate(quotation),
         items=detail_items,
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
@@ -881,11 +904,13 @@ def list_sales_quotation_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesQuotationItem, ranges=('created_at',), equals=('attachment_id',)))] = None,
 ):
     return list_items(
         db, tenant_id, SalesQuotationItem,
         {"quotation_id": quotation_id, "product_id": product_id, "sku_id": sku_id},
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -936,11 +961,13 @@ def list_sales_quotation_adjustments(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesQuotationAdjustment, ranges=('created_at',), equals=()))] = None,
 ):
     return list_adjustments(
         db, tenant_id, SalesQuotationAdjustment,
         parent_id=quotation_id, item_id=quotation_item_id, adjustment_type=adjustment_type,
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -1010,6 +1037,7 @@ def list_sales_orders(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesOrder, ranges=('created_at', 'order_date', 'promised_date', 'shipped_at', 'signed_at', 'submitted_at',), equals=('contract_id', 'currency', 'project_id')))] = None,
 ):
     # the status vocabulary follows the kind: a kind-scoped list is checked
     # against that kind's machine, an unscoped one against the union of both
@@ -1059,6 +1087,7 @@ def list_sales_orders(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=SalesOrderRead,
+        extra=extra,
     )
 
 
@@ -1067,6 +1096,7 @@ def create_sales_order(
     payload: CreateSalesOrderRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "order.submit_own")
@@ -1097,7 +1127,7 @@ def create_sales_order(
         )
     require_original_order(db, tenant_id, SalesOrder, payload.original_order_id)
     initial_status = require_machine_state(
-        db, tenant_id, SalesOrder, payload.status,
+        db, actor, SalesOrder, payload.status,
         object_type="sales_return" if payload.order_kind == "return" else "sales_order",
     )
     quotation_id, source_quote_number = normalize_order_quotation_context(
@@ -1179,9 +1209,15 @@ def create_sales_order(
             build_item(db, actor, SalesOrderItem, row, parent=order)
             for row in payload.items
         ]
+        adjustments = inline_adjustments(db, actor, SalesOrderAdjustment, order, items, payload.adjustments)
         if charged_account is not None:
             # after the lines, so occupation counts what the order actually says
             ensure_within_credit(db, charged_account, label="sales order")
+        if validate_only:
+            return dry_run_readback(
+                db, order, SalesOrderRead, items, SalesOrderItemRead, "items",
+                extra={"adjustments": [SalesOrderAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments]},
+            )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -1195,6 +1231,10 @@ def create_sales_order(
         data["items"] = [
             SalesOrderItemRead.model_validate(item).model_dump(by_alias=True)
             for item in items
+        ]
+    if adjustments:
+        data["adjustments"] = [
+            SalesOrderAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments
         ]
     return envelope(data)
 
@@ -1844,6 +1884,7 @@ def get_sales_order_detail(
         ).order_by(SalesOrder.created_at.desc()).limit(1)
     )
     detail = SalesOrderDetailRead(
+        revision=document_revision(db, SalesOrder, order),
         order=SalesOrderRead.model_validate(order),
         superseded_by=SalesOrderRead.model_validate(superseded_by) if superseded_by is not None else None,
         items=detail_items,
@@ -1874,11 +1915,13 @@ def list_sales_order_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesOrderItem, ranges=('created_at', 'promised_date'), equals=('attachment_id',)))] = None,
 ):
     return list_items(
         db, tenant_id, SalesOrderItem,
         {"order_id": order_id, "product_id": product_id, "sku_id": sku_id},
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -1929,11 +1972,13 @@ def list_sales_order_adjustments(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(SalesOrderAdjustment, ranges=('created_at',), equals=()))] = None,
 ):
     return list_adjustments(
         db, tenant_id, SalesOrderAdjustment,
         parent_id=order_id, item_id=order_item_id, adjustment_type=adjustment_type,
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -2014,3 +2059,35 @@ def get_sales_order_attachment(
     """An order line's file, reached through the order."""
     document = get_scoped_or_404(db, SalesOrder, tenant_id, order_id)
     return serve_document_attachment(db, tenant_id, document, attachment_id)
+
+
+# --- whole-document saves ---------------------------------------------------
+
+
+@router.post("/sales-quotations/{quotation_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_sales_quotation_lines(
+    quotation_id: str,
+    payload: SaveSalesQuotationRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """Restate the quotation's lines and adjustments in one call — a diff
+    against the live rows, refused when `expected_revision` is stale. The
+    header stays with PATCH; the editable-state gate is the same one every
+    line write passes. `?validate_only=true` runs it all and writes nothing."""
+    return save_document_lines(db, actor, SalesQuotation, quotation_id, payload, validate_only=validate_only)
+
+
+@router.post("/sales-orders/{order_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_sales_order_lines(
+    order_id: str,
+    payload: SaveSalesOrderRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """The order's lines and adjustments restated in one call, while the
+    order is still editable (draft / returned) — a confirmed order's content
+    is closed and this answers 409 like every other line write."""
+    return save_document_lines(db, actor, SalesOrder, order_id, payload, validate_only=validate_only)

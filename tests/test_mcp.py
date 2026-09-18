@@ -6,6 +6,9 @@ resources are the caller's skills, by the caller's reach."""
 
 from __future__ import annotations
 
+import io
+import zipfile
+
 from fastapi.testclient import TestClient
 
 from conftest import make_client, provision_tenant, invite_member
@@ -68,6 +71,14 @@ def test_tools_are_the_rest_contract_bound_and_dispatched_as_the_same_principal(
             assert any(row.get("entity_id") == created["structuredContent"]["data"]["id"] for row in audit.json()["data"]), \
                 "a write through MCP leaves the same audit row a REST write does"
 
+        # a write cut off mid-call is repeated with the same idempotency_key and lands once
+        args = {"method": "POST", "path": "/customers", "body": {"name": "纸厂"}, "idempotency_key": "mcp-paper-1"}
+        first = _rpc(client, admin_bearer, "tools/call", {"name": "oryh_request", "arguments": args}).json()["result"]
+        again = _rpc(client, admin_bearer, "tools/call", {"name": "oryh_request", "arguments": args}).json()["result"]
+        assert again["structuredContent"] == first["structuredContent"], "the retry is answered from the first attempt"
+        names = [c["name"] for c in client.get("/api/v1/customers", headers=admin).json()["data"]]
+        assert names.count("纸厂") == 1
+
 
 def test_prompts_and_resources_are_the_callers_skills() -> None:
     with make_client([]) as client:
@@ -91,3 +102,50 @@ def test_prompts_and_resources_are_the_callers_skills() -> None:
         faq = next(r for r in resources if r["uri"] == "oryh://skills/oryh-help/references/faq.md")
         read = _rpc(client, bearer, "resources/read", {"uri": faq["uri"]}).json()["result"]
         assert "make them an admin" in read["contents"][0]["text"]
+
+
+def test_skills_over_mcp_carry_no_key_script_or_bundle_upkeep() -> None:
+    """The connection holds the credential and serves current text, so what an
+    MCP agent reads names neither a key nor a script nor a re-sync — while the
+    same skill downloaded as a bundle still does (tests/test_skill_delivery.py
+    holds every skill's source to it; this holds the door that serves them)."""
+    with make_client([]) as client:
+        t = provision_tenant(client, company_name="Door Co", email="admin@door-co.example")
+        admin = {"X-API-Key": t["plain_text_api_key"]}
+        bearer = {"Authorization": f"Bearer {t['plain_text_api_key']}"}
+
+        prompts = {p["name"] for p in _rpc(client, bearer, "prompts/list").json()["result"]["prompts"]}
+        assert "oryh-expense-submit" in prompts
+        assert "oryh-skill-sync" not in prompts, "re-syncing installed files means nothing over a connection"
+
+        text = _rpc(client, bearer, "prompts/get", {"name": "oryh-expense-submit"}).json()["result"]["messages"][0]["content"]["text"]
+        for said in ("X-API-Key", "api_key", "python3 scripts/", "GET /my/skills/manifest", "<!-- only:"):
+            assert said not in text, said
+        assert "upload_attachment" in text
+
+        uris = {r["uri"] for r in _rpc(client, bearer, "resources/list").json()["result"]["resources"]}
+        api_md = "oryh://skills/oryh-expense-submit/references/api.md"
+        assert api_md in uris
+        reference = _rpc(client, bearer, "resources/read", {"uri": api_md}).json()["result"]["contents"][0]["text"]
+        assert "oryh_request" in reference and "X-API-Key" not in reference
+        assert not any("/scripts/" in uri or "/agents/" in uri for uri in uris), "scripts and runtime config are not reading material"
+        script = _rpc(client, bearer, "resources/read", {"uri": "oryh://skills/oryh-expense-submit/scripts/upload_attachment.py"}).json()
+        assert script["error"]["code"] == -32602
+
+        bundle = client.get("/api/v1/my/skill-bundle", headers=admin)
+        assert bundle.status_code == 200, bundle.text
+        with zipfile.ZipFile(io.BytesIO(bundle.content)) as archive:
+            skill_md = next(n for n in archive.namelist() if n.endswith("expense-submit/SKILL.md"))
+            bundled = archive.read(skill_md).decode()
+        assert "api_key:" in bundled and "scripts/upload_attachment.py" in bundled and "<!-- only:" not in bundled
+
+
+def test_publishing_a_skill_with_an_unpaired_delivery_block_is_refused() -> None:
+    with make_client([]) as client:
+        t = provision_tenant(client, company_name="Author Co", email="admin@author-co.example")
+        admin = {"X-API-Key": t["plain_text_api_key"]}
+        refused = client.post("/api/v1/skills", headers=admin, json={
+            "name": "ac-broken", "title": "Broken", "description": "Use when testing.",
+            "files": {"SKILL.md": "---\nname: ac-broken\n---\n<!-- only: bundle -->\nkey\n"},
+        })
+        assert refused.status_code == 422 and "never closed" in refused.text, refused.text

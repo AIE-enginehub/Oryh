@@ -43,9 +43,13 @@ Four facts shape everything:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs billing_account.post; opening accounts needs billing_account.manage
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"
 ```
 
@@ -119,8 +123,9 @@ Filing and posting one, in that order:
    in the payload beside them — it is what makes the balance explainable a
    year later.
 2. Walk it to the state the definition posts from (`PATCH
-   /business-objects/{id}` `{"status": …}`); a document created straight
-   in that state is legal when nobody approves.
+   /business-objects/{id}` `{"status": …}`). Creating the document straight
+   in that state takes `business_object.advance` for its type, the grant the
+   walk itself needs.
 3. `POST /business-objects/{id}/post-entries` — **once**. The server posts
    every line under the type's reason with the document as provenance
    (`entity_type: "business_object"`), judges each account's floor and

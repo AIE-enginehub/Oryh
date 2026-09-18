@@ -272,7 +272,7 @@ def test_a_superseded_version_is_closable_after_the_fact(workspace: dict) -> Non
     )
     assert closed.status_code == 200, closed.text
     visible = {
-        row["id"] for row in client.get("/api/v1/policies?include_history=true",
+        row["id"] for row in client.get("/api/v1/policies?status=superseded",
                                         headers=staff).json()["data"]
     }
     assert old["id"] not in visible

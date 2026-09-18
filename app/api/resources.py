@@ -23,6 +23,8 @@ from sqlalchemy import String, cast, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     archive_row,
@@ -166,6 +168,7 @@ def list_resources(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Resource, ranges=('created_at',), equals=()))] = None,
 ):
     return list_rows(
         db, select(Resource).where(Resource.tenant_id == tenant_id),
@@ -180,6 +183,7 @@ def list_resources(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=ResourceRead,
+        extra=extra,
     )
 
 
@@ -284,6 +288,7 @@ def list_resource_bookings(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ResourceBooking, ranges=('cancelled_at', 'created_at', 'end_at', 'start_at'), equals=()))] = None,
 ):
     return list_rows(
         db, select(ResourceBooking).where(ResourceBooking.tenant_id == tenant_id),
@@ -311,6 +316,7 @@ def list_resource_bookings(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ResourceBookingRead,
+        extra=extra,
     )
 
 

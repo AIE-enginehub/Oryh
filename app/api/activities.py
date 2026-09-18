@@ -23,6 +23,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
@@ -103,19 +105,33 @@ def _own_employee(db: Session, actor: Actor, employee_id: str | None) -> str:
 def _parties(db: Session, tenant_id: str, fields: dict) -> None:
     """The customer-side references a row may carry, each checked to exist,
     and a contact checked to belong to the customer named beside it."""
-    if fields.get("customer_id"):
-        get_scoped_or_404(db, Customer, tenant_id, fields["customer_id"])
+    # the whole row is judged, not the fields this call happened to carry
+    # (review N05): an activity on customer B about A's opportunity was 201
+    customer_id = fields.get("customer_id")
+    if customer_id:
+        get_scoped_or_404(db, Customer, tenant_id, customer_id)
     if fields.get("lead_id"):
         get_active_document_or_404(db, Lead, tenant_id, fields["lead_id"])
+    opportunity = None
     if fields.get("opportunity_id"):
-        get_active_document_or_404(db, Opportunity, tenant_id, fields["opportunity_id"])
+        opportunity = get_active_document_or_404(db, Opportunity, tenant_id, fields["opportunity_id"])
+        if customer_id and opportunity.customer_id and opportunity.customer_id != customer_id:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="opportunity_id belongs to a different customer than customer_id")
+        if fields.get("lead_id") and getattr(opportunity, "lead_id", None) and opportunity.lead_id != fields["lead_id"]:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="opportunity_id came from a different lead than lead_id")
     if fields.get("contact_id"):
         contact = get_scoped_or_404(db, CustomerContact, tenant_id, fields["contact_id"])
-        if fields.get("customer_id") and contact.customer_id != fields["customer_id"]:
+        owner = customer_id or (opportunity.customer_id if opportunity is not None else None)
+        if owner and contact.customer_id != owner:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                                 detail="contact_id belongs to a different customer")
     if fields.get("event_id"):
-        get_active_document_or_404(db, Event, tenant_id, fields["event_id"])
+        event = get_active_document_or_404(db, Event, tenant_id, fields["event_id"])
+        if customer_id and event.customer_id and event.customer_id != customer_id:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="event_id belongs to a different customer than customer_id")
     if fields.get("communication_event_id"):
         get_active_document_or_404(db, CommunicationEvent, tenant_id, fields["communication_event_id"])
 
@@ -150,6 +166,7 @@ def list_activities(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Activity, ranges=('created_at', 'next_action_at'), equals=('communication_event_id',)))] = None,
 ):
     stmt = select(Activity).where(Activity.tenant_id == tenant_id)
     if not include_deleted:
@@ -173,6 +190,7 @@ def list_activities(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ActivityRead,
+        extra=extra,
     )
 
 
@@ -307,6 +325,7 @@ def list_events(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Event, ranges=('created_at', 'ends_at'), equals=()))] = None,
 ):
     validate_status_filter(db, tenant_id, "event", status_filter)
     stmt = select(Event).where(Event.tenant_id == tenant_id)
@@ -329,6 +348,7 @@ def list_events(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=EventRead,
+        extra=extra,
     )
 
 
@@ -353,7 +373,7 @@ def create_event(
     employee_id = _own_employee(db, actor, payload.employee_id)
     fields = payload.model_dump(exclude_unset=True)
     _event_fields(db, tenant_id, fields)
-    initial_status = require_machine_state(db, tenant_id, Event, payload.status)
+    initial_status = require_machine_state(db, actor, Event, payload.status)
     event_no = payload.event_no or allocate_number(db, Event, tenant_id)
     event = Event(
         tenant_id=tenant_id,
@@ -528,6 +548,7 @@ def list_event_participants(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(EventParticipant, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(EventParticipant).where(EventParticipant.tenant_id == tenant_id)
     return list_rows(
@@ -542,6 +563,7 @@ def list_event_participants(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=EventParticipantRead,
+        extra=extra,
     )
 
 
@@ -652,6 +674,7 @@ def list_communication_events(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(CommunicationEvent, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(CommunicationEvent).where(CommunicationEvent.tenant_id == tenant_id)
     if not include_deleted:
@@ -677,6 +700,7 @@ def list_communication_events(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=CommunicationEventRead,
+        extra=extra,
     )
 
 

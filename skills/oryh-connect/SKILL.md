@@ -30,7 +30,9 @@ employer and is named after it.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
   install_dir: <the agent's skills folder — where the oryh-skills-* directories
                live or should live>
@@ -216,7 +218,9 @@ different names, and no way for the agent to tell which company a request meant.
 
 Each connect mints a key for THIS device only (`label: device:<client_name>`);
 keys on the person's other machines keep working. The person or an admin can
-revoke any device individually under Access credentials in the web console. An
+revoke any device individually under Access credentials in the web console, and
+an MCP client's own "disconnect" does the same on the server (OAuth revocation),
+so a device that was disconnected in the client is already dead here. An
 admin-issued bundle (`POST <api_base_url>/users/{id}/skill-bundle`) still
 rotates ALL of the person's keys **for that company** — after that, every
 device reconnects through this skill. Other employers are unaffected; their

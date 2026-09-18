@@ -68,12 +68,14 @@ def test_a_document_posts_only_from_its_declared_state(account) -> None:
     assert balance_of(account) == 0.0
 
 
-def test_editing_a_posted_document_moves_nothing(account) -> None:
+def test_a_posted_document_cannot_be_edited(account) -> None:
+    """Review N01: the ledger rows cite the document, so its content is the
+    evidence of what was posted — frozen, not merely ignored."""
     doc = document(account, [{"amount": 100.0}])
     assert post(account, doc).status_code == 200
     edited = account["client"].patch(f"/api/v1/business-objects/{doc}", headers=account["key"], json={
         "payload": {"lines": [{"billing_account_id": account["id"], "amount": 150.0}]}})
-    assert edited.status_code == 200, edited.text
+    assert edited.status_code == 409 and "frozen" in edited.json()["detail"], edited.text
     assert post(account, doc).status_code == 409, "the ledger keeps what was posted"
     assert balance_of(account) == 100.0
 

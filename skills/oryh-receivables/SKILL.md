@@ -47,9 +47,13 @@ Three facts shape everything here:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs invoice.manage:sales, payment.record, payment.apply
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # the officer recorded on what you file
 ```
 
@@ -179,9 +183,11 @@ or the flow agent hands you its id.
 - Record an **outbound** payment, counterparty `customer_id`, amount = what
   the return refunds (the return row's `total_amount`, or the person's
   words when they differ — say the difference out loud). Put the return's
-  number in `reference_no` ("SR-000012") and the row id in `custom_fields`
-  (`{"return_order_id": "..."}`), because that is how the flow agent finds
-  the refund fact to move the return to `refunded`.
+  `order_no` in `reference_no`, exactly as allocated ("SR-000012", nothing
+  around it): nothing on the server links a payment to a return, and the flow
+  agent finds the refund fact with the exact-match filter
+  `GET /payments?reference_no=SR-000012&direction=outbound&status=paid`.
+  Anything else you want to say (partial refund, which lines) goes in `remarks`.
 - **A refund settles no invoice.** Returns carry none — the server refuses
   an invoice against a return (422) and refuses charging one to a billing
   account. Do not create a credit note to "have something to apply against";

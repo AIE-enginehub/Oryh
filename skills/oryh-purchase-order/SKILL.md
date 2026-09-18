@@ -35,9 +35,13 @@ Two facts shape every step:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs purchase_order.manage (admin default; NOT in the member default)
+<!-- /only -->
 ```
 
 ## Lifecycle
@@ -114,7 +118,8 @@ beside the orders' `PO-`, and the return runs its own machine — by default
 `draft → submitted → approved → shipped → refunded` (rejected/cancelled as
 exits): the goods leave, then the vendor's money comes back. That refund is
 a PAYMENT document recorded by the finance skills; `refunded` here is the
-flow marker. A return never charges the billing account (422 — freeing our
+flow marker, moved when `GET /payments?reference_no={PR- number}&direction=inbound&status=paid`
+(exact match — the return's number is the only link) shows the money home. A return never charges the billing account (422 — freeing our
 prepayment happens through the payment, not through occupation), and its
 `original_order_id` must name an ORDER, never another return. Stock leaving
 the warehouse for the courier is an `issued` movement naming this return row

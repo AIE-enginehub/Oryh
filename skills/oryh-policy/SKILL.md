@@ -41,9 +41,13 @@ Two ideas run through everything here:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # policy.manage to draft; policy.publish to publish,
+<!-- /only -->
                                   # repeal, or change who may read a published one
   employee_id: "{{EMPLOYEE_ID}}"  # the officer recorded as a policy's owner, if any
 ```

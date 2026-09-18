@@ -1,9 +1,11 @@
 # Oryh Skill Author API Reference
 
+<!-- only: bundle -->
 Use with:
 
 - header: `X-API-Key: <the admin's user-bound key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
+<!-- /only -->
 
 {{include:_common/api-conventions.md}}
 

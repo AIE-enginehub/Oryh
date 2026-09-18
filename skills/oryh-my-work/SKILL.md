@@ -18,9 +18,13 @@ The check-in routine for every employee's local agent (WorkBuddy-style), approve
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"          # the principal's user-bound key
+<!-- /only -->
 ```
 
 ## One Question, One Call
@@ -62,12 +66,14 @@ wave 1 returned.
 ```text
 WAVE 1 — one batch. Your employee id is {{EMPLOYEE_ID}}; no call for it.
 
+<!-- only: bundle -->
    GET /my/skills/manifest
      → are my installed skills current? Compare with the installed
        manifest.json (name/version/files_hash). Differences are reported to
        the person, never fixed silently — see above. This rides along in the
        batch; it costs no extra round trip.
 
+<!-- /only -->
    GET /todos?employee_id={me}&status=open&include=target
      → my inbox WITH its context: each todo carries a `target` summary —
        whose document, its title, amount (or hours), status, and the latest

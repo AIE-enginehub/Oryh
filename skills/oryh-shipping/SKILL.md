@@ -35,8 +35,10 @@ parcel and the trace; the server no longer offers that row to anyone.
 ```yaml
 oryh:
   base_url: "{{ORYH_BASE_URL}}"
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"
   api_key: "{{ORYH_API_KEY}}"
+<!-- /only -->
 ```
 
 - Which document the goods belong to: a sales order (outbound), a sales

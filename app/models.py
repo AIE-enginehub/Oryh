@@ -259,6 +259,29 @@ class DeviceAuthorization(IdMixin, CreatedAtMixin, Base):
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class IdempotencyRecord(IdMixin, CreatedAtMixin, Base):
+    """One write's claim on an `Idempotency-Key` and, once it answered, the
+    answer (app/core/idempotency.py). Scoped by a hash of the presented
+    credential, not a tenant: the row is claimed before authentication runs,
+    so like the device and OAuth-code tables it carries no tenant RLS."""
+
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        UniqueConstraint("scope_hash", "key", name="uq_idempotency_records_scope_key"),
+        Index("ix_idempotency_records_created_at", "created_at"),
+    )
+
+    scope_hash: Mapped[str] = mapped_column(String(64))
+    key: Mapped[str] = mapped_column(String(200))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    method: Mapped[str] = mapped_column(String(8))
+    path: Mapped[str] = mapped_column(String(500))
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class OAuthAuthorizationCode(IdMixin, CreatedAtMixin, Base):
     """One OAuth 2.1 authorization code: the browser consent's receipt, spent
     exactly once at the token endpoint against its PKCE challenge. A platform
@@ -269,7 +292,10 @@ class OAuthAuthorizationCode(IdMixin, CreatedAtMixin, Base):
     code_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     client_id: Mapped[str] = mapped_column(String(500))
     redirect_uri: Mapped[str] = mapped_column(String(1000))
-    code_challenge: Mapped[str] = mapped_column(String(128))
+    # `code`: the PKCE S256 challenge. `consent`: the whole authorization
+    # request as a fingerprint (oauth._consent_fingerprint), which carries an
+    # up-to-500-character client_id and an unbounded `state` — hence text.
+    code_challenge: Mapped[str] = mapped_column(Text)
     resource: Mapped[str | None] = mapped_column(String(500), nullable=True)
     scope: Mapped[str | None] = mapped_column(String(500), nullable=True)
     tenant_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))

@@ -37,9 +37,13 @@ judgment this skill makes**, not a mechanical step.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the administrator's own user-bound key (needs users.manage)
+<!-- /only -->
 ```
 
 Reissuing a skill bundle (`POST /users/{id}/skill-bundle`) **also needs

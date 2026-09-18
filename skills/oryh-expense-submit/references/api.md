@@ -56,6 +56,7 @@ POST /attachments
 
 Response carries `id` + `sha256`. Idempotent per (tenant, file content): **201** stored these bytes for the first time, **200** returned the attachment the server already held — a 200 means this exact file was uploaded before, which is the duplicate-evidence signal. Limit 10 MB per file (413 above).
 
+<!-- only: bundle -->
 Prefer the bundled script when you can run Python — same contract, with the base64, the size pre-check, and the duplicate signal computed for you:
 
 ```text
@@ -63,6 +64,10 @@ python3 scripts/upload_attachment.py invoice1.pdf train-ticket.jpg    (in this s
 ```
 
 One JSON entry per file: `id`, `sha256`, `size_bytes`, `created_at`, `already_existed` — `already_existed: true` is the duplicate signal above, taken from the server's response code (200 reused / 201 stored), not guessed from a timestamp. The raw endpoint stays the fallback when Python is unavailable.
+<!-- /only -->
+<!-- only: mcp -->
+Upload through the `upload_attachment` tool (`filename`, `content_type`, `content_base64`) — same contract and the same 201/200 duplicate signal. If the client cannot hand you a receipt's bytes, say so and ask the principal to attach it in Oryh; never invent file content.
+<!-- /only -->
 
 ## Items
 

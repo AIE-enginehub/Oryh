@@ -97,6 +97,18 @@
           "name": "component_product_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -248,6 +260,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -410,6 +434,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -597,6 +633,23 @@
         },
         {
           "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -812,6 +865,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -1182,6 +1247,47 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_from",
+          "description": "rows whose effective_to is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_thru",
+          "description": "rows whose effective_to is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "sku_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -1377,6 +1483,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -1531,6 +1649,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -1713,6 +1843,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -1868,6 +2010,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -1986,6 +2140,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -2116,6 +2282,23 @@
         },
         {
           "name": "image_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
           "description": "",
           "type": "string"
         }
@@ -2258,6 +2441,23 @@
         },
         {
           "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -2521,6 +2721,42 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "end_date_from",
+          "description": "rows whose end_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "end_date_thru",
+          "description": "rows whose end_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "start_date_from",
+          "description": "rows whose start_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "start_date_thru",
+          "description": "rows whose start_date is on or before this",
+          "type": "string",
+          "format": "date"
         }
       ],
       "columns": [
@@ -2679,6 +2915,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -2870,6 +3118,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -2996,6 +3256,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -3125,6 +3397,23 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "sales_channel_id",
           "description": "",
           "type": "string"
         }
@@ -3312,6 +3601,23 @@
         },
         {
           "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -3535,6 +3841,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -3701,6 +4019,18 @@
           "name": "geo_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -3767,6 +4097,42 @@
           "name": "role",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "valid_from_from",
+          "description": "rows whose valid_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_from_thru",
+          "description": "rows whose valid_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_until_from",
+          "description": "rows whose valid_until is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_until_thru",
+          "description": "rows whose valid_until is on or before this",
+          "type": "string",
+          "format": "date"
         }
       ],
       "columns": [
@@ -3883,6 +4249,18 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -4069,6 +4447,18 @@
           "name": "adjustment_type",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -4196,6 +4586,35 @@
         },
         {
           "name": "sku_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "promised_date_from",
+          "description": "rows whose promised_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_thru",
+          "description": "rows whose promised_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "attachment_id",
           "description": "",
           "type": "string"
         }
@@ -4470,6 +4889,18 @@
           "name": "adjustment_type",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -4597,6 +5028,23 @@
         },
         {
           "name": "sku_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
           "description": "",
           "type": "string"
         }
@@ -4921,6 +5369,93 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "order_date_from",
+          "description": "rows whose order_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "order_date_thru",
+          "description": "rows whose order_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_from",
+          "description": "rows whose promised_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_thru",
+          "description": "rows whose promised_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "shipped_at_from",
+          "description": "rows whose shipped_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "shipped_at_thru",
+          "description": "rows whose shipped_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "signed_at_from",
+          "description": "rows whose signed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "signed_at_thru",
+          "description": "rows whose signed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "contract_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
           "description": "",
           "type": "string"
         }
@@ -5402,6 +5937,9 @@
               "required": false,
               "type": "string"
             }
+          ],
+          "unsupported": [
+            "lines"
           ]
         },
         {
@@ -5426,6 +5964,22 @@
               "required": false,
               "type": "string"
             }
+          ]
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/sales-orders/{order_id}/save",
+          "summary": "Save Sales Order Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
           ]
         },
         {
@@ -5564,6 +6118,93 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "closed_at_from",
+          "description": "rows whose closed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at_thru",
+          "description": "rows whose closed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "quote_date_from",
+          "description": "rows whose quote_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "quote_date_thru",
+          "description": "rows whose quote_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "sent_at_from",
+          "description": "rows whose sent_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "sent_at_thru",
+          "description": "rows whose sent_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "valid_until_from",
+          "description": "rows whose valid_until is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_until_thru",
+          "description": "rows whose valid_until is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "revision_of_id",
           "description": "",
           "type": "string"
         }
@@ -5965,6 +6606,22 @@
           ]
         },
         {
+          "verb": "save",
+          "path": "/api/v1/sales-quotations/{quotation_id}/save",
+          "summary": "Save Sales Quotation Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
+        },
+        {
           "verb": "send",
           "path": "/api/v1/sales-quotations/{quotation_id}/send",
           "summary": "Send Sales Quotation",
@@ -6068,6 +6725,18 @@
           "name": "adjustment_type",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -6195,6 +6864,45 @@
         },
         {
           "name": "sales_order_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "promised_date_from",
+          "description": "rows whose promised_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_thru",
+          "description": "rows whose promised_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "product_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "sku_id",
           "description": "",
           "type": "string"
         }
@@ -6484,6 +7192,52 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "order_date_from",
+          "description": "rows whose order_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "order_date_thru",
+          "description": "rows whose order_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_from",
+          "description": "rows whose promised_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "promised_date_thru",
+          "description": "rows whose promised_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "contract_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -6769,13 +7523,32 @@
           "verb": "receive",
           "path": "/api/v1/purchase-orders/{po_id}/receive",
           "summary": "Receive Purchase Order",
-          "fields": []
+          "fields": [],
+          "unsupported": [
+            "lines"
+          ]
         },
         {
           "verb": "restore",
           "path": "/api/v1/purchase-orders/{po_id}/restore",
           "summary": "Restore Purchase Order",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/purchase-orders/{po_id}/save",
+          "summary": "Save Purchase Order Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         }
       ],
       "recordPath": "/api/v1/purchase-orders/{po_id}",
@@ -6842,6 +7615,59 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "needed_by_from",
+          "description": "rows whose needed_by is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "needed_by_thru",
+          "description": "rows whose needed_by is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "request_date_from",
+          "description": "rows whose request_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "request_date_thru",
+          "description": "rows whose request_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -7015,6 +7841,22 @@
           ]
         },
         {
+          "verb": "save",
+          "path": "/api/v1/purchase-requests/{request_id}/save",
+          "summary": "Save Purchase Request Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
+        },
+        {
           "verb": "submit",
           "path": "/api/v1/purchase-requests/{request_id}/submit",
           "summary": "Submit Purchase Request",
@@ -7084,6 +7926,30 @@
           "name": "include_archived_items",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_at_from",
+          "description": "rows whose effective_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_at_thru",
+          "description": "rows whose effective_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -7198,6 +8064,52 @@
         },
         {
           "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "expire_date_from",
+          "description": "rows whose expire_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "expire_date_thru",
+          "description": "rows whose expire_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "received_at_from",
+          "description": "rows whose received_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "received_at_thru",
+          "description": "rows whose received_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "facility_id",
           "description": "",
           "type": "string"
         }
@@ -7452,6 +8364,28 @@
           "name": "inventory_item_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "product_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "sku_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -7614,6 +8548,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -7747,6 +8693,23 @@
         },
         {
           "name": "inventory_item_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "sku_id",
           "description": "",
           "type": "string"
         }
@@ -7910,6 +8873,71 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "expected_date_from",
+          "description": "rows whose expected_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "expected_date_thru",
+          "description": "rows whose expected_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "received_at_from",
+          "description": "rows whose received_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "received_at_thru",
+          "description": "rows whose received_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "shipped_at_from",
+          "description": "rows whose shipped_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "shipped_at_thru",
+          "description": "rows whose shipped_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "stock_posted_at_from",
+          "description": "rows whose stock_posted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "stock_posted_at_thru",
+          "description": "rows whose stock_posted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "picklist_id",
           "description": "",
           "type": "string"
         }
@@ -8209,6 +9237,28 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "entity_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "entity_type",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -8419,6 +9469,42 @@
           "name": "entity_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_at_from",
+          "description": "rows whose effective_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_at_thru",
+          "description": "rows whose effective_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "expires_at_from",
+          "description": "rows whose expires_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "expires_at_thru",
+          "description": "rows whose expires_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -8539,6 +9625,42 @@
           "name": "include_deleted",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "valid_from_from",
+          "description": "rows whose valid_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_from_thru",
+          "description": "rows whose valid_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_until_from",
+          "description": "rows whose valid_until is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "valid_until_thru",
+          "description": "rows whose valid_until is on or before this",
+          "type": "string",
+          "format": "date"
         }
       ],
       "columns": [
@@ -8800,7 +9922,10 @@
           "verb": "expire",
           "path": "/api/v1/billing-accounts/{account_id}/expire",
           "summary": "Expire Billing Account Entries",
-          "fields": []
+          "fields": [],
+          "unsupported": [
+            "lines"
+          ]
         },
         {
           "verb": "restore",
@@ -8852,6 +9977,47 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "claim_date_from",
+          "description": "rows whose claim_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "claim_date_thru",
+          "description": "rows whose claim_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -9033,6 +10199,23 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -9225,6 +10408,23 @@
         },
         {
           "name": "purchase_order_item_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "sku_id",
           "description": "",
           "type": "string"
         }
@@ -9587,6 +10787,115 @@
           "name": "include_deleted",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "due_date_from",
+          "description": "rows whose due_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "due_date_thru",
+          "description": "rows whose due_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "invoice_date_from",
+          "description": "rows whose invoice_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "invoice_date_thru",
+          "description": "rows whose invoice_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "issued_at_from",
+          "description": "rows whose issued_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "issued_at_thru",
+          "description": "rows whose issued_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_end_from",
+          "description": "rows whose period_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_thru",
+          "description": "rows whose period_end is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_from",
+          "description": "rows whose period_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_thru",
+          "description": "rows whose period_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "invoice_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -10066,6 +11375,18 @@
           "name": "invoice_item_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -10204,6 +11525,57 @@
           "name": "include_deleted",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "paid_at_from",
+          "description": "rows whose paid_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "paid_at_thru",
+          "description": "rows whose paid_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -10510,6 +11882,9 @@
               "required": false,
               "type": "string"
             }
+          ],
+          "unsupported": [
+            "lines"
           ]
         },
         {
@@ -10555,6 +11930,30 @@
           "name": "status",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "hire_date_from",
+          "description": "rows whose hire_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "hire_date_thru",
+          "description": "rows whose hire_date is on or before this",
+          "type": "string",
+          "format": "date"
         }
       ],
       "columns": [
@@ -10772,6 +12171,59 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "from_date_from",
+          "description": "rows whose from_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "from_date_thru",
+          "description": "rows whose from_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "thru_date_from",
+          "description": "rows whose thru_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "thru_date_thru",
+          "description": "rows whose thru_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reason",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -10955,6 +12407,47 @@
           "description": "",
           "type": "string",
           "format": "date"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_from",
+          "description": "rows whose effective_thru is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_thru",
+          "description": "rows whose effective_thru is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -11169,6 +12662,54 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_end_from",
+          "description": "rows whose period_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_thru",
+          "description": "rows whose period_end is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_from",
+          "description": "rows whose period_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_thru",
+          "description": "rows whose period_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -11270,6 +12811,46 @@
           ]
         },
         {
+          "verb": "save",
+          "path": "/api/v1/timesheet-headers/{header_id}/save",
+          "summary": "Save Timesheet Document",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "name": "intent_id",
+              "required": true,
+              "type": "string",
+              "maxLength": 100
+            },
+            {
+              "name": "period_start",
+              "required": true,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "period_end",
+              "required": true,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "source_report_text",
+              "required": false,
+              "type": "string",
+              "maxLength": 10000
+            }
+          ],
+          "unsupported": [
+            "entries"
+          ]
+        },
+        {
           "verb": "submit",
           "path": "/api/v1/timesheet-headers/{header_id}/submit",
           "summary": "Submit Timesheet Header",
@@ -11364,6 +12945,35 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "next_action_at_from",
+          "description": "rows whose next_action_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "next_action_at_thru",
+          "description": "rows whose next_action_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "communication_event_id",
           "description": "",
           "type": "string"
         }
@@ -11644,6 +13254,30 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "responded_at_from",
+          "description": "rows whose responded_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "responded_at_thru",
+          "description": "rows whose responded_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -11793,6 +13427,47 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "end_date_from",
+          "description": "rows whose end_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "end_date_thru",
+          "description": "rows whose end_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "start_date_from",
+          "description": "rows whose start_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "start_date_thru",
+          "description": "rows whose start_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -12136,6 +13811,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -12364,6 +14051,18 @@
           "name": "response",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -12506,6 +14205,30 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "ends_at_from",
+          "description": "rows whose ends_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "ends_at_thru",
+          "description": "rows whose ends_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -12815,6 +14538,23 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "converted_customer_id",
           "description": "",
           "type": "string"
         }
@@ -13128,6 +14868,52 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "closed_at_from",
+          "description": "rows whose closed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at_thru",
+          "description": "rows whose closed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "expected_close_date_from",
+          "description": "rows whose expected_close_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "expected_close_date_thru",
+          "description": "rows whose expected_close_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source",
           "description": "",
           "type": "string"
         }
@@ -13507,6 +15293,18 @@
           "name": "role",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -13617,6 +15415,18 @@
           "name": "sku_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -13816,6 +15626,23 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -13964,6 +15791,23 @@
         },
         {
           "name": "product_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
           "description": "",
           "type": "string"
         }
@@ -14140,6 +15984,23 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "document_id",
           "description": "",
           "type": "string"
         }
@@ -14338,6 +16199,76 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_from",
+          "description": "rows whose effective_to is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_thru",
+          "description": "rows whose effective_to is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "signed_at_from",
+          "description": "rows whose signed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "signed_at_thru",
+          "description": "rows whose signed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "signed_date_from",
+          "description": "rows whose signed_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "signed_date_thru",
+          "description": "rows whose signed_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
           "description": "",
           "type": "string"
         }
@@ -14689,6 +16620,40 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "acted_at_from",
+          "description": "rows whose acted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "acted_at_thru",
+          "description": "rows whose acted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "approver_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -14903,6 +16868,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -15080,6 +17057,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -15204,6 +17193,18 @@
       "remove": true,
       "actions": [
         {
+          "verb": "post-entries",
+          "path": "/api/v1/business-objects/{object_id}/post-entries",
+          "summary": "Post Business Object Entries",
+          "fields": []
+        },
+        {
+          "verb": "post-stock",
+          "path": "/api/v1/business-objects/{object_id}/post-stock",
+          "summary": "Post Business Object Stock",
+          "fields": []
+        },
+        {
           "verb": "restore",
           "path": "/api/v1/business-objects/{business_object_id}/restore",
           "summary": "Restore Business Object",
@@ -15252,6 +17253,18 @@
           "name": "entity_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -15358,6 +17371,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -15434,6 +17459,54 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "cancelled_at_from",
+          "description": "rows whose cancelled_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "cancelled_at_thru",
+          "description": "rows whose cancelled_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "end_at_from",
+          "description": "rows whose end_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "end_at_thru",
+          "description": "rows whose end_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "start_at_from",
+          "description": "rows whose start_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "start_at_thru",
+          "description": "rows whose start_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -15656,6 +17729,47 @@
         },
         {
           "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "completed_at_from",
+          "description": "rows whose completed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "completed_at_thru",
+          "description": "rows whose completed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "due_at_from",
+          "description": "rows whose due_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "due_at_thru",
+          "description": "rows whose due_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "todo_type",
           "description": "",
           "type": "string"
         }
@@ -15893,6 +18007,18 @@
           "name": "is_active",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -16015,6 +18141,42 @@
           "name": "subscription_id",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "finished_at_from",
+          "description": "rows whose finished_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "finished_at_thru",
+          "description": "rows whose finished_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "started_at_from",
+          "description": "rows whose started_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "started_at_thru",
+          "description": "rows whose started_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -16169,6 +18331,35 @@
           "name": "enabled",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "parked_at_from",
+          "description": "rows whose parked_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "parked_at_thru",
+          "description": "rows whose parked_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "api_key_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -16285,6 +18476,18 @@
           "name": "keyword",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
         }
       ],
       "columns": [
@@ -16445,6 +18648,69 @@
           "name": "include_deleted",
           "description": "",
           "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_from",
+          "description": "rows whose effective_thru is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_thru",
+          "description": "rows whose effective_thru is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "published_at_from",
+          "description": "rows whose published_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "published_at_thru",
+          "description": "rows whose published_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "supersedes_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [

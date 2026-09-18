@@ -27,9 +27,13 @@ Store tenant-specific business facts when the object is not a built-in module (t
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"
+<!-- /only -->
 ```
 
 The rest is business context from the conversation or the calling customer skill.

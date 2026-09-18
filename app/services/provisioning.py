@@ -12,6 +12,7 @@ from app.services.audit_trail import catalogue_write
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, system_capabilities
 from app.core.type_options import system_type_options, system_type_sign
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
+from app.services.delivery import delivery_blocks_error
 from app.services.flow_subscriptions import provision_flow_subscriptions
 from app.services.state_machines import (
     DEFAULT_EXPENSE_MACHINE,
@@ -77,8 +78,11 @@ def read_skill_dir(skill_dir: Path) -> dict[str, str]:
         if "__pycache__" in path.parts or path.suffix == ".pyc":
             continue
         if path.is_file():
-            content = path.read_text(encoding="utf-8")
-            files[str(path.relative_to(skill_dir))] = _expand_includes(content, common_dir)
+            content = _expand_includes(path.read_text(encoding="utf-8"), common_dir)
+            problem = delivery_blocks_error(content)
+            if problem:
+                raise ValueError(f"{skill_dir.name}/{path.relative_to(skill_dir)}: {problem}")
+            files[str(path.relative_to(skill_dir))] = content
     return files
 
 

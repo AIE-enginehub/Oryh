@@ -44,9 +44,13 @@ balance is correct immediately, with no data to migrate.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # who "I" means; the only employee this key may file for
 ```
 

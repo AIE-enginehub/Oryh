@@ -50,7 +50,8 @@ def test_readyz_is_503_when_the_database_is_gone(client: TestClient, monkeypatch
     def broken():
         raise RuntimeError("connection refused")
 
-    monkeypatch.setattr("app.db.session.create_ops_sessionmaker", lambda: broken)
+    # readiness runs on the runtime engine (review N12): that is the one to break
+    monkeypatch.setattr("app.db.session.SessionLocal", broken)
 
     response = client.get("/readyz")
     assert response.status_code == 503

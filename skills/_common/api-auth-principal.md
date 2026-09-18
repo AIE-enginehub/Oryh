@@ -1,3 +1,4 @@
+<!-- only: bundle -->
 Use with:
 
 - header: `X-API-Key: <the principal's user-bound key>`
@@ -16,3 +17,15 @@ Use with:
   these files goes stale, so re-sync `GET /my/skill-bundle` when convenient.
   A 401 saying **invalid**, or a refresh answering "already used", means the
   credential is gone — reconnect with `$oryh-connect`; do not retry around it.
+<!-- /only -->
+<!-- only: mcp -->
+Use with the connected Oryh MCP server:
+
+- every call below is the `oryh_request` tool — `{"method", "path", "query",
+  "body"}` — with `path` exactly as written here (`/todos`, not a full URL)
+  and query parameters in `query`, never in the path. Never send a host, a
+  key or a tenant id: the connection is the principal's own OAuth sign-in,
+  and the server attributes every write to it.
+- **A 401** means the connection's sign-in lapsed or was revoked: ask the
+  person to reconnect Oryh in their client; do not retry around it.
+<!-- /only -->

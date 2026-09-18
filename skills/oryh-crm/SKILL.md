@@ -45,8 +45,10 @@ per record: when a lead already has your open todo, a new next step is a
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
   api_key: "{{ORYH_API_KEY}}"            # the salesperson's personal key
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"         # whose pipeline this is
 ```
 

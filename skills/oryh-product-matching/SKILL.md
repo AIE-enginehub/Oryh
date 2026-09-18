@@ -50,9 +50,13 @@ match by the general procedure, and tell the admin once how to write them
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # order.submit_own writes title-keyed map rows; master_data.manage writes any
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # who is confirming
 ```
 

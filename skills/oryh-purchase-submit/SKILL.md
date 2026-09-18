@@ -26,9 +26,13 @@ Three things about a requisition are legitimately uncertain, and the record is h
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
+<!-- /only -->
 ```
 
 Everything else comes from conversation: what to buy, how many, for when, from whom (maybe), at what price (maybe).
@@ -63,7 +67,13 @@ Everything else comes from conversation: what to buy, how many, for when, from w
    - SKU per line, when the matched product has `has_skus: true`: `GET /product-skus?product_id={id}&status=active` and locate the variant from the principal's words against `variant_attrs` ("navy XL" → size:XL). Confident match → send `sku_id` (the product derives automatically; SKU-level `list_price` overrides the product's). Ambiguous → ask ONE question listing the variants. Principal says it is undecided → `sku_id` null, and flag it at read-back.
    - Never create vendors, products, or SKUs; that is master-data management.
 6. **Request**: `POST /purchase-requests` with `employee_id`, `title` (the purpose), `needed_by` if stated, the vendor fields from step 5, and the principal's original words in `source_report_text`.
-7. **Items ride the create** — put the complete `items` array on step 6's `POST /purchase-requests`: one call, one transaction, a bad line rolls the whole request back, and the response echoes the lines (your read-back material). `POST /purchase-request-items` remains for adding to an existing draft (`quantity` required; `unit_price` or lump-sum `amount` only if actually known; quote file via `POST /attachments` → `attachment_id`, or the bundled `scripts/upload_attachment.py` (in this skill's directory — the path is relative to it, not to wherever you happen to be) which does the base64 and the 10 MB pre-check). `PATCH`/`DELETE` to correct. Items are editable only while the request is in the tenant's editable states (default `draft`/`returned`) — a 409 means the request has moved on.
+7. **Items ride the create** — put the complete `items` array on step 6's `POST /purchase-requests`: one call, one transaction, a bad line rolls the whole request back, and the response echoes the lines (your read-back material). `POST /purchase-request-items` remains for adding to an existing draft (`quantity` required; `unit_price` or lump-sum `amount` only if actually known; quote file uploaded first → `attachment_id`). `PATCH`/`DELETE` to correct. Items are editable only while the request is in the tenant's editable states (default `draft`/`returned`) — a 409 means the request has moved on.
+   <!-- only: bundle -->
+   Upload a quote file with `POST /attachments`, or the bundled `scripts/upload_attachment.py` (in this skill's directory — the path is relative to it, not to wherever you happen to be), which does the base64 and the 10 MB pre-check.
+   <!-- /only -->
+   <!-- only: mcp -->
+   Upload a quote file with the `upload_attachment` tool (10 MB per file); if the client cannot hand you its bytes, ask the principal to attach it in Oryh.
+   <!-- /only -->
    - **Purchasing against an order (zero-inventory operations)**: when this purchase exists to fulfil a confirmed sales order line, pin the line with `sales_order_item_id` — take the id from `GET /sales-orders/{order_id}/detail` (`items[].id`), never guess it (a wrong id is 404). Several purchase lines may pin to one order line (split vendors/deliveries). The link is what lets the fulfilment side see whether the goods have arrived before shipping, and lets approvers review the purchase against the order it serves. Omit it for ordinary stock purchases; PATCH it to `null` to detach.
 8. **Submit**: `POST /purchase-requests/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent — resubmitting a submitted request is a no-op.
 9. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.

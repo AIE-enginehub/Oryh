@@ -31,6 +31,8 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     MAX_PAGE_SIZE,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
@@ -175,6 +177,7 @@ def list_api_keys(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ApiKey, ranges=('created_at',), equals=()))] = None,
 ):
     require_permission(actor, "keys.manage")
     stmt = select(ApiKey).where(ApiKey.tenant_id == actor.tenant_id)
@@ -210,6 +213,7 @@ def list_api_keys(
         pagination=requested_pagination(page, size),
         sort=order_by,
         render=render,
+        extra=extra,
     )
 
 
@@ -267,6 +271,7 @@ def list_api_key_owners(
     keyword: str | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, description=PAGE_SIZE_DOC)] = 50,
+    extra: Annotated[ListFilters, Depends(list_filters(User, ranges=(), equals=('employee_id',)))] = None,
 ):
     """Search active users eligible to own a user-bound API key.
 
@@ -285,6 +290,7 @@ def list_api_key_owners(
         order_by=(User.name.asc(), User.email.asc(), User.id.asc()),
         pagination=(page, min(size, MAX_PAGE_SIZE)),
         read_model=ApiKeyOwnerRead, by_alias=False,
+        extra=extra,
     )
 
 
@@ -387,6 +393,7 @@ def list_projects(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Project, ranges=('created_at', 'end_date', 'start_date'), equals=()))] = None,
 ):
     return list_rows(
         db, select(Project).where(Project.tenant_id == tenant_id),
@@ -397,6 +404,7 @@ def list_projects(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=ProjectRead,
+        extra=extra,
     )
 
 

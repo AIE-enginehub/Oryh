@@ -1,11 +1,13 @@
 # Oryh Shipping API Reference
 
+<!-- only: bundle -->
 Use with:
 
 - header: `X-API-Key: <the principal's user-bound key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
-- capability: `shipment.manage` (`inventory.manage` includes it); reads are
-  tenant-visible
+<!-- /only -->
+Capability: `shipment.manage` (`inventory.manage` includes it); reads are
+tenant-visible
 
 {{include:_common/api-conventions.md}}
 

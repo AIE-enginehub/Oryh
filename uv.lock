@@ -364,8 +364,8 @@ wheels = [
 ]
 
 [[package]]
-name = "oryh-timesheet"
-version = "0.1.0"
+name = "oryh"
+version = "2026.9.11.1"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },

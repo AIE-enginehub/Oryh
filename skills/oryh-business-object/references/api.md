@@ -1,9 +1,11 @@
 # Oryh Business Object API Reference
 
+<!-- only: bundle -->
 Use these templates with:
 
 - header: `X-API-Key: <api_key>`
 - base path: `api_base_url`, exactly as given — no version prefix to add
+<!-- /only -->
 
 {{include:_common/api-conventions.md}}
 
@@ -49,13 +51,18 @@ POST /business-objects
 }
 ```
 
-Allowed statuses:
+Allowed statuses (types without a state machine):
 
 - `open`
 - `in_review`
 - `approved`
 - `rejected`
 - `archived`
+
+A create files the object: `business_object.write` may create it `open` or
+`in_review` (handing it in for review). Creating it `approved`, `rejected` or
+`archived` is deciding it, and takes `business_object.advance` for the type —
+a 403 names it.
 
 ## Update Business Object
 
@@ -101,7 +108,7 @@ POST /object-type-definitions
 
 ## State Machines And Status Transitions
 
-If the tenant's type definition carries a `state_machine`, status changes are validated: an illegal transition returns `409` listing the allowed targets. Creating an object in any declared state is allowed (recording an already-mid-flow fact). Types without a machine accept the default statuses only.
+If the tenant's type definition carries a `state_machine`, status changes are validated: an illegal transition returns `409` listing the allowed targets. A create may start in the machine's `initial`, or in the state its `roles.submitted` names (`"roles": {"submitted": "<state>"}`, for a type whose writers hand objects in); starting anywhere else — recording a fact already mid-flow — takes `business_object.advance` for the type. A stock or account document starts in `initial` only. Types without a machine accept the default statuses only.
 
 States are the **coarse lifecycle** (open/approved/paid …), never workflow nodes. While an approval flow runs, the object's status does not move; the flow's position is derived from approval records (nodes passed) and open todos (current holder).
 

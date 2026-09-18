@@ -31,6 +31,29 @@ Rules, in order of importance:
 `tests/test_skill_docs.py` fails on unexpanded or malformed markers and keeps
 fragment API references honest against the live routes.
 
+## Text for one delivery
+
+A skill reaches an agent as a downloaded bundle (key rendered in, HTTP calls,
+bundled scripts, re-sync) or over MCP (the connection carries the sign-in,
+every call is the `oryh_request` tool). Text true of only one sits between
+marker lines, each alone on its line — indented inside a list item or after
+`> ` inside a quote is fine:
+
+```text
+<!-- only: bundle -->
+…key, header, script, re-sync…
+<!-- /only -->
+<!-- only: mcp -->
+…the tool that does the same job…
+<!-- /only -->
+```
+
+Markers survive provisioning; each delivery's renderer keeps its own blocks
+and drops the other's (`app/services/delivery.py`). Provisioning and
+`POST /skills` refuse markers that do not pair up, and
+`tests/test_skill_delivery.py` fails when MCP-rendered text still names a key,
+a header, a script or a bundle to re-sync.
+
 ## Fragments no skill here includes
 
 Four of these are included only by the approval-flow skills, which the hosted

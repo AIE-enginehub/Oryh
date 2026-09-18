@@ -193,6 +193,13 @@ def bulk_inventory_upsert(
         sku = sku_map.get((code, (row.sku_code or "").strip()))
         facility, lot_id = row.facility.strip(), row.lot_id.strip()
         item = _find_item(db, tenant_id, product.id, sku.id if sku else None, facility, lot_id)
+        if item is not None:
+            # the difference is computed against a locked position: two
+            # identical counts at once each used to append the same delta
+            item = db.scalar(
+                select(InventoryItem).where(InventoryItem.id == item.id)
+                .with_for_update().execution_options(populate_existing=True)
+            )
 
         if item is None:
             item = InventoryItem(

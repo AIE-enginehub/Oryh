@@ -158,6 +158,7 @@ Nothing is server-allocated, so the per-tenant document-number lock is never
 taken and the import is not serialized by it (~385 documents/sec measured on
 postgres, i.e. ~13 minutes for 300k).
 
+<!-- only: bundle -->
 ## Chunking Script
 
 Run from this skill's directory; the paths below are relative to it.
@@ -173,3 +174,15 @@ python3 scripts/import_documents.py --kind purchase-orders rows.json --apply
 500, keeps every reported index global to your file, prints progress per
 chunk, and ends with ONE list of problem documents grouped by cause — which
 is the report the person actually needs.
+<!-- /only -->
+<!-- only: mcp -->
+## Chunking
+
+Each bulk endpoint takes at most 500 documents per call. Split the file into
+chunks of 500 in order and send each as one `oryh_request` to the family's
+`/bulk` route — `"dry_run": true` for every chunk first, then again for real
+once every dry run is clean. Add each chunk's offset to the row indexes it
+reports, so every index is global to the file; stop at the first chunk that
+fails under `on_error: abort`. End with ONE list of problem documents grouped
+by cause — which is the report the person actually needs.
+<!-- /only -->

@@ -58,10 +58,7 @@ UNAUDITED: dict[str, str] = {
     "claims.py POST /expense-claims": "creation; the row carries created_at/created_by",
     "claims.py POST /timesheet-headers": "creation; the row carries created_at/created_by",
     "people.py POST /employee-leaves": "creation; the row carries created_at/created_by",
-    "purchasing.py POST /purchase-orders": "creation; the row carries created_at/created_by",
     "purchasing.py POST /purchase-requests": "creation; the row carries created_at/created_by",
-    "sales.py POST /sales-orders": "creation; the row carries created_at/created_by",
-    "sales.py POST /sales-quotations": "creation; the row carries created_at/created_by",
 
     # Restore. The delete that preceded it IS audited, so the trail shows the
     # document left and came back; the restore's own row is missing. Same gap,

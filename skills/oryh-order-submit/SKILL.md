@@ -26,9 +26,13 @@ now.
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
+<!-- /only -->
 ```
 
 ## Steps
@@ -262,7 +266,9 @@ POST /sales-orders
   goods is legal (`approved → refunded`). The ORDER machine's states are not
   legal on a return and vice versa; the tenant reshapes either machine
   independently, one sentence to the admin, like every builtin. A return
-  synced from a platform mid-flow is created directly in its current state.
+  synced from a platform mid-flow is created directly in its current state —
+  which, past `draft`, needs `order.advance` (403 otherwise): without it,
+  create it at `draft` and say which state the platform reports.
 - **The lines are the goods coming back** (positive quantities), the total
   is the refund amount. `original_order_id` may be omitted when nobody knows
   the order yet — record reality first, `PATCH` the linkage when it is

@@ -24,7 +24,9 @@ required_capability: <gate or omit>
 ```yaml
 oryh:
   base_url: "{{ORYH_BASE_URL}}"
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"
+<!-- /only -->
 ```
 
 ## Steps
@@ -35,6 +37,29 @@ oryh:
 ## What This Skill Never Does
 - the negative space: role boundaries, forbidden writes
 ```
+
+## Two ways a skill arrives
+
+The same published text reaches agents two ways: as a downloaded **bundle**
+(files on the person's machine, the key rendered in, HTTP calls, bundled
+scripts) and over **MCP** (a connection that carries the person's OAuth
+sign-in, where every call is the `oryh_request` tool). Anything true of only
+one — the rendered key in Required Inputs, the header that sends it, a
+command that runs a bundled script — goes between marker lines, each alone on
+its line:
+
+```text
+<!-- only: bundle -->
+  (the key line of Required Inputs)
+<!-- /only -->
+<!-- only: mcp -->
+Upload with the `upload_attachment` tool.
+<!-- /only -->
+```
+
+Each delivery keeps its own blocks and drops the other's; publishing refuses
+markers that do not pair up. Business rules, fields and steps apply to both
+and never go in a block.
 
 ## The description is the trigger contract
 

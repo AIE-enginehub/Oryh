@@ -15,10 +15,18 @@ already held them**. A 200 is a fact worth reporting: the same file has been
 filed before, which on a bill or a receipt usually means a duplicate entry
 rather than a coincidence. Say so before filing against it.
 
+<!-- only: bundle -->
 When you can run Python, prefer the bundled `scripts/upload_attachment.py` (in
 this skill's own directory — the path is relative to the skill, not to wherever
 you happen to be running). It does the base64, the 10 MB pre-check, and reports
 `already_existed` per file.
+<!-- /only -->
+<!-- only: mcp -->
+Upload with the `upload_attachment` tool (`filename`, `content_type`,
+`content_base64`): 10 MB per file, and the same 201/200 answer. If the client
+cannot hand you the file's bytes, say so and ask the person to upload it in
+Oryh — never invent file content.
+<!-- /only -->
 
 **Reading it back.** An attachment is reached **through the document that
 carries it**, never by its id alone: the server asks "may this person see this

@@ -24,6 +24,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     commit_or_conflict,
@@ -155,6 +157,7 @@ def list_geos(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Geo, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(Geo).where(Geo.tenant_id == tenant_id)
     return list_rows(
@@ -171,6 +174,7 @@ def list_geos(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=GeoRead,
+        extra=extra,
     )
 
 
@@ -314,6 +318,7 @@ def list_territories(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Territory, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(Territory).where(Territory.tenant_id == tenant_id)
     return list_rows(
@@ -330,6 +335,7 @@ def list_territories(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TerritoryRead,
+        extra=extra,
     )
 
 
@@ -428,6 +434,7 @@ def list_territory_geos(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(TerritoryGeo, ranges=('created_at',), equals=()))] = None,
 ):
     stmt = select(TerritoryGeo).where(TerritoryGeo.tenant_id == tenant_id)
     return list_rows(
@@ -437,6 +444,7 @@ def list_territory_geos(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TerritoryGeoRead,
+        extra=extra,
     )
 
 
@@ -503,6 +511,7 @@ def list_territory_members(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(TerritoryMember, ranges=('created_at', 'valid_from', 'valid_until'), equals=()))] = None,
 ):
     stmt = select(TerritoryMember).where(TerritoryMember.tenant_id == tenant_id)
     return list_rows(
@@ -516,6 +525,7 @@ def list_territory_members(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TerritoryMemberRead,
+        extra=extra,
     )
 
 

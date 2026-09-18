@@ -1,3 +1,4 @@
+<!-- only: bundle -->
 > **Check you are current before you work — one call, in the first wave.**
 >
 > ```text
@@ -35,3 +36,4 @@
 > it is "what do I have to do". If you already compared the manifest in this
 > session, you know the answer — do not send it again, and do not raise it a
 > second time after the person has declined.
+<!-- /only -->

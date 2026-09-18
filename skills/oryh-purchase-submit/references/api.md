@@ -60,7 +60,13 @@ POST /purchase-request-items
 }
 ```
 
-Pricing is optional by design: `unit_price` for per-unit quotes, `amount` for lump sums ("a batch of cabling, budget 800"), neither when the price is still to be sourced. A matched `product_id` backfills empty name/unit snapshots. Quote files go through `POST /attachments` (base64, 10 MB) first — or the bundled `scripts/upload_attachment.py` (in this skill's directory), which does the base64, the size pre-check, and reports `already_existed` per file.
+Pricing is optional by design: `unit_price` for per-unit quotes, `amount` for lump sums ("a batch of cabling, budget 800"), neither when the price is still to be sourced. A matched `product_id` backfills empty name/unit snapshots. Quote files are uploaded first (base64, 10 MB) and referenced by `attachment_id`.
+<!-- only: bundle -->
+Upload with `POST /attachments`, or the bundled `scripts/upload_attachment.py` (in this skill's directory), which does the base64, the size pre-check, and reports `already_existed` per file.
+<!-- /only -->
+<!-- only: mcp -->
+Upload with the `upload_attachment` tool; a 200 instead of 201 means the file was already on file.
+<!-- /only -->
 
 Purchasing against an order: an item may carry `sales_order_item_id` — the confirmed sales order line it fulfils (from that order's `/detail`, `items[].id`; nonexistent or cross-tenant → 404). Several purchase lines may pin to one order line. In this request's `/detail`, a pinned line resolves a `sales_order` block: `{sales_order_item_id, order_id, order_no, order_status, customer_name_snapshot, quantity}` — the order-side quantity, so a reviewer sees "3 ordered / 4 being purchased" at a glance. PATCH with `null` detaches. Downstream, once procurement places the actual purchase order (`$oryh-purchase-order`), each line's `purchase_order_items` lists `{po_number, po_status, quantity, received_quantity, …}` — how the principal's request is progressing, without leaving this detail call.
 
@@ -75,6 +81,27 @@ items           only while request is draft/returned   → 409 otherwise
 vendor_id / product_id / sku_id / attachment_id must exist here → 404 otherwise
 sku_id          must belong to product_id (sku alone derives it) → 400 otherwise
 ```
+
+## Restating The Whole Document
+
+```text
+GET  /purchase-requests/{id}/detail                          → revision (a hash of header, live lines, adjustments)
+POST /purchase-requests/{id}/save?validate_only=true         → the same run, nothing written
+POST /purchase-requests/{id}/save
+{"expected_revision": "<detail.revision>",
+ "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+           {...full line without id...}],                → added through the POST rules
+ "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
+                 {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
+```
+
+A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
+(and anything pointing at it), a live line not listed is removed with the
+same audit a DELETE writes.
+Stale `expected_revision` → 409: read `/detail` again and restate. The
+header stays with PATCH; the editable-state gate is the same one every
+line write passes. One call replaces N PATCH/DELETE round trips when a
+person reworks a draft.
 
 ## Submit
 

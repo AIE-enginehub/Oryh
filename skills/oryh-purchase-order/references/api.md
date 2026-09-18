@@ -102,6 +102,10 @@ POST /purchase-order-items
 
 ## Adjustments (freight, tax and discounts on top of the line sum)
 
+Adjustments may also ride the create: `"adjustments": [{"adjustment_type": "discount", "amount": -10, "item_index": 0}]`
+beside `items`, `item_index` naming a line of the same request (omitted = header-level) —
+a discounted quote is one call, and `?validate_only=true` tries the whole of it first.
+
 ```json
 POST /purchase-order-adjustments
 {
@@ -119,6 +123,27 @@ vocabulary shared by quotation/order/PO adjustments (422 lists the active
 options; extend with `POST /type-options`). PATCH/DELETE gated on the same
 editable states as items. `/detail` sums them:
 `adjusted_total = computed_total + adjustments_total`.
+
+## Restating The Whole Document
+
+```text
+GET  /purchase-orders/{id}/detail                          → revision (a hash of header, live lines, adjustments)
+POST /purchase-orders/{id}/save?validate_only=true         → the same run, nothing written
+POST /purchase-orders/{id}/save
+{"expected_revision": "<detail.revision>",
+ "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+           {...full line without id...}],                → added through the POST rules
+ "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
+                 {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
+```
+
+A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
+(and anything pointing at it), a live line not listed is removed with the
+same audit a DELETE writes, `item_index` names a line of THIS request.
+Stale `expected_revision` → 409: read `/detail` again and restate. The
+header stays with PATCH; the editable-state gate is the same one every
+line write passes. One call replaces N PATCH/DELETE round trips when a
+person reworks a draft.
 
 ## Receive — record arrival facts; never moves status
 

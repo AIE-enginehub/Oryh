@@ -21,9 +21,13 @@ You are the OCR. oryh stores facts and evidence; it does not read receipts. Read
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # the principal's user-bound key
+<!-- /only -->
 ```
 
 Everything else comes from conversation: the receipts, the purpose, the amounts.
@@ -57,9 +61,16 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
    Idempotent per file content, and the response code says which happened:
    **201 = these bytes are new, 200 = the server already held them**. A 200
    means this exact file was uploaded before — say so before filing an item
-   against it. When you can run Python, prefer the bundled
+   against it.
+   <!-- only: bundle -->
+   When you can run Python, prefer the bundled
    `scripts/upload_attachment.py` (in this skill's directory): it does the
    base64, the 10 MB pre-check, and reports `already_existed` per file.
+   <!-- /only -->
+   <!-- only: mcp -->
+   Upload with the `upload_attachment` tool. If the client cannot hand you a
+   receipt's bytes, say so and ask the principal to attach it in Oryh.
+   <!-- /only -->
 7. **The whole claim, one call**: `POST /expense-claims` with `employee_id`,
    `title` (the purpose, such as "Shanghai trip, June"), `claim_date`, the principal's
    original words in `source_report_text`, and **every receipt inline in

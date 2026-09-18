@@ -85,6 +85,10 @@ POST /sales-quotation-items
 
 ## Adjustments (document-level and line-level)
 
+Adjustments may also ride the create: `"adjustments": [{"adjustment_type": "discount", "amount": -10, "item_index": 0}]`
+beside `items`, `item_index` naming a line of the same request (omitted = header-level) —
+a discounted quote is one call, and `?validate_only=true` tries the whole of it first.
+
 Signed amounts that move the total beside the line math — the explicit home
 for promotions, tax, freight, handling, surcharges and rounding (OFBiz
 QuoteAdjustment shaped):
@@ -143,6 +147,27 @@ items           only while quotation is draft/returned  → 409 otherwise
 customer_id / product_id / sku_id / attachment_id / project_id must exist here → 404 otherwise
 sku_id          must belong to product_id (sku alone derives it) → 400 otherwise
 ```
+
+## Restating The Whole Document
+
+```text
+GET  /sales-quotations/{id}/detail                          → revision (a hash of header, live lines, adjustments)
+POST /sales-quotations/{id}/save?validate_only=true         → the same run, nothing written
+POST /sales-quotations/{id}/save
+{"expected_revision": "<detail.revision>",
+ "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+           {...full line without id...}],                → added through the POST rules
+ "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
+                 {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
+```
+
+A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
+(and anything pointing at it), a live line not listed is removed with the
+same audit a DELETE writes, `item_index` names a line of THIS request.
+Stale `expected_revision` → 409: read `/detail` again and restate. The
+header stays with PATCH; the editable-state gate is the same one every
+line write passes. One call replaces N PATCH/DELETE round trips when a
+person reworks a draft.
 
 ## Historical Import (migration only)
 

@@ -30,9 +30,13 @@ This skill should trigger for user intents like:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, the links in the message point here
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"        # tenant service key; the notifier reads queues for the tenant
+<!-- /only -->
 ```
 
 ## Required inputs

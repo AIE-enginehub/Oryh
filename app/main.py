@@ -2,8 +2,9 @@ import importlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.api.auth import router as auth_router
 from app.api.billing import router as billing_router
@@ -17,6 +18,7 @@ from app.api.notifications import router as notifications_router
 from app.api.objects import router as objects_router
 from app.api.people import router as people_router
 from app.api.policies import router as policies_router
+from app.api.query_guard import reject_unknown_query_params
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
 from app.api.contracts import router as contracts_router
@@ -36,9 +38,11 @@ from app.api.roles import router as roles_router
 from app.api.workflows import router as workflows_router
 from app.core.config import API_PREFIX, settings
 from app.core.deployment_profile import enforce_deployment_profile
+from app.core.idempotency import IdempotencyMiddleware, openapi_with_idempotency_key
 from app.core.legacy_usage import LegacyWebUsageMiddleware
 from app.core.request_context import RequestBaseUrlMiddleware
 from app.core.responses import JSONCharsetMiddleware
+from app.db.session import get_db
 from app.web.routes import router as web_router
 
 
@@ -50,9 +54,49 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
+# Set on the app before any include_router: every API read refuses query
+# parameters its operation does not declare (app/api/query_guard.py).
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    lifespan=lifespan,
+    dependencies=[Depends(reject_unknown_query_params)],
+)
+
+
+def _json_safe(value):
+    """A validation error echoes the offending input; when that input is
+    NaN or Infinity (refused at the boundary, review N11) the echo itself
+    is not JSON and the 422 became a 500. Non-finite numbers are echoed as
+    their names."""
+    import math
+
+    if isinstance(value, float) and not math.isfinite(value):
+        return "NaN" if math.isnan(value) else ("Infinity" if value > 0 else "-Infinity")
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    from fastapi.encoders import jsonable_encoder
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": _json_safe(jsonable_encoder(exc.errors()))},
+    )
 app.add_middleware(RequestBaseUrlMiddleware)
 app.add_middleware(LegacyWebUsageMiddleware)
+# Every write under /api/v1 honours `Idempotency-Key` (app/core/idempotency.py).
+# The session comes from the same `get_db` a handler would get — overridden
+# in the test stack — resolved per request.
+app.add_middleware(
+    IdempotencyMiddleware,
+    session_resolver=lambda: app.dependency_overrides.get(get_db, get_db),
+)
 # Added last so it wraps outermost and sees every response, including ones
 # synthesized by exception handlers and the middlewares above.
 app.add_middleware(JSONCharsetMiddleware)
@@ -158,11 +202,15 @@ def readiness(response: Response) -> dict:
     """
     from sqlalchemy import text
 
-    from app.db.session import create_ops_sessionmaker
+    from app.db.session import SessionLocal, get_db
 
+    # the runtime engine and pool, the same path a request takes: an owner
+    # connection that answers proves nothing about the role and pool that
+    # serve traffic, and building an engine per probe is its own load
+    # (review N12)
     checks: dict[str, str] = {}
     try:
-        with create_ops_sessionmaker()() as db:
+        with SessionLocal() as db:
             db.execute(text("select 1"))
             checks["database"] = "ok"
             try:
@@ -177,3 +225,17 @@ def readiness(response: Response) -> dict:
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return {"status": "ready" if ready else "not ready", "checks": checks}
+
+
+# The OpenAPI document names `Idempotency-Key` on every write operation, so a
+# generated client and a skill contract see it beside the body it protects.
+_openapi_without_header = app.openapi
+
+
+def _openapi_with_header() -> dict:
+    if app.openapi_schema is None:
+        app.openapi_schema = openapi_with_idempotency_key(_openapi_without_header())
+    return app.openapi_schema
+
+
+app.openapi = _openapi_with_header

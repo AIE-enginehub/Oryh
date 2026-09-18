@@ -28,6 +28,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
@@ -190,6 +193,7 @@ def list_contracts(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(Contract, ranges=('created_at', 'effective_from', 'effective_to', 'signed_at', 'signed_date'), equals=('currency', 'employee_id')))] = None,
 ):
     visible = _require_reader(actor)
     tenant_id = actor.tenant_id
@@ -220,6 +224,7 @@ def list_contracts(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ContractRead,
+        extra=extra,
     )
 
 
@@ -233,12 +238,58 @@ def _resolve_counterparty(db: Session, tenant_id: str, payload) -> tuple[str | N
     return None, customer_id, snapshot
 
 
+def build_contract_item(db: Session, tenant_id: str, contract: Contract, line, *, index: int | None = None) -> ContractItem:
+    """One validated contract line, inline or standalone — one constructor
+    (gap 4)."""
+    if line.product_id:
+        get_scoped_or_404(db, Product, tenant_id, line.product_id)
+    item = ContractItem(
+        tenant_id=tenant_id, contract_id=contract.id,
+        line_no=line.line_no if line.line_no is not None else index,
+        product_id=line.product_id, description=line.description,
+        quantity=line.quantity, unit=line.unit, unit_price=line.unit_price,
+        currency=line.currency, delivery_note=line.delivery_note,
+        metadata_jsonb=line.metadata,
+    )
+    db.add(item)
+    return item
+
+
+def build_contract_document(db: Session, tenant_id: str, contract: Contract, row) -> ContractDocument:
+    require_type_option(db, tenant_id, "contract_document_type", row.document_type)
+    # any format: the store neither reads nor judges bytes, and a contract
+    # arrives as a PDF, a folder of scanned pages, a Word file alike
+    get_scoped_or_404(db, Attachment, tenant_id, row.attachment_id)
+    document = ContractDocument(
+        tenant_id=tenant_id, contract_id=contract.id, attachment_id=row.attachment_id,
+        document_type=row.document_type, sort_order=row.sort_order,
+        page_no=row.page_no, caption=row.caption,
+        extracted_text=row.extracted_text, metadata_jsonb=row.metadata,
+    )
+    db.add(document)
+    return document
+
+
+def build_contract_term(db: Session, tenant_id: str, contract: Contract, row, document_id: str | None) -> ContractTerm:
+    require_type_option(db, tenant_id, "contract_term_type", row.term_type)
+    _require_term_document(db, tenant_id, contract.id, document_id)
+    term = ContractTerm(
+        tenant_id=tenant_id, contract_id=contract.id, term_type=row.term_type,
+        clause_ref=row.clause_ref, title=row.title, content=row.content,
+        summary=row.summary, document_id=document_id, page_no=row.page_no,
+        sort_order=row.sort_order, metadata_jsonb=row.metadata,
+    )
+    db.add(term)
+    return term
+
+
 @router.post("/contracts", response_model=ContractEnvelope, response_model_exclude_unset=True,
              status_code=status.HTTP_201_CREATED)
 def create_contract(
     payload: CreateContractRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     side = "purchase" if payload.vendor_id else "sales"
@@ -249,10 +300,7 @@ def create_contract(
         get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     if payload.parent_contract_id:
         get_scoped_or_404(db, Contract, tenant_id, payload.parent_contract_id)
-    for line in payload.items:
-        if line.product_id:
-            get_scoped_or_404(db, Product, tenant_id, line.product_id)
-    initial_status = require_machine_state(db, tenant_id, Contract, payload.status)
+    initial_status = require_machine_state(db, actor, Contract, payload.status)
     contract_no = payload.contract_no or allocate_number(db, Contract, tenant_id)
     contract = Contract(
         tenant_id=tenant_id,
@@ -281,17 +329,32 @@ def create_contract(
     db.add(contract)
     try:
         db.flush()
-        db.add_all([
-            ContractItem(
-                tenant_id=tenant_id, contract_id=contract.id,
-                line_no=line.line_no if line.line_no is not None else index,
-                product_id=line.product_id, description=line.description,
-                quantity=line.quantity, unit=line.unit, unit_price=line.unit_price,
-                currency=line.currency, delivery_note=line.delivery_note,
-                metadata_jsonb=line.metadata,
-            )
-            for index, line in enumerate(payload.items, start=1)
-        ])
+        for index, line in enumerate(payload.items, start=1):
+            build_contract_item(db, tenant_id, contract, line, index=index)
+        documents = [build_contract_document(db, tenant_id, contract, row) for row in payload.documents]
+        db.flush()
+        for index, row in enumerate(payload.terms):
+            document_id = None
+            if row.document_index is not None:
+                if row.document_index >= len(documents):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"terms[{index}].document_index {row.document_index} names no document of this request ({len(documents)} documents)",
+                    )
+                document_id = documents[row.document_index].id
+            elif row.document_id is not None:
+                # no document exists before the contract does; a term filed
+                # with the contract points at a document filed with it
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"terms[{index}].document_id names a document that cannot exist yet — use document_index",
+                )
+            build_contract_term(db, tenant_id, contract, row, document_id)
+        if validate_only:
+            db.flush()
+            data = _contract_read(db, tenant_id, contract, full=True)
+            db.rollback()
+            return {"data": data, "meta": {"validate_only": True, "written": False}}
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -473,6 +536,7 @@ def list_contract_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ContractItem, ranges=('created_at',), equals=('currency',)))] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -485,6 +549,7 @@ def list_contract_items(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ContractItemRead,
+        extra=extra,
     )
 
 
@@ -498,16 +563,7 @@ def create_contract_item(
     tenant_id = actor.tenant_id
     contract = _require_contract_access(db, actor, payload.contract_id)
     ensure_document_editable(db, contract)
-    if payload.product_id:
-        get_scoped_or_404(db, Product, tenant_id, payload.product_id)
-    item = ContractItem(
-        tenant_id=tenant_id, contract_id=contract.id, line_no=payload.line_no,
-        product_id=payload.product_id, description=payload.description,
-        quantity=payload.quantity, unit=payload.unit, unit_price=payload.unit_price,
-        currency=payload.currency, delivery_note=payload.delivery_note,
-        metadata_jsonb=payload.metadata,
-    )
-    db.add(item)
+    item = build_contract_item(db, tenant_id, contract, payload)
     db.commit()
     db.refresh(item)
     return envelope(ContractItemRead.model_validate(item).model_dump(by_alias=True))
@@ -567,6 +623,7 @@ def list_contract_documents(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ContractDocument, ranges=('created_at',), equals=('attachment_id',)))] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -587,6 +644,7 @@ def list_contract_documents(
         pagination=requested_pagination(page, size),
         sort=order_by,
         render=lambda rows: [_contract_document_read(row, with_text=with_text) for row in rows],
+        extra=extra,
     )
 
 
@@ -599,17 +657,7 @@ def create_contract_document(
 ):
     tenant_id = actor.tenant_id
     contract = _require_contract_access(db, actor, payload.contract_id)
-    require_type_option(db, tenant_id, "contract_document_type", payload.document_type)
-    # any format: the store neither reads nor judges bytes, and a contract
-    # arrives as a PDF, a folder of scanned pages, a Word file alike
-    get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
-    row = ContractDocument(
-        tenant_id=tenant_id, contract_id=contract.id, attachment_id=payload.attachment_id,
-        document_type=payload.document_type, sort_order=payload.sort_order,
-        page_no=payload.page_no, caption=payload.caption,
-        extracted_text=payload.extracted_text, metadata_jsonb=payload.metadata,
-    )
-    db.add(row)
+    row = build_contract_document(db, tenant_id, contract, payload)
     commit_or_conflict(db, "this file is already on this contract — PATCH that row")
     db.refresh(row)
     return envelope(_contract_document_read(row, with_text=True))
@@ -686,6 +734,7 @@ def list_contract_terms(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ContractTerm, ranges=('created_at',), equals=('document_id',)))] = None,
 ):
     _require_reader(actor)
     if contract_id:
@@ -705,6 +754,7 @@ def list_contract_terms(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ContractTermRead,
+        extra=extra,
     )
 
 
@@ -728,15 +778,7 @@ def create_contract_term(
 ):
     tenant_id = actor.tenant_id
     contract = _require_contract_access(db, actor, payload.contract_id)
-    require_type_option(db, tenant_id, "contract_term_type", payload.term_type)
-    _require_term_document(db, tenant_id, contract.id, payload.document_id)
-    term = ContractTerm(
-        tenant_id=tenant_id, contract_id=contract.id, term_type=payload.term_type,
-        clause_ref=payload.clause_ref, title=payload.title, content=payload.content,
-        summary=payload.summary, document_id=payload.document_id, page_no=payload.page_no,
-        sort_order=payload.sort_order, metadata_jsonb=payload.metadata,
-    )
-    db.add(term)
+    term = build_contract_term(db, tenant_id, contract, payload, payload.document_id)
     db.commit()
     db.refresh(term)
     return envelope(ContractTermRead.model_validate(term).model_dump(by_alias=True))

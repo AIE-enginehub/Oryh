@@ -1,7 +1,7 @@
 [project]
-name = "oryh-timesheet"
-version = "0.1.0"
-description = "Lightweight timesheet recording service"
+name = "oryh"
+version = "2026.9.11.1"
+description = "Oryh — the AI-native ERP/CRM: the server stores facts and state, agents drive the flow"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

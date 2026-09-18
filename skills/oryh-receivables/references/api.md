@@ -1,6 +1,8 @@
 # Receivables API
 
+<!-- only: bundle -->
 Every path hangs off `api_base_url` exactly as given — no version prefix to add.
+<!-- /only -->
 
 {{include:_common/api-conventions.md}}
 
@@ -130,6 +132,8 @@ POST /payments
 ```
 
 Exactly one counterparty (`customer_id` here); naming none or two is a 422.
+An inbound receipt may be created in any state with `payment.record` alone; an
+outbound payment (a refund) created past its initial state needs `payment.advance`.
 `payment_method` comes from `GET /type-options?family=payment_method`.
 
 ## Settlement

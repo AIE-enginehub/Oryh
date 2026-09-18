@@ -14,11 +14,13 @@ from typing import Annotated
 
 from urllib.parse import quote
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Query
 from sqlalchemy import Uuid, func, or_, select
 from sqlalchemy.orm import Session
 
 import hashlib
+import inspect
+import json
 import uuid
 from app.api.deps import (
     attributed,
@@ -108,8 +110,10 @@ from app.services.type_options import (
 )
 from dataclasses import (
     dataclass,
+    field,
 )
 from datetime import (
+    date,
     datetime,
     timezone,
 )
@@ -229,6 +233,100 @@ def sort_clauses(stmt, sort: str | None) -> list:
     return clauses
 
 
+# ---------------------------------------------------------------------------
+# Declared list filters: a date range per date column, equality per reference
+# and vocabulary column — declared once per list, documented in OpenAPI,
+# applied by list_rows.
+#
+# Every list used to grow its filters by hand, one query parameter at a time,
+# and the ones nobody had asked for yet were simply absent: the stock ledger
+# could not be read for a week, an invoice list could not be cut by due date,
+# a contract list could not be cut by who signed it. A list declares the
+# columns it can be cut by; the parameters follow one naming rule —
+# `<column>_from` / `<column>_thru` for a range (inclusive both ends, either
+# end optional), the column's own name for an equality — so an agent that has
+# learned one list has learned them all.
+
+
+@dataclass
+class ListFilters:
+    """What the caller asked for, bound to the model's columns."""
+
+    ranges: dict = field(default_factory=dict)   # column -> (from, thru)
+    equals: dict = field(default_factory=dict)   # column -> value
+
+    def apply(self, stmt):
+        for column, (low, high) in self.ranges.items():
+            if low is not None:
+                stmt = stmt.where(column >= low)
+            if high is not None:
+                stmt = stmt.where(column <= high)
+        for column, value in self.equals.items():
+            if value is None or value == "":
+                continue
+            if isinstance(column.type, Uuid):
+                try:
+                    uuid_module.UUID(str(value))
+                except ValueError:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"{column.key} must be a UUID, got {str(value)[:80]!r}",
+                    )
+            stmt = stmt.where(column == value)
+        return stmt
+
+
+def list_filters(model, *, ranges: tuple[str, ...] = (), equals: tuple[str, ...] = ()):
+    """A FastAPI dependency declaring a list's range and equality filters.
+
+    `ranges` names date/datetime columns of `model`; each yields
+    `<column>_from` and `<column>_thru` query parameters typed after the
+    column (a `date` column takes dates, a `datetime` column takes
+    timestamps). `equals` names reference and vocabulary columns; each
+    yields a parameter of its own name. The dependency's signature is built
+    here so OpenAPI documents every parameter by name — the contract the
+    skills are generated from — and list_rows applies what arrived."""
+    from sqlalchemy import Date as SaDate, DateTime as SaDateTime
+
+    params: list[inspect.Parameter] = []
+    bound: list[tuple[str, str, object]] = []  # (param, kind, column)
+    for name in ranges:
+        column = getattr(model, name)
+        py_type = date if isinstance(column.type, SaDate) else datetime
+        noun = "on or after" if py_type is date else "at or after"
+        params.append(inspect.Parameter(
+            f"{name}_from", inspect.Parameter.KEYWORD_ONLY, default=None,
+            annotation=Annotated[py_type | None, Query(description=f"rows whose {name} is {noun} this")],
+        ))
+        params.append(inspect.Parameter(
+            f"{name}_thru", inspect.Parameter.KEYWORD_ONLY, default=None,
+            annotation=Annotated[py_type | None, Query(description=f"rows whose {name} is {noun.replace('after', 'before')} this")],
+        ))
+        bound.append((name, "range", column))
+    for name in equals:
+        column = getattr(model, name)
+        params.append(inspect.Parameter(
+            name, inspect.Parameter.KEYWORD_ONLY, default=None,
+            annotation=Annotated[str | None, Query()],
+        ))
+        bound.append((name, "equal", column))
+
+    def dependency(**kwargs) -> ListFilters:
+        out = ListFilters()
+        for name, kind, column in bound:
+            if kind == "range":
+                low, high = kwargs.get(f"{name}_from"), kwargs.get(f"{name}_thru")
+                if low is not None or high is not None:
+                    out.ranges[column] = (low, high)
+            else:
+                out.equals[column] = kwargs.get(name)
+        return out
+
+    dependency.__signature__ = inspect.Signature(params, return_annotation=ListFilters)
+    dependency.__name__ = f"list_filters_{model.__name__}"
+    return dependency
+
+
 def list_rows(
     db: Session,
     stmt,
@@ -242,6 +340,7 @@ def list_rows(
     by_alias: bool = True,
     render=None,
     sort: str | None = None,
+    extra: ListFilters | None = None,
 ) -> dict:
     """The one list tail behind every collection endpoint: equality filters,
     a keyword scan across the endpoint's columns, the family's exact ordering,
@@ -269,6 +368,8 @@ def list_rows(
                         detail=f"{column.key} must be a UUID, got {str(value)[:80]!r}",
                     )
             stmt = stmt.where(column == value)
+    if extra is not None:
+        stmt = extra.apply(stmt)
     if keyword:
         # Every word the caller typed must land in some searchable column:
         # "华东 二期" finds "华东医院信息化二期", where a single substring
@@ -677,8 +778,8 @@ def _document_read(family: DocumentFamily, document) -> dict:
 
 
 def require_machine_state(
-    db: Session, tenant_id: str, model, status_value: str | None,
-    *, object_type: str | None = None,
+    db: Session, actor: Actor, model, status_value: str | None,
+    *, object_type: str | None = None, advance_exempt: bool = False,
 ) -> str:
     """Create-time gate, returning the state the document starts in.
 
@@ -688,11 +789,19 @@ def require_machine_state(
     vocabulary, so the server cannot write `"draft"` into the contract and
     survive a workspace that calls that state something else.
 
+    Starting anywhere but `initial` is a status move with no PATCH behind it,
+    so it takes the same grant the PATCH would: a family whose advancement is
+    a separate capability requires it here too. Without this a member filed
+    `{"status": "approved"}` on their own leave, and a 出纳 holding only
+    `payment.record` created an outbound payment already `paid` — the whole
+    approval half skipped at the door. `advance_exempt` is for a document with
+    nothing to approve (an inbound receipt: the money already arrived).
+
     `object_type` overrides the family's machine key for kind-split tables:
     a sales_orders row being created as a RETURN starts in the return
     machine's vocabulary, and there is no document yet to derive that from."""
     family = DOCUMENT_FAMILIES[model]
-    machine = get_builtin_machine(db, tenant_id, object_type or family.object_type)
+    machine = get_builtin_machine(db, actor.tenant_id, object_type or family.object_type)
     if status_value is None:
         return machine["initial"]
     if status_value not in set(machine.get("states", ())):
@@ -700,6 +809,8 @@ def require_machine_state(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"status {status_value!r} is not a state of the tenant's {family.state_noun} state machine",
         )
+    if status_value != machine["initial"] and family.advance_permission and not advance_exempt:
+        require_permission(actor, family.advance_permission)
     return status_value
 
 
@@ -1317,7 +1428,7 @@ def _item_write_gate(db: Session, actor: Actor, family: ItemFamily, parent_id: s
 
 def list_items(
     db: Session, tenant_id: str, model, filters: dict[str, str | None], *, where=(),
-    pagination: tuple[int, int] | None = None, sort: str | None = None,
+    pagination: tuple[int, int] | None = None, sort: str | None = None, extra: ListFilters | None = None,
 ) -> dict:
     """One list shape for every line family: live lines of live documents,
     equality filters, the family's own ordering. `where` carries the odd
@@ -1340,8 +1451,26 @@ def list_items(
         pagination=pagination,
         sort=sort,
         render=lambda rows: [_item_read(family, row) for row in rows],
+        extra=extra,
     )
 
+
+
+def dry_run_readback(db: Session, document, read_model, rows, row_model, key: str, extra: dict | None = None):
+    """What a validate-only create would have returned, then nothing written.
+
+    Rendered BEFORE the rollback, while the flushed rows still carry their
+    ids and defaults, so the caller sees the exact shape a real write gives
+    — minus the ids surviving. The envelope says so in `meta`. One helper
+    for every document family: the agent's alternative was write, fail, fix,
+    write again, with the person waiting through each round."""
+    db.flush()
+    data = read_model.model_validate(document).model_dump(by_alias=True)
+    data[key] = [row_model.model_validate(row).model_dump(by_alias=True) for row in rows]
+    for name, value in (extra or {}).items():
+        data[name] = value
+    db.rollback()
+    return {"data": data, "meta": {"validate_only": True, "written": False}}
 
 
 def build_item(db: Session, actor: Actor, model, payload, *, parent=None):
@@ -1492,7 +1621,22 @@ def update_item(db: Session, actor: Actor, model, item_id: str, payload) -> dict
     require_permission(actor, family.permission)
     item = get_live_or_404(db, model, tenant_id, item_id)
     _item_write_gate(db, actor, family, getattr(item, family.parent_field))
-    updates = payload.model_dump(exclude_unset=True)
+    apply_item_updates(db, actor, model, item, payload.model_dump(exclude_unset=True))
+    parent = db.get(family.parent_model, getattr(item, family.parent_field))
+    if parent is not None:
+        recheck_charged_document(db, parent, label=family.parent_model.__tablename__)
+    db.commit()
+    db.refresh(item)
+    return envelope(_item_read(family, item))
+
+
+def apply_item_updates(db: Session, actor: Actor, model, item, updates: dict) -> None:
+    """The one set of rules for changing a line — the standalone PATCH and
+    the whole-document save both come through here. `updates` is what the
+    caller asked for; the audit records those field names."""
+    family = ITEM_FAMILIES[model]
+    tenant_id = actor.tenant_id
+    asked = dict(updates)
     if "attachment_id" in updates and updates["attachment_id"]:
         get_scoped_or_404(db, Attachment, tenant_id, updates["attachment_id"])
     if family.link_field and updates.get(family.link_field):
@@ -1537,20 +1681,11 @@ def update_item(db: Session, actor: Actor, model, item_id: str, payload) -> dict
         item.amount = None
     for field, value in updates.items():
         setattr(item, field, value)
-    # Every field the caller sent, including the product/sku block popped above
-    # — `payload` is the record of what was asked for, `updates` is what is left
-    # after this function has consumed parts of it.
     record_line_audit(
         db, actor, family.parent_model, getattr(item, family.parent_field),
         item.id, "line_changed",
-        changed=payload.model_dump(exclude_unset=True),
+        changed=asked,
     )
-    parent = db.get(family.parent_model, getattr(item, family.parent_field))
-    if parent is not None:
-        recheck_charged_document(db, parent, label=family.parent_model.__tablename__)
-    db.commit()
-    db.refresh(item)
-    return envelope(_item_read(family, item))
 
 
 def delete_item(db: Session, actor: Actor, model, item_id: str) -> Response:
@@ -2086,7 +2221,7 @@ def _adjustment_write_gate(db: Session, actor: Actor, family: AdjustmentFamily, 
 def list_adjustments(
     db: Session, tenant_id: str, model, *,
     parent_id: str | None, item_id: str | None, adjustment_type: str | None,
-    pagination: tuple[int, int] | None = None, sort: str | None = None,
+    pagination: tuple[int, int] | None = None, sort: str | None = None, extra: ListFilters | None = None,
 ) -> dict:
     family = ADJUSTMENT_FAMILIES[model]
     stmt = select(model).where(model.tenant_id == tenant_id, model.deleted_at.is_(None))
@@ -2101,6 +2236,7 @@ def list_adjustments(
         pagination=pagination,
         sort=sort,
         render=lambda rows: [_adjustment_read(family, row) for row in rows],
+        extra=extra,
     )
 
 
@@ -2108,37 +2244,62 @@ def create_adjustment(db: Session, actor: Actor, model, payload) -> dict:
     family = ADJUSTMENT_FAMILIES[model]
     tenant_id = actor.tenant_id
     require_permission(actor, family.permission)
+    parent_id = getattr(payload, family.parent_field)
+    parent = _adjustment_write_gate(db, actor, family, parent_id)
+    adjustment = build_adjustment(db, actor, model, parent, payload, getattr(payload, family.item_field))
+    recheck_charged_document(db, parent, label=family.parent_model.__tablename__)
+    db.commit()
+    db.refresh(adjustment)
+    return envelope(_adjustment_read(family, adjustment))
+
+
+def build_adjustment(db: Session, actor: Actor, model, parent, row, item_id: str | None):
+    """One validated adjustment, standalone, inline with the document's
+    create, or restated by the whole-document save — the same rules on every
+    path. The caller has gated the parent."""
+    family = ADJUSTMENT_FAMILIES[model]
+    tenant_id = actor.tenant_id
     # ONE vocabulary for all three families: an adjustment type is not a
     # direction-specific idea
-    require_type_option(db, tenant_id, "sales_adjustment_type", payload.adjustment_type)
-    parent_id = getattr(payload, family.parent_field)
-    _adjustment_write_gate(db, actor, family, parent_id)
-    item_id = getattr(payload, family.item_field)
+    require_type_option(db, tenant_id, "sales_adjustment_type", row.adjustment_type)
     if item_id:
         require_line_on_document(
             db, tenant_id, family.item_model, family.parent_field, family.item_field,
-            parent_id, item_id,
+            parent.id, item_id,
         )
     adjustment = model(
         tenant_id=tenant_id,
-        **{family.parent_field: parent_id, family.item_field: item_id},
-        adjustment_type=payload.adjustment_type,
-        description=payload.description,
-        amount=payload.amount,
-        source_percentage=payload.source_percentage,
-        metadata_jsonb=payload.metadata,
+        **{family.parent_field: parent.id, family.item_field: item_id},
+        adjustment_type=row.adjustment_type,
+        description=row.description,
+        amount=row.amount,
+        source_percentage=row.source_percentage,
+        metadata_jsonb=row.metadata,
     )
     db.add(adjustment)
     db.flush()
     record_line_audit(
-        db, actor, family.parent_model, parent_id, adjustment.id, "adjustment_added",
+        db, actor, family.parent_model, parent.id, adjustment.id, "adjustment_added",
     )
-    parent = db.get(family.parent_model, parent_id)
-    if parent is not None:
-        recheck_charged_document(db, parent, label=family.parent_model.__tablename__)
-    db.commit()
-    db.refresh(adjustment)
-    return envelope(_adjustment_read(family, adjustment))
+    return adjustment
+
+
+def inline_adjustments(db: Session, actor: Actor, model, parent, items: list, rows: list) -> list:
+    """The adjustments a create states beside its lines: `item_index` names
+    a line of the same request, so a line discount and its line are one
+    act (gap 6 — bulk import could, the normal path could not)."""
+    out = []
+    for index, row in enumerate(rows):
+        item_id = None
+        if row.item_index is not None:
+            if row.item_index >= len(items):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"adjustments[{index}].item_index {row.item_index} names no line of this request ({len(items)} lines)",
+                )
+            item_id = items[row.item_index].id
+        out.append(build_adjustment(db, actor, model, parent, row, item_id))
+    return out
 
 
 def get_adjustment(db: Session, tenant_id: str, model, adjustment_id: str) -> dict:
@@ -2589,3 +2750,185 @@ def ensure_invoice_not_duplicated(
 # cent of slack absorbs float round-tripping without ever admitting a real
 # over-application
 CENT = 0.005
+
+
+# --- whole-document saves --------------------------------------------------------
+
+ADJUSTMENT_MODEL_FOR_PARENT: dict[type, type] = {
+    family.parent_model: model for model, family in ADJUSTMENT_FAMILIES.items()
+}
+ITEM_MODEL_FOR_PARENT: dict[type, type] = {
+    family.parent_model: model for model, family in ITEM_FAMILIES.items()
+}
+
+
+def _live_lines_of(db: Session, tenant_id: str, model, parent_field: str, parent_id: str) -> list:
+    return list(db.scalars(
+        select(model).where(
+            model.tenant_id == tenant_id, getattr(model, parent_field) == parent_id,
+            model.deleted_at.is_(None),
+        ).order_by(model.created_at.asc(), model.id.asc())
+    ))
+
+
+def document_revision(db: Session, parent_model, document) -> str:
+    """A hash of the header, the live lines and the live adjustments as their
+    read models render them — what a whole-document save must present as
+    `expected_revision`. Any write through any path (a single-row PATCH, a
+    line delete, the header) changes it, so a stale aggregate is refused
+    rather than written over."""
+    family = DOCUMENT_FAMILIES[parent_model]
+    header = family.read_model.model_validate(document).model_dump(mode="json", by_alias=True)
+    item_model = ITEM_MODEL_FOR_PARENT[parent_model]
+    item_family = ITEM_FAMILIES[item_model]
+    lines = [
+        item_family.read_model.model_validate(row).model_dump(mode="json", by_alias=True)
+        for row in _live_lines_of(db, document.tenant_id, item_model, item_family.parent_field, document.id)
+    ]
+    adjustments: list = []
+    adjustment_model = ADJUSTMENT_MODEL_FOR_PARENT.get(parent_model)
+    if adjustment_model is not None:
+        adjustment_family = ADJUSTMENT_FAMILIES[adjustment_model]
+        adjustments = [
+            adjustment_family.read_model.model_validate(row).model_dump(mode="json", by_alias=True)
+            for row in _live_lines_of(db, document.tenant_id, adjustment_model, adjustment_family.parent_field, document.id)
+        ]
+    snapshot = {"header": header, "items": sorted(lines, key=lambda r: r["id"]),
+                "adjustments": sorted(adjustments, key=lambda r: r["id"])}
+    return hashlib.sha256(json.dumps(snapshot, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def _line_diff(item, row_values: dict) -> dict:
+    """The fields of a restated line that differ from the stored line —
+    what the save applies and what the audit names."""
+    changed = {}
+    for field, value in row_values.items():
+        current = item.custom_fields_jsonb if field == "custom_fields" else getattr(item, field, None)
+        if isinstance(current, float) or isinstance(value, float):
+            try:
+                same = current is not None and value is not None and abs(float(current) - float(value)) < 1e-9
+            except (TypeError, ValueError):
+                same = False
+        else:
+            same = current == value
+        if not same and not (current is None and value in (None, {}, "")):
+            changed[field] = value
+    return changed
+
+
+def save_document_lines(db: Session, actor: Actor, parent_model, document_id: str, payload, *, validate_only: bool = False) -> dict:
+    """Restate a document's lines (and adjustments) in one transaction.
+
+    The header is locked, the editable-state and owner gates are the
+    single-row paths' gates, `expected_revision` must match what the
+    detail last showed, and the change is a diff: ids kept are updated
+    through the same rules a PATCH uses, ids absent are removed with the
+    same audit a DELETE writes, rows without an id are built through the
+    same constructor a POST uses. Never a delete-and-reinsert: lines other
+    documents point at (a purchase line pinned to an order line, an
+    adjustment on a line) keep their identity."""
+    item_model = ITEM_MODEL_FOR_PARENT[parent_model]
+    family = ITEM_FAMILIES[item_model]
+    tenant_id = actor.tenant_id
+    require_permission(actor, family.permission)
+    document = db.scalar(
+        select(parent_model).where(parent_model.tenant_id == tenant_id, parent_model.id == document_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )
+    if document is None or getattr(document, "deleted_at", None) is not None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{parent_model.__name__} not found")
+    _item_write_gate(db, actor, family, document.id)
+    if document_revision(db, parent_model, document) != payload.expected_revision:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="the document changed since it was read — GET its /detail and restate against the current revision",
+        )
+    existing = {row.id: row for row in _live_lines_of(db, tenant_id, item_model, family.parent_field, document.id)}
+    named = [row.id for row in payload.items if row.id]
+    if len(named) != len(set(named)) or any(row_id not in existing for row_id in named):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="items[].id must each be a live line of this document, named once",
+        )
+    line_fields = set(type(payload.items[0]).model_fields) - {"id", family.parent_field}
+    kept: list = []
+    for row in payload.items:
+        if row.id:
+            item = existing[row.id]
+            changed = _line_diff(item, {f: getattr(row, f) for f in line_fields})
+            if changed:
+                apply_item_updates(db, actor, item_model, item, changed)
+            kept.append(item)
+        else:
+            kept.append(build_item(db, actor, item_model, row, parent=document))
+            record_line_audit(db, actor, parent_model, document.id, kept[-1].id, "line_added")
+    kept_ids = {row.id for row in kept}
+    removed_ids = set(existing) - kept_ids
+    adjustment_model = ADJUSTMENT_MODEL_FOR_PARENT.get(parent_model)
+    adjustments_out: list = []
+    if adjustment_model is not None:
+        adjustment_family = ADJUSTMENT_FAMILIES[adjustment_model]
+        current = {row.id: row for row in _live_lines_of(db, tenant_id, adjustment_model, adjustment_family.parent_field, document.id)}
+        rows = getattr(payload, "adjustments", []) or []
+        named_adjustments = [row.id for row in rows if row.id]
+        if len(named_adjustments) != len(set(named_adjustments)) or any(a not in current for a in named_adjustments):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="adjustments[].id must each be a live adjustment of this document, named once",
+            )
+        for index, row in enumerate(rows):
+            item_id = None
+            if row.item_index is not None:
+                if row.item_index >= len(kept):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"adjustments[{index}].item_index {row.item_index} names no line of this save",
+                    )
+                item_id = kept[row.item_index].id
+            if row.id:
+                adjustment = current[row.id]
+                changed = {}
+                for field in ("adjustment_type", "description", "amount", "source_percentage"):
+                    value = getattr(row, field)
+                    if getattr(adjustment, field) != value and not (
+                        isinstance(value, float) and getattr(adjustment, field) is not None
+                        and abs(float(getattr(adjustment, field)) - value) < 1e-9
+                    ):
+                        changed[field] = value
+                if getattr(adjustment, adjustment_family.item_field) != item_id:
+                    changed[adjustment_family.item_field] = item_id
+                if (adjustment.metadata_jsonb or {}) != (row.metadata or {}):
+                    adjustment.metadata_jsonb = row.metadata
+                    changed["metadata"] = row.metadata
+                if changed:
+                    if "adjustment_type" in changed:
+                        require_type_option(db, tenant_id, "sales_adjustment_type", changed["adjustment_type"])
+                    for field, value in changed.items():
+                        if field != "metadata":
+                            setattr(adjustment, field, value)
+                    record_line_audit(db, actor, parent_model, document.id, adjustment.id, "adjustment_changed", changed=changed)
+                adjustments_out.append(adjustment)
+            else:
+                adjustments_out.append(build_adjustment(db, actor, adjustment_model, document, row, item_id))
+        for adjustment_id, adjustment in current.items():
+            if adjustment_id not in {a.id for a in adjustments_out}:
+                adjustment.deleted_at = datetime.now(timezone.utc)
+                record_line_audit(db, actor, parent_model, document.id, adjustment_id, "adjustment_removed")
+    for item_id in removed_ids:
+        existing[item_id].deleted_at = datetime.now(timezone.utc)
+        record_line_audit(db, actor, parent_model, document.id, item_id, "line_removed")
+    recheck_charged_document(db, document, label=parent_model.__tablename__)
+    db.flush()
+    data = {
+        "id": document.id,
+        "revision": document_revision(db, parent_model, document),
+        "items": [_item_read(family, row) for row in kept],
+        "adjustments": [
+            _adjustment_read(ADJUSTMENT_FAMILIES[adjustment_model], row) for row in adjustments_out
+        ] if adjustment_model is not None else [],
+    }
+    if validate_only:
+        db.rollback()
+        return {"data": data, "meta": {"validate_only": True, "written": False}}
+    db.commit()
+    return envelope(data)

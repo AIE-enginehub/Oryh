@@ -45,9 +45,13 @@ What makes this side different from receivables:
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # needs invoice.manage:purchase, payment.record, payment.apply
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # the officer recorded on what you file
 ```
 
@@ -174,9 +178,11 @@ A supplier bill needs none of this; start at 1.
 
 Goods went back (`/purchase-orders` row with `order_kind: "return"`, PR-
 number) and the vendor's money comes home: record an **inbound** payment,
-counterparty `vendor_id`, the return's number in `reference_no` and its row
-id in `custom_fields` (`{"return_order_id": "..."}`) — the flow agent reads
-that to move the return to `refunded`. A vendor refund settles no invoice
+counterparty `vendor_id`, the return's `po_number` in `reference_no` exactly
+as allocated ("PR-000007", nothing around it; notes go in `remarks`). Nothing
+on the server links a payment to a return: whoever moves the return to
+`refunded` finds this fact with the exact-match filter
+`GET /payments?reference_no=PR-000007&direction=inbound&status=paid`. A vendor refund settles no invoice
 either (a return carries none — the server refuses); if the vendor issues a
 credit against FUTURE purchases instead of money, that is a billing-account
 entry on our standing account with them ($oryh-billing-account), not a

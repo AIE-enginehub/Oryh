@@ -3820,10 +3820,11 @@ export interface paths {
         put?: never;
         /**
          * Create Payment
-         * @description An outbound payment normally starts at `draft` and is walked through
-         *     付款审批; an inbound receipt is money that already arrived, so it is created
-         *     directly in whatever state says so — create accepts any state of the
-         *     tenant's machine, as every builtin does.
+         * @description An outbound payment starts at the machine's `initial` and is walked
+         *     through 付款审批 — creating it further along takes `payment.advance`, the
+         *     grant that walk needs. An inbound receipt is money that already arrived,
+         *     so a `payment.record` holder creates it directly in whatever state says
+         *     so: there is nothing to approve.
          */
         post: operations["create_payment_api_v1_payments_post"];
         delete?: never;
@@ -4793,6 +4794,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/purchase-orders/{po_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Purchase Order Lines
+         * @description The order's lines and adjustments restated in one call while it is
+         *     still editable; a line with a receipt behind it keeps its identity
+         *     because the save is a diff, never a delete-and-reinsert.
+         */
+        post: operations["save_purchase_order_lines_api_v1_purchase_orders__po_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/purchase-request-items": {
         parameters: {
             query?: never;
@@ -4915,6 +4938,27 @@ export interface paths {
         put?: never;
         /** Restore Purchase Request */
         post: operations["restore_purchase_request_api_v1_purchase_requests__request_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/purchase-requests/{request_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Purchase Request Lines
+         * @description The request's lines restated in one call — a diff against the live
+         *     rows, refused when `expected_revision` is stale.
+         */
+        post: operations["save_purchase_request_lines_api_v1_purchase_requests__request_id__save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5398,6 +5442,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sales-orders/{order_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Sales Order Lines
+         * @description The order's lines and adjustments restated in one call, while the
+         *     order is still editable (draft / returned) — a confirmed order's content
+         *     is closed and this answers 409 like every other line write.
+         */
+        post: operations["save_sales_order_lines_api_v1_sales_orders__order_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales-orders/{order_id}/submit": {
         parameters: {
             query?: never;
@@ -5640,6 +5706,29 @@ export interface paths {
          *     snapshots refresh to quoting-time truth for lines still on the catalog.
          */
         post: operations["revise_sales_quotation_api_v1_sales_quotations__quotation_id__revise_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-quotations/{quotation_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Sales Quotation Lines
+         * @description Restate the quotation's lines and adjustments in one call — a diff
+         *     against the live rows, refused when `expected_revision` is stale. The
+         *     header stays with PATCH; the editable-state gate is the same one every
+         *     line write passes. `?validate_only=true` runs it all and writes nothing.
+         */
+        post: operations["save_sales_quotation_lines_api_v1_sales_quotations__quotation_id__save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6342,6 +6431,29 @@ export interface paths {
         put?: never;
         /** Restore Timesheet Header */
         post: operations["restore_timesheet_header_api_v1_timesheet_headers__header_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/timesheet-headers/{header_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Timesheet Document
+         * @description Save header and all live rows in one transaction; omitted row ids are deleted.
+         *
+         *     Existing row identities and unedited metadata survive. A stale aggregate is rejected,
+         *     and dry runs execute the same validation then roll back every change and audit row.
+         */
+        post: operations["save_timesheet_document_api_v1_timesheet_headers__header_id__save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9385,6 +9497,8 @@ export interface components {
             };
             /** Customer Id */
             customer_id?: string | null;
+            /** Documents */
+            documents?: components["schemas"]["InlineContractDocument"][];
             /** Effective From */
             effective_from?: string | null;
             /** Effective To */
@@ -9405,6 +9519,8 @@ export interface components {
             status?: string | null;
             /** Summary */
             summary?: string | null;
+            /** Terms */
+            terms?: components["schemas"]["InlineContractTerm"][];
             /** Title */
             title: string;
             /** Total Amount */
@@ -10702,6 +10818,8 @@ export interface components {
         };
         /** CreatePurchaseOrderRequest */
         CreatePurchaseOrderRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["InlineAdjustmentRow"][];
             /** Billing Account Id */
             billing_account_id?: string | null;
             /** Contract Id */
@@ -10981,6 +11099,8 @@ export interface components {
         };
         /** CreateSalesOrderRequest */
         CreateSalesOrderRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["InlineAdjustmentRow"][];
             /** Billing Account Id */
             billing_account_id?: string | null;
             /** Contact Name */
@@ -11116,6 +11236,8 @@ export interface components {
         };
         /** CreateSalesQuotationRequest */
         CreateSalesQuotationRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["InlineAdjustmentRow"][];
             /** Contact Email */
             contact_email?: string | null;
             /** Contact Name */
@@ -11989,6 +12111,10 @@ export interface components {
             request_id?: string | null;
             /** Total */
             total?: number | null;
+            /** Validate Only */
+            validate_only?: boolean | null;
+            /** Written */
+            written?: boolean | null;
         };
         /** Envelope[ActivityRead] */
         Envelope_ActivityRead_: {
@@ -12488,6 +12614,11 @@ export interface components {
         /** Envelope[SalesQuotationItemRead] */
         Envelope_SalesQuotationItemRead_: {
             data: components["schemas"]["SalesQuotationItemRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[SavedLinesRead] */
+        Envelope_SavedLinesRead_: {
+            data: components["schemas"]["SavedLinesRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ShipmentItemRead] */
@@ -13223,6 +13354,76 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * InlineAdjustmentRow
+         * @description An adjustment stated with the document it belongs to: the same fields
+         *     the standalone create takes, and `item_index` (0-based into the same
+         *     request's `items`) instead of a line id that does not exist yet. Omitted
+         *     = a header-level adjustment.
+         */
+        InlineAdjustmentRow: {
+            /** Adjustment Type */
+            adjustment_type: string;
+            /** Amount */
+            amount: number;
+            /** Description */
+            description?: string | null;
+            /** Item Index */
+            item_index?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Source Percentage */
+            source_percentage?: number | null;
+        };
+        /** InlineContractDocument */
+        InlineContractDocument: {
+            /** Attachment Id */
+            attachment_id: string;
+            /** Caption */
+            caption?: string | null;
+            /**
+             * Document Type
+             * @default other
+             */
+            document_type: string;
+            /** Extracted Text */
+            extracted_text?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** InlineContractTerm */
+        InlineContractTerm: {
+            /** Clause Ref */
+            clause_ref?: string | null;
+            /** Content */
+            content: string;
+            /** Document Id */
+            document_id?: string | null;
+            /** Document Index */
+            document_index?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Page No */
+            page_no?: number | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Summary */
+            summary?: string | null;
+            /** Term Type */
+            term_type: string;
+            /** Title */
+            title?: string | null;
         };
         /** InventoryItemDetailRead */
         InventoryItemDetailRead: {
@@ -15476,9 +15677,11 @@ export interface components {
         };
         /**
          * PurchaseOrderCreatedRead
-         * @description Reads back the lines that rode the create call.
+         * @description Reads back the lines and adjustments that rode the create call.
          */
         PurchaseOrderCreatedRead: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["PurchaseOrderAdjustmentRead"][];
             /** Billing Account Id */
             billing_account_id?: string | null;
             /** Contract Id */
@@ -15555,6 +15758,8 @@ export interface components {
             po: components["schemas"]["PurchaseOrderRead"];
             /** Received Quantity */
             received_quantity: number;
+            /** Revision */
+            revision?: string | null;
         };
         /** PurchaseOrderItemBase */
         PurchaseOrderItemBase: {
@@ -15801,6 +16006,8 @@ export interface components {
             /** Pending Sku Count */
             pending_sku_count: number;
             request: components["schemas"]["PurchaseRequestRead"];
+            /** Revision */
+            revision?: string | null;
             /** Unpriced Item Count */
             unpriced_item_count: number;
         };
@@ -16463,6 +16670,8 @@ export interface components {
             pending_sku_count: number;
             quotation?: components["schemas"]["SalesQuotationRead"] | null;
             quote_drift?: components["schemas"]["QuoteDriftRead"] | null;
+            /** Revision */
+            revision?: string | null;
             superseded_by?: components["schemas"]["SalesOrderRead"] | null;
             /** Unpriced Item Count */
             unpriced_item_count: number;
@@ -16753,6 +16962,8 @@ export interface components {
             /** Prior Approval Records */
             prior_approval_records?: components["schemas"]["ApprovalRecordRead"][];
             quotation: components["schemas"]["SalesQuotationRead"];
+            /** Revision */
+            revision?: string | null;
             /** Revisions */
             revisions: components["schemas"]["SalesQuotationRead"][];
             /** Unpriced Item Count */
@@ -16971,6 +17182,281 @@ export interface components {
             updated_at?: string | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /** SaveAdjustmentRow */
+        SaveAdjustmentRow: {
+            /** Adjustment Type */
+            adjustment_type: string;
+            /** Amount */
+            amount: number;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Item Index */
+            item_index?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Source Percentage */
+            source_percentage?: number | null;
+        };
+        /** SavePurchaseOrderItem */
+        SavePurchaseOrderItem: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Po Id */
+            po_id?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Promised Date */
+            promised_date?: string | null;
+            /** Purchase Request Item Id */
+            purchase_request_item_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SavePurchaseOrderRequest */
+        SavePurchaseOrderRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["SaveAdjustmentRow"][];
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SavePurchaseOrderItem"][];
+        };
+        /** SavePurchaseRequestItem */
+        SavePurchaseRequestItem: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Request Id */
+            request_id?: string | null;
+            /** Sales Order Item Id */
+            sales_order_item_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SavePurchaseRequestRequest */
+        SavePurchaseRequestRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SavePurchaseRequestItem"][];
+        };
+        /** SaveSalesOrderItem */
+        SaveSalesOrderItem: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id?: string | null;
+            /**
+             * Is Gift
+             * @default false
+             */
+            is_gift: boolean;
+            /** Line No */
+            line_no?: number | null;
+            /** List Price Snapshot */
+            list_price_snapshot?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Order Id */
+            order_id?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Promised Date */
+            promised_date?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SaveSalesOrderRequest */
+        SaveSalesOrderRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["SaveAdjustmentRow"][];
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveSalesOrderItem"][];
+        };
+        /** SaveSalesQuotationItem */
+        SaveSalesQuotationItem: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Id */
+            id?: string | null;
+            /**
+             * Is Gift
+             * @default false
+             */
+            is_gift: boolean;
+            /** Lead Time */
+            lead_time?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** List Price Snapshot */
+            list_price_snapshot?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Quotation Id */
+            quotation_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SaveSalesQuotationRequest */
+        SaveSalesQuotationRequest: {
+            /** Adjustments */
+            adjustments?: components["schemas"]["SaveAdjustmentRow"][];
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveSalesQuotationItem"][];
+        };
+        /** SaveTimesheetDocumentEntry */
+        SaveTimesheetDocumentEntry: {
+            /** Hours */
+            hours: number;
+            /** Id */
+            id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Task */
+            task?: string | null;
+            /**
+             * Work Date
+             * Format: date
+             */
+            work_date: string;
+            /**
+             * Work Type
+             * @default regular
+             */
+            work_type: string;
+        };
+        /** SaveTimesheetDocumentRequest */
+        SaveTimesheetDocumentRequest: {
+            /** Entries */
+            entries: components["schemas"]["SaveTimesheetDocumentEntry"][];
+            /** Expected Revision */
+            expected_revision: string;
+            /** Intent Id */
+            intent_id: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Source Report Text
+             * @default
+             */
+            source_report_text: string;
+        };
+        /** SavedLinesRead */
+        SavedLinesRead: {
+            /** Adjustments */
+            adjustments?: {
+                [key: string]: unknown;
+            }[];
+            /** Id */
+            id: string;
+            /** Items */
+            items: {
+                [key: string]: unknown;
+            }[];
+            /** Revision */
+            revision: string;
         };
         /** SeedGeoTemplateRead */
         SeedGeoTemplateRead: {
@@ -19885,6 +20371,15 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose next_action_at is at or after this */
+                next_action_at_from?: string | null;
+                /** @description rows whose next_action_at is at or before this */
+                next_action_at_thru?: string | null;
+                communication_event_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -19926,6 +20421,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -20004,6 +20501,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 activity_id: string;
@@ -20040,6 +20539,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 activity_id: string;
@@ -20080,6 +20581,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 api_key_id: string;
@@ -20154,6 +20657,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 application_id: string;
@@ -20193,6 +20698,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 subscription_id: string;
@@ -20230,7 +20737,10 @@ export interface operations {
     admin_login_api_v1_admin_login_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20265,6 +20775,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -20362,6 +20874,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -20434,6 +20948,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 registration_id: string;
@@ -20469,6 +20985,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 registration_id: string;
@@ -20541,6 +21059,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -20614,6 +21134,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -20686,6 +21208,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 tenant_id: string;
@@ -20725,6 +21249,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 tenant_id: string;
@@ -20799,6 +21325,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 tenant_id: string;
@@ -20838,6 +21366,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 tenant_id: string;
@@ -20873,6 +21403,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -20912,6 +21444,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -20947,6 +21481,8 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -20989,6 +21525,16 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose acted_at is at or after this */
+                acted_at_from?: string | null;
+                /** @description rows whose acted_at is at or before this */
+                acted_at_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                approver_id?: string | null;
+                source?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21030,6 +21576,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21113,6 +21661,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -21154,6 +21706,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21234,6 +21788,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 approval_target_id: string;
@@ -21274,6 +21830,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 approval_target_id: string;
@@ -21316,6 +21874,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 approval_target_id: string;
@@ -21358,6 +21918,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21549,7 +22111,10 @@ export interface operations {
     browser_login_api_v1_auth_browser_login_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21586,6 +22151,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21616,7 +22183,10 @@ export interface operations {
     start_device_authorization_api_v1_auth_device_start_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21649,7 +22219,10 @@ export interface operations {
     poll_device_authorization_api_v1_auth_device_token_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21686,6 +22259,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21722,7 +22297,10 @@ export interface operations {
     accept_invitation_api_v1_auth_invitations_accept_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21755,7 +22333,10 @@ export interface operations {
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21792,6 +22373,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -21858,7 +22441,10 @@ export interface operations {
     request_self_service_password_reset_api_v1_auth_password_reset_email_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21891,7 +22477,10 @@ export interface operations {
     register_api_v1_auth_register_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21924,7 +22513,10 @@ export interface operations {
     refresh_api_key_api_v1_auth_token_refresh_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22004,6 +22596,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -22046,6 +22640,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -22084,6 +22680,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -22118,7 +22716,10 @@ export interface operations {
     verify_email_api_v1_auth_verify_email_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22160,6 +22761,18 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_at is at or after this */
+                effective_at_from?: string | null;
+                /** @description rows whose effective_at is at or before this */
+                effective_at_thru?: string | null;
+                /** @description rows whose expires_at is at or after this */
+                expires_at_from?: string | null;
+                /** @description rows whose expires_at is at or before this */
+                expires_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22213,6 +22826,18 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose valid_from is on or after this */
+                valid_from_from?: string | null;
+                /** @description rows whose valid_from is on or before this */
+                valid_from_thru?: string | null;
+                /** @description rows whose valid_until is on or after this */
+                valid_until_from?: string | null;
+                /** @description rows whose valid_until is on or before this */
+                valid_until_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22254,6 +22879,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -22332,6 +22959,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -22372,6 +23001,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -22455,6 +23086,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -22537,6 +23170,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -22579,6 +23214,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22615,11 +23254,15 @@ export interface operations {
     };
     create_bill_of_materials_api_v1_bills_of_materials_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -22698,6 +23341,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 bom_id: string;
@@ -22734,6 +23379,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 bom_id: string;
@@ -22821,6 +23468,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -22862,6 +23513,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -22902,6 +23555,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -22938,6 +23593,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -23021,6 +23678,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23062,6 +23723,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -23140,6 +23803,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 link_id: string;
@@ -23183,6 +23848,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23224,6 +23893,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -23304,6 +23975,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 business_object_id: string;
@@ -23344,6 +24017,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 business_object_id: string;
@@ -23426,6 +24101,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 business_object_id: string;
@@ -23468,6 +24145,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 object_id: string;
@@ -23506,6 +24185,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 object_id: string;
@@ -23551,6 +24232,14 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose responded_at is at or after this */
+                responded_at_from?: string | null;
+                /** @description rows whose responded_at is at or before this */
+                responded_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23592,6 +24281,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -23670,6 +24361,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 member_id: string;
@@ -23706,6 +24399,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 member_id: string;
@@ -23755,6 +24450,19 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose end_date is on or after this */
+                end_date_from?: string | null;
+                /** @description rows whose end_date is on or before this */
+                end_date_thru?: string | null;
+                /** @description rows whose start_date is on or after this */
+                start_date_from?: string | null;
+                /** @description rows whose start_date is on or before this */
+                start_date_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -23796,6 +24504,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -23874,6 +24584,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 campaign_id: string;
@@ -23910,6 +24622,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 campaign_id: string;
@@ -23990,6 +24704,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 campaign_id: string;
@@ -24064,6 +24780,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -24104,6 +24822,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 name: string;
@@ -24156,6 +24876,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24197,6 +24921,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -24275,6 +25001,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -24311,6 +25039,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -24449,6 +25179,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                attachment_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24490,6 +25225,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -24568,6 +25305,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 document_id: string;
@@ -24604,6 +25343,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 document_id: string;
@@ -24649,6 +25390,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24690,6 +25436,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -24730,6 +25478,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -24766,6 +25516,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -24812,6 +25564,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                document_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -24853,6 +25610,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -24893,6 +25652,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 term_id: string;
@@ -24929,6 +25690,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 term_id: string;
@@ -24980,6 +25743,28 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_to is on or after this */
+                effective_to_from?: string | null;
+                /** @description rows whose effective_to is on or before this */
+                effective_to_thru?: string | null;
+                /** @description rows whose signed_at is at or after this */
+                signed_at_from?: string | null;
+                /** @description rows whose signed_at is at or before this */
+                signed_at_thru?: string | null;
+                /** @description rows whose signed_date is on or after this */
+                signed_date_from?: string | null;
+                /** @description rows whose signed_date is on or before this */
+                signed_date_thru?: string | null;
+                currency?: string | null;
+                employee_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25016,11 +25801,15 @@ export interface operations {
     };
     create_contract_api_v1_contracts_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -25099,6 +25888,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 contract_id: string;
@@ -25135,6 +25926,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 contract_id: string;
@@ -25254,6 +26047,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 contract_id: string;
@@ -25297,6 +26092,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25338,6 +26137,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -25416,6 +26217,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 contact_id: string;
@@ -25452,6 +26255,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 contact_id: string;
@@ -25499,6 +26304,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25540,6 +26350,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -25618,6 +26430,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 customer_product_id: string;
@@ -25654,6 +26468,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 customer_product_id: string;
@@ -25706,6 +26522,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -25747,6 +26567,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -25787,6 +26609,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -25865,6 +26689,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 customer_id: string;
@@ -25901,6 +26727,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 customer_id: string;
@@ -25981,6 +26809,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -26030,6 +26860,23 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose from_date is on or after this */
+                from_date_from?: string | null;
+                /** @description rows whose from_date is on or before this */
+                from_date_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                /** @description rows whose thru_date is on or after this */
+                thru_date_from?: string | null;
+                /** @description rows whose thru_date is on or before this */
+                thru_date_thru?: string | null;
+                reason?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26071,6 +26918,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -26149,6 +26998,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 leave_id: string;
@@ -26189,6 +27040,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 leave_id: string;
@@ -26231,6 +27084,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 leave_id: string;
@@ -26269,6 +27124,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 leave_id: string;
@@ -26310,6 +27167,14 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose hire_date is on or after this */
+                hire_date_from?: string | null;
+                /** @description rows whose hire_date is on or before this */
+                hire_date_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26351,6 +27216,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -26429,6 +27296,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 employee_id: string;
@@ -26556,7 +27425,10 @@ export interface operations {
     create_enterprise_pilot_application_api_v1_enterprise_pilot_applications_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -26598,6 +27470,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26639,6 +27515,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -26717,6 +27595,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -26753,6 +27633,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -26808,6 +27690,14 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose ends_at is at or after this */
+                ends_at_from?: string | null;
+                /** @description rows whose ends_at is at or before this */
+                ends_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -26849,6 +27739,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -26927,6 +27819,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 event_id: string;
@@ -26963,6 +27857,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 event_id: string;
@@ -27005,6 +27901,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 event_id: string;
@@ -27047,6 +27945,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 event_id: string;
@@ -27091,6 +27991,19 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose claim_date is on or after this */
+                claim_date_from?: string | null;
+                /** @description rows whose claim_date is on or before this */
+                claim_date_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27134,6 +28047,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -27214,6 +28129,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 claim_id: string;
@@ -27254,6 +28171,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 claim_id: string;
@@ -27375,6 +28294,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 claim_id: string;
@@ -27413,6 +28334,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 claim_id: string;
@@ -27455,6 +28378,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 claim_id: string;
@@ -27541,6 +28466,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -27619,6 +28546,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -27655,6 +28584,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -27703,6 +28634,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27744,6 +28679,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -27822,6 +28759,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 link_id: string;
@@ -27868,6 +28807,19 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_to is on or after this */
+                effective_to_from?: string | null;
+                /** @description rows whose effective_to is on or before this */
+                effective_to_thru?: string | null;
+                sku_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -27909,6 +28861,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -27987,6 +28941,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 map_id: string;
@@ -28023,6 +28979,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 map_id: string;
@@ -28069,6 +29027,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28110,6 +29072,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -28188,6 +29152,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 facility_id: string;
@@ -28224,6 +29190,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 facility_id: string;
@@ -28276,6 +29244,12 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                entity_id?: string | null;
+                entity_type?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28317,6 +29291,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -28357,6 +29333,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -28397,6 +29375,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 trans_id: string;
@@ -28443,6 +29423,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28484,6 +29469,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -28562,6 +29549,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -28598,6 +29587,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 account_id: string;
@@ -28644,6 +29635,18 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose finished_at is at or after this */
+                finished_at_from?: string | null;
+                /** @description rows whose finished_at is at or before this */
+                finished_at_thru?: string | null;
+                /** @description rows whose started_at is at or after this */
+                started_at_from?: string | null;
+                /** @description rows whose started_at is at or before this */
+                started_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28685,6 +29688,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -28725,6 +29730,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 run_id: string;
@@ -28770,6 +29777,15 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose parked_at is at or after this */
+                parked_at_from?: string | null;
+                /** @description rows whose parked_at is at or before this */
+                parked_at_thru?: string | null;
+                api_key_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28811,6 +29827,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 subscription_id: string;
@@ -28853,6 +29871,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 subscription_id: string;
@@ -28941,6 +29961,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -28982,6 +30006,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29022,6 +30048,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29100,6 +30128,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 geo_id: string;
@@ -29188,6 +30218,14 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_at is at or after this */
+                effective_at_from?: string | null;
+                /** @description rows whose effective_at is at or before this */
+                effective_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29235,6 +30273,20 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose expire_date is on or after this */
+                expire_date_from?: string | null;
+                /** @description rows whose expire_date is on or before this */
+                expire_date_thru?: string | null;
+                /** @description rows whose received_at is at or after this */
+                received_at_from?: string | null;
+                /** @description rows whose received_at is at or before this */
+                received_at_thru?: string | null;
+                currency?: string | null;
+                facility_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29276,6 +30328,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29316,6 +30370,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29394,6 +30450,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -29430,6 +30488,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -29477,6 +30537,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                sku_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29518,6 +30583,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29596,6 +30663,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -29632,6 +30701,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -29693,6 +30764,39 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose due_date is on or after this */
+                due_date_from?: string | null;
+                /** @description rows whose due_date is on or before this */
+                due_date_thru?: string | null;
+                /** @description rows whose invoice_date is on or after this */
+                invoice_date_from?: string | null;
+                /** @description rows whose invoice_date is on or before this */
+                invoice_date_thru?: string | null;
+                /** @description rows whose issued_at is at or after this */
+                issued_at_from?: string | null;
+                /** @description rows whose issued_at is at or before this */
+                issued_at_thru?: string | null;
+                /** @description rows whose period_end is on or after this */
+                period_end_from?: string | null;
+                /** @description rows whose period_end is on or before this */
+                period_end_thru?: string | null;
+                /** @description rows whose period_start is on or after this */
+                period_start_from?: string | null;
+                /** @description rows whose period_start is on or before this */
+                period_start_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                attachment_id?: string | null;
+                contract_id?: string | null;
+                currency?: string | null;
+                invoice_type?: string | null;
+                project_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -29729,11 +30833,15 @@ export interface operations {
     };
     create_invoice_api_v1_invoices_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29774,6 +30882,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -29852,6 +30962,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 invoice_id: string;
@@ -29892,6 +31004,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 invoice_id: string;
@@ -30013,6 +31127,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 invoice_id: string;
@@ -30051,6 +31167,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 invoice_id: string;
@@ -30097,6 +31215,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                converted_customer_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30138,6 +31261,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -30216,6 +31341,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 lead_id: string;
@@ -30252,6 +31379,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 lead_id: string;
@@ -30294,6 +31423,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 lead_id: string;
@@ -30336,6 +31467,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 lead_id: string;
@@ -30467,6 +31600,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -30548,6 +31683,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30589,6 +31728,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -30667,6 +31808,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 definition_id: string;
@@ -30703,6 +31846,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 definition_id: string;
@@ -30753,6 +31898,20 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose closed_at is at or after this */
+                closed_at_from?: string | null;
+                /** @description rows whose closed_at is at or before this */
+                closed_at_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose expected_close_date is on or after this */
+                expected_close_date_from?: string | null;
+                /** @description rows whose expected_close_date is on or before this */
+                expected_close_date_thru?: string | null;
+                currency?: string | null;
+                source?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30794,6 +31953,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -30872,6 +32033,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 opportunity_id: string;
@@ -30908,6 +32071,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 opportunity_id: string;
@@ -30988,6 +32153,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 opportunity_id: string;
@@ -31030,6 +32197,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 opportunity_id: string;
@@ -31072,6 +32241,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31113,6 +32286,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -31191,6 +32366,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -31227,6 +32404,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -31273,6 +32452,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31314,6 +32497,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -31392,6 +32577,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -31428,6 +32615,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -31474,6 +32663,19 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_thru is on or after this */
+                effective_thru_from?: string | null;
+                /** @description rows whose effective_thru is on or before this */
+                effective_thru_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31515,6 +32717,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -31593,6 +32797,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 record_id: string;
@@ -31640,6 +32846,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31696,6 +32906,21 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose paid_at is at or after this */
+                paid_at_from?: string | null;
+                /** @description rows whose paid_at is at or before this */
+                paid_at_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                attachment_id?: string | null;
+                contract_id?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -31737,6 +32962,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -31777,6 +33004,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -31855,6 +33084,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 payment_id: string;
@@ -31895,6 +33126,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 payment_id: string;
@@ -31937,6 +33170,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 payment_id: string;
@@ -32058,6 +33293,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 payment_id: string;
@@ -32096,6 +33333,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 payment_id: string;
@@ -32137,6 +33376,12 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                product_id?: string | null;
+                sku_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32178,6 +33423,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -32218,6 +33465,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -32254,6 +33503,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -32302,6 +33553,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32338,11 +33593,15 @@ export interface operations {
     };
     create_picklist_api_v1_picklists_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -32421,6 +33680,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 picklist_id: string;
@@ -32457,6 +33718,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 picklist_id: string;
@@ -32499,6 +33762,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 picklist_id: string;
@@ -32545,6 +33810,25 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_thru is on or after this */
+                effective_thru_from?: string | null;
+                /** @description rows whose effective_thru is on or before this */
+                effective_thru_thru?: string | null;
+                /** @description rows whose published_at is at or after this */
+                published_at_from?: string | null;
+                /** @description rows whose published_at is at or before this */
+                published_at_thru?: string | null;
+                attachment_id?: string | null;
+                owner_employee_id?: string | null;
+                supersedes_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32586,6 +33870,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -32666,6 +33952,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 policy_id: string;
@@ -32702,6 +33990,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 policy_id: string;
@@ -32783,6 +34073,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 policy_id: string;
@@ -32825,6 +34117,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 policy_id: string;
@@ -32867,6 +34161,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 policy_id: string;
@@ -32914,6 +34210,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -32955,6 +34255,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33033,6 +34335,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 category_id: string;
@@ -33069,6 +34373,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 category_id: string;
@@ -33114,6 +34420,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                attachment_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33155,6 +34466,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33195,6 +34508,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 image_id: string;
@@ -33231,6 +34546,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 image_id: string;
@@ -33318,6 +34635,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33359,6 +34680,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33437,6 +34760,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 price_id: string;
@@ -33473,6 +34798,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 price_id: string;
@@ -33519,6 +34846,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33560,6 +34891,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33638,6 +34971,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 sku_id: string;
@@ -33674,6 +35009,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 sku_id: string;
@@ -33721,6 +35058,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -33762,6 +35104,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33802,6 +35146,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -33880,6 +35226,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 product_id: string;
@@ -33916,6 +35264,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 product_id: string;
@@ -33997,6 +35347,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 product_id: string;
@@ -34042,6 +35394,18 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose end_date is on or after this */
+                end_date_from?: string | null;
+                /** @description rows whose end_date is on or before this */
+                end_date_thru?: string | null;
+                /** @description rows whose start_date is on or after this */
+                start_date_from?: string | null;
+                /** @description rows whose start_date is on or before this */
+                start_date_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34083,6 +35447,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -34161,6 +35527,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 project_id: string;
@@ -34197,6 +35565,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 project_id: string;
@@ -34243,6 +35613,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34284,6 +35658,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -34362,6 +35738,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -34398,6 +35776,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -34444,6 +35824,17 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose promised_date is on or after this */
+                promised_date_from?: string | null;
+                /** @description rows whose promised_date is on or before this */
+                promised_date_thru?: string | null;
+                attachment_id?: string | null;
+                product_id?: string | null;
+                sku_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34485,6 +35876,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -34563,6 +35956,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -34599,6 +35994,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -34650,6 +36047,20 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose order_date is on or after this */
+                order_date_from?: string | null;
+                /** @description rows whose order_date is on or before this */
+                order_date_thru?: string | null;
+                /** @description rows whose promised_date is on or after this */
+                promised_date_from?: string | null;
+                /** @description rows whose promised_date is on or before this */
+                promised_date_thru?: string | null;
+                contract_id?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -34686,11 +36097,15 @@ export interface operations {
     };
     create_purchase_order_api_v1_purchase_orders_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -34731,6 +36146,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -34809,6 +36226,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 po_id: string;
@@ -34845,6 +36264,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 po_id: string;
@@ -34964,6 +36385,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 po_id: string;
@@ -35006,6 +36429,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 po_id: string;
@@ -35024,6 +36449,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PurchaseOrderRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_purchase_order_lines_api_v1_purchase_orders__po_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                po_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePurchaseOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
                 };
             };
             /** @description Validation Error */
@@ -35084,6 +36555,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -35162,6 +36635,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -35198,6 +36673,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -35247,6 +36724,23 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose needed_by is on or after this */
+                needed_by_from?: string | null;
+                /** @description rows whose needed_by is on or before this */
+                needed_by_thru?: string | null;
+                /** @description rows whose request_date is on or after this */
+                request_date_from?: string | null;
+                /** @description rows whose request_date is on or before this */
+                request_date_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35283,11 +36777,15 @@ export interface operations {
     };
     create_purchase_request_api_v1_purchase_requests_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -35368,6 +36866,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 request_id: string;
@@ -35408,6 +36908,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 request_id: string;
@@ -35529,6 +37031,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 request_id: string;
@@ -35564,6 +37068,52 @@ export interface operations {
             };
         };
     };
+    save_purchase_request_lines_api_v1_purchase_requests__request_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePurchaseRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_purchase_request_api_v1_purchase_requests__request_id__submit_post: {
         parameters: {
             query?: never;
@@ -35571,6 +37121,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 request_id: string;
@@ -35618,6 +37170,22 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose cancelled_at is at or after this */
+                cancelled_at_from?: string | null;
+                /** @description rows whose cancelled_at is at or before this */
+                cancelled_at_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose end_at is at or after this */
+                end_at_from?: string | null;
+                /** @description rows whose end_at is at or before this */
+                end_at_thru?: string | null;
+                /** @description rows whose start_at is at or after this */
+                start_at_from?: string | null;
+                /** @description rows whose start_at is at or before this */
+                start_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35659,6 +37227,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -35737,6 +37307,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 booking_id: string;
@@ -35777,6 +37349,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 booking_id: string;
@@ -35824,6 +37398,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -35865,6 +37443,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -35943,6 +37523,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 resource_id: string;
@@ -35979,6 +37561,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 resource_id: string;
@@ -36098,6 +37682,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -36138,6 +37724,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 role_ref: string;
@@ -36174,6 +37762,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 role_ref: string;
@@ -36258,6 +37848,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -36299,6 +37893,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -36377,6 +37973,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 channel_id: string;
@@ -36413,6 +38011,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 channel_id: string;
@@ -36459,6 +38059,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -36500,6 +38104,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -36578,6 +38184,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -36614,6 +38222,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -36660,6 +38270,15 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose promised_date is on or after this */
+                promised_date_from?: string | null;
+                /** @description rows whose promised_date is on or before this */
+                promised_date_thru?: string | null;
+                attachment_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -36701,6 +38320,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -36779,6 +38400,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -36815,6 +38438,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -36872,6 +38497,33 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose order_date is on or after this */
+                order_date_from?: string | null;
+                /** @description rows whose order_date is on or before this */
+                order_date_thru?: string | null;
+                /** @description rows whose promised_date is on or after this */
+                promised_date_from?: string | null;
+                /** @description rows whose promised_date is on or before this */
+                promised_date_thru?: string | null;
+                /** @description rows whose shipped_at is at or after this */
+                shipped_at_from?: string | null;
+                /** @description rows whose shipped_at is at or before this */
+                shipped_at_thru?: string | null;
+                /** @description rows whose signed_at is at or after this */
+                signed_at_from?: string | null;
+                /** @description rows whose signed_at is at or before this */
+                signed_at_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                contract_id?: string | null;
+                currency?: string | null;
+                project_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -36908,11 +38560,15 @@ export interface operations {
     };
     create_sales_order_api_v1_sales_orders_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -36953,6 +38609,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -37033,6 +38691,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37073,6 +38733,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37194,6 +38856,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37236,6 +38900,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37278,6 +38944,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37320,6 +38988,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37355,6 +39025,52 @@ export interface operations {
             };
         };
     };
+    save_sales_order_lines_api_v1_sales_orders__order_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSalesOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_sales_order_api_v1_sales_orders__order_id__submit_post: {
         parameters: {
             query?: never;
@@ -37362,6 +39078,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 order_id: string;
@@ -37408,6 +39126,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -37449,6 +39171,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -37527,6 +39251,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -37563,6 +39289,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 adjustment_id: string;
@@ -37609,6 +39337,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                attachment_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -37650,6 +39383,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -37728,6 +39463,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -37764,6 +39501,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -37816,6 +39555,33 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose closed_at is at or after this */
+                closed_at_from?: string | null;
+                /** @description rows whose closed_at is at or before this */
+                closed_at_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose quote_date is on or after this */
+                quote_date_from?: string | null;
+                /** @description rows whose quote_date is on or before this */
+                quote_date_thru?: string | null;
+                /** @description rows whose sent_at is at or after this */
+                sent_at_from?: string | null;
+                /** @description rows whose sent_at is at or before this */
+                sent_at_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                /** @description rows whose valid_until is on or after this */
+                valid_until_from?: string | null;
+                /** @description rows whose valid_until is on or before this */
+                valid_until_thru?: string | null;
+                currency?: string | null;
+                project_id?: string | null;
+                revision_of_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -37852,11 +39618,15 @@ export interface operations {
     };
     create_sales_quotation_api_v1_sales_quotations_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -37897,6 +39667,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -37977,6 +39749,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38017,6 +39791,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38098,6 +39874,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38180,6 +39958,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38222,6 +40002,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38257,6 +40039,52 @@ export interface operations {
             };
         };
     };
+    save_sales_quotation_lines_api_v1_sales_quotations__quotation_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                quotation_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSalesQuotationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     send_sales_quotation_api_v1_sales_quotations__quotation_id__send_post: {
         parameters: {
             query?: never;
@@ -38264,6 +40092,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38306,6 +40136,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 quotation_id: string;
@@ -38352,6 +40184,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                sku_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -38393,6 +40230,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -38433,6 +40272,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -38469,6 +40310,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 item_id: string;
@@ -38520,6 +40363,27 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose expected_date is on or after this */
+                expected_date_from?: string | null;
+                /** @description rows whose expected_date is on or before this */
+                expected_date_thru?: string | null;
+                /** @description rows whose received_at is at or after this */
+                received_at_from?: string | null;
+                /** @description rows whose received_at is at or before this */
+                received_at_thru?: string | null;
+                /** @description rows whose shipped_at is at or after this */
+                shipped_at_from?: string | null;
+                /** @description rows whose shipped_at is at or before this */
+                shipped_at_thru?: string | null;
+                /** @description rows whose stock_posted_at is at or after this */
+                stock_posted_at_from?: string | null;
+                /** @description rows whose stock_posted_at is at or before this */
+                stock_posted_at_thru?: string | null;
+                picklist_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -38556,11 +40420,15 @@ export interface operations {
     };
     create_shipment_api_v1_shipments_post: {
         parameters: {
-            query?: never;
+            query?: {
+                validate_only?: boolean;
+            };
             header?: {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -38639,6 +40507,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 shipment_id: string;
@@ -38675,6 +40545,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 shipment_id: string;
@@ -38717,6 +40589,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 shipment_id: string;
@@ -38755,6 +40629,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 shipment_id: string;
@@ -38836,6 +40712,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -38914,6 +40792,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 skill_ref: string;
@@ -38950,6 +40830,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 skill_ref: string;
@@ -39030,6 +40912,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 skill_ref: string;
@@ -39072,6 +40956,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 skill_ref: string;
@@ -39152,6 +41038,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39193,6 +41083,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -39233,6 +41125,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 link_id: string;
@@ -39269,6 +41163,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 link_id: string;
@@ -39316,6 +41212,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                sales_channel_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39357,6 +41258,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -39435,6 +41338,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 store_id: string;
@@ -39471,6 +41376,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 store_id: string;
@@ -39517,6 +41424,11 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39558,6 +41470,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -39636,6 +41550,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 supplier_product_id: string;
@@ -39672,6 +41588,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 supplier_product_id: string;
@@ -39750,6 +41668,7 @@ export interface operations {
                 page?: number;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number;
+                employee_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39796,6 +41715,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39837,6 +41760,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -39877,6 +41802,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 api_key_id: string;
@@ -39915,7 +41842,10 @@ export interface operations {
     create_tenant_api_v1_tenants_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -39958,6 +41888,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -39999,6 +41933,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -40077,6 +42013,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 territory_id: string;
@@ -40122,6 +42060,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -40163,6 +42105,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -40241,6 +42185,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -40281,6 +42227,18 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose valid_from is on or after this */
+                valid_from_from?: string | null;
+                /** @description rows whose valid_from is on or before this */
+                valid_from_thru?: string | null;
+                /** @description rows whose valid_until is on or after this */
+                valid_until_from?: string | null;
+                /** @description rows whose valid_until is on or before this */
+                valid_until_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -40322,6 +42280,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -40400,6 +42360,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -40436,6 +42398,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 row_id: string;
@@ -40559,6 +42523,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -40637,6 +42603,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 entry_id: string;
@@ -40673,6 +42641,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 entry_id: string;
@@ -40721,6 +42691,22 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose period_end is on or after this */
+                period_end_from?: string | null;
+                /** @description rows whose period_end is on or before this */
+                period_end_thru?: string | null;
+                /** @description rows whose period_start is on or after this */
+                period_start_from?: string | null;
+                /** @description rows whose period_start is on or before this */
+                period_start_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -40764,6 +42750,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -40844,6 +42832,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 header_id: string;
@@ -40884,6 +42874,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 header_id: string;
@@ -40966,6 +42958,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 header_id: string;
@@ -41001,6 +42995,52 @@ export interface operations {
             };
         };
     };
+    save_timesheet_document_api_v1_timesheet_headers__header_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                header_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveTimesheetDocumentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_timesheet_header_api_v1_timesheet_headers__header_id__submit_post: {
         parameters: {
             query?: never;
@@ -41008,6 +43048,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 header_id: string;
@@ -41058,6 +43100,19 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose completed_at is at or after this */
+                completed_at_from?: string | null;
+                /** @description rows whose completed_at is at or before this */
+                completed_at_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose due_at is at or after this */
+                due_at_from?: string | null;
+                /** @description rows whose due_at is at or before this */
+                due_at_thru?: string | null;
+                todo_type?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -41099,6 +43154,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -41139,6 +43196,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -41217,6 +43276,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 todo_id: string;
@@ -41298,6 +43359,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -41338,6 +43401,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 type_option_id: string;
@@ -41374,6 +43439,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 type_option_id: string;
@@ -41416,6 +43483,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 user_id: string;
@@ -41496,6 +43565,10 @@ export interface operations {
                 size?: number | null;
                 /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
                 order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -41537,6 +43610,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -41577,6 +43652,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {
@@ -41655,6 +43732,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 vendor_id: string;
@@ -41691,6 +43770,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path: {
                 vendor_id: string;
@@ -41781,6 +43862,8 @@ export interface operations {
                 "X-API-Key"?: string | null;
                 authorization?: string | null;
                 "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
             };
             path?: never;
             cookie?: {

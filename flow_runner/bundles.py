@@ -89,6 +89,10 @@ class BundleStore:
         if root.exists():
             shutil.rmtree(root)
         root.mkdir(parents=True, exist_ok=True)
+        # owner-only: the bundle carries the tenant's API key in its skill
+        # files, and until each run gets its own sandbox (review N03) the
+        # directory bits are the boundary between tenants on one workspace
+        root.chmod(0o700)
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             _extract_safely(archive, root)
 

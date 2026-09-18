@@ -244,6 +244,26 @@ def test_a_member_files_their_own_and_cannot_approve_it(workspace: dict) -> None
     assert self_approved.status_code == 403
     assert "leave.advance" in self_approved.json()["detail"]
 
+    # the same move made at the door: creating it already approved is a status
+    # change with no PATCH behind it, and takes the same grant
+    born_approved = client.post("/api/v1/employee-leaves", json={
+        "employee_id": workspace["staff"], "leave_type": "annual",
+        "from_date": "2026-06-01", "thru_date": "2026-06-01", "duration_days": 1,
+        "status": "approved",
+    }, headers=member)
+    assert born_approved.status_code == 403, born_approved.text
+    assert "leave.advance" in born_approved.json()["detail"]
+    assert client.get("/api/v1/employee-leaves?status=approved",
+                      headers=root).json()["data"] == []
+
+
+def test_a_history_import_may_start_mid_flow_with_the_advance_grant(workspace: dict) -> None:
+    """The reason create accepts any state at all: last year's approved leave
+    arrives approved. The workspace root holds `leave.advance`, so it may."""
+    imported = file_leave(workspace, status="approved")
+    assert imported.status_code == 201, imported.text
+    assert imported.json()["data"]["status"] == "approved"
+
 
 def test_leave_joins_the_shared_document_plumbing(workspace: dict) -> None:
     """Registering the family rather than hand-rolling a table is what makes

@@ -1,6 +1,8 @@
 # Payslip Read API
 
+<!-- only: bundle -->
 Every path hangs off `api_base_url` exactly as given — no version prefix to add.
+<!-- /only -->
 
 Read-only. Every call here is a GET; nothing in this reference writes.
 

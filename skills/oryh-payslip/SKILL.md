@@ -40,9 +40,13 @@ a payout made, that is `$oryh-payroll` and it needs `payroll.manage` /
 
 ```yaml
 oryh:
+<!-- only: bundle -->
   api_base_url: "{{ORYH_API_BASE_URL}}"  # every API path below hangs off THIS — already complete
+<!-- /only -->
   base_url: "{{ORYH_BASE_URL}}"          # the console address, for links a person opens
+<!-- only: bundle -->
   api_key: "{{ORYH_API_KEY}}"     # no payroll capability required to read your own
+<!-- /only -->
   employee_id: "{{EMPLOYEE_ID}}"  # who "mine" means
 ```
 

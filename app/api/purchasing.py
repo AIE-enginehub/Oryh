@@ -17,11 +17,19 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import String, cast, select
+from decimal import Decimal
+
+from sqlalchemy import String, cast, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    ListFilters,
+    list_filters,
+    dry_run_readback,
+    inline_adjustments,
+    document_revision,
+    save_document_lines,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     require_contract_for,
@@ -87,6 +95,9 @@ from app.models import (
     Vendor,
 )
 from app.schemas import (
+    SavePurchaseOrderRequest,
+    SavePurchaseRequestRequest,
+    SavedLinesEnvelope,
     ApprovalRecordRead,
     AttachmentRead,
     BulkDocumentImportEnvelope,
@@ -208,6 +219,7 @@ def list_purchase_requests(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseRequest, ranges=('created_at', 'needed_by', 'request_date', 'submitted_at'), equals=('currency',)))] = None,
 ):
     validate_status_filter(db, tenant_id, "purchase_request", status_filter)
     stmt = select(PurchaseRequest).where(PurchaseRequest.tenant_id == tenant_id)
@@ -238,6 +250,7 @@ def list_purchase_requests(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=PurchaseRequestRead,
+        extra=extra,
     )
 
 
@@ -246,12 +259,13 @@ def create_purchase_request(
     payload: CreatePurchaseRequestRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "purchase.submit_own")
     get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     enforce_member_employee(actor, payload.employee_id)
-    initial_status = require_machine_state(db, tenant_id, PurchaseRequest, payload.status)
+    initial_status = require_machine_state(db, actor, PurchaseRequest, payload.status)
     vendor_id, vendor_name_snapshot = normalize_vendor_context(
         db, tenant_id, payload.vendor_id, payload.vendor_name_snapshot
     )
@@ -269,12 +283,23 @@ def create_purchase_request(
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(request)
-    db.flush()
-    items = [
-        build_item(db, actor, PurchaseRequestItem, row, parent=request)
-        for row in payload.items
-    ]
-    db.commit()
+    try:
+        db.flush()
+        items = [
+            build_item(db, actor, PurchaseRequestItem, row, parent=request)
+            for row in payload.items
+        ]
+        if validate_only:
+            return dry_run_readback(db, request, PurchaseRequestRead, items, PurchaseRequestItemRead, "items")
+        db.commit()
+    except IntegrityError:
+        # gap 5: the one inline create that answered a constraint clash
+        # with a 500 — the same 409 its siblings give
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="a purchase request with these identifying fields already exists",
+        )
     db.refresh(request)
     data = PurchaseRequestRead.model_validate(request).model_dump(by_alias=True)
     if items:
@@ -458,6 +483,7 @@ def get_purchase_request_detail(
         )
     estimates = [purchase_item_estimate(item) for item in items]
     detail = PurchaseRequestDetailRead(
+        revision=document_revision(db, PurchaseRequest, request),
         request=PurchaseRequestRead.model_validate(request),
         items=detail_items,
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
@@ -535,6 +561,7 @@ def list_purchase_orders(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrder, ranges=('created_at', 'order_date', 'promised_date',), equals=('contract_id', 'currency')))] = None,
 ):
     validate_status_filter(
         db, tenant_id,
@@ -568,6 +595,7 @@ def list_purchase_orders(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=PurchaseOrderRead,
+        extra=extra,
     )
 
 
@@ -581,6 +609,7 @@ def create_purchase_order(
     payload: CreatePurchaseOrderRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "purchase_order.manage")
@@ -605,7 +634,7 @@ def create_purchase_order(
         )
     require_original_order(db, tenant_id, PurchaseOrder, payload.original_order_id)
     initial_status = require_machine_state(
-        db, tenant_id, PurchaseOrder, payload.status,
+        db, actor, PurchaseOrder, payload.status,
         object_type="purchase_return" if payload.order_kind == "return" else "purchase_order",
     )
     charged_account = None
@@ -651,8 +680,14 @@ def create_purchase_order(
         items = [
             build_item(db, actor, PurchaseOrderItem, row, parent=po) for row in payload.items
         ]
+        adjustments = inline_adjustments(db, actor, PurchaseOrderAdjustment, po, items, payload.adjustments)
         if charged_account is not None:
             ensure_within_credit(db, charged_account, label="purchase order")
+        if validate_only:
+            return dry_run_readback(
+                db, po, PurchaseOrderRead, items, PurchaseOrderItemRead, "items",
+                extra={"adjustments": [PurchaseOrderAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments]},
+            )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -665,6 +700,10 @@ def create_purchase_order(
     if items:
         data["items"] = [
             PurchaseOrderItemRead.model_validate(item).model_dump(by_alias=True) for item in items
+        ]
+    if adjustments:
+        data["adjustments"] = [
+            PurchaseOrderAdjustmentRead.model_validate(a).model_dump(by_alias=True) for a in adjustments
         ]
     return envelope(data)
 
@@ -773,6 +812,7 @@ def list_purchase_order_items(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrderItem, ranges=('created_at', 'promised_date'), equals=('attachment_id', 'product_id', 'sku_id')))] = None,
 ):
     """`sales_order_id` walks the procurement chain for a whole order at once:
     every PO line whose request line pins one of this order's lines. The
@@ -790,6 +830,7 @@ def list_purchase_order_items(
         {"po_id": po_id, "purchase_request_item_id": purchase_request_item_id},
         where=where,
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -845,11 +886,13 @@ def list_purchase_order_adjustments(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrderAdjustment, ranges=('created_at',), equals=()))] = None,
 ):
     return list_adjustments(
         db, tenant_id, PurchaseOrderAdjustment,
         parent_id=po_id, item_id=po_item_id, adjustment_type=adjustment_type,
         pagination=requested_pagination(page, size), sort=order_by,
+        extra=extra,
     )
 
 
@@ -981,6 +1024,7 @@ def get_purchase_order_detail(
     computed_total = float(sum(e for e in estimates if e is not None))
     adjustments_total = float(sum(adjustment.amount for adjustment in adjustments))
     detail = PurchaseOrderDetailRead(
+        revision=document_revision(db, PurchaseOrder, po),
         po=PurchaseOrderRead.model_validate(po),
         items=detail_items,
         adjustments=[PurchaseOrderAdjustmentRead.model_validate(adjustment) for adjustment in adjustments],
@@ -1085,7 +1129,15 @@ def receive_purchase_order(
                 created_by=attributed(actor, None),
             )
             inventory_item_id = position.id
-        item.received_quantity = float(item.received_quantity) + float(line.quantity)
+        # relative, in SQL: two receipts at once each used to read the same
+        # total and the second overwrote the first (review N02) — the ledger
+        # kept both, the line remembered one
+        db.execute(
+            update(PurchaseOrderItem)
+            .where(PurchaseOrderItem.id == item.id)
+            .values(received_quantity=PurchaseOrderItem.received_quantity + Decimal(str(line.quantity)))
+        )
+        db.expire(item, ["received_quantity"])
         # freshest procurement fact: update the existing supplier link's
         # last_price in place; never invent a link here
         if item.product_id and item.unit_price is not None:
@@ -1159,3 +1211,33 @@ def get_purchase_order_attachment(
     """A line's supporting file, reached through the order."""
     document = get_scoped_or_404(db, PurchaseOrder, tenant_id, po_id)
     return serve_document_attachment(db, tenant_id, document, attachment_id)
+
+
+# --- whole-document saves ---------------------------------------------------
+
+
+@router.post("/purchase-requests/{request_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_purchase_request_lines(
+    request_id: str,
+    payload: SavePurchaseRequestRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """The request's lines restated in one call — a diff against the live
+    rows, refused when `expected_revision` is stale."""
+    return save_document_lines(db, actor, PurchaseRequest, request_id, payload, validate_only=validate_only)
+
+
+@router.post("/purchase-orders/{po_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_purchase_order_lines(
+    po_id: str,
+    payload: SavePurchaseOrderRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """The order's lines and adjustments restated in one call while it is
+    still editable; a line with a receipt behind it keeps its identity
+    because the save is a diff, never a delete-and-reinsert."""
+    return save_document_lines(db, actor, PurchaseOrder, po_id, payload, validate_only=validate_only)
