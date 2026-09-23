@@ -1001,6 +1001,42 @@ Restore Invoice
 |---|---|---|---|---|
 | `invoice_id` | path | string | yes |  |
 
+## POST /invoices/{invoice_id}/save
+
+Save Invoice Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `invoice_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `invoice_id` | string | optional |  |
+  | `invoice_item_type` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `notes` | string | optional |  |
+  | `pay_history_id` | string | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string | optional |  |
+  | `purchase_order_item_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sales_order_item_id` | string | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string | optional |  |
+  | `tax_amount` | number | optional |  |
+  | `tax_rate` | number | optional |  |
+  | `unit` | string | optional |  |
+  | `unit_price` | number | optional |  |
+
 ## POST /invoices/{invoice_id}/submit
 
 Submit Invoice

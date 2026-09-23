@@ -24,6 +24,7 @@ from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.visibility import scoped
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -1732,7 +1733,8 @@ def list_fulfilment_backlog(
         stmt = stmt.where(SalesOrder.store_id == store_id)
     if employee_id:
         stmt = stmt.where(SalesOrder.employee_id == employee_id)
-    orders = db.scalars(stmt).all()
+    # a salesperson's backlog is their own orders; the fulfilment desk reads all
+    orders = db.scalars(scoped(db, stmt, SalesOrder)).all()
     if not orders:
         return envelope([], total=0)
     order_ids = [order.id for order in orders]

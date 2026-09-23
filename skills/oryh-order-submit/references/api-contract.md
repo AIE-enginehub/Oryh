@@ -1039,6 +1039,25 @@ Body:
 | `sku_id` | string | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## POST /external-product-maps/resolve
+
+Resolve External Products
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `listings` | array of objects (fields below) | required |  |
+| ↳ each `listings[]` item: | | | |
+  | `at` | date | optional |  |
+  | `external_name` | string (≤300 chars) | optional |  |
+  | `external_product_id` | string (≤128 chars) | optional |  |
+  | `external_sku_id` | string (≤128 chars) | optional |  |
+| `source` | string (≤50 chars) | required |  |
+| `at` | date | optional |  |
+| `candidate_limit` | integer (≥1.0, ≤10.0) | optional |  |
+| `with_candidates` | boolean | optional |  |
+
 ## POST /product-skus
 
 Create Product Sku
@@ -1643,6 +1662,30 @@ Restore Shipment
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `shipment_id` | path | string | yes |  |
+
+## POST /shipments/{shipment_id}/save
+
+Save Shipment Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `shipment_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `inventory_item_id` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sku_id` | string | optional |  |
 
 ## POST /stores
 

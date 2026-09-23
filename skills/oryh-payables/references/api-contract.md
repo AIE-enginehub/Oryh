@@ -1141,6 +1141,33 @@ Restore Contract
 |---|---|---|---|---|
 | `contract_id` | path | string | yes |  |
 
+## POST /contracts/{contract_id}/save
+
+Save Contract Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `contract_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `currency` | string | optional |  |
+  | `delivery_note` | string | optional |  |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `line_no` | integer | optional |  |
+  | `metadata` | object | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `unit` | string | optional |  |
+  | `unit_price` | number | optional |  |
+
 ## POST /expense-claims
 
 Create Expense Claim
@@ -1201,6 +1228,46 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `restored_by` | string (≤100 chars) | optional |  |
+
+## POST /expense-claims/{claim_id}/save
+
+Save Expense Claim
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `claim_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number | optional |  |
+  | `attachment_id` | string | optional |  |
+  | `category` | string | optional |  |
+  | `claim_id` | string | optional |  |
+  | `client` | string | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `employee_id` | string | optional |  |
+  | `expense_date` | date | optional |  |
+  | `extracted_fields` | object | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `invoice_number` | string | optional |  |
+  | `invoice_type` | `vat_special` | `vat_general` | `vat_electronic` | `receipt` | `other` | optional |  |
+  | `merchant` | string | optional |  |
+  | `notes` | string | optional |  |
+  | `project_id` | string | optional |  |
+  | `project_name_snapshot` | string | optional |  |
+  | `tax_amount` | number | optional |  |
+  | `vendor_id` | string | optional |  |
+| `claim_date` | date | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `source_report_text` | string (≤10000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
 
 ## POST /expense-claims/{claim_id}/submit
 
@@ -1365,6 +1432,42 @@ Restore Invoice
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `invoice_id` | path | string | yes |  |
+
+## POST /invoices/{invoice_id}/save
+
+Save Invoice Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `invoice_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `invoice_id` | string | optional |  |
+  | `invoice_item_type` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `notes` | string | optional |  |
+  | `pay_history_id` | string | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string | optional |  |
+  | `purchase_order_item_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sales_order_item_id` | string | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string | optional |  |
+  | `tax_amount` | number | optional |  |
+  | `tax_rate` | number | optional |  |
+  | `unit` | string | optional |  |
+  | `unit_price` | number | optional |  |
 
 ## POST /invoices/{invoice_id}/submit
 

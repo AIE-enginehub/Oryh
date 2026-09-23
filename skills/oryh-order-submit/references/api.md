@@ -72,7 +72,7 @@ GET  /sales-orders/{id}/detail                          → revision (a hash of 
 POST /sales-orders/{id}/save?validate_only=true         → the same run, nothing written
 POST /sales-orders/{id}/save
 {"expected_revision": "<detail.revision>",
- "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+ "items": [{"id": "<existing line>", ...the fields that change...},   → updated through the PATCH rules
            {...full line without id...}],                → added through the POST rules
  "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
                  {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
@@ -179,6 +179,9 @@ GET /external-document-links?source=tmall&external_kind=order&external_no=TM2026
                                                         → dedup BEFORE creating the order
 GET /external-document-links?entity_type=sales_order&entity_id={order_id}
                                                         → which platform orders became this one
+POST /external-product-maps/resolve                      → a whole import in one read: {"source","at"?,"with_candidates"?,"candidate_limit"?,
+                                                            "listings":[{"external_product_id"?,"external_name"?,"external_sku_id"?,"at"?}]} (≤500);
+                                                            data[i] answers listings[i]: status mapped|unmapped, maps[], candidates[] when asked
 GET /external-product-maps?source=tmall&external_product_id={platform id}&at={order date}
                                                         → the map AS OF that date. Listings swap
                                                           goods while keeping their id, so pass the

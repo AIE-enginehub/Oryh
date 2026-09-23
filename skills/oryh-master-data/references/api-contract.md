@@ -1412,6 +1412,30 @@ Body:
 | `status` | `active` | `archived` | `draft` | optional |  |
 | `version` | string (≤50 chars) | optional |  |
 
+## POST /bills-of-materials/{bom_id}/save
+
+Save Bom Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `bom_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `component_product_id` | string | optional |  |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `line_no` | integer | optional |  |
+  | `quantity` | number | optional |  |
+  | `scrap_rate` | number | optional |  |
+  | `unit` | string | optional |  |
+
 ## POST /bom-items
 
 Create Bom Item
@@ -1553,6 +1577,25 @@ Body:
 | `quantity` | number (≤9999999.99) | optional |  |
 | `sku_id` | string | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## POST /external-product-maps/resolve
+
+Resolve External Products
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `listings` | array of objects (fields below) | required |  |
+| ↳ each `listings[]` item: | | | |
+  | `at` | date | optional |  |
+  | `external_name` | string (≤300 chars) | optional |  |
+  | `external_product_id` | string (≤128 chars) | optional |  |
+  | `external_sku_id` | string (≤128 chars) | optional |  |
+| `source` | string (≤50 chars) | required |  |
+| `at` | date | optional |  |
+| `candidate_limit` | integer (≥1.0, ≤10.0) | optional |  |
+| `with_candidates` | boolean | optional |  |
 
 ## POST /facilities
 

@@ -14,6 +14,8 @@ from typing import Annotated
 
 from urllib.parse import quote
 
+from fastapi.encoders import jsonable_encoder
+from pydantic import ValidationError
 from fastapi import Depends, HTTPException, status, Query
 from sqlalchemy import Uuid, func, or_, select
 from sqlalchemy.orm import Session
@@ -28,6 +30,8 @@ from app.api.deps import (
     has_permission,
     require_permission,
 )
+from app.api.visibility import is_visible, scoped
+from app.core.line_math import derive_line_amount
 from app.models import (
     ApprovalRecord,
     Attachment,
@@ -352,6 +356,8 @@ def list_rows(
     `page_only_pagination`); `render` is for the few lists whose rows need
     batch enrichment beyond a read model.
     """
+    # what this actor may read at all comes first (app/api/visibility.py)
+    stmt = scoped(db, stmt)
     for column, value in (filters or {}).items():
         if value:
             # A non-UUID value against a UUID column is a caller error, not an
@@ -441,6 +447,10 @@ def get_scoped_or_404(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{model.__name__} not found")
     instance = db.get(model, entity_id)
     if instance is None or instance.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{model.__name__} not found")
+    # A row this actor may not read does not exist for them — the same 404,
+    # so the API does not confirm what it will not show.
+    if not is_visible(db, instance):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{model.__name__} not found")
     return instance
 
@@ -730,8 +740,10 @@ def may_read_payroll(actor: Actor) -> bool:
     """Salaries and payslips are the one thing here that belonging to the
     workspace does not entitle you to read.
 
-    Every other read in this API is tenant-scoped only, which is fine for
-    business documents and unacceptable for pay. Writing payroll implies reading
+    Shared business data is tenant-scoped; a person's own documents are read
+    by them, by whoever they were routed to, or with `<family>.read_all`
+    (app/api/visibility.py). Pay is stricter than either: hidden from everyone
+    without the grant, not just from colleagues. Writing payroll implies reading
     it; `payroll.read` exists separately so a workspace can let someone see the
     numbers without being able to change them."""
     return has_permission(actor, "payroll.read") or has_permission(
@@ -1533,7 +1545,8 @@ def build_item(db: Session, actor: Actor, model, payload, *, parent=None):
         quantity=payload.quantity,
         unit=unit,
         unit_price=payload.unit_price,
-        amount=payload.amount,
+        amount=derive_line_amount(payload.quantity, payload.unit_price, payload.amount,
+                                  is_gift=bool(values.get("is_gift"))),
         attachment_id=payload.attachment_id,
         notes=payload.notes,
         custom_fields_jsonb=payload.custom_fields,
@@ -1677,10 +1690,13 @@ def apply_item_updates(db: Session, actor: Actor, model, item, updates: dict) ->
     # write sets amount itself, drop it so the line reads as price × quantity
     # again (a gift line as 0) — the quotation detail, the flow's tiers and
     # the order's quote_drift all read the effective amount.
-    if any(field in updates for field in ("quantity", "unit_price", "is_gift")) and "amount" not in updates:
-        item.amount = None
     for field, value in updates.items():
         setattr(item, field, value)
+    if any(field in updates for field in ("quantity", "unit_price", "is_gift", "amount")):
+        # the amount follows the price: a stated one must agree, an unstated
+        # one is recomputed (a gift line is 0)
+        item.amount = derive_line_amount(
+            item.quantity, item.unit_price, updates.get("amount"), is_gift=bool(getattr(item, "is_gift", False)))
     record_line_audit(
         db, actor, family.parent_model, getattr(item, family.parent_field),
         item.id, "line_changed",
@@ -2816,6 +2832,159 @@ def _line_diff(item, row_values: dict) -> dict:
     return changed
 
 
+def aggregate_revision(header: dict, **collections: list[dict]) -> str:
+    """The revision of a document whose lines are not an `ITEM_FAMILIES`
+    member: a hash of the header and every live child collection as their
+    read models render them. `document_revision` is the same idea for the
+    four registry families; this is the one the rest share."""
+    snapshot = {"header": header, **{name: sorted(rows, key=lambda r: r["id"]) for name, rows in collections.items()}}
+    return hashlib.sha256(json.dumps(snapshot, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def require_revision(current: str, expected: str) -> None:
+    if current != expected:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="the document changed since it was read — GET its /detail and restate against the current revision",
+        )
+
+
+def restate_rows(
+    db: Session, actor: Actor, parent_model, document_id: str, rows: list, existing: dict, *,
+    build, update, remove, new_model, update_model, label: str = "items", audit=None,
+) -> list:
+    """One child collection restated as a diff — the engine behind every
+    whole-document save that is not `save_document_lines`.
+
+    `rows` is what the collection should be: a row naming a live `id` is that
+    line, changed ONLY in the fields the row states (a client that does not
+    know about `extracted_fields` does not erase them by not repeating them;
+    a field stated as null is cleared); a row without an id is built through
+    `build` — the constructor the standalone POST uses; a live line no row
+    names is removed through `remove`. Each change writes the audit entry the
+    single-row path writes. Never delete-and-reinsert: a line other rows point
+    at (a receipt billed by an invoice line, a picked line) keeps its identity.
+    """
+    named = [row.id for row in rows if row.id]
+    if len(named) != len(set(named)) or any(row_id not in existing for row_id in named):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{label}[].id must each be a live row of this document, named once",
+        )
+
+    def note(line_id: str, verb: str, changed: dict | None) -> None:
+        if audit is not None:
+            audit(line_id, verb, changed)
+        else:
+            record_line_audit(db, actor, parent_model, document_id, line_id, verb,
+                              changed=jsonable_encoder(changed) if changed else None)
+
+    def validated(model, values: dict, index: int):
+        try:
+            return model.model_validate(values)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=[{**error, "loc": ["body", label, index, *error["loc"]]}
+                        for error in jsonable_encoder(exc.errors(include_url=False, include_context=False))],
+            )
+
+    updatable = set(update_model.model_fields)
+    kept: list = []
+    for index, row in enumerate(rows):
+        if row.id:
+            item = existing[row.id]
+            stated = {f: getattr(row, f) for f in row.model_fields_set if f != "id"}
+            changed = _line_diff(item, stated)
+            fixed = sorted(set(changed) - updatable)
+            if fixed:
+                # the fields the single-row PATCH does not take either: what a
+                # line IS (its product, its document) — replace the line instead
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"{label}[{index}]: {', '.join(fixed)} cannot change on an existing row — "
+                           "leave the row out and add a new one",
+                )
+            if changed:
+                # the update schema's own constraints (a quantity above zero, a length)
+                changed = validated(update_model, changed, index).model_dump(exclude_unset=True)
+                update(item, changed)
+                note(item.id, "line_changed", changed)
+        else:
+            item = build(validated(new_model, row.model_dump(exclude_unset=True, exclude={"id"}), index))
+            db.flush()
+            note(item.id, "line_added", None)
+        kept.append(item)
+    for row_id, item in existing.items():
+        if row_id not in named:
+            note(row_id, "line_removed", None)
+            remove(item)
+    db.flush()
+    return kept
+
+
+def live_rows(db: Session, document, item_model, parent_field: str) -> list:
+    stmt = select(item_model).where(item_model.tenant_id == document.tenant_id,
+                                    getattr(item_model, parent_field) == document.id)
+    if hasattr(item_model, "deleted_at"):
+        stmt = stmt.where(item_model.deleted_at.is_(None))
+    return list(db.scalars(stmt))
+
+
+def rows_revision(db: Session, document, header_read, collections: dict) -> str:
+    """`collections`: {name: (item_model, parent_field, read_model)}."""
+    return aggregate_revision(
+        header_read.model_validate(document).model_dump(mode="json", by_alias=True),
+        **{name: [read.model_validate(row).model_dump(mode="json", by_alias=True)
+                  for row in live_rows(db, document, model, parent_field)]
+           for name, (model, parent_field, read) in collections.items()},
+    )
+
+
+def save_rows(
+    db: Session, actor: Actor, *, document, parent_model, header_read, spec: tuple, payload, build, update, remove,
+    new_model, update_model, validate_only: bool, after=None, audit=None,
+) -> dict:
+    """The body of a lines-only `/save` once the route has applied the
+    document's own gates: lock, revision, diff, the family's after-check,
+    read-back. `spec` = (item_model, parent_field, item_read_model)."""
+    item_model, parent_field, item_read = spec
+    collections = {"items": spec}
+    db.refresh(document, with_for_update=True)
+    require_revision(rows_revision(db, document, header_read, collections), payload.expected_revision)
+    restate_rows(
+        db, actor, parent_model, document.id, payload.items,
+        {row.id: row for row in live_rows(db, document, item_model, parent_field)},
+        build=build, update=update, remove=remove, new_model=new_model, update_model=update_model, audit=audit,
+    )
+    if after is not None:
+        after()
+
+    def read_back() -> dict:
+        rows = live_rows(db, document, item_model, parent_field)
+        rows.sort(key=lambda r: (getattr(r, "line_no", None) or 0, r.created_at))
+        return {"id": document.id, "revision": rows_revision(db, document, header_read, collections),
+                "items": [item_read.model_validate(r).model_dump(by_alias=True) for r in rows]}
+
+    return finish_save(db, validate_only, read_back)
+
+
+def soft_remove(item) -> None:
+    item.deleted_at = datetime.now(timezone.utc)
+
+
+def finish_save(db: Session, validate_only: bool, read_back) -> dict:
+    """Commit and answer with the read-back — or, on a dry run, render the
+    read-back first and roll everything (audit rows included) back."""
+    db.flush()
+    if validate_only:
+        data = read_back()
+        db.rollback()
+        return {"data": jsonable_encoder(data), "meta": {"validate_only": True, "written": False}}
+    db.commit()
+    return {"data": jsonable_encoder(read_back()), "meta": {}}
+
+
 def save_document_lines(db: Session, actor: Actor, parent_model, document_id: str, payload, *, validate_only: bool = False) -> dict:
     """Restate a document's lines (and adjustments) in one transaction.
 
@@ -2855,7 +3024,9 @@ def save_document_lines(db: Session, actor: Actor, parent_model, document_id: st
     for row in payload.items:
         if row.id:
             item = existing[row.id]
-            changed = _line_diff(item, {f: getattr(row, f) for f in line_fields})
+            # only what the row states: a client that does not repeat a field does
+            # not erase it (one rule for every /save — see restate_rows)
+            changed = _line_diff(item, {f: getattr(row, f) for f in line_fields if f in row.model_fields_set})
             if changed:
                 apply_item_updates(db, actor, item_model, item, changed)
             kept.append(item)

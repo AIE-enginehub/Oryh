@@ -156,3 +156,18 @@ stay attached.
 ## When the decision happened
 
 {{include:_common/when-the-decision-happened.md}}
+
+## Restating The Whole Document
+
+```text
+GET  /expense-claims/{id}/detail                                              → revision (a hash of the header and the live lines)
+POST /expense-claims/{id}/save?validate_only=true                → the same run, nothing written
+POST /expense-claims/{id}/save
+{"expected_revision": "<detail.revision>", "title"?: "...", "claim_date"?: "...",
+ "items": [{"id": "<existing item>", "amount": 120}, {"expense_date": "2026-09-03", "category": "lodging", "amount": 300}]}
+```
+
+A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
+and changes only in the fields it states; a row without an id is added
+through the create rules; a live line not listed is removed. A stale
+`expected_revision` is a 409 — read again, restate. Header fields stated are set with the items in the same transaction; only while the claim is editable.

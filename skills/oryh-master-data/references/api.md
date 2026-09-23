@@ -486,3 +486,17 @@ PATCH  /territory-members/{id}        DELETE /territory-members/{id}
 Customers carry `geo_id`, `territory_id`, `owner_employee_id`, `payment_terms`
 (`?geo_id=`, `?territory_id=`, `?owner_employee_id=` on the list); leads
 carry `geo_id`. All of it is `master_data.manage`; everyone reads.
+
+## Restating The Whole Document
+
+```text
+GET  /bills-of-materials/{id}                                                 → revision (a hash of the header and the live lines)
+POST /bills-of-materials/{id}/save?validate_only=true                → the same run, nothing written
+POST /bills-of-materials/{id}/save
+{"expected_revision": "<bom.revision>", "items": [{"id": "<existing line>", "quantity": 4}, {"component_product_id": "...", "quantity": 1}]}
+```
+
+A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
+and changes only in the fields it states; a row without an id is added
+through the create rules; a live line not listed is removed. A stale
+`expected_revision` is a 409 — read again, restate. Only while the recipe is draft.

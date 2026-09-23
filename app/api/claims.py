@@ -27,6 +27,7 @@ from sqlalchemy import String, cast, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.visibility import is_visible
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -56,6 +57,11 @@ from app.api.common import (
     restore_document,
     serve_document_attachment,
     submit_document,
+    aggregate_revision,
+    finish_save,
+    require_revision,
+    restate_rows,
+    soft_remove,
 )
 # billing.py reads only `common`, so claims -> billing is acyclic. These two
 # are the invoice family's own arithmetic (a declared header total wins over
@@ -105,6 +111,8 @@ from app.schemas import (
     UpdateTimesheetEntryRequest,
     UpdateTimesheetHeaderRequest,
     SaveTimesheetDocumentRequest,
+    SaveExpenseClaimRequest,
+    ExpenseItemBase,
 )
 from app.services.type_options import require_type_option
 from app.services.state_machines import validate_status_filter
@@ -929,6 +937,7 @@ def get_expense_claim_detail(
         invoices=claim_invoices,
         invoiced_amount=invoiced,
         uninvoiced_amount=round(float(sum(item.amount for item in items)) - invoiced, 2),
+        revision=expense_claim_revision(db, claim),
     )
     return envelope(detail.model_dump(by_alias=True))
 
@@ -1032,6 +1041,98 @@ def build_expense_item(
     return item
 
 
+def apply_expense_item_updates(db: Session, tenant_id: str, item: ExpenseItem, updates: dict) -> None:
+    """The rules a changed expense line goes through — one set for the
+    single-row PATCH and the whole-claim save."""
+    updates = dict(updates)
+    if "category" in updates:
+        require_type_option(db, tenant_id, "expense_category", updates["category"])
+    if "invoice_number" in updates and updates["invoice_number"] != item.invoice_number:
+        ensure_invoice_not_duplicated(db, tenant_id, updates["invoice_number"], exclude_item_id=item.id)
+    if "attachment_id" in updates and updates["attachment_id"]:
+        get_scoped_or_404(db, Attachment, tenant_id, updates["attachment_id"])
+    if "vendor_id" in updates or "merchant" in updates:
+        item.vendor_id, item.merchant = normalize_vendor_context(
+            db, tenant_id, updates.get("vendor_id", item.vendor_id), updates.get("merchant", item.merchant))
+        updates.pop("vendor_id", None)
+        updates.pop("merchant", None)
+    if "project_id" in updates or "project_name_snapshot" in updates:
+        item.project_id, item.project_name_snapshot = normalize_project_context(
+            db, tenant_id, updates.get("project_id", item.project_id),
+            updates.get("project_name_snapshot", item.project_name_snapshot))
+        updates.pop("project_id", None)
+        updates.pop("project_name_snapshot", None)
+    if "extracted_fields" in updates:
+        item.extracted_fields_jsonb = updates.pop("extracted_fields")
+    if "custom_fields" in updates:
+        item.custom_fields_jsonb = updates.pop("custom_fields")
+    for field, value in updates.items():
+        setattr(item, field, value)
+
+
+def _live_expense_items(db: Session, tenant_id: str, claim_id: str) -> list[ExpenseItem]:
+    return list(db.scalars(select(ExpenseItem).where(
+        ExpenseItem.tenant_id == tenant_id, ExpenseItem.claim_id == claim_id, ExpenseItem.deleted_at.is_(None))))
+
+
+def expense_claim_revision(db: Session, claim: ExpenseClaim) -> str:
+    return aggregate_revision(
+        ExpenseClaimRead.model_validate(claim).model_dump(mode="json", by_alias=True),
+        items=[ExpenseItemRead.model_validate(row).model_dump(mode="json", by_alias=True)
+               for row in _live_expense_items(db, claim.tenant_id, claim.id)],
+    )
+
+
+@router.post("/expense-claims/{claim_id}/save")
+def save_expense_claim(
+    claim_id: str,
+    payload: SaveExpenseClaimRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """The whole claim in one act: the header fields stated, and the items
+    restated as a diff — ids kept are changed in the fields the row states,
+    rows without an id are added, live items not listed are removed. Guarded
+    by the detail's `revision` (409 when stale), the claim's editable states
+    and the own-employee rule; `?validate_only=true` runs everything and
+    writes nothing."""
+    tenant_id = actor.tenant_id
+    require_permission(actor, "expense.submit_own")
+    claim = db.scalar(select(ExpenseClaim).where(ExpenseClaim.tenant_id == tenant_id, ExpenseClaim.id == claim_id)
+                      .with_for_update().execution_options(populate_existing=True))
+    if claim is None or claim.deleted_at is not None or not is_visible(db, claim):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ExpenseClaim not found")
+    enforce_member_employee(actor, claim.employee_id)
+    ensure_document_editable(db, claim)
+    require_revision(expense_claim_revision(db, claim), payload.expected_revision)
+    header = payload.model_dump(exclude_unset=True, exclude={"expected_revision", "items"})
+    if "custom_fields" in header:
+        claim.custom_fields_jsonb = header.pop("custom_fields")
+    for field_name, value in header.items():
+        setattr(claim, field_name, value)
+    restate_rows(
+        db, actor, ExpenseClaim, claim.id, payload.items,
+        {row.id: row for row in _live_expense_items(db, tenant_id, claim.id)},
+        build=lambda row: build_expense_item(db, actor, row, claim=claim),
+        update=lambda item, changed: apply_expense_item_updates(db, tenant_id, item, changed),
+        remove=soft_remove, new_model=ExpenseItemBase, update_model=UpdateExpenseItemRequest,
+    )
+
+    def read_back() -> dict:
+        db.refresh(claim)
+        items = _live_expense_items(db, tenant_id, claim.id)
+        return {
+            "claim": ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True),
+            "items": [ExpenseItemRead.model_validate(row).model_dump(by_alias=True)
+                      for row in sorted(items, key=lambda r: (r.expense_date, r.created_at))],
+            "total_amount": round(sum(float(row.amount or 0) for row in items), 2),
+            "revision": expense_claim_revision(db, claim),
+        }
+
+    return finish_save(db, validate_only, read_back)
+
+
 @router.post("/expense-items", status_code=status.HTTP_201_CREATED)
 def create_expense_item(
     payload: CreateExpenseItemRequest,
@@ -1076,41 +1177,7 @@ def update_expense_item(
     claim = get_active_document_or_404(db, ExpenseClaim, tenant_id, item.claim_id)
     ensure_document_editable(db, claim)
     enforce_member_employee(actor, claim.employee_id)
-    updates = payload.model_dump(exclude_unset=True)
-    if "category" in updates:
-        require_type_option(db, tenant_id, "expense_category", updates["category"])
-    if "invoice_number" in updates and updates["invoice_number"] != item.invoice_number:
-        ensure_invoice_not_duplicated(db, tenant_id, updates["invoice_number"], exclude_item_id=item.id)
-    if "attachment_id" in updates and updates["attachment_id"]:
-        get_scoped_or_404(db, Attachment, tenant_id, updates["attachment_id"])
-    if "vendor_id" in updates or "merchant" in updates:
-        vendor_id, merchant = normalize_vendor_context(
-            db,
-            tenant_id,
-            updates.get("vendor_id", item.vendor_id),
-            updates.get("merchant", item.merchant),
-        )
-        item.vendor_id = vendor_id
-        item.merchant = merchant
-        updates.pop("vendor_id", None)
-        updates.pop("merchant", None)
-    if "project_id" in updates or "project_name_snapshot" in updates:
-        project_id, project_name_snapshot = normalize_project_context(
-            db,
-            tenant_id,
-            updates.get("project_id", item.project_id),
-            updates.get("project_name_snapshot", item.project_name_snapshot),
-        )
-        item.project_id = project_id
-        item.project_name_snapshot = project_name_snapshot
-        updates.pop("project_id", None)
-        updates.pop("project_name_snapshot", None)
-    if "extracted_fields" in updates:
-        item.extracted_fields_jsonb = updates.pop("extracted_fields")
-    if "custom_fields" in updates:
-        item.custom_fields_jsonb = updates.pop("custom_fields")
-    for field, value in updates.items():
-        setattr(item, field, value)
+    apply_expense_item_updates(db, tenant_id, item, payload.model_dump(exclude_unset=True))
     record_line_audit(
         db, actor, ExpenseClaim, item.claim_id, item.id, "line_changed",
         changed=payload.model_dump(exclude_unset=True),

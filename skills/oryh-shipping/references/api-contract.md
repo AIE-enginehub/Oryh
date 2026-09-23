@@ -889,6 +889,31 @@ Restore Picklist
 |---|---|---|---|---|
 | `picklist_id` | path | string | yes |  |
 
+## POST /picklists/{picklist_id}/save
+
+Save Picklist Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `picklist_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `inventory_item_id` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `picked_quantity` | number | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sku_id` | string | optional |  |
+
 ## POST /purchase-orders
 
 Create Purchase Order
@@ -1398,6 +1423,30 @@ Restore Shipment
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `shipment_id` | path | string | yes |  |
+
+## POST /shipments/{shipment_id}/save
+
+Save Shipment Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `shipment_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `inventory_item_id` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sku_id` | string | optional |  |
 
 ## POST /stores
 

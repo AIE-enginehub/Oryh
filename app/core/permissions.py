@@ -49,9 +49,9 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "核销",
         "把款项勾对到发票或报销单（含冲正）——与 payment.record 分开，出纳记账与会计核销可分职",
     ),
-    # Payroll is the one thing in this system that must not be readable by every
-    # credential in the workspace, so it gets a READ capability — the first one.
-    # Everything else is tenant-scoped only.
+    # Payroll must not be readable by every credential in the workspace, so it
+    # got a READ capability — the first one. Personal documents followed
+    # (`*.read_all`, below); shared business data stays tenant-scoped.
     (
         "payroll.read",
         False,
@@ -110,6 +110,18 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "记录流程代理运行",
         "写入流程推进代理的运行台账（开始/结束/推进结果）——代理为自己的工作留痕，不推进任何单据",
     ),
+    # Reading a person's documents. Everyone reads their own and whatever was
+    # routed to them; reading EVERYONE'S is a grant (app/api/visibility.py).
+    # The family's `advance` and the desks downstream of it imply it — nobody
+    # approves, ships or pays blind — so these exist for the role that only
+    # looks: HR reading leave, a sales director reading the pipeline.
+    ("timesheet.read_all", False, "查看全部工时", "查看所有人的工时表；没有此权限只看得到自己的，以及转到自己手上审批的"),
+    ("leave.read_all", False, "查看全部请假", "查看所有人的请假单；没有此权限只看得到自己的，以及转到自己手上审批的"),
+    ("expense.read_all", False, "查看全部报销", "查看所有人的报销单与票据；没有此权限只看得到自己的，以及转到自己手上审批的"),
+    ("purchase.read_all", False, "查看全部采购申请", "查看所有人的采购申请；没有此权限只看得到自己的，以及转到自己手上审批的"),
+    ("quotation.read_all", False, "查看全部报价", "查看所有销售的报价单；没有此权限只看得到自己的，以及转到自己手上审批的"),
+    ("order.read_all", False, "查看全部销售订单", "查看所有销售的订单与退单；没有此权限只看得到自己的，以及转到自己手上的"),
+    ("crm.read_all", False, "查看全部线索与商机", "查看所有人的线索、商机与跟进记录；没有此权限只看得到自己的"),
     ("todos.assign", False, "为他人创建待办", "创建指派给任何员工的待办"),
     (
         "notification.send",
@@ -252,6 +264,13 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "business_object.summarize": ("Summarise business objects", "Scoped by object type; gates the distribution of summary skills (a manager summarising daily reports); reading business objects is not gated by it"),
     "approval.record": ("Record approval facts", "Write approval records (approved / rejected / returned / commented)"),
     "flow_run.record": ("Record flow-agent runs", "Write the flow agent's own run ledger (start, end, outcome): the agent's trail of its own work; advances no document"),
+    "timesheet.read_all": ("Read all timesheets", "Read everyone's timesheets; without it a person reads their own and those routed to them"),
+    "leave.read_all": ("Read all leave", "Read everyone's leave requests; without it a person reads their own and those routed to them"),
+    "expense.read_all": ("Read all expense claims", "Read everyone's expense claims and receipts; without it a person reads their own and those routed to them"),
+    "purchase.read_all": ("Read all purchase requests", "Read everyone's purchase requests; without it a person reads their own and those routed to them"),
+    "quotation.read_all": ("Read all quotations", "Read every salesperson's quotations; without it a person reads their own and those routed to them"),
+    "order.read_all": ("Read all sales orders", "Read every salesperson's orders and returns; without it a person reads their own and those routed to them"),
+    "crm.read_all": ("Read all leads and deals", "Read everyone's leads, opportunities and contact records; without it a person reads their own"),
     "todos.assign": ("Create todos for others", "Create todos assigned to any employee"),
     "notification.send": ("Send work notifications", "Email the employee concerned about assignments, returns and decisions; the address is resolved from the employee record, never chosen by the caller; no arbitrary content to arbitrary addresses"),
     "todos.complete_own": ("Complete own todos", "Complete todos assigned to oneself"),

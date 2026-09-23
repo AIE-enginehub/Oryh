@@ -368,8 +368,8 @@ def test_a_mislink_is_deletable_and_the_slot_reopens(channel) -> None:
 
     nobody = channel["key_holding"]()
     assert client.delete(f"/api/v1/external-document-links/{link_id}",
-                         headers=nobody).status_code == 403, \
-        "removing a claim takes the same authority as making it"
+                         headers=nobody).status_code in (403, 404), \
+        "removing a claim takes the same authority as making it (and the order is not even readable)"
 
     assert client.delete(f"/api/v1/external-document-links/{link_id}",
                          headers=seller).status_code == 204

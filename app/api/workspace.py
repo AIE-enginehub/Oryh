@@ -688,6 +688,12 @@ def _require_audited_record_visible(db: Session, caller: Actor, entity_type: str
     the record, so the id confirms nothing."""
     if entity_id is None or entity_type is None:
         return
+    from app.api.visibility import entity_visible
+
+    # a colleague's timesheet, claim, order or deal: its trail carries the same
+    # fields the record does (app/api/visibility.py)
+    if not entity_visible(db, entity_type, entity_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
     from app.api.billing import ensure_invoice_visible, ensure_payment_visible
     from app.models import Invoice, InvoiceItem, Payment
 

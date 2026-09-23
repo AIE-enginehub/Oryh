@@ -83,11 +83,11 @@ def test_a_lead_walks_its_machine_and_stays_its_owners(pipeline) -> None:
 
     stolen = client.patch(f"/api/v1/leads/{lead['id']}", headers=li["key"],
                           json={"remarks": "我的了"})
-    assert stolen.status_code == 403, "my pipeline is mine to work"
-    everyone = client.get("/api/v1/leads", headers=li["key"],
-                          params={"employee_id": zhang["employee_id"]})
-    assert everyone.status_code == 200 and len(everyone.json()["data"]) == 1, \
-        "…and everyone's to read"
+    assert stolen.status_code == 404, "my pipeline is mine to work — and mine to read"
+    colleague = client.get("/api/v1/leads", headers=li["key"],
+                           params={"employee_id": zhang["employee_id"]})
+    assert colleague.status_code == 200 and colleague.json()["data"] == [], \
+        "a colleague's pipeline is read with crm.read_all, not by belonging to the workspace"
 
 
 def test_the_bridge_converts_in_one_transaction(pipeline) -> None:

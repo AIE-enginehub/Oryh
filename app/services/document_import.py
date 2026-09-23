@@ -33,6 +33,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
+from app.core.line_math import derive_line_amount
 from app.models import (
     Customer,
     Employee,
@@ -446,6 +449,14 @@ def bulk_import_documents(
                     "a payment names exactly one counterparty: customer_code, vendor_code "
                     "or payee_employee_code"
                 )
+        # a line whose arithmetic is wrong (amount ≠ quantity × price) is this
+        # row's error, found here before anything is written
+        for line_index, line in enumerate(getattr(row, "items", None) or []):
+            try:
+                derive_line_amount(line.quantity, line.unit_price, line.amount,
+                                   is_gift=bool(getattr(line, "is_gift", False)), label=f"items[{line_index}].amount")
+            except HTTPException as exc:
+                missing.append(str(exc.detail))
         if missing:
             results.append({
                 "index": index, "number": number, "outcome": "error",
@@ -603,6 +614,10 @@ def _replace_children(
         resolved, _ = _resolve_line(line, refs, on_missing_reference)
         values.update(resolved)
         values["custom_fields_jsonb"] = line.custom_fields
+        # the same arithmetic every other line write does (app/core/line_math.py)
+        values["amount"] = derive_line_amount(
+            values.get("quantity"), values.get("unit_price"), values.get("amount"),
+            is_gift=bool(values.get("is_gift")), label=f"items[{len(incoming_items)}].amount")
         incoming_items.append(values)
 
     incoming_adjustments = [

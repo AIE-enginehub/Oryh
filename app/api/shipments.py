@@ -52,6 +52,9 @@ from app.api.common import (
     require_active_row,
     require_machine_state,
     restore_document,
+    rows_revision,
+    save_rows,
+    soft_remove,
 )
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
@@ -93,6 +96,10 @@ from app.schemas import (
     UpdatePicklistRequest,
     UpdateShipmentItemRequest,
     UpdateShipmentRequest,
+    SavePicklistLinesRequest,
+    SaveShipmentLinesRequest,
+    SavedLinesEnvelope,
+    PicklistItemBase,
 )
 from app.services.inventory_import import post_inventory_detail
 from app.services.state_machines import validate_status_filter
@@ -336,7 +343,64 @@ def _with_items(db: Session, document, read_model, item_model, parent_column, it
         item_read_model.model_validate(item).model_dump(by_alias=True)
         for item in _live_lines(db, document, item_model, parent_column)
     ]
+    # what `POST …/save` takes as expected_revision
+    data["revision"] = rows_revision(db, document, read_model, {"items": (item_model, parent_column.key, item_read_model)})
     return data
+
+
+def _save_warehouse_lines(db, actor, *, document, parent_model, header_read, spec, payload, build, validate_only):
+    tenant_id = actor.tenant_id
+
+    def update(item, changed: dict) -> None:
+        _require_line_position(
+            db, tenant_id, item.product_id,
+            changed.get("sku_id", item.sku_id), changed.get("inventory_item_id", item.inventory_item_id),
+        )
+        for field_name, value in changed.items():
+            setattr(item, field_name, value)
+
+    return save_rows(
+        db, actor, document=document, parent_model=parent_model, header_read=header_read, spec=spec[:3], payload=payload,
+        build=build, update=update, remove=soft_remove, new_model=spec[4], update_model=spec[3], validate_only=validate_only,
+    )
+
+
+@router.post("/picklists/{picklist_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_picklist_lines(
+    picklist_id: str,
+    payload: SavePicklistLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """A picking run's lines restated in one act — while the run is still
+    editable, under its `revision`."""
+    require_permission(actor, "inventory.manage")
+    picklist = get_active_document_or_404(db, Picklist, actor.tenant_id, picklist_id)
+    ensure_document_editable(db, picklist)
+    return _save_warehouse_lines(
+        db, actor, document=picklist, parent_model=Picklist, header_read=PicklistRead,
+        spec=(PicklistItem, "picklist_id", PicklistItemRead, UpdatePicklistItemRequest, PicklistItemBase), payload=payload,
+        build=lambda row: build_picklist_line(db, actor.tenant_id, picklist, row), validate_only=validate_only)
+
+
+@router.post("/shipments/{shipment_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_shipment_lines(
+    shipment_id: str,
+    payload: SaveShipmentLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """A freight leg's lines restated in one act — before it is posted to
+    stock (a posted shipment is not editable), under its `revision`."""
+    require_permission(actor, "shipment.manage")
+    shipment = get_active_document_or_404(db, Shipment, actor.tenant_id, shipment_id)
+    ensure_document_editable(db, shipment)
+    return _save_warehouse_lines(
+        db, actor, document=shipment, parent_model=Shipment, header_read=ShipmentRead,
+        spec=(ShipmentItem, "shipment_id", ShipmentItemRead, UpdateShipmentItemRequest, ShipmentItemBase), payload=payload,
+        build=lambda row: build_shipment_line(db, actor.tenant_id, shipment, row), validate_only=validate_only)
 
 
 @router.get("/picklists/{picklist_id}")

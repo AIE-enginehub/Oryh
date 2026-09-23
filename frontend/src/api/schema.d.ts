@@ -1215,6 +1215,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bills-of-materials/{bom_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Bom Lines
+         * @description A draft recipe's components restated in one act, as a diff under the
+         *     recipe's `revision` — the contract of every `/save`.
+         */
+        post: operations["save_bom_lines_api_v1_bills_of_materials__bom_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bom-items": {
         parameters: {
             query?: never;
@@ -1917,6 +1938,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/contracts/{contract_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Contract Lines
+         * @description What was agreed — the contract's lines — restated in one act, as a
+         *     diff under the contract's `revision`. Documents and located terms keep
+         *     their own routes: a scan is uploaded once, not restated.
+         */
+        post: operations["save_contract_lines_api_v1_contracts__contract_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customer-contacts": {
         parameters: {
             query?: never;
@@ -2534,6 +2577,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/expense-claims/{claim_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Expense Claim
+         * @description The whole claim in one act: the header fields stated, and the items
+         *     restated as a diff — ids kept are changed in the fields the row states,
+         *     rows without an id are added, live items not listed are removed. Guarded
+         *     by the detail's `revision` (409 when stale), the claim's editable states
+         *     and the own-employee rule; `?validate_only=true` runs everything and
+         *     writes nothing.
+         */
+        post: operations["save_expense_claim_api_v1_expense_claims__claim_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/expense-claims/{claim_id}/submit": {
         parameters: {
             query?: never;
@@ -2636,6 +2704,42 @@ export interface paths {
         put?: never;
         /** Create External Product Map */
         post: operations["create_external_product_map_api_v1_external_product_maps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/external-product-maps/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve External Products
+         * @description Translate a whole import's listings in ONE call. A READ — POST only
+         *     because five hundred titles do not fit a query string; it writes
+         *     nothing, and confirming a pairing is still `POST /external-product-maps`
+         *     after a person says so.
+         *
+         *     An order file names a hundred listings, and the translation query
+         *     answers one: the agent made a hundred calls, each a turn, and for every
+         *     title nobody had mapped yet `/product-matches` loaded and compared the
+         *     whole catalog again. Here the map is read with one indexed query, and
+         *     with `with_candidates` the catalog is loaded and indexed once for every
+         *     unmapped title together.
+         *
+         *     Each listing is answered exactly as `GET /external-product-maps` with
+         *     `at` would answer it: live rows whose window covers the date (the
+         *     listing's own `at`, else the request's; no date = no window test), an
+         *     id AND a title matching id-keyed rows or title-keyed ones. `data[i]`
+         *     answers `listings[i]`.
+         */
+        post: operations["resolve_external_products_api_v1_external_product_maps_resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3283,6 +3387,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invoices/{invoice_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Invoice Lines
+         * @description An invoice's lines restated in one act, as a diff under the detail's
+         *     `revision` — the contract of every `/save`. The line gate is the
+         *     single-row paths' (live, editable, within the direction scope), a payslip
+         *     stays behind the payroll read gate, and the charged-document check runs
+         *     once over the result.
+         */
+        post: operations["save_invoice_lines_api_v1_invoices__invoice_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invoices/{invoice_id}/submit": {
         parameters: {
             query?: never;
@@ -3648,6 +3776,27 @@ export interface paths {
         put?: never;
         /** Restore Opportunity */
         post: operations["restore_opportunity_api_v1_opportunities__opportunity_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opportunities/{opportunity_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Opportunity Lines
+         * @description What the deal is for — its lines — restated in one act by the deal's
+         *     owner, as a diff under the detail's `revision`.
+         */
+        post: operations["save_opportunity_lines_api_v1_opportunities__opportunity_id__save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4069,6 +4218,27 @@ export interface paths {
         put?: never;
         /** Restore Picklist */
         post: operations["restore_picklist_api_v1_picklists__picklist_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/picklists/{picklist_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Picklist Lines
+         * @description A picking run's lines restated in one act — while the run is still
+         *     editable, under its `revision`.
+         */
+        post: operations["save_picklist_lines_api_v1_picklists__picklist_id__save_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5888,6 +6058,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shipments/{shipment_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Shipment Lines
+         * @description A freight leg's lines restated in one act — before it is posted to
+         *     stock (a posted shipment is not editable), under its `revision`.
+         */
+        post: operations["save_shipment_lines_api_v1_shipments__shipment_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/skills": {
         parameters: {
             query?: never;
@@ -7133,6 +7324,8 @@ export interface components {
             product_name?: string | null;
             /** Remarks */
             remarks?: string | null;
+            /** Revision */
+            revision?: string | null;
             /**
              * Status
              * @enum {string}
@@ -8966,6 +9159,8 @@ export interface components {
             parent_contract_id?: string | null;
             /** Remarks */
             remarks?: string | null;
+            /** Revision */
+            revision?: string | null;
             /** Side */
             side: string;
             /** Signed At */
@@ -12811,6 +13006,8 @@ export interface components {
             invoices: components["schemas"]["ClaimInvoiceRead"][];
             /** Items */
             items: components["schemas"]["ExpenseItemDetailRead"][];
+            /** Revision */
+            revision?: string | null;
             /** Total Amount */
             total_amount: number;
             /** Total Tax Amount */
@@ -13687,6 +13884,8 @@ export interface components {
             order_match?: components["schemas"]["InvoiceOrderMatchRead"] | null;
             /** Outstanding Amount */
             outstanding_amount: number;
+            /** Revision */
+            revision?: string | null;
         };
         /** InvoiceItemBase */
         InvoiceItemBase: {
@@ -14818,6 +15017,8 @@ export interface components {
             orders: components["schemas"]["SalesOrderRead"][];
             /** Quotations */
             quotations: components["schemas"]["SalesQuotationRead"][];
+            /** Revision */
+            revision?: string | null;
         };
         /** OpportunityItemRead */
         OpportunityItemRead: {
@@ -16401,6 +16602,44 @@ export interface components {
             /** Lines */
             lines: components["schemas"]["ReserveStockLine"][];
         };
+        /**
+         * ResolveExternalListing
+         * @description One platform listing as an order export names it: by id, by title,
+         *     or both (an id-keyed export is also answered by the title-keyed rows a
+         *     desk confirmed before anyone recorded the id).
+         */
+        ResolveExternalListing: {
+            /** At */
+            at?: string | null;
+            /** External Name */
+            external_name?: string | null;
+            /**
+             * External Product Id
+             * @default
+             */
+            external_product_id: string;
+            /** External Sku Id */
+            external_sku_id?: string | null;
+        };
+        /** ResolveExternalProductsRequest */
+        ResolveExternalProductsRequest: {
+            /** At */
+            at?: string | null;
+            /**
+             * Candidate Limit
+             * @default 5
+             */
+            candidate_limit: number;
+            /** Listings */
+            listings: components["schemas"]["ResolveExternalListing"][];
+            /** Source */
+            source: string;
+            /**
+             * With Candidates
+             * @default false
+             */
+            with_candidates: boolean;
+        };
         /** ResourceBookingRead */
         ResourceBookingRead: {
             /** Booked By Employee Id */
@@ -17202,6 +17441,258 @@ export interface components {
             /** Source Percentage */
             source_percentage?: number | null;
         };
+        /** SaveBomItemRow */
+        SaveBomItemRow: {
+            /** Component Product Id */
+            component_product_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Scrap Rate */
+            scrap_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** SaveBomLinesRequest */
+        SaveBomLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveBomItemRow"][];
+        };
+        /** SaveContractItemRow */
+        SaveContractItemRow: {
+            /** Currency */
+            currency?: string | null;
+            /** Delivery Note */
+            delivery_note?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SaveContractLinesRequest */
+        SaveContractLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveContractItemRow"][];
+        };
+        /**
+         * SaveExpenseClaimRequest
+         * @description `POST /expense-claims/{id}/save`: header fields stated are set, `items`
+         *     is the claim's whole item list restated.
+         */
+        SaveExpenseClaimRequest: {
+            /** Claim Date */
+            claim_date?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveExpenseItemRow"][];
+            /** Source Report Text */
+            source_report_text?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** SaveExpenseItemRow */
+        SaveExpenseItemRow: {
+            /** Amount */
+            amount?: number | null;
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Claim Id */
+            claim_id?: string | null;
+            /** Client */
+            client?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Expense Date */
+            expense_date?: string | null;
+            /** Extracted Fields */
+            extracted_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Invoice Number */
+            invoice_number?: string | null;
+            /** Invoice Type */
+            invoice_type?: ("vat_special" | "vat_general" | "vat_electronic" | "receipt" | "other") | null;
+            /** Merchant */
+            merchant?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Project Name Snapshot */
+            project_name_snapshot?: string | null;
+            /** Tax Amount */
+            tax_amount?: number | null;
+            /** Vendor Id */
+            vendor_id?: string | null;
+        };
+        /** SaveInvoiceItemRow */
+        SaveInvoiceItemRow: {
+            /** Amount */
+            amount?: number | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Invoice Id */
+            invoice_id?: string | null;
+            /** Invoice Item Type */
+            invoice_item_type?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Pay History Id */
+            pay_history_id?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Purchase Order Item Id */
+            purchase_order_item_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sales Order Item Id */
+            sales_order_item_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Tax Amount */
+            tax_amount?: number | null;
+            /** Tax Rate */
+            tax_rate?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SaveInvoiceLinesRequest */
+        SaveInvoiceLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveInvoiceItemRow"][];
+        };
+        /** SaveOpportunityItemRow */
+        SaveOpportunityItemRow: {
+            /** Amount */
+            amount?: number | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name Snapshot */
+            product_name_snapshot?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** SaveOpportunityLinesRequest */
+        SaveOpportunityLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveOpportunityItemRow"][];
+        };
+        /** SavePicklistItemRow */
+        SavePicklistItemRow: {
+            /** Description */
+            description?: string | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Picked Quantity */
+            picked_quantity?: number | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** SavePicklistLinesRequest */
+        SavePicklistLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SavePicklistItemRow"][];
+        };
         /** SavePurchaseOrderItem */
         SavePurchaseOrderItem: {
             /** Amount */
@@ -17395,6 +17886,33 @@ export interface components {
             expected_revision: string;
             /** Items */
             items: components["schemas"]["SaveSalesQuotationItem"][];
+        };
+        /** SaveShipmentItemRow */
+        SaveShipmentItemRow: {
+            /** Description */
+            description?: string | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Inventory Item Id */
+            inventory_item_id?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** SaveShipmentLinesRequest */
+        SaveShipmentLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveShipmentItemRow"][];
         };
         /** SaveTimesheetDocumentEntry */
         SaveTimesheetDocumentEntry: {
@@ -23458,6 +23976,52 @@ export interface operations {
             };
         };
     };
+    save_bom_lines_api_v1_bills_of_materials__bom_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                bom_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBomLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_bom_items_api_v1_bom_items_get: {
         parameters: {
             query?: {
@@ -26080,6 +26644,52 @@ export interface operations {
             };
         };
     };
+    save_contract_lines_api_v1_contracts__contract_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                contract_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveContractLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_customer_contacts_api_v1_customer_contacts_get: {
         parameters: {
             query?: {
@@ -28371,6 +28981,52 @@ export interface operations {
             };
         };
     };
+    save_expense_claim_api_v1_expense_claims__claim_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                claim_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveExpenseClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_expense_claim_api_v1_expense_claims__claim_id__submit_post: {
         parameters: {
             query?: never;
@@ -28883,6 +29539,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ExternalProductMapRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_external_products_api_v1_external_product_maps_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveExternalProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -31160,6 +31858,52 @@ export interface operations {
             };
         };
     };
+    save_invoice_lines_api_v1_invoices__invoice_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                invoice_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveInvoiceLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_invoice_api_v1_invoices__invoice_id__submit_post: {
         parameters: {
             query?: never;
@@ -32217,6 +32961,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_opportunity_lines_api_v1_opportunities__opportunity_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveOpportunityLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
                 };
             };
             /** @description Validation Error */
@@ -33782,6 +34572,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_picklist_lines_api_v1_picklists__picklist_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                picklist_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePicklistLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
                 };
             };
             /** @description Validation Error */
@@ -40649,6 +41485,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_shipment_lines_api_v1_shipments__shipment_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveShipmentLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
                 };
             };
             /** @description Validation Error */

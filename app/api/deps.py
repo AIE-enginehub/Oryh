@@ -211,6 +211,9 @@ def get_actor(
     # through, and stamped from the credential rather than from anything the
     # caller said about itself.
     db.info["audit_actor"] = actor.label
+    # Read visibility (app/api/visibility.py) is applied where rows are
+    # fetched, not where routes are declared; this is how it knows for whom.
+    db.info["actor"] = actor
     return actor
 
 

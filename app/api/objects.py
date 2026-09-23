@@ -52,7 +52,7 @@ from app.api.common import (
     retire_open_work_if_finished,
     visible_payroll_filter,
 )
-from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
+from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, has_permission, require_permission
 from app.core.entity_types import (
     APPROVAL_ENTITY_TYPES,
     DECIDED_APPROVAL_ACTIONS,
@@ -2298,6 +2298,53 @@ def create_todo(
     return envelope(TodoRead.model_validate(todo).model_dump(by_alias=True))
 
 
+def ensure_step_undecided(db: Session, tenant_id: str, payload: CreateTodoRequest) -> None:
+    """A todo for an approval step that is already decided is refused.
+
+    A flow agent works the queue `status=submitted&without_open_todo=true`.
+    The moment an approver records their decision and completes their todo,
+    the document is back in that queue — still `submitted`, no open todo —
+    until the agent advances it. An agent that assigns before it reads the
+    trail re-issues the same step (round 1 / seq 2) to the same four people,
+    and "my todos" shows work that was finished ten minutes ago. Seen live
+    on 2026-09-22 with a hosted runner.
+
+    The trail is the fact; the skill tells the agent to read it, and this is
+    the server taking the guard rather than trusting that it did — the todo
+    analogue of `ensure_node_undecided`. Only a todo that names a step
+    (`metadata.round_no` + `metadata.sequence_no`) is judged; a todo without
+    step metadata is a plain piece of work and passes. The 409 names the
+    decision that stands, so the agent's next move is to advance the
+    document, not to retry the assignment.
+    """
+    metadata = payload.metadata or {}
+    round_no, sequence_no = metadata.get("round_no"), metadata.get("sequence_no")
+    if round_no is None or sequence_no is None or payload.status == "completed" or payload.todo_type == "rework":
+        # a rework todo is the submitter's, handed out BECAUSE the step was
+        # decided (returned) — it may carry the step it answers
+        return
+    decided = db.scalar(
+        select(ApprovalRecord).where(
+            ApprovalRecord.tenant_id == tenant_id,
+            ApprovalRecord.entity_type == payload.entity_type,
+            ApprovalRecord.entity_id == payload.entity_id,
+            ApprovalRecord.round_no == round_no,
+            ApprovalRecord.sequence_no == sequence_no,
+            ApprovalRecord.action.in_(DECIDED_APPROVAL_ACTIONS),
+        ).order_by(ApprovalRecord.acted_at.desc())
+    )
+    if decided is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"round {round_no} / sequence {sequence_no} of this {payload.entity_type} is already decided: "
+                f"{decided.action} by {decided.approver_role or decided.approver_id} at "
+                f"{decided.acted_at.isoformat() if decided.acted_at else '?'} (record {decided.id}) — "
+                "advance the document or route the next step; do not re-issue a decided one"
+            ),
+        )
+
+
 def assign_todo(db: Session, actor: Actor, payload: CreateTodoRequest) -> tuple[Todo, bool]:
     """One assignment, every guard it has to pass, in one place.
 
@@ -2321,6 +2368,7 @@ def assign_todo(db: Session, actor: Actor, payload: CreateTodoRequest) -> tuple[
             scoped_write_target(db, tenant_id, payload.entity_type, payload.entity_id),
             ignore=("status",),
         )
+    ensure_step_undecided(db, tenant_id, payload)
     existing = db.scalar(
         select(Todo).where(
             Todo.tenant_id == tenant_id,
@@ -2534,9 +2582,16 @@ def update_todo(
     db: Annotated[Session, Depends(get_db)],
 ):
     todo = get_scoped_or_404(db, Todo, actor.tenant_id, todo_id)
-    require_permission(actor, "todos.complete_own")
-    enforce_member_employee(actor, todo.employee_id)
     updates = payload.model_dump(exclude_unset=True)
+    if updates == {"status": "cancelled"} and todo.created_by == actor.label and has_permission(actor, "todos.assign"):
+        # Whoever handed the work out may take it back — the flow agent
+        # withdrawing a todo it minted for a step that turned out to be
+        # decided already (enginehub, 2026-09-22). Cancel only, never
+        # complete: completing is the assignee's word that the work was done.
+        pass
+    else:
+        require_permission(actor, "todos.complete_own")
+        enforce_member_employee(actor, todo.employee_id)
     if "due_at" in updates:
         todo.due_at = updates.pop("due_at")
     if "title" in updates:

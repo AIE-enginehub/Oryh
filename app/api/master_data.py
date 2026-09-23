@@ -27,10 +27,12 @@ import math
 import re
 import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, STATUS, GetResource, ListResource, Param, register
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -51,6 +53,9 @@ from app.api.common import (
     require_master_data_manage,
     serve_document_attachment,
     status_scope,
+    rows_revision,
+    save_rows,
+    soft_remove,
 )
 from app.api.geo import customer_territory
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
@@ -166,6 +171,7 @@ from app.schemas import (
     UpdateCustomerContactRequest,
     UpdateCustomerProductRequest,
     UpdateCustomerRequest,
+    ResolveExternalProductsRequest,
     UpdateExternalProductMapRequest,
     UpdateInventoryItemRequest,
     UpdateProductPriceRequest,
@@ -193,6 +199,9 @@ from app.schemas import (
     VendorEnvelope,
     VendorListEnvelope,
     VendorRead,
+    SaveBomLinesRequest,
+    SavedLinesEnvelope,
+    BomItemBase,
 )
 from app.services.inventory_import import _find_item, bulk_inventory_upsert, post_inventory_detail
 from app.services.state_machines import get_builtin_machine, is_terminal_state
@@ -353,31 +362,6 @@ def product_read_with_skus_flag(db: Session, product: Product) -> dict:
 # --- vendors and customers: the two sides you trade with -------------------
 
 
-@router.get("/vendors", response_model=VendorListEnvelope, response_model_exclude_unset=True)
-def list_vendors(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    tax_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Vendor, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Vendor).where(Vendor.tenant_id == tenant_id),
-        filters={Vendor.tax_id: tax_id, Vendor.status: status_scope(status_filter)},
-        keyword=keyword,
-        keyword_columns=(Vendor.name,),
-        order_by=(Vendor.created_at.desc(), Vendor.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=VendorRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/vendors",
     response_model=VendorEnvelope,
@@ -405,16 +389,6 @@ def create_vendor(
     db.add(vendor)
     commit_or_code_conflict(db, vendor)
     db.refresh(vendor)
-    return envelope(VendorRead.model_validate(vendor).model_dump(by_alias=True))
-
-
-@router.get("/vendors/{vendor_id}", response_model=VendorEnvelope, response_model_exclude_unset=True)
-def get_vendor(
-    vendor_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    vendor = get_scoped_or_404(db, Vendor, tenant_id, vendor_id)
     return envelope(VendorRead.model_validate(vendor).model_dump(by_alias=True))
 
 
@@ -448,48 +422,6 @@ def delete_vendor(
     db: Annotated[Session, Depends(get_db)],
 ):
     return archive_row(db, actor, Vendor, vendor_id)
-
-
-@router.get("/customers", response_model=CustomerListEnvelope, response_model_exclude_unset=True)
-def list_customers(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    tax_id: str | None = None,
-    phone: str | None = None,
-    customer_kind: str | None = None,
-    customer_type: str | None = None,
-    geo_id: str | None = None,
-    territory_id: str | None = None,
-    owner_employee_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Customer, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Customer).where(Customer.tenant_id == tenant_id),
-        filters={
-            Customer.tax_id: tax_id,
-            # the retail identity key, as tax_id is the B2B one — "这个手机号
-            # 是不是老客户" is the question a counter agent actually asks
-            Customer.phone: phone,
-            Customer.customer_kind: customer_kind,
-            Customer.customer_type: customer_type,
-            Customer.geo_id: geo_id,
-            Customer.territory_id: territory_id,
-            Customer.owner_employee_id: owner_employee_id,
-            Customer.status: status_scope(status_filter),
-        },
-        keyword=keyword,
-        keyword_columns=(Customer.name,),
-        order_by=(Customer.created_at.desc(), Customer.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=CustomerRead,
-        extra=extra,
-    )
 
 
 @router.post(
@@ -530,16 +462,6 @@ def create_customer(
     db.add(customer)
     commit_or_code_conflict(db, customer)
     db.refresh(customer)
-    return envelope(CustomerRead.model_validate(customer).model_dump(by_alias=True))
-
-
-@router.get("/customers/{customer_id}", response_model=CustomerEnvelope, response_model_exclude_unset=True)
-def get_customer(
-    customer_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
     return envelope(CustomerRead.model_validate(customer).model_dump(by_alias=True))
 
 
@@ -630,31 +552,6 @@ def delete_customer(
 # --- stores and facilities: where you sell, and where you ship from ---------
 
 
-@router.get("/facilities", response_model=FacilityListEnvelope, response_model_exclude_unset=True)
-def list_facilities(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    facility_type: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Facility, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Facility).where(Facility.tenant_id == tenant_id),
-        filters={Facility.facility_type: facility_type, Facility.status: status_scope(status_filter)},
-        keyword=keyword,
-        keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
-        order_by=(Facility.name.asc(), Facility.id.asc()),
-        pagination=page_only_pagination(page, size, default=100),
-        sort=order_by,
-        read_model=FacilityRead,
-        extra=extra,
-    )
-
-
 @router.post("/facilities", response_model=FacilityEnvelope, response_model_exclude_unset=True,
              status_code=status.HTTP_201_CREATED)
 def create_facility(
@@ -682,17 +579,6 @@ def create_facility(
                         "stock ledger joins on this name, so two live facilities cannot share it"
                     ))
     db.refresh(facility)
-    return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
-
-
-@router.get("/facilities/{facility_id}", response_model=FacilityEnvelope,
-            response_model_exclude_unset=True)
-def get_facility(
-    facility_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    facility = get_scoped_or_404(db, Facility, tenant_id, facility_id)
     return envelope(FacilityRead.model_validate(facility).model_dump(by_alias=True))
 
 
@@ -770,32 +656,6 @@ def _resolve_store_channel(db: Session, tenant_id: str, fields: dict) -> None:
         fields["sales_channel_id"] = channel.id if channel is not None else None
 
 
-@router.get("/sales-channels", response_model=SalesChannelListEnvelope,
-            response_model_exclude_unset=True)
-def list_sales_channels(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    channel_kind: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SalesChannel, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(SalesChannel).where(SalesChannel.tenant_id == tenant_id),
-        filters={SalesChannel.channel_kind: channel_kind, SalesChannel.status: status_scope(status_filter)},
-        keyword=keyword,
-        keyword_columns=(SalesChannel.channel_code, SalesChannel.name),
-        order_by=(SalesChannel.channel_code.asc(), SalesChannel.id.asc()),
-        pagination=page_only_pagination(page, size, default=100),
-        sort=order_by,
-        read_model=SalesChannelRead,
-        extra=extra,
-    )
-
-
 @router.post("/sales-channels", response_model=SalesChannelEnvelope,
              response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
 def create_sales_channel(
@@ -831,17 +691,6 @@ def create_sales_channel(
     db.add(channel)
     commit_or_conflict(db, f"an active sales channel named {payload.name!r} already exists")
     db.refresh(channel)
-    return envelope(SalesChannelRead.model_validate(channel).model_dump(by_alias=True))
-
-
-@router.get("/sales-channels/{channel_id}", response_model=SalesChannelEnvelope,
-            response_model_exclude_unset=True)
-def get_sales_channel(
-    channel_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    channel = get_scoped_or_404(db, SalesChannel, tenant_id, channel_id)
     return envelope(SalesChannelRead.model_validate(channel).model_dump(by_alias=True))
 
 
@@ -958,31 +807,6 @@ def create_store(
     return envelope(StoreRead.model_validate(store).model_dump(by_alias=True))
 
 
-@router.get("/stores/{store_id}", response_model=StoreEnvelope, response_model_exclude_unset=True)
-def get_store(
-    store_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    store = get_scoped_or_404(db, Store, tenant_id, store_id)
-    data = StoreRead.model_validate(store).model_dump(by_alias=True)
-    # the store's standing answer to "who ships for it", riding the read the
-    # agent already makes — preferred first, unranked trailing
-    links = db.scalars(
-        select(StoreFacility)
-        .where(
-            StoreFacility.tenant_id == tenant_id,
-            StoreFacility.store_id == store.id,
-            StoreFacility.status == "active",
-        )
-        .order_by(StoreFacility.priority.asc().nulls_last(), StoreFacility.created_at.asc())
-    ).all()
-    data["fulfilment_facilities"] = [
-        StoreFacilityRead.model_validate(link).model_dump(by_alias=True) for link in links
-    ]
-    return envelope(data)
-
-
 @router.patch("/stores/{store_id}", response_model=StoreEnvelope, response_model_exclude_unset=True)
 def update_store(
     store_id: str,
@@ -1015,39 +839,6 @@ def delete_store(
     db: Annotated[Session, Depends(get_db)],
 ):
     return archive_row(db, actor, Store, store_id)
-
-
-@router.get("/store-facilities", response_model=StoreFacilityListEnvelope,
-            response_model_exclude_unset=True)
-def list_store_facilities(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    store_id: str | None = None,
-    facility_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(StoreFacility, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(StoreFacility).where(StoreFacility.tenant_id == tenant_id),
-        filters={
-            StoreFacility.store_id: store_id,
-            StoreFacility.facility_id: facility_id,
-            StoreFacility.status: status_scope(status_filter),
-        },
-        # preferred shippers first; unranked trail in arrival order
-        order_by=(
-            StoreFacility.priority.asc().nulls_last(),
-            StoreFacility.created_at.asc(),
-            StoreFacility.id.asc(),
-        ),
-        pagination=page_only_pagination(page, size, default=100),
-        sort=order_by,
-        read_model=StoreFacilityRead,
-        extra=extra,
-    )
 
 
 @router.post("/store-facilities", response_model=StoreFacilityEnvelope,
@@ -1108,34 +899,6 @@ def delete_store_facility(
 
 
 # --- product images: the catalog's pictures, bytes in the attachment store --
-
-
-@router.get("/product-images", response_model=ProductImageListEnvelope,
-            response_model_exclude_unset=True)
-def list_product_images(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    image_type: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ProductImage, ranges=('created_at',), equals=('attachment_id',)))] = None,
-):
-    return list_rows(
-        db, select(ProductImage).where(ProductImage.tenant_id == tenant_id),
-        filters={ProductImage.product_id: product_id, ProductImage.image_type: image_type},
-        # the primary first, then the curated order, then arrival
-        order_by=(
-            ProductImage.is_primary.desc(),
-            ProductImage.sort_order.asc().nulls_last(),
-            ProductImage.created_at.asc(),
-        ),
-        pagination=page_only_pagination(page, size, default=100),
-        sort=order_by,
-        read_model=ProductImageRead,
-        extra=extra,
-    )
 
 
 @router.post("/product-images", response_model=ProductImageEnvelope,
@@ -1328,6 +1091,9 @@ def _require_component(
     return component
 
 
+BOM_ROWS = (BomItem, "bom_id", BomItemRead)
+
+
 def _require_bom_editable(bom: BillOfMaterials) -> None:
     if bom.status != "draft":
         raise HTTPException(
@@ -1347,36 +1113,8 @@ def _bom_read(db: Session, tenant_id: str, bom: BillOfMaterials, *, with_items: 
             BomItemRead.model_validate(line).model_dump(by_alias=True)
             for line in _bom_lines(db, tenant_id, bom.id)
         ]
+        data["revision"] = rows_revision(db, bom, BillOfMaterialsRead, {"items": BOM_ROWS})
     return data
-
-
-@router.get("/bills-of-materials", response_model=BillOfMaterialsListEnvelope,
-            response_model_exclude_unset=True)
-def list_bills_of_materials(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(BillOfMaterials, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db,
-        select(BillOfMaterials)
-        .options(selectinload(BillOfMaterials.product))
-        .where(BillOfMaterials.tenant_id == tenant_id),
-        filters={BillOfMaterials.product_id: product_id, BillOfMaterials.status: status_scope(status_filter)},
-        keyword=keyword,
-        keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
-        order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=BillOfMaterialsRead,
-        extra=extra,
-    )
 
 
 def build_bom_line(db: Session, tenant_id: str, bom: BillOfMaterials, line, *, index: int | None = None, recipes: dict | None = None, checked: bool = False) -> BomItem:
@@ -1450,17 +1188,6 @@ def create_bill_of_materials(
             detail="this product already has an active recipe, or the bom_code is taken",
         )
     db.refresh(bom)
-    return envelope(_bom_read(db, tenant_id, bom, with_items=True))
-
-
-@router.get("/bills-of-materials/{bom_id}", response_model=BillOfMaterialsEnvelope,
-            response_model_exclude_unset=True)
-def get_bill_of_materials(
-    bom_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, bom_id)
     return envelope(_bom_read(db, tenant_id, bom, with_items=True))
 
 
@@ -1603,29 +1330,6 @@ def explode_bill_of_materials(
     ).model_dump(by_alias=True))
 
 
-@router.get("/bom-items", response_model=BomItemListEnvelope, response_model_exclude_unset=True)
-def list_bom_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    bom_id: str | None = None,
-    component_product_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(BomItem, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db,
-        select(BomItem).options(selectinload(BomItem.component)).where(BomItem.tenant_id == tenant_id),
-        filters={BomItem.bom_id: bom_id, BomItem.component_product_id: component_product_id},
-        order_by=(BomItem.line_no.asc(), BomItem.created_at.asc()),
-        pagination=page_only_pagination(page, size, default=100),
-        sort=order_by,
-        read_model=BomItemRead,
-        extra=extra,
-    )
-
-
 @router.post("/bom-items", response_model=BomItemEnvelope, response_model_exclude_unset=True,
              status_code=status.HTTP_201_CREATED)
 def create_bom_item(
@@ -1641,6 +1345,34 @@ def create_bom_item(
     db.commit()
     db.refresh(item)
     return envelope(BomItemRead.model_validate(item).model_dump(by_alias=True))
+
+
+@router.post("/bills-of-materials/{bom_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_bom_lines(
+    bom_id: str,
+    payload: SaveBomLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """A draft recipe's components restated in one act, as a diff under the
+    recipe's `revision` — the contract of every `/save`."""
+    require_master_data_manage(actor)
+    tenant_id = actor.tenant_id
+    bom = get_scoped_or_404(db, BillOfMaterials, tenant_id, bom_id)
+    _require_bom_editable(bom)
+
+    def update(item: BomItem, changed: dict) -> None:
+        if changed.get("component_product_id"):
+            _require_component(db, tenant_id, bom.product_id, changed["component_product_id"])
+        for field_name, value in changed.items():
+            setattr(item, field_name, value)
+
+    return save_rows(
+        db, actor, document=bom, parent_model=BillOfMaterials, header_read=BillOfMaterialsRead, spec=BOM_ROWS,
+        payload=payload, build=lambda row: build_bom_line(db, tenant_id, bom, row),
+        update=update, remove=db.delete, new_model=BomItemBase, update_model=UpdateBomItemRequest, validate_only=validate_only,
+    )
 
 
 @router.patch("/bom-items/{item_id}", response_model=BomItemEnvelope,
@@ -1730,39 +1462,6 @@ def _require_usable_parent(
         )
 
 
-@router.get("/product-categories", response_model=ProductCategoryListEnvelope,
-            response_model_exclude_unset=True)
-def list_product_categories(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    parent_id: str | None = None,
-    root_only: bool = False,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ProductCategory, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(ProductCategory).where(ProductCategory.tenant_id == tenant_id)
-    if root_only:
-        stmt = stmt.where(ProductCategory.parent_id.is_(None))
-    return list_rows(
-        db, stmt,
-        filters={
-            ProductCategory.parent_id: parent_id,
-            ProductCategory.status: status_scope(status_filter),
-        },
-        keyword=keyword,
-        keyword_columns=(ProductCategory.name, ProductCategory.category_code),
-        order_by=(ProductCategory.name.asc(), ProductCategory.id.asc()),
-        pagination=page_only_pagination(page, size, default=200),
-        sort=order_by,
-        read_model=ProductCategoryRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/product-categories",
     response_model=ProductCategoryEnvelope,
@@ -1796,17 +1495,6 @@ def create_product_category(
                         "error, not a second shelf"
                     ))
     db.refresh(category)
-    return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
-
-
-@router.get("/product-categories/{category_id}", response_model=ProductCategoryEnvelope,
-            response_model_exclude_unset=True)
-def get_product_category(
-    category_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    category = get_scoped_or_404(db, ProductCategory, tenant_id, category_id)
     return envelope(ProductCategoryRead.model_validate(category).model_dump(by_alias=True))
 
 
@@ -1848,39 +1536,6 @@ def delete_product_category(
 
 
 # --- products, their SKUs, and the bulk upserts beside them ----------------
-
-
-@router.get("/products", response_model=ProductListEnvelope, response_model_exclude_unset=True)
-def list_products(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    category_id: str | None = None,
-    product_type: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Product, ranges=('created_at',), equals=('currency',)))] = None,
-):
-    return list_rows(
-        db, select(Product).where(Product.tenant_id == tenant_id),
-        filters={
-            Product.status: status_scope(status_filter),
-            Product.category_id: category_id,
-            Product.product_type: product_type,
-        },
-        keyword=keyword,
-        # agents paste full codes ("E2E-20260801-001") into keyword — a
-        # search that finds the product by name but not by its own code reads
-        # as "the import failed" (observed in a live E2E run)
-        keyword_columns=(Product.name, Product.product_code),
-        order_by=(Product.created_at.desc(), Product.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        render=lambda products: product_reads_with_sku_stats(db, tenant_id, products),
-        extra=extra,
-    )
 
 
 def _demote_others(db: Session, model, tenant_id: str, scope: dict, flag, *, keep_id: str | None = None) -> None:
@@ -1965,6 +1620,145 @@ def _match_phrases(title: str, field_text: str) -> set[str]:
     return phrases
 
 
+_MATCH_WORD = re.compile(r"[a-z0-9][a-z0-9.\-]*")
+_MATCH_CJK_RUN = re.compile(r"[\u4e00-\u9fff]+")
+
+
+def _match_keys(text_value: str) -> set[str]:
+    """What two texts must have in common to share any phrase at all: an
+    ASCII word, or a CJK bigram (a shared run of two or more characters
+    contains one). The catalog is indexed by these so a title is compared
+    only with the products it could possibly match — the phrase comparison
+    itself is a quadratic table per pair of runs, and running it against
+    every product for every title was the cost of a long import."""
+    keys = set(_MATCH_WORD.findall(text_value))
+    for run in _MATCH_CJK_RUN.findall(text_value):
+        keys.update(run[i:i + 2] for i in range(len(run) - 1))
+    return keys
+
+
+class _CatalogMatcher:
+    """The tenant's active catalog, loaded and indexed ONCE, then asked about
+    any number of titles. `GET /product-matches` builds one for its single
+    title; the batch resolve builds one for the whole import. Scores are
+    exactly what the per-title scan produced — the index only skips products
+    that share nothing with the title, and phrase rarity is remembered
+    between titles instead of recounted."""
+
+    def __init__(self, db: Session, tenant_id: str) -> None:
+        products = db.execute(
+            select(Product.id, Product.name, Product.product_code, Product.spec)
+            .where(Product.tenant_id == tenant_id, Product.status == "active")
+        ).all()
+        self.skus_by_product: dict[str, list[tuple[str, str]]] = {}
+        for sku_id, product_id, sku_code, variant_attrs in db.execute(
+            select(ProductSku.id, ProductSku.product_id, ProductSku.sku_code, ProductSku.variant_attrs)
+            .where(ProductSku.tenant_id == tenant_id, ProductSku.status == "active")
+        ):
+            values = [str(v) for v in (variant_attrs or {}).values() if v not in (None, "")]
+            self.skus_by_product.setdefault(product_id, []).append(
+                (sku_id, _match_text(" ".join(part for part in [sku_code or "", *values] if part)))
+            )
+        self.texts = {
+            product_id: _match_text(" ".join(part for part in (name, code, spec) if part))
+            for product_id, name, code, spec in products
+        }
+        self.every_text = {
+            product_id: text + " " + " ".join(sku_text for _sid, sku_text in self.skus_by_product.get(product_id, ()))
+            for product_id, text in self.texts.items()
+        }
+        self.index: dict[str, set[str]] = {}
+        for product_id, text in self.every_text.items():
+            for key in _match_keys(text):
+                self.index.setdefault(key, set()).add(product_id)
+        self._weight: dict[str, float] = {}
+
+    def weight(self, phrase: str) -> float:
+        """Rarity across the catalog: a phrase carried by n of N products."""
+        known = self._weight.get(phrase)
+        if known is None:
+            carriers = sum(1 for text in self.every_text.values() if phrase in text)
+            known = self._weight[phrase] = math.log(1 + len(self.every_text) / max(carriers, 1))
+        return known
+
+    def shortlist(self, title: str, limit: int) -> list[dict]:
+        folded = _match_text(title)
+        if not folded:
+            return []
+        possible: set[str] = set()
+        for key in _match_keys(folded):
+            possible |= self.index.get(key, set())
+        shared: dict[str, set[str]] = {}
+        sku_hits: dict[str, list[tuple[str, set[str]]]] = {}
+        for product_id in possible:
+            phrases = _match_phrases(folded, self.texts[product_id])
+            for sku_id, sku_text in self.skus_by_product.get(product_id, ()):
+                sku_phrases = _match_phrases(folded, sku_text)
+                if sku_phrases:
+                    sku_hits.setdefault(product_id, []).append((sku_id, sku_phrases))
+                    phrases |= sku_phrases
+            if phrases:
+                shared[product_id] = phrases
+        if not shared:
+            return []
+        title_mass = sum(self.weight(phrase) for phrase in set().union(*shared.values()))
+        scored = []
+        for product_id, phrases in shared.items():
+            mass = sum(self.weight(p) for p in phrases)
+            scored.append((mass / title_mass if title_mass else 0.0, mass, product_id))
+        scored.sort(key=lambda row: (-row[0], -row[1], row[2]))
+        return [
+            {
+                "product_id": product_id,
+                "match_score": round(score, 3),
+                "matched_terms": sorted(shared[product_id], key=lambda p: -self.weight(p)),
+                "sku_hits": [
+                    (sku_id, sorted(phrases, key=lambda p: -self.weight(p)))
+                    for sku_id, phrases in sorted(
+                        sku_hits.get(product_id, ()), key=lambda hit: -sum(self.weight(p) for p in hit[1])
+                    )
+                ],
+            }
+            for score, _mass, product_id in scored[:limit]
+        ]
+
+
+def _hydrate_candidates(db: Session, tenant_id: str, shortlists: list[list[dict]]) -> list[list[dict]]:
+    """Product reads and SKU rows for every shortlist in one pass."""
+    product_ids = list(dict.fromkeys(hit["product_id"] for hits in shortlists for hit in hits))
+    if not product_ids:
+        return [[] for _ in shortlists]
+    rows = {p.id: p for p in db.scalars(select(Product).where(Product.id.in_(product_ids)))}
+    reads = {
+        read["id"]: read
+        for read in product_reads_with_sku_stats(db, tenant_id, [rows[pid] for pid in product_ids if pid in rows])
+    }
+    sku_ids = list(dict.fromkeys(sku_id for hits in shortlists for hit in hits for sku_id, _p in hit["sku_hits"]))
+    sku_rows = {
+        sku.id: sku for sku in db.scalars(select(ProductSku).where(ProductSku.id.in_(sku_ids)))
+    } if sku_ids else {}
+    return [
+        [
+            {
+                **reads[hit["product_id"]],
+                "match_score": hit["match_score"],
+                "matched_terms": hit["matched_terms"],
+                "sku_candidates": [
+                    {
+                        "id": sku_id,
+                        "sku_code": sku_rows[sku_id].sku_code,
+                        "variant_attrs": sku_rows[sku_id].variant_attrs or {},
+                        "matched_terms": phrases,
+                    }
+                    for sku_id, phrases in hit["sku_hits"] if sku_id in sku_rows
+                ],
+            }
+            for hit in hits if hit["product_id"] in reads
+        ]
+        for hits in shortlists
+    ]
+
+
 @router.get("/product-matches", response_model_exclude_unset=True)
 def match_products_by_title(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
@@ -1986,90 +1780,8 @@ def match_products_by_title(
     the candidate covers, in [0, 1]; `matched_terms` lists the phrases;
     `sku_candidates` names the variants whose own text the title also
     matches, so a spec in the title resolves to a SKU, not just a product."""
-    folded = _match_text(title)
-    if not folded:
-        return envelope([])
-    products = db.execute(
-        select(Product.id, Product.name, Product.product_code, Product.spec)
-        .where(Product.tenant_id == tenant_id, Product.status == "active")
-    ).all()
-    skus_by_product: dict[str, list[tuple[str, str]]] = {}
-    for sku_id, product_id, sku_code, variant_attrs in db.execute(
-        select(ProductSku.id, ProductSku.product_id, ProductSku.sku_code, ProductSku.variant_attrs)
-        .where(ProductSku.tenant_id == tenant_id, ProductSku.status == "active")
-    ):
-        values = [str(v) for v in (variant_attrs or {}).values() if v not in (None, "")]
-        skus_by_product.setdefault(product_id, []).append(
-            (sku_id, _match_text(" ".join(part for part in [sku_code or "", *values] if part)))
-        )
-    texts = {
-        product_id: _match_text(" ".join(part for part in (name, code, spec) if part))
-        for product_id, name, code, spec in products
-    }
-    shared: dict[str, set[str]] = {}
-    sku_hits: dict[str, list[tuple[str, set[str]]]] = {}
-    for product_id, text in texts.items():
-        phrases = _match_phrases(folded, text)
-        for sku_id, sku_text in skus_by_product.get(product_id, ()):
-            sku_phrases = _match_phrases(folded, sku_text)
-            if sku_phrases:
-                sku_hits.setdefault(product_id, []).append((sku_id, sku_phrases))
-                phrases |= sku_phrases
-        if phrases:
-            shared[product_id] = phrases
-    if not shared:
-        return envelope([])
-    # rarity across the catalog: a phrase carried by n of N products
-    every_text = {
-        product_id: text + " " + " ".join(sku_text for _sid, sku_text in skus_by_product.get(product_id, ()))
-        for product_id, text in texts.items()
-    }
-    total = len(every_text)
-    weight: dict[str, float] = {}
-    for phrase in set().union(*shared.values()):
-        carriers = sum(1 for text in every_text.values() if phrase in text)
-        weight[phrase] = math.log(1 + total / max(carriers, 1))
-    title_mass = sum(weight.values())
-    scored = []
-    for product_id, phrases in shared.items():
-        mass = sum(weight[p] for p in phrases)
-        scored.append((mass / title_mass if title_mass else 0.0, mass, product_id))
-    scored.sort(key=lambda row: (-row[0], -row[1], row[2]))
-    shortlist = scored[:limit]
-    rows = {
-        product.id: product
-        for product in db.scalars(select(Product).where(Product.id.in_([row[2] for row in shortlist])))
-    }
-    reads = {
-        read["id"]: read
-        for read in product_reads_with_sku_stats(db, tenant_id, [rows[pid] for _s, _m, pid in shortlist])
-    }
-    sku_rows = {
-        sku.id: sku
-        for sku in db.scalars(select(ProductSku).where(ProductSku.id.in_(
-            [sku_id for pid in rows for sku_id, _p in sku_hits.get(pid, ())]
-        )))
-    } if any(sku_hits.get(pid) for pid in rows) else {}
-    return envelope([
-        {
-            **reads[product_id],
-            "match_score": round(score, 3),
-            "matched_terms": sorted(shared[product_id], key=lambda p: -weight[p]),
-            "sku_candidates": [
-                {
-                    "id": sku_id,
-                    "sku_code": sku_rows[sku_id].sku_code,
-                    "variant_attrs": sku_rows[sku_id].variant_attrs or {},
-                    "matched_terms": sorted(phrases, key=lambda p: -weight[p]),
-                }
-                for sku_id, phrases in sorted(
-                    sku_hits.get(product_id, ()), key=lambda hit: -sum(weight[p] for p in hit[1])
-                )
-                if sku_id in sku_rows
-            ],
-        }
-        for score, _mass, product_id in shortlist
-    ])
+    matcher = _CatalogMatcher(db, tenant_id)
+    return envelope(_hydrate_candidates(db, tenant_id, [matcher.shortlist(title, limit)])[0])
 
 
 @router.post(
@@ -2145,16 +1857,6 @@ def bulk_upsert_customers(
 ):
     """Upsert customers keyed on `customer_code`."""
     return _run_bulk_upsert(db=db, actor=actor, family="customer", payload=payload)
-
-
-@router.get("/products/{product_id}", response_model=ProductEnvelope, response_model_exclude_unset=True)
-def get_product(
-    product_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    product = get_scoped_or_404(db, Product, tenant_id, product_id)
-    return envelope(product_read_with_skus_flag(db, product))
 
 
 @router.post(
@@ -2270,33 +1972,6 @@ def delete_product(
     return archive_row(db, actor, Product, product_id)
 
 
-@router.get("/product-skus", response_model=ProductSkuListEnvelope, response_model_exclude_unset=True)
-def list_product_skus(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    sku_code: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ProductSku, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(ProductSku).where(ProductSku.tenant_id == tenant_id),
-        filters={
-            ProductSku.product_id: product_id,
-            ProductSku.sku_code: sku_code,
-            ProductSku.status: status_scope(status_filter),
-        },
-        order_by=(ProductSku.created_at.asc(), ProductSku.sku_code.asc(), ProductSku.id.asc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=ProductSkuRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/product-skus",
     response_model=ProductSkuEnvelope,
@@ -2333,20 +2008,6 @@ def create_product_sku(
     db.add(sku)
     db.commit()
     db.refresh(sku)
-    return envelope(ProductSkuRead.model_validate(sku).model_dump(by_alias=True))
-
-
-@router.get(
-    "/product-skus/{sku_id}",
-    response_model=ProductSkuEnvelope,
-    response_model_exclude_unset=True,
-)
-def get_product_sku(
-    sku_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    sku = get_scoped_or_404(db, ProductSku, tenant_id, sku_id)
     return envelope(ProductSkuRead.model_validate(sku).model_dump(by_alias=True))
 
 
@@ -2410,38 +2071,6 @@ def _find_active_price(
     return db.scalar(stmt)
 
 
-@router.get("/product-prices", response_model=ProductPriceListEnvelope, response_model_exclude_unset=True)
-def list_product_prices(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    sku_id: str | None = None,
-    price_type: str | None = None,
-    currency: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ProductPrice, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(ProductPrice).where(ProductPrice.tenant_id == tenant_id),
-        filters={
-            ProductPrice.product_id: product_id,
-            ProductPrice.sku_id: sku_id,
-            ProductPrice.price_type: price_type,
-            ProductPrice.currency: currency,
-            ProductPrice.status: status_scope(status_filter),
-        },
-        # newest first: the live price and its history read top-down
-        order_by=(ProductPrice.created_at.desc(), ProductPrice.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=ProductPriceRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/product-prices",
     response_model=ProductPriceEnvelope,
@@ -2494,16 +2123,6 @@ def create_product_price(
     return envelope(ProductPriceRead.model_validate(row).model_dump(by_alias=True))
 
 
-@router.get("/product-prices/{price_id}", response_model=ProductPriceEnvelope, response_model_exclude_unset=True)
-def get_product_price(
-    price_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    row = get_scoped_or_404(db, ProductPrice, tenant_id, price_id)
-    return envelope(ProductPriceRead.model_validate(row).model_dump(by_alias=True))
-
-
 @router.patch("/product-prices/{price_id}", response_model=ProductPriceEnvelope, response_model_exclude_unset=True)
 def update_product_price(
     price_id: str,
@@ -2544,38 +2163,6 @@ def delete_product_price(
 # --- supplier products: who supplies what, on which terms ------------------
 
 
-@router.get("/supplier-products", response_model=SupplierProductListEnvelope, response_model_exclude_unset=True)
-def list_supplier_products(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    vendor_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SupplierProduct, ranges=('created_at',), equals=('currency',)))] = None,
-):
-    return list_rows(
-        db, select(SupplierProduct).where(SupplierProduct.tenant_id == tenant_id),
-        filters={
-            SupplierProduct.product_id: product_id,
-            SupplierProduct.vendor_id: vendor_id,
-            SupplierProduct.status: status_scope(status_filter),
-        },
-        # preferred sources first; unranked trail in arrival order
-        order_by=(
-            SupplierProduct.preference.asc().nulls_last(),
-            SupplierProduct.created_at.asc(),
-            SupplierProduct.id.asc(),
-        ),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=SupplierProductRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/supplier-products",
     response_model=SupplierProductEnvelope,
@@ -2614,20 +2201,6 @@ def create_supplier_product(
     return envelope(SupplierProductRead.model_validate(link).model_dump(by_alias=True))
 
 
-@router.get(
-    "/supplier-products/{supplier_product_id}",
-    response_model=SupplierProductEnvelope,
-    response_model_exclude_unset=True,
-)
-def get_supplier_product(
-    supplier_product_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    link = get_scoped_or_404(db, SupplierProduct, tenant_id, supplier_product_id)
-    return envelope(SupplierProductRead.model_validate(link).model_dump(by_alias=True))
-
-
 @router.patch(
     "/supplier-products/{supplier_product_id}",
     response_model=SupplierProductEnvelope,
@@ -2661,37 +2234,6 @@ def delete_supplier_product(
 
 
 # --- customer price agreements: SupplierProduct's sell-side mirror ----------
-
-
-@router.get("/customer-products", response_model=CustomerProductListEnvelope, response_model_exclude_unset=True)
-def list_customer_products(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    customer_id: str | None = None,
-    # the reverse lookup this table exists for: the customer's PO says
-    # "货号 KH-3301" and the agent needs to know which product that is
-    customer_product_code: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(CustomerProduct, ranges=('created_at',), equals=('currency',)))] = None,
-):
-    return list_rows(
-        db, select(CustomerProduct).where(CustomerProduct.tenant_id == tenant_id),
-        filters={
-            CustomerProduct.product_id: product_id,
-            CustomerProduct.customer_id: customer_id,
-            CustomerProduct.customer_product_code: customer_product_code,
-            CustomerProduct.status: status_scope(status_filter),
-        },
-        order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=CustomerProductRead,
-        extra=extra,
-    )
 
 
 @router.post(
@@ -2731,20 +2273,6 @@ def create_customer_product(
     return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
 
 
-@router.get(
-    "/customer-products/{customer_product_id}",
-    response_model=CustomerProductEnvelope,
-    response_model_exclude_unset=True,
-)
-def get_customer_product(
-    customer_product_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    agreement = get_scoped_or_404(db, CustomerProduct, tenant_id, customer_product_id)
-    return envelope(CustomerProductRead.model_validate(agreement).model_dump(by_alias=True))
-
-
 @router.patch(
     "/customer-products/{customer_product_id}",
     response_model=CustomerProductEnvelope,
@@ -2778,47 +2306,6 @@ def delete_customer_product(
 
 
 # --- customer contacts: the rolodex behind a B2B account --------------------
-
-
-@router.get("/customer-contacts", response_model=CustomerContactListEnvelope,
-            response_model_exclude_unset=True)
-def list_customer_contacts(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    customer_id: str | None = None,
-    phone: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(CustomerContact, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(CustomerContact).where(CustomerContact.tenant_id == tenant_id),
-        filters={
-            CustomerContact.customer_id: customer_id,
-            CustomerContact.phone: phone,
-            CustomerContact.status: status_scope(status_filter),
-        },
-        keyword=keyword,
-        keyword_columns=(
-            CustomerContact.name, CustomerContact.title,
-            CustomerContact.wechat, CustomerContact.email,
-            CustomerContact.phone,  # F-25: a number the person types finds the person
-        ),
-        # the primary first, then the rest by arrival — the order a person
-        # answering "找谁" actually wants
-        order_by=(
-            CustomerContact.is_primary.desc(),
-            CustomerContact.created_at.asc(),
-            CustomerContact.id.asc(),
-        ),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=CustomerContactRead,
-        extra=extra,
-    )
 
 
 def _owns_customer(db: Session, actor: Actor, customer_id: str) -> bool:
@@ -2863,17 +2350,6 @@ def create_customer_contact(
                         "PATCH that row, or archive it first"
                     ))
     db.refresh(contact)
-    return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
-
-
-@router.get("/customer-contacts/{contact_id}", response_model=CustomerContactEnvelope,
-            response_model_exclude_unset=True)
-def get_customer_contact(
-    contact_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    contact = get_scoped_or_404(db, CustomerContact, tenant_id, contact_id)
     return envelope(CustomerContactRead.model_validate(contact).model_dump(by_alias=True))
 
 
@@ -3044,6 +2520,103 @@ def list_external_product_maps(
     )
 
 
+
+@router.post("/external-product-maps/resolve", response_model_exclude_unset=True)
+def resolve_external_products(
+    payload: ResolveExternalProductsRequest,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Translate a whole import's listings in ONE call. A READ — POST only
+    because five hundred titles do not fit a query string; it writes
+    nothing, and confirming a pairing is still `POST /external-product-maps`
+    after a person says so.
+
+    An order file names a hundred listings, and the translation query
+    answers one: the agent made a hundred calls, each a turn, and for every
+    title nobody had mapped yet `/product-matches` loaded and compared the
+    whole catalog again. Here the map is read with one indexed query, and
+    with `with_candidates` the catalog is loaded and indexed once for every
+    unmapped title together.
+
+    Each listing is answered exactly as `GET /external-product-maps` with
+    `at` would answer it: live rows whose window covers the date (the
+    listing's own `at`, else the request's; no date = no window test), an
+    id AND a title matching id-keyed rows or title-keyed ones. `data[i]`
+    answers `listings[i]`."""
+    ids = {l.external_product_id for l in payload.listings if l.external_product_id}
+    norms = {n for l in payload.listings if (n := normalize_external_name(l.external_name))}
+    conditions = []
+    if ids:
+        conditions.append(ExternalProductMap.external_product_id.in_(ids))
+    if norms:
+        conditions.append(ExternalProductMap.external_name_norm.in_(norms))
+    rows = list(db.scalars(
+        select(ExternalProductMap)
+        .where(
+            ExternalProductMap.tenant_id == tenant_id,
+            ExternalProductMap.source == payload.source,
+            ExternalProductMap.status == "active",
+            or_(*conditions),
+        )
+        .order_by(ExternalProductMap.external_product_id.asc(), ExternalProductMap.created_at.asc(), ExternalProductMap.id.asc())
+    ))
+    by_id: dict[str, list[ExternalProductMap]] = {}
+    by_norm: dict[str, list[ExternalProductMap]] = {}
+    for row in rows:
+        if row.external_product_id:
+            by_id.setdefault(row.external_product_id, []).append(row)
+        if row.external_name_norm:
+            by_norm.setdefault(row.external_name_norm, []).append(row)
+
+    def covers(row: ExternalProductMap, when: date | None) -> bool:
+        if when is None:
+            return True
+        return (row.effective_from is None or row.effective_from <= when) and \
+               (row.effective_to is None or row.effective_to > when)
+
+    answers: list[dict] = []
+    unmapped_titles: list[tuple[int, str]] = []
+    for index, listing in enumerate(payload.listings):
+        when = listing.at or payload.at
+        norm = normalize_external_name(listing.external_name)
+        if listing.external_product_id and norm:
+            found = list(by_id.get(listing.external_product_id, ())) + [
+                row for row in by_norm.get(norm, ()) if row.external_product_id == ""
+            ]
+        elif listing.external_product_id:
+            found = list(by_id.get(listing.external_product_id, ()))
+        else:
+            found = list(by_norm.get(norm, ()))
+        if listing.external_sku_id is not None:
+            wanted_sku = normalize_external_name(listing.external_sku_id) or ""
+            found = [row for row in found if row.external_sku_id == wanted_sku]
+        found = [row for row in found if covers(row, when)]
+        answer = {
+            "index": index,
+            "external_product_id": listing.external_product_id,
+            "external_sku_id": listing.external_sku_id,
+            "external_name": listing.external_name,
+            "at": when,
+            "status": "mapped" if found else "unmapped",
+            "maps": [ExternalProductMapRead.model_validate(row).model_dump(mode="json", by_alias=True) for row in found],
+        }
+        if not found and payload.with_candidates and (listing.external_name or "").strip():
+            unmapped_titles.append((index, listing.external_name))
+        answers.append(answer)
+    if unmapped_titles:
+        matcher = _CatalogMatcher(db, tenant_id)
+        shortlist_by_title: dict[str, list[dict]] = {}
+        for _index, title in unmapped_titles:
+            if title not in shortlist_by_title:
+                shortlist_by_title[title] = matcher.shortlist(title, payload.candidate_limit)
+        titles = list(shortlist_by_title)
+        hydrated = dict(zip(titles, _hydrate_candidates(db, tenant_id, [shortlist_by_title[t] for t in titles])))
+        for index, title in unmapped_titles:
+            answers[index]["candidates"] = hydrated[title]
+    mapped = sum(1 for a in answers if a["status"] == "mapped")
+    return {"data": jsonable_encoder(answers), "meta": {"total": len(answers), "mapped": mapped, "unmapped": len(answers) - mapped}}
+
 @router.post(
     "/external-product-maps",
     response_model=ExternalProductMapEnvelope,
@@ -3119,20 +2692,6 @@ def create_external_product_map(
     db.add(row)
     commit_or_conflict(db, "an open-ended map for this (source, external listing, product) already exists")
     db.refresh(row)
-    return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
-
-
-@router.get(
-    "/external-product-maps/{map_id}",
-    response_model=ExternalProductMapEnvelope,
-    response_model_exclude_unset=True,
-)
-def get_external_product_map(
-    map_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    row = get_scoped_or_404(db, ExternalProductMap, tenant_id, map_id)
     return envelope(ExternalProductMapRead.model_validate(row).model_dump(by_alias=True))
 
 
@@ -3225,42 +2784,6 @@ def require_inventory_manage(actor: Actor) -> None:
     require_permission(actor, "inventory.manage")
 
 
-@router.get("/inventory-items", response_model=InventoryItemListEnvelope, response_model_exclude_unset=True)
-def list_inventory_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    product_id: str | None = None,
-    sku_id: str | None = None,
-    facility: str | None = None,
-    lot_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(InventoryItem, ranges=('created_at', 'expire_date', 'received_at'), equals=('currency', 'facility_id')))] = None,
-):
-    stmt = select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)
-    # "" is a real position ("" is the default lot, and a facility may be
-    # unnamed), so these two filter on presence, not truthiness
-    if facility is not None:
-        stmt = stmt.where(InventoryItem.facility == facility)
-    if lot_id is not None:
-        stmt = stmt.where(InventoryItem.lot_id == lot_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            InventoryItem.product_id: product_id,
-            InventoryItem.sku_id: sku_id,
-            InventoryItem.status: status_scope(status_filter),
-        },
-        order_by=(InventoryItem.created_at.desc(), InventoryItem.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=InventoryItemRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/inventory-items",
     response_model=InventoryItemEnvelope,
@@ -3343,16 +2866,6 @@ def create_inventory_item(
         )
     db.commit()
     db.refresh(item)
-    return envelope(InventoryItemRead.model_validate(item).model_dump(by_alias=True))
-
-
-@router.get("/inventory-items/{item_id}", response_model=InventoryItemEnvelope, response_model_exclude_unset=True)
-def get_inventory_item(
-    item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    item = get_scoped_or_404(db, InventoryItem, tenant_id, item_id)
     return envelope(InventoryItemRead.model_validate(item).model_dump(by_alias=True))
 
 
@@ -3727,3 +3240,352 @@ def _run_bulk_upsert(
         action="master_data.imported",
         detail={"family": family, "on_error": payload.on_error},
     )
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+# Plain lists and by-id reads: the URL, the filters in contract order, the
+# family's ordering. Anything with logic of its own is a handler above.
+
+register(
+    router,
+    ListResource(
+        path="/vendors",
+        name="list_vendors",
+        model=Vendor,
+        read_model=VendorRead,
+        response_model=VendorListEnvelope,
+        params=(KEYWORD, "tax_id", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(Vendor.created_at.desc(), Vendor.id.desc()),
+        keyword_columns=(Vendor.name,),
+    ),
+    GetResource(
+        path="/vendors/{vendor_id}",
+        name="get_vendor",
+        model=Vendor,
+        read_model=VendorRead,
+        response_model=VendorEnvelope,
+        id_param="vendor_id",
+    ),
+    # the retail identity key, as tax_id is the B2B one — "这个手机号
+    # 是不是老客户" is the question a counter agent actually asks
+    ListResource(
+        path="/customers",
+        name="list_customers",
+        model=Customer,
+        read_model=CustomerRead,
+        response_model=CustomerListEnvelope,
+        params=(KEYWORD, "tax_id", "phone", "customer_kind", "customer_type", "geo_id", "territory_id", "owner_employee_id", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(Customer.created_at.desc(), Customer.id.desc()),
+        keyword_columns=(Customer.name,),
+    ),
+    GetResource(
+        path="/customers/{customer_id}",
+        name="get_customer",
+        model=Customer,
+        read_model=CustomerRead,
+        response_model=CustomerEnvelope,
+        id_param="customer_id",
+    ),
+    ListResource(
+        path="/facilities",
+        name="list_facilities",
+        model=Facility,
+        read_model=FacilityRead,
+        response_model=FacilityListEnvelope,
+        params=("facility_type", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(Facility.name.asc(), Facility.id.asc()),
+        keyword_columns=(Facility.name, Facility.facility_code, Facility.address),
+        default_size=100,
+    ),
+    GetResource(
+        path="/facilities/{facility_id}",
+        name="get_facility",
+        model=Facility,
+        read_model=FacilityRead,
+        response_model=FacilityEnvelope,
+        id_param="facility_id",
+    ),
+    ListResource(
+        path="/sales-channels",
+        name="list_sales_channels",
+        model=SalesChannel,
+        read_model=SalesChannelRead,
+        response_model=SalesChannelListEnvelope,
+        params=("channel_kind", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(SalesChannel.channel_code.asc(), SalesChannel.id.asc()),
+        keyword_columns=(SalesChannel.channel_code, SalesChannel.name),
+        default_size=100,
+    ),
+    GetResource(
+        path="/sales-channels/{channel_id}",
+        name="get_sales_channel",
+        model=SalesChannel,
+        read_model=SalesChannelRead,
+        response_model=SalesChannelEnvelope,
+        id_param="channel_id",
+    ),
+    # preferred shippers first; unranked trail in arrival order
+    ListResource(
+        path="/store-facilities",
+        name="list_store_facilities",
+        model=StoreFacility,
+        read_model=StoreFacilityRead,
+        response_model=StoreFacilityListEnvelope,
+        params=("store_id", "facility_id", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(StoreFacility.priority.asc().nulls_last(), StoreFacility.created_at.asc(), StoreFacility.id.asc()),
+        default_size=100,
+    ),
+    # the primary first, then the curated order, then arrival
+    ListResource(
+        path="/product-images",
+        name="list_product_images",
+        model=ProductImage,
+        read_model=ProductImageRead,
+        response_model=ProductImageListEnvelope,
+        params=("product_id", "image_type", PAGE, SIZE, ORDER_BY),
+        order_by=(ProductImage.is_primary.desc(), ProductImage.sort_order.asc().nulls_last(), ProductImage.created_at.asc()),
+        equals=("attachment_id",),
+        default_size=100,
+    ),
+    ListResource(
+        path="/bills-of-materials",
+        name="list_bills_of_materials",
+        model=BillOfMaterials,
+        read_model=BillOfMaterialsRead,
+        response_model=BillOfMaterialsListEnvelope,
+        params=("product_id", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(BillOfMaterials.created_at.desc(), BillOfMaterials.id.desc()),
+        keyword_columns=(BillOfMaterials.bom_code, BillOfMaterials.version),
+        options=(selectinload(BillOfMaterials.product),),
+    ),
+    ListResource(
+        path="/bom-items",
+        name="list_bom_items",
+        model=BomItem,
+        read_model=BomItemRead,
+        response_model=BomItemListEnvelope,
+        params=("bom_id", "component_product_id", PAGE, SIZE, ORDER_BY),
+        order_by=(BomItem.line_no.asc(), BomItem.created_at.asc()),
+        default_size=100,
+        options=(selectinload(BomItem.component),),
+    ),
+    GetResource(
+        path="/product-categories/{category_id}",
+        name="get_product_category",
+        model=ProductCategory,
+        read_model=ProductCategoryRead,
+        response_model=ProductCategoryEnvelope,
+        id_param="category_id",
+    ),
+    ListResource(
+        path="/product-skus",
+        name="list_product_skus",
+        model=ProductSku,
+        read_model=ProductSkuRead,
+        response_model=ProductSkuListEnvelope,
+        params=("product_id", "sku_code", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(ProductSku.created_at.asc(), ProductSku.sku_code.asc(), ProductSku.id.asc()),
+    ),
+    GetResource(
+        path="/product-skus/{sku_id}",
+        name="get_product_sku",
+        model=ProductSku,
+        read_model=ProductSkuRead,
+        response_model=ProductSkuEnvelope,
+        id_param="sku_id",
+    ),
+    # newest first: the live price and its history read top-down
+    ListResource(
+        path="/product-prices",
+        name="list_product_prices",
+        model=ProductPrice,
+        read_model=ProductPriceRead,
+        response_model=ProductPriceListEnvelope,
+        params=("product_id", "sku_id", "price_type", "currency", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(ProductPrice.created_at.desc(), ProductPrice.id.desc()),
+    ),
+    GetResource(
+        path="/product-prices/{price_id}",
+        name="get_product_price",
+        model=ProductPrice,
+        read_model=ProductPriceRead,
+        response_model=ProductPriceEnvelope,
+        id_param="price_id",
+    ),
+    # preferred sources first; unranked trail in arrival order
+    ListResource(
+        path="/supplier-products",
+        name="list_supplier_products",
+        model=SupplierProduct,
+        read_model=SupplierProductRead,
+        response_model=SupplierProductListEnvelope,
+        params=("product_id", "vendor_id", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(SupplierProduct.preference.asc().nulls_last(), SupplierProduct.created_at.asc(), SupplierProduct.id.asc()),
+        equals=("currency",),
+    ),
+    GetResource(
+        path="/supplier-products/{supplier_product_id}",
+        name="get_supplier_product",
+        model=SupplierProduct,
+        read_model=SupplierProductRead,
+        response_model=SupplierProductEnvelope,
+        id_param="supplier_product_id",
+    ),
+    # the reverse lookup this table exists for: the customer's PO says
+    # "货号 KH-3301" and the agent needs to know which product that is
+    ListResource(
+        path="/customer-products",
+        name="list_customer_products",
+        model=CustomerProduct,
+        read_model=CustomerProductRead,
+        response_model=CustomerProductListEnvelope,
+        params=("product_id", "customer_id", "customer_product_code", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(CustomerProduct.created_at.asc(), CustomerProduct.id.asc()),
+        equals=("currency",),
+    ),
+    GetResource(
+        path="/customer-products/{customer_product_id}",
+        name="get_customer_product",
+        model=CustomerProduct,
+        read_model=CustomerProductRead,
+        response_model=CustomerProductEnvelope,
+        id_param="customer_product_id",
+    ),
+    # the primary first, then the rest by arrival — the order a person
+    # answering "找谁" actually wants
+    ListResource(
+        path="/customer-contacts",
+        name="list_customer_contacts",
+        model=CustomerContact,
+        read_model=CustomerContactRead,
+        response_model=CustomerContactListEnvelope,
+        params=("customer_id", "phone", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(CustomerContact.is_primary.desc(), CustomerContact.created_at.asc(), CustomerContact.id.asc()),
+        keyword_columns=(CustomerContact.name, CustomerContact.title, CustomerContact.wechat, CustomerContact.email, CustomerContact.phone),
+    ),
+    GetResource(
+        path="/customer-contacts/{contact_id}",
+        name="get_customer_contact",
+        model=CustomerContact,
+        read_model=CustomerContactRead,
+        response_model=CustomerContactEnvelope,
+        id_param="contact_id",
+    ),
+    GetResource(
+        path="/external-product-maps/{map_id}",
+        name="get_external_product_map",
+        model=ExternalProductMap,
+        read_model=ExternalProductMapRead,
+        response_model=ExternalProductMapEnvelope,
+        id_param="map_id",
+    ),
+    GetResource(
+        path="/inventory-items/{item_id}",
+        name="get_inventory_item",
+        model=InventoryItem,
+        read_model=InventoryItemRead,
+        response_model=InventoryItemEnvelope,
+        id_param="item_id",
+    ),
+)
+
+
+def _store_read(db: Session, tenant_id: str, store: Store) -> dict:
+    """A store with the facilities it ships from, in fulfilment priority."""
+    data = StoreRead.model_validate(store).model_dump(by_alias=True)
+    links = db.scalars(
+        select(StoreFacility)
+        .where(
+            StoreFacility.tenant_id == tenant_id,
+            StoreFacility.store_id == store.id,
+            StoreFacility.status == "active",
+        )
+        .order_by(StoreFacility.priority.asc().nulls_last(), StoreFacility.created_at.asc())
+    ).all()
+    data["fulfilment_facilities"] = [
+        StoreFacilityRead.model_validate(link).model_dump(by_alias=True) for link in links
+    ]
+    return data
+
+
+def _root_categories_only(stmt, values: dict):
+    return stmt.where(ProductCategory.parent_id.is_(None)) if values.get("root_only") else stmt
+
+
+def _stock_position_filters(stmt, values: dict):
+    # `facility` and `lot_id` are compared even when empty: "" is the
+    # no-facility / no-lot position, a value, not an absent filter
+    if values.get("facility") is not None:
+        stmt = stmt.where(InventoryItem.facility == values["facility"])
+    if values.get("lot_id") is not None:
+        stmt = stmt.where(InventoryItem.lot_id == values["lot_id"])
+    return stmt
+
+
+register(
+    router,
+    ListResource(
+        path="/product-categories",
+        name="list_product_categories",
+        model=ProductCategory,
+        read_model=ProductCategoryRead,
+        response_model=ProductCategoryListEnvelope,
+        params=("parent_id", Param("root_only", bool, False), STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(ProductCategory.name.asc(), ProductCategory.id.asc()),
+        keyword_columns=(ProductCategory.name, ProductCategory.category_code),
+        default_size=200,
+        where=_root_categories_only,
+    ),
+    ListResource(
+        path="/products",
+        name="list_products",
+        model=Product,
+        read_model=None,
+        response_model=ProductListEnvelope,
+        params=(KEYWORD, "category_id", "product_type", STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(Product.created_at.desc(), Product.id.desc()),
+        keyword_columns=(Product.name, Product.product_code),
+        equals=("currency",),
+        # one query for every row's SKU statistics, not one per product
+        render=lambda db, tenant_id: lambda products: product_reads_with_sku_stats(db, tenant_id, products),
+    ),
+    GetResource(
+        path="/products/{product_id}",
+        name="get_product",
+        model=Product,
+        read_model=ProductRead,
+        response_model=ProductEnvelope,
+        id_param="product_id",
+        read=lambda db, tenant_id, product: product_read_with_skus_flag(db, product),
+    ),
+    GetResource(
+        path="/bills-of-materials/{bom_id}",
+        name="get_bill_of_materials",
+        model=BillOfMaterials,
+        read_model=BillOfMaterialsRead,
+        response_model=BillOfMaterialsEnvelope,
+        id_param="bom_id",
+        read=lambda db, tenant_id, bom: _bom_read(db, tenant_id, bom, with_items=True),
+    ),
+    GetResource(
+        path="/stores/{store_id}",
+        name="get_store",
+        model=Store,
+        read_model=StoreRead,
+        response_model=StoreEnvelope,
+        id_param="store_id",
+        read=_store_read,
+    ),
+    ListResource(
+        path="/inventory-items",
+        name="list_inventory_items",
+        model=InventoryItem,
+        read_model=InventoryItemRead,
+        response_model=InventoryItemListEnvelope,
+        params=("product_id", "sku_id", Param("facility"), Param("lot_id"), STATUS, PAGE, SIZE, ORDER_BY),
+        order_by=(InventoryItem.created_at.desc(), InventoryItem.id.desc()),
+        ranges=("created_at", "expire_date", "received_at"),
+        equals=("currency", "facility_id"),
+        where=_stock_position_filters,
+    ),
+)

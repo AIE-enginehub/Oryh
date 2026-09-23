@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import create_model, AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.email_domains import company_domain, normalize_email_address
 from app.core.permissions import (
@@ -164,6 +164,22 @@ class RequestModel(BaseModel):
     # walked past every "non-zero" check and died only at JSON serialisation
     # (review N11) — the boundary is where a number is refused
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
+
+def save_row_model(name: str, base: type[BaseModel]) -> type[BaseModel]:
+    """The row of a whole-document save: every field of the line's create
+    schema, all optional, plus `id`. A row naming a live `id` states only what
+    changes, so nothing can be required of it here; a row without an id is
+    validated again through the create schema, and a kept row's stated fields
+    through the update schema, by `restate_rows` — the constraints live there,
+    once."""
+    fields: dict[str, Any] = {
+        field_name: (info.annotation | None, Field(default=None, description=info.description))
+        for field_name, info in base.model_fields.items()
+    }
+    fields["id"] = (str | None, Field(default=None, description="a live row to keep; absent = a new row"))
+    return create_model(name, __base__=RequestModel, **fields)
 
 
 T = TypeVar("T")
@@ -608,6 +624,14 @@ class CreateBomItemRequest(BomItemBase):
     bom_id: str
 
 
+SaveBomItemRow = save_row_model("SaveBomItemRow", BomItemBase)
+
+
+class SaveBomLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveBomItemRow] = Field(max_length=500)
+
+
 class UpdateBomItemRequest(RequestModel):
     line_no: int | None = Field(default=None, ge=1, le=9999)
     component_product_id: str | None = None
@@ -647,6 +671,8 @@ class BillOfMaterialsRead(APIModel):
     )
     # present on the single read: the recipe's lines
     items: list[BomItemRead] | None = None
+    # present with the lines: what `POST …/save` takes as expected_revision
+    revision: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -1793,6 +1819,40 @@ class UpdateExternalProductMapRequest(RequestModel):
     metadata: dict[str, Any] | None = None
 
 
+class ResolveExternalListing(RequestModel):
+    """One platform listing as an order export names it: by id, by title,
+    or both (an id-keyed export is also answered by the title-keyed rows a
+    desk confirmed before anyone recorded the id)."""
+
+    external_product_id: str = Field(default="", max_length=128)
+    # None = any variant; "" = the listing-level rows only
+    external_sku_id: str | None = Field(default=None, max_length=128)
+    external_name: str | None = Field(default=None, max_length=300)
+    # this line's document date, when the file spans a listing swap
+    at: date | None = None
+
+    @field_validator("external_product_id", "external_sku_id", mode="before")
+    @classmethod
+    def _strip_ids(cls, v: object) -> object:
+        return v.strip() if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def _names_the_listing(self):
+        if not self.external_product_id and not (self.external_name or "").strip():
+            raise ValueError("a listing is named by external_product_id or by external_name (its title)")
+        return self
+
+
+class ResolveExternalProductsRequest(_NormalizesSource):
+    source: str = Field(min_length=1, max_length=50)
+    # the documents' date, for every listing that does not carry its own
+    at: date | None = None
+    listings: list[ResolveExternalListing] = Field(min_length=1, max_length=500)
+    # unmapped titles come back with the /product-matches shortlist
+    with_candidates: bool = False
+    candidate_limit: int = Field(default=5, ge=1, le=10)
+
+
 class ExternalProductMapRead(APIModel):
     id: str
     source: str
@@ -2161,6 +2221,14 @@ class CreateContractItemRequest(ContractItemBase):
     contract_id: str
 
 
+SaveContractItemRow = save_row_model("SaveContractItemRow", ContractItemBase)
+
+
+class SaveContractLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveContractItemRow] = Field(max_length=500)
+
+
 class UpdateContractItemRequest(RequestModel):
     line_no: int | None = Field(default=None, ge=1, le=9999)
     product_id: str | None = None
@@ -2327,6 +2395,8 @@ class ContractRead(APIModel):
     # present on the single read: what was agreed, the originals, the
     # located clauses grouped by type
     items: list[ContractItemRead] | None = None
+    # what `POST …/save` takes as expected_revision (header + lines)
+    revision: str | None = None
     documents: list[ContractDocumentRead] | None = None
     terms_by_type: dict[str, list[ContractTermRead]] | None = None
     created_at: datetime
@@ -2412,6 +2482,14 @@ class UpdatePicklistRequest(RequestModel):
 
 class CreatePicklistItemRequest(PicklistItemBase):
     picklist_id: str
+
+
+SavePicklistItemRow = save_row_model("SavePicklistItemRow", PicklistItemBase)
+
+
+class SavePicklistLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SavePicklistItemRow] = Field(max_length=200)
 
 
 class UpdatePicklistItemRequest(RequestModel):
@@ -2501,6 +2579,14 @@ class UpdateShipmentRequest(RequestModel):
 
 class CreateShipmentItemRequest(ShipmentItemBase):
     shipment_id: str
+
+
+SaveShipmentItemRow = save_row_model("SaveShipmentItemRow", ShipmentItemBase)
+
+
+class SaveShipmentLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveShipmentItemRow] = Field(max_length=200)
 
 
 class UpdateShipmentItemRequest(RequestModel):
@@ -2716,6 +2802,14 @@ class CreateOpportunityItemRequest(OpportunityItemBase):
         if self.product_id is None and not (self.product_name_snapshot or "").strip():
             raise ValueError("a line names a product — by id, or by name when the catalog has none")
         return self
+
+
+SaveOpportunityItemRow = save_row_model("SaveOpportunityItemRow", OpportunityItemBase)
+
+
+class SaveOpportunityLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveOpportunityItemRow] = Field(max_length=200)
 
 
 class UpdateOpportunityItemRequest(RequestModel):
@@ -5245,6 +5339,22 @@ class CreateExpenseItemRequest(ExpenseItemBase):
     amount: float = Field(gt=0, le=9_999_999.99)
 
 
+SaveExpenseItemRow = save_row_model("SaveExpenseItemRow", ExpenseItemBase)
+
+
+class SaveExpenseClaimRequest(RequestModel):
+    """`POST /expense-claims/{id}/save`: header fields stated are set, `items`
+    is the claim's whole item list restated."""
+
+    expected_revision: str = Field(min_length=64, max_length=64)
+    title: str | None = Field(default=None, max_length=200)
+    claim_date: date | None = None
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    source_report_text: str | None = Field(default=None, max_length=10000)
+    custom_fields: dict[str, Any] | None = None
+    items: list[SaveExpenseItemRow] = Field(max_length=100)
+
+
 class UpdateExpenseItemRequest(RequestModel):
     expense_date: date | None = None
     category: ExpenseCategory | None = None
@@ -5783,6 +5893,8 @@ class ExpenseClaimDetailRead(BaseModel):
     # invoices, so these are the numbers to route on — never the status.
     invoiced_amount: float
     uninvoiced_amount: float
+    # what `POST …/save` takes as expected_revision
+    revision: str | None = None
 
 
 ExpenseClaimDetailEnvelope = Envelope[ExpenseClaimDetailRead]
@@ -6629,6 +6741,14 @@ class CreateInvoiceItemRequest(InvoiceItemBase):
     invoice_id: str
 
 
+SaveInvoiceItemRow = save_row_model("SaveInvoiceItemRow", InvoiceItemBase)
+
+
+class SaveInvoiceLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveInvoiceItemRow] = Field(max_length=200)
+
+
 class UpdateInvoiceItemRequest(RequestModel):
     line_no: int | None = Field(default=None, ge=1)
     invoice_item_type: InvoiceItemType | None = None
@@ -7169,6 +7289,8 @@ class InvoiceOrderMatchRead(BaseModel):
 
 
 class InvoiceDetailRead(BaseModel):
+    # what `POST …/save` takes as expected_revision
+    revision: str | None = None
     invoice: InvoiceRead
     items: list[InvoiceItemDetailRead]
     approval_records: list[ApprovalRecordRead]
@@ -7791,6 +7913,8 @@ class OpportunityDetailRead(BaseModel):
     its cast (with names), the quotations and orders that name it — which
     is where its money actually is — and the record of contact (F-16)."""
 
+    # what `POST …/save` takes as expected_revision (header + lines)
+    revision: str | None = None
     opportunity: OpportunityRead
     items: list[OpportunityItemRead]
     contacts: list[OpportunityContactDetailRead]

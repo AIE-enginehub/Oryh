@@ -65,6 +65,15 @@ Two rules worth knowing before you design a permission scheme:
 - **Reads are permissions too.** `payroll.read` is as consequential as writing
   pay, which is why some capabilities are granted to no shipped role at all —
   naming who holds them is your decision, not a default.
+- **"Mine" and "everyone's" are different grants.** Everybody reads their own
+  timesheets, leave, expense claims, purchase requests, quotations, orders,
+  leads and deals, and whatever was routed to them for approval. Reading
+  everyone's takes `timesheet.read_all`, `leave.read_all`, `expense.read_all`,
+  `purchase.read_all`, `quotation.read_all`, `order.read_all` or
+  `crm.read_all` — or a job that cannot be done blind: the role that advances
+  a family, ships, invoices or pays already reads it. A team that wants an
+  open pipeline grants `crm.read_all` to `member`; that is a decision, not a
+  default.
 - **Prose cannot widen a grant.** Skill instructions and calibration change how
   work is done; the server decides what is allowed, regardless of any
   instruction. That is what makes editing skill text safe to do casually.

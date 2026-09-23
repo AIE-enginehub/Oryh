@@ -193,6 +193,20 @@ def test_payroll_read_reaches_the_payslip_pdf(world) -> None:
     assert got.content == b"%PDF net pay 42000"
 
 
+def _routed_approver(world, *claim_ids: str) -> dict:
+    """An approver the way routing makes one: an employee holding a todo on
+    each claim. Reading a colleague's claim is not a property of the role
+    (app/api/visibility.py) — it is what the todo grants."""
+    client, admin = world["client"], world["admin"]
+    employee = client.post("/api/v1/employees", json={"name": "审批人"}, headers=admin).json()["data"]["id"]
+    approver = world["key_holding"]("approval.record", employee_id=employee)
+    for claim_id in claim_ids:
+        made = client.post("/api/v1/todos", headers=admin, json={
+            "employee_id": employee, "entity_type": "expense_claim", "entity_id": claim_id, "title": "审批报销"})
+        assert made.status_code == 201, made.text
+    return approver
+
+
 # --- the approver's path, which must keep working --------------------------
 
 
@@ -200,13 +214,18 @@ def test_an_approver_reads_the_receipt_through_the_claim(world) -> None:
     """`$oryh-approve` tells every approver to open each receipt before
     deciding. Closing the id route without this would have made approving an
     expense claim impossible to do properly."""
-    approver = world["key_holding"]("approval.record")
+    approver = _routed_approver(world, world["claim_id"])
     got = world["client"].get(
         f"/api/v1/expense-claims/{world['claim_id']}/attachments/{world['receipt_pdf']}/content",
         headers=approver,
     )
     assert got.status_code == 200, got.text
     assert got.content == b"%PDF taxi 88"
+    # …and an approver nothing was routed to reads neither the claim nor its receipt
+    idle = world["key_holding"]("approval.record")
+    assert world["client"].get(
+        f"/api/v1/expense-claims/{world['claim_id']}/attachments/{world['receipt_pdf']}/content", headers=idle,
+    ).status_code == 404
 
 
 # --- naming a document you may read does not open the others ---------------
@@ -266,7 +285,7 @@ def test_one_claim_does_not_serve_another_claims_receipt(world) -> None:
     payslip through a claim never notices: a payslip hangs off an invoice
     header, so it is absent from the expense-item set either way.
     """
-    approver = world["key_holding"]("approval.record")
+    approver = _routed_approver(world, world["claim_id"], world["other_claim_id"])
     got = world["client"].get(
         f"/api/v1/expense-claims/{world['claim_id']}/attachments/{world['other_pdf']}/content",
         headers=approver,

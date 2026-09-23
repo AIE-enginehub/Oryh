@@ -149,22 +149,47 @@ class IdempotencyMiddleware:
         record_id = verdict[1]
 
         replay_receive = _replay(body)
-        captured = {"status": None, "headers": [], "chunks": []}
+        held: list[dict] = []
+        state = {"status": None, "headers": [], "chunks": [], "settled": False}
 
         async def capture(message):
+            # The answer is stored BEFORE its first byte leaves. Stored after
+            # (the first cut), a client that retried the instant it had the
+            # response could arrive while the claim still read "in flight" and
+            # be told 409 — found by the live probe on v2026.9.18, where the
+            # retry follows the response within a millisecond.
+            if state["settled"]:
+                await send(message)
+                return
+            held.append(message)
             if message["type"] == "http.response.start":
-                captured["status"] = message["status"]
-                captured["headers"] = [(n, v) for n, v in message.get("headers") or [] if n.lower() in _KEPT_RESPONSE_HEADERS]
-            elif message["type"] == "http.response.body":
-                captured["chunks"].append(message.get("body", b""))
-            await send(message)
+                state["status"] = message["status"]
+                state["headers"] = [(n, v) for n, v in message.get("headers") or [] if n.lower() in _KEPT_RESPONSE_HEADERS]
+                return
+            if message["type"] == "http.response.body":
+                state["chunks"].append(message.get("body", b""))
+                if message.get("more_body", False):
+                    return
+                self._settle(record_id, state)
+                state["settled"] = True
+                for queued in held:
+                    await send(queued)
+                held.clear()
 
         try:
             await self.app(scope, replay_receive, capture)
         except BaseException:
-            self._forget(record_id)
+            if not state["settled"]:
+                self._forget(record_id)
             raise
-        status = captured["status"]
+        if not state["settled"]:
+            # the app ended without a final body chunk: nothing to remember
+            self._forget(record_id)
+            for queued in held:
+                await send(queued)
+
+    def _settle(self, record_id: str, state: dict) -> None:
+        status = state["status"]
         if status is None or status >= 500:
             self._forget(record_id)
             return
@@ -172,8 +197,8 @@ class IdempotencyMiddleware:
             record = db.get(IdempotencyRecord, record_id)
             if record is not None:
                 record.status_code = status
-                record.response_headers = json.dumps([(n.decode("latin-1"), v.decode("latin-1")) for n, v in captured["headers"]])
-                record.response_body = b"".join(captured["chunks"]).decode("utf-8", errors="replace")
+                record.response_headers = json.dumps([(n.decode("latin-1"), v.decode("latin-1")) for n, v in state["headers"]])
+                record.response_body = b"".join(state["chunks"]).decode("utf-8", errors="replace")
                 record.completed_at = _now()
                 db.commit()
 

@@ -142,9 +142,20 @@ Three deliberate asymmetries worth noting:
   open is not a handbook. A policy that wants an audience names the capability
   itself in `required_capability`, reusing this same catalog — a compensation policy
   simply says `payroll.read`. See [policies.md](policies.md).
-- `payroll.read` is the only capability in this catalog that gates a **read**.
+- **Personal documents are read by their person, by whoever they were routed
+  to, and by `<family>.read_all`** (`timesheet`, `leave`, `expense`, `purchase`,
+  `quotation`, `order`, `crm`) — see `app/api/visibility.py`, the one place the
+  rule lives. The family's `advance` and the desks downstream of it imply the
+  read (`shipment.manage` reads orders, `payment.record` reads claims,
+  `purchase_order.manage` reads requests, `invoice.manage` under any scope
+  reads what it bills), as does `tenant.act_for_any_employee`. Lines,
+  adjustments, approval facts, todos (`todos.assign` reads all), attachments
+  and `GET /audit-logs?entity_id=` follow the document; an unreadable row is a
+  404. `tests/test_read_visibility.py` walks every GET route as a stranger.
+- `payroll.read` gates a **read** of a different kind: pay is hidden from
+  everyone without it, not only from colleagues.
   Every other list here is tenant-scoped and nothing more, which is right for
-  business documents and unacceptable for pay. Without it a credential still
+  shared business data (customers, products, stock, invoices) and unacceptable for pay. Without it a credential still
   sees its own payslip — an employee who cannot check what they were paid has
   no recourse — and someone else's is a 404 rather than a 403, because 403
   would confirm the document exists. Note that a tenant service key bypasses

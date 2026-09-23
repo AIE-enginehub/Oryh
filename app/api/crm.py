@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.line_math import derive_line_amount
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -53,6 +54,8 @@ from app.api.common import (
     require_machine_state,
     require_type_option,
     restore_document,
+    rows_revision,
+    save_rows,
 )
 from app.api.deps import Actor, enforce_member_employee, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -123,6 +126,9 @@ from app.schemas import (
     UpdateOpportunityItemRequest,
     UpdateLeadRequest,
     UpdateOpportunityRequest,
+    SaveOpportunityLinesRequest,
+    SavedLinesEnvelope,
+    OpportunityItemBase,
 )
 from app.services.audit import record_audit
 from app.services.state_machines import (
@@ -1054,21 +1060,16 @@ def list_opportunity_items(
     )
 
 
-@router.post("/opportunity-items", response_model=OpportunityItemEnvelope,
-             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
-def create_opportunity_item(
-    payload: CreateOpportunityItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    tenant_id = actor.tenant_id
-    opportunity = _own_opportunity(db, actor, payload.opportunity_id)
+def build_opportunity_item(db: Session, tenant_id: str, opportunity: Opportunity, payload) -> OpportunityItem:
+    """One validated deal line — the standalone POST and the whole-deal save
+    build through this."""
     _line_product(db, tenant_id, payload.product_id, payload.sku_id)
     name_snapshot = payload.product_name_snapshot
     if payload.product_id and not name_snapshot:
-        # F-07: the catalog's name rides the line so the quotation it becomes
-        # prints a product, not a blank
         name_snapshot = db.get(Product, payload.product_id).name
+    if not (payload.product_id or (name_snapshot or "").strip()):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="a line names a product — by id, or by name when the catalog has none")
     item = OpportunityItem(
         tenant_id=tenant_id,
         opportunity_id=opportunity.id,
@@ -1080,12 +1081,49 @@ def create_opportunity_item(
         quantity=payload.quantity,
         unit=payload.unit,
         unit_price=payload.unit_price,
-        amount=payload.amount if payload.amount is not None
-        else (round(payload.quantity * payload.unit_price, 2) if payload.unit_price is not None else None),
+        amount=derive_line_amount(payload.quantity, payload.unit_price, payload.amount),
         notes=payload.notes,
         custom_fields_jsonb=payload.custom_fields,
     )
     db.add(item)
+    return item
+
+
+def apply_opportunity_item_updates(db: Session, tenant_id: str, item: OpportunityItem, updates: dict) -> None:
+    """The rules a changed deal line goes through — PATCH and save alike."""
+    updates = dict(updates)
+    stated = set(updates)
+    _line_product(db, tenant_id, updates.get("product_id", item.product_id), updates.get("sku_id", item.sku_id))
+    if "custom_fields" in updates:
+        item.custom_fields_jsonb = updates.pop("custom_fields")
+    for field_name, value in updates.items():
+        setattr(item, field_name, value)
+    if "product_id" in stated and item.product_id and "product_name_snapshot" not in stated:
+        item.product_name_snapshot = db.get(Product, item.product_id).name
+        if "sku_id" not in stated and item.sku_id:
+            sku = db.get(ProductSku, item.sku_id)
+            if sku is None or sku.product_id != item.product_id:
+                item.sku_id = None
+    if not (item.product_id or (item.product_name_snapshot or "").strip()):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="a line names a product — by id, or by name when the catalog has none")
+    if stated & {"quantity", "unit_price", "amount"}:
+        item.amount = derive_line_amount(item.quantity, item.unit_price, updates.get("amount"))
+
+
+OPPORTUNITY_ROWS = (OpportunityItem, "opportunity_id", OpportunityItemRead)
+
+
+@router.post("/opportunity-items", response_model=OpportunityItemEnvelope,
+             response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
+def create_opportunity_item(
+    payload: CreateOpportunityItemRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    tenant_id = actor.tenant_id
+    opportunity = _own_opportunity(db, actor, payload.opportunity_id)
+    item = build_opportunity_item(db, tenant_id, opportunity, payload)
     record_audit(db, tenant_id=tenant_id, action="opportunity.item_added", entity_type="opportunity",
                  entity_id=opportunity.id, actor=actor.label,
                  detail={"opportunity_no": opportunity.opportunity_no, "product_id": payload.product_id,
@@ -1093,6 +1131,34 @@ def create_opportunity_item(
     db.commit()
     db.refresh(item)
     return envelope(OpportunityItemRead.model_validate(item).model_dump(by_alias=True))
+
+
+@router.post("/opportunities/{opportunity_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_opportunity_lines(
+    opportunity_id: str,
+    payload: SaveOpportunityLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """What the deal is for — its lines — restated in one act by the deal's
+    owner, as a diff under the detail's `revision`."""
+    tenant_id = actor.tenant_id
+    opportunity = _own_opportunity(db, actor, opportunity_id)
+
+    def audit(line_id: str, verb: str, changed: dict | None) -> None:
+        action = {"line_added": "item_added", "line_changed": "item_changed", "line_removed": "item_removed"}[verb]
+        record_audit(db, tenant_id=tenant_id, action=f"opportunity.{action}", entity_type="opportunity",
+                     entity_id=opportunity.id, actor=actor.label,
+                     detail={"opportunity_no": opportunity.opportunity_no, "item_id": line_id,
+                             **({"fields": sorted(changed)} if changed else {})})
+
+    return save_rows(
+        db, actor, document=opportunity, parent_model=Opportunity, header_read=OpportunityRead, spec=OPPORTUNITY_ROWS,
+        payload=payload, build=lambda row: build_opportunity_item(db, tenant_id, opportunity, row),
+        update=lambda item, changed: apply_opportunity_item_updates(db, tenant_id, item, changed),
+        remove=db.delete, new_model=OpportunityItemBase, update_model=UpdateOpportunityItemRequest, validate_only=validate_only, audit=audit,
+    )
 
 
 @router.get("/opportunity-items/{item_id}", response_model=OpportunityItemEnvelope, response_model_exclude_unset=True)
@@ -1116,24 +1182,7 @@ def update_opportunity_item(
     item = get_scoped_or_404(db, OpportunityItem, tenant_id, item_id)
     opportunity = _own_opportunity(db, actor, item.opportunity_id)
     updates = payload.model_dump(exclude_unset=True)
-    _line_product(db, tenant_id, updates.get("product_id", item.product_id), updates.get("sku_id", item.sku_id))
-    if "custom_fields" in updates:
-        item.custom_fields_jsonb = updates.pop("custom_fields")
-    for field, value in updates.items():
-        setattr(item, field, value)
-    if "product_id" in updates and item.product_id and "product_name_snapshot" not in updates:
-        # the name follows the product it now names (review N05): a line
-        # switched from A to B kept A's name and quoted B under it
-        item.product_name_snapshot = db.get(Product, item.product_id).name
-        if "sku_id" not in updates and item.sku_id:
-            sku = db.get(ProductSku, item.sku_id)
-            if sku is None or sku.product_id != item.product_id:
-                item.sku_id = None
-    if not (item.product_id or (item.product_name_snapshot or "").strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="a line names a product — by id, or by name when the catalog has none")
-    if "amount" not in updates and item.unit_price is not None:
-        item.amount = round(float(item.quantity) * float(item.unit_price), 2)
+    apply_opportunity_item_updates(db, tenant_id, item, updates)
     record_audit(db, tenant_id=tenant_id, action="opportunity.item_changed", entity_type="opportunity",
                  entity_id=opportunity.id, actor=actor.label,
                  detail={"opportunity_no": opportunity.opportunity_no, "item_id": item.id, "fields": sorted(updates)})
@@ -1339,6 +1388,7 @@ def get_opportunity_detail(
         CommunicationEvent.tenant_id == tenant_id, CommunicationEvent.opportunity_id == opportunity.id,
         CommunicationEvent.deleted_at.is_(None)).order_by(CommunicationEvent.occurred_at.desc()).limit(10)).all()
     detail = OpportunityDetailRead(
+        revision=rows_revision(db, opportunity, OpportunityRead, {"items": OPPORTUNITY_ROWS}),
         opportunity=OpportunityRead.model_validate(opportunity),
         items=[OpportunityItemRead.model_validate(i) for i in items],
         contacts=contacts,

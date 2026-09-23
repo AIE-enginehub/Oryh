@@ -123,7 +123,14 @@ the middle, writes last:
    server also refuses to link a number that already names another order
    of ours (409 naming it) — but by then the duplicate order exists, so
    this read comes first.
-2. **Translate each line through the map first — AS OF the order's date**:
+2. **Translate each line through the map first — AS OF the order's date.**
+   A file is one call: collect the distinct listings of the whole import and
+   send `POST /external-product-maps/resolve`
+   `{"source": "tmall", "with_candidates": true, "listings": [{"external_product_id"?, "external_name"?, "external_sku_id"?, "at": {that order's date}}, …]}`
+   (up to 500). `data[i]` answers `listings[i]`: `status: mapped` with the
+   `maps` rows to translate by, or `unmapped` with the step-3 shortlist in
+   `candidates`. It reads and confirms nothing. For a line or two, the
+   same question one at a time is
    `GET /external-product-maps?source=tmall&external_name={title verbatim}&at={the ORDER's date}`
    (spec text in `external_sku_id` as the export prints it — the server
    folds case and width, not the platform's label; when the export carries
@@ -140,7 +147,8 @@ the middle, writes last:
    amounts matter, confirm that day's orders with a person. Each row
    contributes `quantity × line qty` of its `product_id` — a bundle
    listing returns several rows, and that IS the translation.
-3. **Only when the map is silent, ask the catalog for candidates**:
+3. **Only when the map is silent, ask the catalog for candidates** (the
+   batch call returned them already):
    `GET /product-matches?title={title}&limit=5` ranks active products by
    how much of the title's vocabulary they share. It is a shortlist, not
    a decision. **This workspace's own matching rules** (how its titles

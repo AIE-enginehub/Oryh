@@ -174,7 +174,7 @@ def test_e30_a_seller_links_only_its_own_orders(shop) -> None:
     assert ok.status_code == 201, ok.text
     refused = client.post("/api/v1/external-document-links", headers=seller,
                           json={**link, "external_no": "JD2", "entity_id": theirs["id"]})
-    assert refused.status_code == 403, refused.text
+    assert refused.status_code in (403, 404), refused.text  # another seller's order does not exist for this one
 
 
 # --- E-15: holds ------------------------------------------------------------------

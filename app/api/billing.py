@@ -43,6 +43,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
+from app.core.line_math import derive_line_amount
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -92,6 +93,12 @@ from app.api.common import (
     serve_document_attachment,
     submit_document,
     visible_payroll_filter,
+    finish_save,
+    live_rows,
+    require_revision,
+    restate_rows,
+    rows_revision,
+    soft_remove,
 )
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -170,6 +177,9 @@ from app.schemas import (
     UpdateInvoiceItemRequest,
     UpdateInvoiceRequest,
     UpdatePaymentRequest,
+    SaveInvoiceLinesRequest,
+    SavedLinesEnvelope,
+    InvoiceItemBase,
 )
 from app.services.audit import record_audit
 from app.core.type_options import SIGNED_TYPE_FAMILIES
@@ -1245,6 +1255,7 @@ def get_invoice_detail(
     billed_total = invoice_billed_total(invoice, items)
     applied_amount = float(invoice.applied_amount or 0)
     detail = InvoiceDetailRead(
+        revision=rows_revision(db, invoice, InvoiceRead, INVOICE_ROWS),
         invoice=InvoiceRead.model_validate(invoice),
         items=detail_items,
         approval_records=[
@@ -1422,7 +1433,7 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
         quantity=payload.quantity,
         unit=unit,
         unit_price=payload.unit_price,
-        amount=payload.amount,
+        amount=derive_line_amount(payload.quantity, payload.unit_price, payload.amount),
         tax_rate=payload.tax_rate,
         tax_amount=payload.tax_amount,
         sales_order_item_id=payload.sales_order_item_id,
@@ -1473,17 +1484,10 @@ def get_invoice_item(
     return envelope(InvoiceItemRead.model_validate(item).model_dump(by_alias=True))
 
 
-@router.patch("/invoice-items/{item_id}", response_model=InvoiceItemEnvelope, response_model_exclude_unset=True)
-def update_invoice_item(
-    item_id: str,
-    payload: UpdateInvoiceItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    tenant_id = actor.tenant_id
-    item = get_live_or_404(db, InvoiceItem, tenant_id, item_id)
-    invoice = _invoice_for_line(db, actor, item.invoice_id)
-    updates = payload.model_dump(exclude_unset=True)
+def apply_invoice_item_updates(db: Session, tenant_id: str, invoice: Invoice, item: InvoiceItem, updates: dict) -> None:
+    """The rules a changed invoice line goes through — one set for the
+    single-row PATCH and the whole-invoice save."""
+    updates = dict(updates)
     family = ITEM_TYPE_FAMILY_BY_DIRECTION[invoice.direction]
     if updates.get("invoice_item_type") is not None:
         require_type_option(db, tenant_id, family, updates["invoice_item_type"])
@@ -1499,8 +1503,6 @@ def update_invoice_item(
     )
     ensure_invoice_item_order_link(db, tenant_id, invoice, updates)
     if "product_id" in updates or "sku_id" in updates or "product_name_snapshot" in updates or "unit" in updates:
-        # a stale variant must never survive a product swap — same rule the
-        # shared line helper keeps
         product_unchanged = updates.get("product_id", item.product_id) == item.product_id
         product_id, sku_id, product_name_snapshot, unit = normalize_product_context(
             db, tenant_id,
@@ -1517,6 +1519,58 @@ def update_invoice_item(
         item.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
         setattr(item, field, value)
+    if any(f in updates for f in ("quantity", "unit_price", "amount")):
+        item.amount = derive_line_amount(item.quantity, item.unit_price, updates.get("amount"))
+
+
+INVOICE_ROWS = {"items": (InvoiceItem, "invoice_id", InvoiceItemRead)}
+
+
+@router.post("/invoices/{invoice_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_invoice_lines(
+    invoice_id: str,
+    payload: SaveInvoiceLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """An invoice's lines restated in one act, as a diff under the detail's
+    `revision` — the contract of every `/save`. The line gate is the
+    single-row paths' (live, editable, within the direction scope), a payslip
+    stays behind the payroll read gate, and the charged-document check runs
+    once over the result."""
+    invoice = _invoice_for_line(db, actor, invoice_id)
+    ensure_invoice_visible(actor, invoice)
+    db.refresh(invoice, with_for_update=True)
+    require_revision(rows_revision(db, invoice, InvoiceRead, INVOICE_ROWS), payload.expected_revision)
+    restate_rows(
+        db, actor, Invoice, invoice.id, payload.items,
+        {row.id: row for row in live_rows(db, invoice, InvoiceItem, "invoice_id")},
+        build=lambda row: build_invoice_item(db, actor, row, invoice=invoice),
+        update=lambda item, changed: apply_invoice_item_updates(db, actor.tenant_id, invoice, item, changed),
+        remove=soft_remove, new_model=InvoiceItemBase, update_model=UpdateInvoiceItemRequest,
+    )
+    recheck_charged_document(db, invoice, label="invoice")
+
+    def read_back() -> dict:
+        rows = sorted(live_rows(db, invoice, InvoiceItem, "invoice_id"), key=lambda r: (r.line_no or 0, r.created_at))
+        return {"id": invoice.id, "revision": rows_revision(db, invoice, InvoiceRead, INVOICE_ROWS),
+                "items": [InvoiceItemRead.model_validate(r).model_dump(by_alias=True) for r in rows]}
+
+    return finish_save(db, validate_only, read_back)
+
+
+@router.patch("/invoice-items/{item_id}", response_model=InvoiceItemEnvelope, response_model_exclude_unset=True)
+def update_invoice_item(
+    item_id: str,
+    payload: UpdateInvoiceItemRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    tenant_id = actor.tenant_id
+    item = get_live_or_404(db, InvoiceItem, tenant_id, item_id)
+    invoice = _invoice_for_line(db, actor, item.invoice_id)
+    apply_invoice_item_updates(db, tenant_id, invoice, item, payload.model_dump(exclude_unset=True))
     record_line_audit(
         db, actor, Invoice, item.invoice_id, item.id, "line_changed",
         changed=payload.model_dump(exclude_unset=True),

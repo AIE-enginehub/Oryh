@@ -956,6 +956,30 @@ Body:
 | `status` | `active` | `archived` | `draft` | optional |  |
 | `version` | string (≤50 chars) | optional |  |
 
+## POST /bills-of-materials/{bom_id}/save
+
+Save Bom Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `bom_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `component_product_id` | string | optional |  |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `line_no` | integer | optional |  |
+  | `quantity` | number | optional |  |
+  | `scrap_rate` | number | optional |  |
+  | `unit` | string | optional |  |
+
 ## POST /contract-terms
 
 Create Contract Term
@@ -1046,6 +1070,33 @@ Restore Contract
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `contract_id` | path | string | yes |  |
+
+## POST /contracts/{contract_id}/save
+
+Save Contract Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `contract_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `currency` | string | optional |  |
+  | `delivery_note` | string | optional |  |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `line_no` | integer | optional |  |
+  | `metadata` | object | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `unit` | string | optional |  |
+  | `unit_price` | number | optional |  |
 
 ## POST /object-type-definitions
 
@@ -1542,6 +1593,30 @@ Restore Shipment
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `shipment_id` | path | string | yes |  |
+
+## POST /shipments/{shipment_id}/save
+
+Save Shipment Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `shipment_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `description` | string | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `inventory_item_id` | string | optional |  |
+  | `line_no` | integer | optional |  |
+  | `product_id` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sku_id` | string | optional |  |
 
 ## POST /supplier-products
 

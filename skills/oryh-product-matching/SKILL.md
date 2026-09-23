@@ -72,8 +72,22 @@ document it belongs to was placed.
 Reads first, the person in the middle, writes last — for the **whole batch**
 at once, never one line at a time.
 
-1. **The map answers first, as of the document's date.** For every line, in
-   one wave: `GET /external-product-maps?source={source}&external_name={title verbatim}&at={document date}`
+1. **The map answers first, as of the document's date.**
+
+   **A batch is one call.** For more than a handful of lines, send them
+   together: `POST /external-product-maps/resolve` with
+   `{"source", "at": {document date}, "with_candidates": true, "listings": [{"external_product_id"?, "external_name"?, "external_sku_id"?, "at"?}, …]}`
+   (up to 500 distinct listings; de-duplicate first — a file of 300 lines
+   usually names 40 listings). `data[i]` answers `listings[i]` with
+   `status: mapped | unmapped` and `maps` — the same rows, by the same
+   rules, as the single read below — and, for every unmapped title, the
+   step-2 shortlist in `candidates`. A line whose document date differs
+   from the batch's carries its own `at`. It is a read: it confirms
+   nothing, and step 4 still stands. The single reads below are the same
+   questions one at a time — use them for a line or two, or to look again
+   at one listing.
+
+   One line at a time: `GET /external-product-maps?source={source}&external_name={title verbatim}&at={document date}`
    (`&external_sku_id={spec as printed}` when the platform splits the spec
    out — the server folds case, width and spacing on both sides, so
    `size:11X14` finds `size:11x14`, but it does not strip the platform's
@@ -97,8 +111,9 @@ at once, never one line at a time.
    rows, and withdraw the wrong one (`DELETE`; your grant archives an
    undated row). A bundle row contributes `quantity × line qty` of its
    product, and that IS the translation.
-2. **Only the lines the map did not answer go further.** For each of those,
-   in the same wave: `GET /product-matches?title={title}&limit=5` — active
+2. **Only the lines the map did not answer go further.** The batch call
+   already returned their shortlists (`candidates`); for a single title it
+   is `GET /product-matches?title={title}&limit=5` — active
    products ranked by the phrases they share with the title, each phrase
    weighed by how rare it is in this catalog: a marketing compound every
    printer carries counts for little, the one word only the ribbon carries

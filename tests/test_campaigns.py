@@ -106,7 +106,7 @@ def test_members_are_one_party_each_and_never_twice(crm) -> None:
     assert own.status_code == 201, own.text
     not_theirs = client.post("/api/v1/campaign-members", headers=li["key"],
                              json={"campaign_id": campaign["id"], "lead_id": lead["id"]})
-    assert not_theirs.status_code in (403, 409)
+    assert not_theirs.status_code in (403, 404, 409)
     again = client.post("/api/v1/campaign-members", headers=marketing["key"],
                         json={"campaign_id": campaign["id"], "lead_id": lead["id"]})
     assert again.status_code == 409, "a party is listed once"

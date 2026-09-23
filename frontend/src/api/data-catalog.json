@@ -313,6 +313,10 @@
           "type": "string"
         },
         {
+          "name": "revision",
+          "type": "string"
+        },
+        {
           "name": "created_at",
           "type": "string",
           "format": "date-time"
@@ -393,7 +397,24 @@
         }
       ],
       "remove": true,
-      "actions": [],
+      "actions": [
+        {
+          "verb": "save",
+          "path": "/api/v1/bills-of-materials/{bom_id}/save",
+          "summary": "Save Bom Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
+        }
+      ],
       "recordPath": "/api/v1/bills-of-materials/{bom_id}",
       "related": [
         {
@@ -8658,6 +8679,22 @@
           "path": "/api/v1/picklists/{picklist_id}/restore",
           "summary": "Restore Picklist",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/picklists/{picklist_id}/save",
+          "summary": "Save Picklist Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         }
       ],
       "recordPath": "/api/v1/picklists/{picklist_id}",
@@ -9168,6 +9205,22 @@
           "path": "/api/v1/shipments/{shipment_id}/restore",
           "summary": "Restore Shipment",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/shipments/{shipment_id}/save",
+          "summary": "Save Shipment Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         }
       ],
       "recordPath": "/api/v1/shipments/{shipment_id}",
@@ -10149,6 +10202,43 @@
               "required": false,
               "type": "string"
             }
+          ]
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/expense-claims/{claim_id}/save",
+          "summary": "Save Expense Claim",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "name": "title",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "claim_date",
+              "required": false,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "currency",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "source_report_text",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "unsupported": [
+            "items"
           ]
         },
         {
@@ -11327,6 +11417,22 @@
           "path": "/api/v1/invoices/{invoice_id}/restore",
           "summary": "Restore Invoice",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/invoices/{invoice_id}/save",
+          "summary": "Save Invoice Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         },
         {
           "verb": "submit",
@@ -15208,6 +15314,22 @@
           "path": "/api/v1/opportunities/{opportunity_id}/restore",
           "summary": "Restore Opportunity",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/opportunities/{opportunity_id}/save",
+          "summary": "Save Opportunity Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         }
       ],
       "recordPath": "/api/v1/opportunities/{opportunity_id}",
@@ -16367,6 +16489,10 @@
           "type": "string"
         },
         {
+          "name": "revision",
+          "type": "string"
+        },
+        {
           "name": "created_at",
           "type": "string",
           "format": "date-time"
@@ -16562,6 +16688,22 @@
           "path": "/api/v1/contracts/{contract_id}/restore",
           "summary": "Restore Contract",
           "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/contracts/{contract_id}/save",
+          "summary": "Save Contract Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
         }
       ],
       "recordPath": "/api/v1/contracts/{contract_id}",

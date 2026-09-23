@@ -144,3 +144,37 @@ def test_the_openapi_document_names_the_header_on_every_write() -> None:
                 missing.append(f"{method.upper()} {path}")
     assert not missing, missing
     assert not any(p.get("name") == "Idempotency-Key" for p in schema["paths"]["/api/v1/customers"]["get"].get("parameters", []))
+
+
+def test_the_answer_is_stored_before_its_first_byte_leaves(shop) -> None:
+    """A client that retries the instant it has the response must find the
+    answer, not an in-flight claim (the live probe's 409 on v2026.9.18)."""
+    import asyncio
+    import json as jsonlib
+
+    from app.db.session import get_db
+    from app.main import app
+
+    c, admin = shop["client"], shop["admin"]
+    seen = {}
+
+    async def downstream(scope, receive, send):
+        await receive()
+        await send({"type": "http.response.start", "status": 201, "headers": [(b"content-type", b"application/json")]})
+        await send({"type": "http.response.body", "body": b'{"data": {"ok": true}}'})
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            with c.session_factory() as db:
+                record = db.scalar(select(IdempotencyRecord).where(IdempotencyRecord.key == "early-bird"))
+                seen["completed"] = record is not None and record.completed_at is not None
+                seen["body"] = record.response_body if record else None
+
+    async def receive():
+        return {"type": "http.request", "body": jsonlib.dumps({"name": "x"}).encode(), "more_body": False}
+
+    middleware = idempotency.IdempotencyMiddleware(downstream, session_resolver=lambda: app.dependency_overrides.get(get_db, get_db))
+    scope = {"type": "http", "method": "POST", "path": "/api/v1/customers", "query_string": b"",
+             "headers": [(b"x-api-key", admin["X-API-Key"].encode()), (b"idempotency-key", b"early-bird")]}
+    asyncio.run(middleware(scope, receive, send))
+    assert seen == {"completed": True, "body": '{"data": {"ok": true}}'}

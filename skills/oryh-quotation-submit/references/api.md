@@ -155,7 +155,7 @@ GET  /sales-quotations/{id}/detail                          → revision (a hash
 POST /sales-quotations/{id}/save?validate_only=true         → the same run, nothing written
 POST /sales-quotations/{id}/save
 {"expected_revision": "<detail.revision>",
- "items": [{"id": "<existing line>", ...full line...},   → updated through the PATCH rules
+ "items": [{"id": "<existing line>", ...the fields that change...},   → updated through the PATCH rules
            {...full line without id...}],                → added through the POST rules
  "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
                  {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}

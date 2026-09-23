@@ -121,7 +121,7 @@ def test_a_quotation_is_restated_as_a_diff_under_its_revision(desk) -> None:
     out = saved.json()["data"]
     assert out["items"][0]["id"] == cup_line["id"], "a kept line keeps its identity"
     assert out["items"][0]["quantity"] == 12.0 and out["items"][0]["unit_price"] == 9.0
-    assert out["items"][0]["amount"] is None, "a stored amount is dropped when the price moves (F-28)"
+    assert out["items"][0]["amount"] == 108.0, "the amount follows the price: 12 × 9 (it used to be dropped to null, F-28)"
     assert lid_line["id"] not in {i["id"] for i in out["items"]}
     assert len(out["items"]) == 2 and len(out["adjustments"]) == 2
     assert out["adjustments"][1]["quotation_item_id"] == out["items"][1]["id"]
@@ -168,7 +168,7 @@ def test_the_owner_gate_holds_on_a_save(desk) -> None:
     revision = c.get(f"/api/v1/sales-quotations/{q['id']}/detail", headers=admin).json()["data"]["revision"]
     refused = c.post(f"/api/v1/sales-quotations/{q['id']}/save", headers=rep, json={
         "expected_revision": revision, "items": [{"product_id": desk["cup"], "quantity": 1}]})
-    assert refused.status_code == 403, refused.text
+    assert refused.status_code in (403, 404), refused.text  # a colleague's quotation does not exist for this rep
 
 
 def test_purchase_documents_save_too(desk) -> None:

@@ -68,7 +68,7 @@ def test_lines_and_cast_are_the_owners_and_the_close_details_are_facts(deal) -> 
     assert free.status_code == 201 and free.json()["data"]["amount"] == 3000.0
     stranger = client.post("/api/v1/opportunity-items", headers=li["key"],
                            json={"opportunity_id": opp["id"], "product_name_snapshot": "x", "quantity": 1})
-    assert stranger.status_code == 403, "my deal's lines are mine"
+    assert stranger.status_code == 404, "my deal's lines are mine — the deal does not exist for a stranger"
 
     # the cast: the customer's own people, one primary
     other_customer = client.post("/api/v1/customers", json={"name": "别家"}, headers=deal["admin"]).json()["data"]

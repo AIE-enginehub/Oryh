@@ -467,6 +467,7 @@ def test_bulk_po_import_upserts_by_number_and_requires_the_vendor(client: TestCl
     # a corrected re-import updates in place, children replaced wholesale
     fixed = po_row()
     fixed["items"][0]["quantity"] = 12
+    fixed["items"][0].pop("amount")   # the server computes it; 28000 with 12 × 2800 would be refused as inconsistent
     corrected = client.post(
         "/api/v1/purchase-orders/bulk", json={"rows": [fixed]}, headers=HEADERS
     )

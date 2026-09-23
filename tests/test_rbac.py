@@ -509,7 +509,7 @@ def test_member_expense_baseline(client: TestClient) -> None:
     ).json()["data"]["id"]
     assert client.post(
         f"/api/v1/expense-claims/{other_claim}/submit", json={}, headers=member["headers"]
-    ).status_code == 403
+    ).status_code == 404  # someone else's claim does not exist for a member (app/api/visibility.py)
     assert client.post(
         "/api/v1/expense-claims",
         json={"employee_id": other_employee, "title": "替别人建"},
@@ -730,7 +730,8 @@ def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
         headers=service,
     )
     assert created.status_code == 201, created.text
-    manager = invite_with_role(client, service, "manager@rbac-co.com", "dept_manager")
+    manager_employee = client.post("/api/v1/employees", json={"name": "部门经理"}, headers=service).json()["data"]["id"]
+    manager = invite_with_role(client, service, "manager@rbac-co.com", "dept_manager", employee_id=manager_employee)
 
     # the capability the report said was missing, exercised end to end
     employee_id = client.post(
@@ -742,6 +743,12 @@ def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
         headers=service,
     ).json()["data"]["id"]
     client.post(f"/api/v1/timesheet-headers/{header}/submit", json={}, headers=service)
+    # an approver reads what was routed to them: the todo IS the routing
+    unrouted = client.get(f"/api/v1/timesheet-headers/{header}", headers=manager["headers"])
+    assert unrouted.status_code == 404
+    routed = client.post("/api/v1/todos", headers=service, json={
+        "employee_id": manager_employee, "entity_type": "timesheet_header", "entity_id": header, "title": "审批工时"})
+    assert routed.status_code == 201, routed.text
     recorded = client.post(
         "/api/v1/approval-records",
         json={

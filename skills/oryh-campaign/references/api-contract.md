@@ -672,6 +672,35 @@ Restore Opportunity
 |---|---|---|---|---|
 | `opportunity_id` | path | string | yes |  |
 
+## POST /opportunities/{opportunity_id}/save
+
+Save Opportunity Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `opportunity_id` | path | string | yes |  |
+| `validate_only` | query | boolean | no |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `expected_revision` | string (≤64 chars) | required |  |
+| `items` | array of objects (fields below) | required |  |
+| ↳ each `items[]` item: | | | |
+  | `amount` | number | optional |  |
+  | `custom_fields` | object | optional |  |
+  | `id` | string | optional | a live row to keep; absent = a new row |
+  | `line_no` | integer | optional |  |
+  | `notes` | string | optional |  |
+  | `product_id` | string | optional |  |
+  | `product_name_snapshot` | string | optional |  |
+  | `quantity` | number | optional |  |
+  | `sku_id` | string | optional |  |
+  | `spec` | string | optional |  |
+  | `unit` | string | optional |  |
+  | `unit_price` | number | optional |  |
+
 ## POST /sales-orders
 
 Create Sales Order

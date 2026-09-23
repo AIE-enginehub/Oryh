@@ -118,6 +118,7 @@ UNAUDITED: dict[str, str] = {
     "master_data.py POST /customer-products": "master data write unaudited — known gap",
     "master_data.py PATCH /customer-products/{customer_product_id}": "master data write unaudited — known gap",
     "master_data.py POST /external-product-maps": "master data write unaudited — known gap",
+    "master_data.py POST /external-product-maps/resolve": "a read — POST only because 500 listings do not fit a query string; writes nothing",
     "master_data.py PATCH /external-product-maps/{map_id}": "master data write unaudited — known gap",
     "master_data.py POST /inventory-items": "master data write unaudited — known gap",
     "master_data.py PATCH /inventory-items/{item_id}": "master data write unaudited — known gap",

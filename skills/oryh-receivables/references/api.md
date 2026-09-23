@@ -205,3 +205,17 @@ invoicing request back to its filer. Tenants rename and rewire — read the mach
 ## When the decision happened
 
 {{include:_common/when-the-decision-happened.md}}
+
+## Restating The Whole Document
+
+```text
+GET  /invoices/{id}/detail                                                    → revision (a hash of the header and the live lines)
+POST /invoices/{id}/save?validate_only=true                → the same run, nothing written
+POST /invoices/{id}/save
+{"expected_revision": "<detail.revision>", "items": [{"id": "<existing line>", "quantity": 3}, {"product_id": "...", "quantity": 1, "unit_price": 8}]}
+```
+
+A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
+and changes only in the fields it states; a row without an id is added
+through the create rules; a live line not listed is removed. A stale
+`expected_revision` is a 409 — read again, restate. Only while the invoice is editable (before it is issued); header fields keep their PATCH.

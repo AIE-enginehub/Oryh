@@ -9,6 +9,9 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 ## The map: pairings a person already confirmed
 
 ```text
+POST /external-product-maps/resolve                      → a whole import in one read: {"source","at"?,"with_candidates"?,"candidate_limit"?,
+                                                            "listings":[{"external_product_id"?,"external_name"?,"external_sku_id"?,"at"?}]} (≤500);
+                                                            data[i] answers listings[i]: status mapped|unmapped, maps[], candidates[] when asked
 GET /external-product-maps?source=tmall&external_name={title verbatim}&at={document date}
 GET /external-product-maps?source=tmall&external_name={title verbatim}&external_sku_id={spec as printed}&at={document date}
 GET /external-product-maps?source=tmall&external_product_id={listing id}&external_name={title verbatim}&at={document date}

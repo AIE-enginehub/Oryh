@@ -51,6 +51,9 @@ from app.api.common import (
     require_machine_state,
     restore_document,
     serve_document_attachment,
+    rows_revision,
+    save_rows,
+    soft_remove,
 )
 from app.api.deps import Actor, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -90,6 +93,9 @@ from app.schemas import (
     UpdateContractItemRequest,
     UpdateContractRequest,
     UpdateContractTermRequest,
+    SaveContractLinesRequest,
+    SavedLinesEnvelope,
+    ContractItemBase,
 )
 from app.services.state_machines import validate_status_filter
 from app.services.type_options import require_type_option
@@ -129,10 +135,14 @@ def _require_contract_access(db: Session, actor: Actor, contract_id: str) -> Con
     return contract
 
 
+CONTRACT_ROWS = (ContractItem, "contract_id", ContractItemRead)
+
+
 def _contract_read(db: Session, tenant_id: str, contract: Contract, *, full: bool) -> dict:
     data = ContractRead.model_validate(contract).model_dump(by_alias=True)
     if not full:
         return data
+    data["revision"] = rows_revision(db, contract, ContractRead, {"items": CONTRACT_ROWS})
     data["items"] = [
         ContractItemRead.model_validate(row).model_dump(by_alias=True)
         for row in db.scalars(
@@ -567,6 +577,36 @@ def create_contract_item(
     db.commit()
     db.refresh(item)
     return envelope(ContractItemRead.model_validate(item).model_dump(by_alias=True))
+
+
+@router.post("/contracts/{contract_id}/save", response_model=SavedLinesEnvelope, response_model_exclude_unset=True)
+def save_contract_lines(
+    contract_id: str,
+    payload: SaveContractLinesRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    validate_only: bool = False,
+):
+    """What was agreed — the contract's lines — restated in one act, as a
+    diff under the contract's `revision`. Documents and located terms keep
+    their own routes: a scan is uploaded once, not restated."""
+    tenant_id = actor.tenant_id
+    contract = _require_contract_access(db, actor, contract_id)
+    ensure_document_editable(db, contract)
+
+    def update(item: ContractItem, changed: dict) -> None:
+        if changed.get("product_id"):
+            get_scoped_or_404(db, Product, tenant_id, changed["product_id"])
+        if "metadata" in changed:
+            item.metadata_jsonb = changed.pop("metadata")
+        for field_name, value in changed.items():
+            setattr(item, field_name, value)
+
+    return save_rows(
+        db, actor, document=contract, parent_model=Contract, header_read=ContractRead, spec=CONTRACT_ROWS,
+        payload=payload, build=lambda row: build_contract_item(db, tenant_id, contract, row),
+        update=update, remove=db.delete, new_model=ContractItemBase, update_model=UpdateContractItemRequest, validate_only=validate_only,
+    )
 
 
 @router.patch("/contract-items/{item_id}", response_model=ContractItemEnvelope,

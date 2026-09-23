@@ -93,3 +93,17 @@ DELETE /campaign-members/{id}
 A lead's `campaign_id` (on `POST /leads` and `PATCH /leads/{id}`) and an
 opportunity's are the attribution; `?campaign_id=` filters both lists.
 The opportunity the conversion bridge opens inherits the lead's.
+
+## Restating The Whole Document
+
+```text
+GET  /opportunities/{id}/detail                                               → revision (a hash of the header and the live lines)
+POST /opportunities/{id}/save?validate_only=true                → the same run, nothing written
+POST /opportunities/{id}/save
+{"expected_revision": "<detail.revision>", "items": [{"id": "<existing line>", "quantity": 5}, {"product_name_snapshot": "Installation training", "quantity": 1, "unit_price": 3000}]}
+```
+
+A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
+and changes only in the fields it states; a row without an id is added
+through the create rules; a live line not listed is removed. A stale
+`expected_revision` is a 409 — read again, restate. The deal's owner only; the cast (contacts) keeps its own routes.

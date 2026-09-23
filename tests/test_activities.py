@@ -67,15 +67,18 @@ def test_an_activity_is_a_confirmed_contact_on_a_party_and_belongs_to_its_writer
     activity = made.json()["data"]
     assert activity["employee_id"] == zhang["employee_id"], "the writer's own employee, without being told"
 
-    # someone else's activity is theirs to change, not mine; everyone reads
-    assert client.patch(f"/api/v1/activities/{activity['id']}", headers=li["key"], json={"outcome": "neutral"}).status_code == 403
-    assert client.get(f"/api/v1/activities/{activity['id']}", headers=li["key"]).status_code == 200
+    # someone else's activity on someone else's deal does not exist for me
+    # (app/api/visibility.py): not to change, not to read — crm.read_all reads
+    assert client.patch(f"/api/v1/activities/{activity['id']}", headers=li["key"], json={"outcome": "neutral"}).status_code == 404
+    assert client.get(f"/api/v1/activities/{activity['id']}", headers=li["key"]).status_code == 404
     listed = client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}&occurred_from=2026-09-01T00:00:00Z&order_by=-occurred_at&page=1&size=10",
-                        headers=li["key"]).json()
+                        headers=zhang["key"]).json()
     assert listed["meta"]["total"] == 1 and listed["data"][0]["subject"] == "回访设备科"
+    assert client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}", headers=li["key"]).json()["data"] == [], \
+        "a colleague's record of contact is read by its author, the account's owner, whoever reads the deal, or crm.read_all"
     gone = client.delete(f"/api/v1/activities/{activity['id']}", headers=zhang["key"])
     assert gone.status_code == 204
-    assert client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}", headers=li["key"]).json()["data"] == []
+    assert client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}", headers=zhang["key"]).json()["data"] == []
 
 
 def test_an_event_is_planned_with_its_people_and_logging_it_writes_the_activity(desk) -> None:

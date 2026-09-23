@@ -416,6 +416,25 @@ Body:
 | `sku_id` | string | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## POST /external-product-maps/resolve
+
+Resolve External Products
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `listings` | array of objects (fields below) | required |  |
+| ↳ each `listings[]` item: | | | |
+  | `at` | date | optional |  |
+  | `external_name` | string (≤300 chars) | optional |  |
+  | `external_product_id` | string (≤128 chars) | optional |  |
+  | `external_sku_id` | string (≤128 chars) | optional |  |
+| `source` | string (≤50 chars) | required |  |
+| `at` | date | optional |  |
+| `candidate_limit` | integer (≥1.0, ≤10.0) | optional |  |
+| `with_candidates` | boolean | optional |  |
+
 ## POST /product-skus
 
 Create Product Sku
