@@ -198,11 +198,35 @@ def test_resubmitting_leaves_other_work_open(workspace) -> None:
 # --- the pairs that are deliberately NOT coupled ---------------------------
 
 
+def _declared_verbs(tree: ast.Module) -> list[tuple[str, str, set[str]]]:
+    """The restore and submit routes a module declares through
+    `register_document_verbs` (app/api/family_routes.py): each runs the shared
+    act, after the verb's own `before` hook."""
+    found = []
+    for node in tree.body:
+        call = node.value if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) else None
+        if call is None or not isinstance(call.func, ast.Name) or call.func.id != "register_document_verbs":
+            continue
+        kw = {k.arg: k.value for k in call.keywords}
+        path = kw["path"].value
+        noun = kw["singular"].value if "singular" in kw else path.strip("/").replace("-", "_")[:-1]
+        for verb in ("restore", "submit"):
+            spec = kw.get(verb)
+            if spec is None:
+                continue
+            calls = {f"{verb}_document"} | {
+                n.id for k in spec.keywords if k.arg == "before" for n in ast.walk(k.value) if isinstance(n, ast.Name)
+            }
+            found.append((f"POST {path}/{{{kw['id_param'].value}}}/{verb}", f"{verb}_{noun}", calls))
+    return found
+
+
 def routed_endpoints() -> list[tuple[str, str, set[str]]]:
     """(verb+path, function name, names it calls) for every mutating route."""
     found = []
     for path in sorted(API.glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
+        found += _declared_verbs(tree)
         for fn in ast.walk(tree):
             if not isinstance(fn, ast.FunctionDef):
                 continue

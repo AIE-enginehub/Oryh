@@ -85,7 +85,7 @@ async def _validation_error(request: Request, exc: RequestValidationError) -> JS
     from fastapi.encoders import jsonable_encoder
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": _json_safe(jsonable_encoder(exc.errors()))},
     )
 app.add_middleware(RequestBaseUrlMiddleware)

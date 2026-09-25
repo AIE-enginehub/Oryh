@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Generic, Literal, TypeVar
@@ -11,6 +13,7 @@ from app.core.permissions import (
     HOSTED_FLOW_AGENT_PERMISSIONS,
     PRINCIPAL_HOSTED_FLOW_AGENT,
     PRINCIPAL_TENANT_SERVICE,
+    capability_covers,
 )
 from app.core.entity_types import (
     APPROVAL_ENTITY_TYPES,
@@ -71,7 +74,6 @@ PaymentMethod = TypeOptionName
 # on it, so an extensible vocabulary would leave them undecidable.
 InvoiceDirection = Literal["sales", "purchase", "payroll", "reimbursement"]
 PayPeriodType = TypeOptionName
-PayrollItemType = TypeOptionName
 PayComponentType = TypeOptionName
 PaymentDirection = Literal["inbound", "outbound"]
 # What a payment application may settle. `payment` is OFBiz's toPaymentId —
@@ -82,11 +84,8 @@ PaymentApplicationTarget = Literal["invoice", "expense_claim", "billing_account"
 # it, so money must never reach a points account.
 BillingAccountUnitType = Literal["currency", "points"]
 BillingAccountStatus = Literal["active", "frozen", "closed"]
-BillingAccountUnit = TypeOptionName
 BillingAccountEntryReason = TypeOptionName
 # Tenant-configurable via the builtin state machines, same as TimesheetStatus.
-InvoiceStatus = str
-PaymentStatus = str
 ApprovalAction = Literal["submitted", "approved", "rejected", "returned", "commented"]
 SourceType = Literal["web", "api", "ai", "system"]
 # What an approval fact or a todo may point at.
@@ -167,6 +166,47 @@ class RequestModel(BaseModel):
 
 
 
+def partial_model(name: str, base: type[BaseModel], *, exclude: tuple[str, ...] = ()) -> type[BaseModel]:
+    """`base` with every field optional and defaulting to None — a PATCH body,
+    by name. `exclude` names what a PATCH may not touch: the record's
+    identity and its parent key. Constraints, aliases and descriptions are
+    the base's; the contract does not change by a byte (the generator is
+    applied only where that held)."""
+    fields = {}
+    for field_name, info in base.model_fields.items():
+        if field_name in exclude:
+            continue
+        optional = copy.copy(info)
+        optional.default = None
+        optional.default_factory = None
+        fields[field_name] = (info.annotation | None, optional)
+    return create_model(name, __base__=RequestModel, __module__=__name__, **fields)
+
+
+def _action_request(name: str, **fields) -> type[BaseModel]:
+    """A document verb's optional body, by name: the delete, restore and
+    submit bodies are the same three shapes on every family, and the name is
+    what the contract shows."""
+    model = create_model(name, __base__=RequestModel, __module__=__name__, **fields)
+    return model
+
+
+def delete_request_model(name: str) -> type[BaseModel]:
+    return _action_request(
+        name,
+        deleted_by=(str | None, Field(default=None, max_length=100)),
+        delete_reason=(str | None, Field(default=None, max_length=2000)),
+    )
+
+
+def restore_request_model(name: str) -> type[BaseModel]:
+    return _action_request(name, restored_by=(str | None, Field(default=None, max_length=100)))
+
+
+def submit_request_model(name: str) -> type[BaseModel]:
+    return _action_request(name, submitted_by=(str | None, None), source=(SourceType | None, None))
+
+
 def save_row_model(name: str, base: type[BaseModel]) -> type[BaseModel]:
     """The row of a whole-document save: every field of the line's create
     schema, all optional, plus `id`. A row naming a live `id` states only what
@@ -211,7 +251,6 @@ class Envelope(BaseModel, Generic[T]):
     meta: EnvelopeMeta = Field(default_factory=EnvelopeMeta)
 
 
-SingleEnvelope = Envelope
 
 
 class ProjectBase(RequestModel):
@@ -365,13 +404,7 @@ class CreateTerritoryRequest(TerritoryBase):
     territory_code: str = Field(min_length=1, max_length=64)
 
 
-class UpdateTerritoryRequest(RequestModel):
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    parent_territory_id: str | None = None
-    manager_employee_id: str | None = None
-    description: str | None = Field(default=None, max_length=4000)
-    status: Literal["active", "archived"] | None = None
-    metadata: dict[str, Any] | None = None
+UpdateTerritoryRequest = partial_model("UpdateTerritoryRequest", TerritoryBase)
 
 
 class TerritoryRead(APIModel):
@@ -548,13 +581,9 @@ class CreateProductImageRequest(ProductImageBase):
     attachment_id: str
 
 
-class UpdateProductImageRequest(RequestModel):
+class UpdateProductImageRequest(partial_model("UpdateProductImageRequestFields", ProductImageBase)):
     # the (product, attachment) pair is the row's identity
-    is_primary: bool | None = None
-    image_type: str | None = Field(default=None, max_length=50)
-    sort_order: int | None = Field(default=None, ge=0, le=9999)
-    caption: str | None = Field(default=None, max_length=200)
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class ProductImageRead(APIModel):
@@ -609,15 +638,10 @@ class CreateBillOfMaterialsRequest(BillOfMaterialsBase):
     items: list[BomItemBase] = Field(default_factory=list, max_length=500)
 
 
-class UpdateBillOfMaterialsRequest(RequestModel):
+class UpdateBillOfMaterialsRequest(partial_model("UpdateBillOfMaterialsRequestFields", BillOfMaterialsBase)):
     # product_id is the recipe's identity — a recipe for another product is
     # another recipe
-    bom_code: str | None = Field(default=None, max_length=64)
-    version: str | None = Field(default=None, max_length=50)
-    output_quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
-    status: BomStatus | None = None
-    remarks: str | None = Field(default=None, max_length=2000)
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class CreateBomItemRequest(BomItemBase):
@@ -632,13 +656,7 @@ class SaveBomLinesRequest(RequestModel):
     items: list[SaveBomItemRow] = Field(max_length=500)
 
 
-class UpdateBomItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1, le=9999)
-    component_product_id: str | None = None
-    quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
-    unit: str | None = Field(default=None, max_length=50)
-    scrap_rate: float | None = Field(default=None, ge=0, le=99.99)
-    description: str | None = Field(default=None, max_length=500)
+UpdateBomItemRequest = partial_model("UpdateBomItemRequest", BomItemBase)
 
 
 class BomItemRead(APIModel):
@@ -747,13 +765,8 @@ class CreateProductCategoryRequest(ProductCategoryBase):
     name: str = Field(min_length=1, max_length=100)
 
 
-class UpdateProductCategoryRequest(RequestModel):
-    category_code: str | None = Field(default=None, max_length=64)
+class UpdateProductCategoryRequest(partial_model("UpdateProductCategoryRequestFields", ProductCategoryBase)):
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    parent_id: str | None = None
-    description: str | None = Field(default=None, max_length=500)
-    status: ProductCategoryStatus | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class ProductCategoryRead(APIModel):
@@ -1290,12 +1303,7 @@ class BatchCreateProductSkusRequest(RequestModel):
         return unique
 
 
-class UpdateProductSkuRequest(RequestModel):
-    sku_code: str | None = Field(default=None, max_length=64)
-    variant_attrs: dict[str, Any] | None = None
-    list_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    status: ProductSkuStatus | None = None
-    metadata: dict[str, Any] | None = None
+UpdateProductSkuRequest = partial_model("UpdateProductSkuRequest", ProductSkuBase, exclude=("product_id",))
 
 
 class ProductSkuRead(APIModel):
@@ -1342,14 +1350,10 @@ class CreateProductPriceRequest(ProductPriceBase):
     sku_id: str | None = None
 
 
-class UpdateProductPriceRequest(RequestModel):
+class UpdateProductPriceRequest(partial_model("UpdateProductPriceRequestFields", ProductPriceBase, exclude=("price_type", "currency"))):
     # identity (product/sku/type/currency) is not editable — a different key
     # is a different price row; supersede instead
-    price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    tax_in_price: bool | None = None
-    tax_percentage: float | None = Field(default=None, ge=0, le=100)
-    status: ProductPriceStatus | None = None
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class ProductPriceRead(APIModel):
@@ -1392,18 +1396,10 @@ class CreateCustomerContactRequest(CustomerContactBase):
     name: str = Field(min_length=1, max_length=100)
 
 
-class UpdateCustomerContactRequest(RequestModel):
+class UpdateCustomerContactRequest(partial_model("UpdateCustomerContactRequestFields", CustomerContactBase)):
     # customer_id is identity — a contact does not move between customers;
     # the person changing employers is a new row at the new customer
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    title: str | None = Field(default=None, max_length=100)
-    phone: str | None = Field(default=None, max_length=50)
-    wechat: str | None = Field(default=None, max_length=100)
-    email: str | None = Field(default=None, max_length=320)
-    is_primary: bool | None = None
-    status: SupplierProductStatus | None = None
-    remarks: str | None = Field(default=None, max_length=2000)
-    metadata: dict[str, Any] | None = None
 
 
 class CustomerContactRead(APIModel):
@@ -1449,18 +1445,9 @@ class CreateSupplierProductRequest(SupplierProductBase):
     vendor_id: str
 
 
-class UpdateSupplierProductRequest(RequestModel):
+class UpdateSupplierProductRequest(partial_model("UpdateSupplierProductRequestFields", SupplierProductBase)):
     # the (product, vendor) pair is the row's identity and is not editable
-    supplier_product_code: str | None = Field(default=None, max_length=64)
-    supplier_product_name: str | None = Field(default=None, max_length=200)
-    last_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    lead_time_days: int | None = Field(default=None, ge=0, le=3650)
-    min_order_quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    order_increment: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    preference: int | None = Field(default=None, ge=1, le=100)
-    status: SupplierProductStatus | None = None
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class SupplierProductRead(APIModel):
@@ -1510,16 +1497,9 @@ class CreateCustomerProductRequest(CustomerProductBase):
     customer_id: str
 
 
-class UpdateCustomerProductRequest(RequestModel):
+class UpdateCustomerProductRequest(partial_model("UpdateCustomerProductRequestFields", CustomerProductBase)):
     # the (product, customer) pair is the row's identity and is not editable
-    customer_product_code: str | None = Field(default=None, max_length=64)
-    customer_product_name: str | None = Field(default=None, max_length=200)
-    agreed_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    min_order_quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    order_increment: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    status: CustomerProductStatus | None = None
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class CustomerProductRead(APIModel):
@@ -1576,14 +1556,8 @@ class CreateFacilityRequest(FacilityBase):
     name: str = Field(min_length=1, max_length=100)
 
 
-class UpdateFacilityRequest(RequestModel):
-    facility_code: str | None = Field(default=None, max_length=64)
+class UpdateFacilityRequest(partial_model("UpdateFacilityRequestFields", FacilityBase)):
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    facility_type: str | None = Field(default=None, max_length=50)
-    address: str | None = Field(default=None, max_length=500)
-    remarks: str | None = Field(default=None, max_length=2000)
-    status: Literal["active", "archived"] | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class FacilityRead(APIModel):
@@ -1626,12 +1600,9 @@ class CreateSalesChannelRequest(SalesChannelBase):
         return v.strip().lower() if isinstance(v, str) else v
 
 
-class UpdateSalesChannelRequest(RequestModel):
+class UpdateSalesChannelRequest(partial_model("UpdateSalesChannelRequestFields", SalesChannelBase)):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     channel_kind: str | None = Field(default=None, min_length=1, max_length=50)
-    remarks: str | None = Field(default=None, max_length=2000)
-    status: Literal["active", "archived"] | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class SalesChannelRead(APIModel):
@@ -1673,16 +1644,9 @@ class CreateStoreRequest(StoreBase):
     channel: StoreChannel
 
 
-class UpdateStoreRequest(_NormalizesSource):
-    store_code: str | None = Field(default=None, max_length=64)
+class UpdateStoreRequest(partial_model("UpdateStoreRequestFields", StoreBase)):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     channel: StoreChannel | None = None
-    sales_channel_id: str | None = None
-    source: str | None = Field(default=None, max_length=50)
-    address: str | None = Field(default=None, max_length=500)
-    remarks: str | None = Field(default=None, max_length=2000)
-    status: Literal["active", "archived"] | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class StoreRead(APIModel):
@@ -1726,12 +1690,9 @@ class CreateStoreFacilityRequest(StoreFacilityBase):
     facility_id: str
 
 
-class UpdateStoreFacilityRequest(RequestModel):
+class UpdateStoreFacilityRequest(partial_model("UpdateStoreFacilityRequestFields", StoreFacilityBase)):
     # the (store, facility) pair is the row's identity and is not editable
-    priority: int | None = Field(default=None, ge=1, le=100)
-    remarks: str | None = Field(default=None, max_length=500)
-    status: Literal["active", "archived"] | None = None
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class StoreFacilityRead(APIModel):
@@ -1805,18 +1766,12 @@ class CreateExternalProductMapRequest(ExternalProductMapBase):
         return self
 
 
-class UpdateExternalProductMapRequest(RequestModel):
+class UpdateExternalProductMapRequest(partial_model("UpdateExternalProductMapRequestFields", ExternalProductMapBase, exclude=("external_sku_id",))):
     # (source, external ids, product) is the row's identity and is not
     # editable — a wrong pairing is deleted and recreated, not bent. The
     # WINDOW is editable: closing effective_to is how a listing swap is
     # recorded, and a mis-stated date is a fact to correct.
-    external_name: str | None = Field(default=None, max_length=200)
-    sku_id: str | None = None
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    effective_from: date | None = None
-    effective_to: date | None = None
-    status: SupplierProductStatus | None = None
-    metadata: dict[str, Any] | None = None
+    pass
 
 
 class ResolveExternalListing(RequestModel):
@@ -2076,6 +2031,10 @@ PostObjectStockEnvelope = Envelope[PostObjectStockRead]
 class InventoryItemDetailRead(APIModel):
     id: str
     inventory_item_id: str
+    # the position's product, read beside its id at answer time
+    product_id: str | None = None
+    product_name: str | None = None
+    sku_code: str | None = None
     # the position's status: `archived` marks the movement as history
     item_status: str | None = None
     quantity_on_hand_diff: float
@@ -2196,25 +2155,10 @@ class CreateContractRequest(ContractBase):
         return self
 
 
-class UpdateContractRequest(RequestModel):
+class UpdateContractRequest(partial_model("UpdateContractRequestFields", ContractBase, exclude=("vendor_id", "customer_id"))):
     # vendor/customer are the contract's identity (the side is derived from
     # them); a contract for another party is another contract
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    contract_type: str | None = Field(default=None, max_length=50)
-    counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
-    total_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    signed_date: date | None = None
-    effective_from: date | None = None
-    effective_to: date | None = None
-    our_signatory: str | None = Field(default=None, max_length=100)
-    counterparty_signatory: str | None = Field(default=None, max_length=100)
-    employee_id: str | None = None
-    parent_contract_id: str | None = None
-    summary: str | None = Field(default=None, max_length=10000)
-    status: str | None = Field(default=None, max_length=50)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
 class CreateContractItemRequest(ContractItemBase):
@@ -2229,16 +2173,7 @@ class SaveContractLinesRequest(RequestModel):
     items: list[SaveContractItemRow] = Field(max_length=500)
 
 
-class UpdateContractItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1, le=9999)
-    product_id: str | None = None
-    description: str | None = Field(default=None, max_length=500)
-    quantity: float | None = Field(default=None, gt=0, le=99_999_999.9999)
-    unit: str | None = Field(default=None, max_length=50)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    delivery_note: str | None = Field(default=None, max_length=500)
-    metadata: dict[str, Any] | None = None
+UpdateContractItemRequest = partial_model("UpdateContractItemRequest", ContractItemBase)
 
 
 class ContractItemRead(APIModel):
@@ -2281,13 +2216,7 @@ class CreateContractDocumentRequest(ContractDocumentBase):
     attachment_id: str
 
 
-class UpdateContractDocumentRequest(RequestModel):
-    document_type: str | None = Field(default=None, max_length=50)
-    sort_order: int | None = Field(default=None, ge=0, le=9999)
-    page_no: int | None = Field(default=None, ge=1, le=99999)
-    caption: str | None = Field(default=None, max_length=200)
-    extracted_text: str | None = Field(default=None, max_length=2_000_000)
-    metadata: dict[str, Any] | None = None
+UpdateContractDocumentRequest = partial_model("UpdateContractDocumentRequest", ContractDocumentBase)
 
 
 class ContractDocumentRead(APIModel):
@@ -2334,16 +2263,7 @@ class CreateContractTermRequest(ContractTermBase):
     contract_id: str
 
 
-class UpdateContractTermRequest(RequestModel):
-    term_type: str | None = Field(default=None, max_length=50)
-    clause_ref: str | None = Field(default=None, max_length=50)
-    title: str | None = Field(default=None, max_length=200)
-    content: str | None = Field(default=None, min_length=1, max_length=20000)
-    summary: str | None = Field(default=None, max_length=2000)
-    document_id: str | None = None
-    page_no: int | None = Field(default=None, ge=1, le=99999)
-    sort_order: int | None = Field(default=None, ge=0, le=9999)
-    metadata: dict[str, Any] | None = None
+UpdateContractTermRequest = partial_model("UpdateContractTermRequest", ContractTermBase)
 
 
 class ContractTermRead(APIModel):
@@ -2472,12 +2392,7 @@ class CreatePicklistRequest(PicklistBase):
     items: list[PicklistItemBase] = Field(default_factory=list, max_length=200)
 
 
-class UpdatePicklistRequest(RequestModel):
-    sales_order_id: str | None = None
-    facility_id: str | None = None
-    status: str | None = Field(default=None, max_length=50)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdatePicklistRequest = partial_model("UpdatePicklistRequest", PicklistBase)
 
 
 class CreatePicklistItemRequest(PicklistItemBase):
@@ -2492,13 +2407,7 @@ class SavePicklistLinesRequest(RequestModel):
     items: list[SavePicklistItemRow] = Field(max_length=200)
 
 
-class UpdatePicklistItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1, le=9999)
-    sku_id: str | None = None
-    inventory_item_id: str | None = None
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    picked_quantity: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    description: str | None = Field(default=None, max_length=500)
+UpdatePicklistItemRequest = partial_model("UpdatePicklistItemRequest", PicklistItemBase, exclude=("product_id",))
 
 
 class PicklistItemRead(APIModel):
@@ -2561,20 +2470,10 @@ class CreateShipmentRequest(ShipmentBase):
     items: list[ShipmentItemBase] = Field(default_factory=list, max_length=200)
 
 
-class UpdateShipmentRequest(RequestModel):
+class UpdateShipmentRequest(partial_model("UpdateShipmentRequestFields", ShipmentBase, exclude=("shipment_no",))):
     # direction is identity; the order links move only while the leg is
     # editable, like every line write
-    title: str | None = Field(default=None, max_length=200)
-    sales_order_id: str | None = None
-    purchase_order_id: str | None = None
-    facility: str | None = Field(default=None, max_length=100)
-    address: str | None = Field(default=None, max_length=500)
-    carrier: str | None = Field(default=None, max_length=100)
-    tracking_no: str | None = Field(default=None, max_length=100)
-    expected_date: date | None = None
-    status: str | None = Field(default=None, max_length=30)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+    pass
 
 
 class CreateShipmentItemRequest(ShipmentItemBase):
@@ -2589,12 +2488,7 @@ class SaveShipmentLinesRequest(RequestModel):
     items: list[SaveShipmentItemRow] = Field(max_length=200)
 
 
-class UpdateShipmentItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1, le=9999)
-    sku_id: str | None = None
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    inventory_item_id: str | None = None
-    description: str | None = Field(default=None, max_length=500)
+UpdateShipmentItemRequest = partial_model("UpdateShipmentItemRequest", ShipmentItemBase, exclude=("product_id",))
 
 
 class ShipmentItemRead(APIModel):
@@ -2657,22 +2551,9 @@ class CreateCampaignRequest(CampaignBase):
     campaign_no: str | None = Field(default=None, max_length=64)
 
 
-class UpdateCampaignRequest(RequestModel):
+class UpdateCampaignRequest(partial_model("UpdateCampaignRequestFields", CampaignBase)):
     # campaign_no is the identity; the owner may change (marketing hands over)
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    campaign_type: str | None = Field(default=None, max_length=50)
-    parent_campaign_id: str | None = None
     employee_id: str | None = None
-    start_date: date | None = None
-    end_date: date | None = None
-    budget: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
-    actual_cost: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
-    expected_revenue: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: str | None = Field(default=None, max_length=50)
-    description: str | None = Field(default=None, max_length=4000)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
 class CampaignRead(APIModel):
@@ -2812,18 +2693,7 @@ class SaveOpportunityLinesRequest(RequestModel):
     items: list[SaveOpportunityItemRow] = Field(max_length=200)
 
 
-class UpdateOpportunityItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1)
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateOpportunityItemRequest = partial_model("UpdateOpportunityItemRequest", OpportunityItemBase)
 
 
 class OpportunityItemRead(APIModel):
@@ -3012,19 +2882,7 @@ class CreateEventRequest(EventBase):
     event_no: str | None = Field(default=None, max_length=64)
 
 
-class UpdateEventRequest(RequestModel):
-    subject: str | None = Field(default=None, min_length=1, max_length=200)
-    event_type: str | None = Field(default=None, max_length=50)
-    customer_id: str | None = None
-    lead_id: str | None = None
-    opportunity_id: str | None = None
-    starts_at: datetime | None = None
-    ends_at: datetime | None = None
-    location: str | None = Field(default=None, max_length=300)
-    status: str | None = Field(default=None, max_length=50)
-    description: str | None = Field(default=None, max_length=4000)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateEventRequest = partial_model("UpdateEventRequest", EventBase)
 
 
 class EventRead(APIModel):
@@ -3142,16 +3000,7 @@ class CreateCommunicationEventRequest(CommunicationEventBase):
         return self
 
 
-class UpdateCommunicationEventRequest(RequestModel):
-    subject: str | None = Field(default=None, max_length=500)
-    body: str | None = Field(default=None, max_length=100000)
-    thread_id: str | None = Field(default=None, max_length=255)
-    customer_id: str | None = None
-    lead_id: str | None = None
-    opportunity_id: str | None = None
-    contact_id: str | None = None
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateCommunicationEventRequest = partial_model("UpdateCommunicationEventRequest", CommunicationEventBase, exclude=("channel", "direction", "from_address", "to_addresses", "cc_addresses", "occurred_at", "message_id"))
 
 
 class CommunicationEventRead(APIModel):
@@ -3211,20 +3060,10 @@ class CreateLeadRequest(LeadBase):
         return self
 
 
-class UpdateLeadRequest(RequestModel):
+class UpdateLeadRequest(partial_model("UpdateLeadRequestFields", LeadBase)):
     # employee_id is the owner and lead_no the identity — neither moves;
     # converted_customer_id is the bridge's write, never a field edit
-    company_name: str | None = Field(default=None, max_length=200)
-    contact_name: str | None = Field(default=None, max_length=100)
-    phone: str | None = Field(default=None, max_length=50)
-    wechat: str | None = Field(default=None, max_length=100)
-    email: str | None = Field(default=None, max_length=320)
-    source: str | None = Field(default=None, max_length=100)
-    campaign_id: str | None = None
-    geo_id: str | None = None
-    status: str | None = Field(default=None, max_length=50)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+    pass
 
 
 class ConvertLeadRequest(RequestModel):
@@ -3301,24 +3140,10 @@ class CreateOpportunityRequest(OpportunityBase):
     opportunity_no: str | None = Field(default=None, max_length=64)
 
 
-class UpdateOpportunityRequest(RequestModel):
+class UpdateOpportunityRequest(partial_model("UpdateOpportunityRequestFields", OpportunityBase)):
     # employee_id and opportunity_no are identity; closed_at is the
     # transition's stamp, never a field edit
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    customer_id: str | None = None
-    customer_name_snapshot: str | None = Field(default=None, max_length=200)
-    lead_id: str | None = None
-    campaign_id: str | None = None
-    probability: int | None = Field(default=None, ge=0, le=100)
-    lost_reason: str | None = Field(default=None, max_length=50)
-    competitor: str | None = Field(default=None, max_length=200)
-    source: str | None = Field(default=None, max_length=100)
-    expected_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    expected_close_date: date | None = None
-    status: str | None = Field(default=None, max_length=50)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
 class OpportunityRead(APIModel):
@@ -3382,16 +3207,9 @@ class CreateFinAccountRequest(FinAccountBase):
     opening_date: date | None = None
 
 
-class UpdateFinAccountRequest(RequestModel):
+class UpdateFinAccountRequest(partial_model("UpdateFinAccountRequestFields", FinAccountBase)):
     # no balance field on purpose: the register is the only way money moves
     name: str | None = Field(default=None, min_length=1, max_length=200)
-    institution: str | None = Field(default=None, max_length=200)
-    account_number: str | None = Field(default=None, max_length=64)
-    account_type: str | None = Field(default=None, max_length=50)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: FinAccountStatus | None = None
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
 class FinAccountRead(APIModel):
@@ -4067,7 +3885,6 @@ class ReviewEnterprisePilotApplicationResponse(BaseModel):
     notification_email_sent: bool
 
 
-EnterprisePilotApplicationEnvelope = Envelope[EnterprisePilotApplicationRead]
 EnterprisePilotApplicationListEnvelope = ListEnvelope[EnterprisePilotApplicationRead]
 CreateEnterprisePilotApplicationEnvelope = Envelope[CreateEnterprisePilotApplicationResponse]
 ReviewEnterprisePilotApplicationEnvelope = Envelope[ReviewEnterprisePilotApplicationResponse]
@@ -4228,6 +4045,10 @@ class CapabilityRead(APIModel):
     title: str | None = None
     description: str | None = None
     scopable: bool
+    # the API collections this capability governs (paths under /api/v1,
+    # without the prefix); a scopable verb names its object type after the
+    # colon instead
+    collections: list[str] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -4664,7 +4485,6 @@ def _hosted_runner_holds(required_capability: str | None) -> bool:
     """Whether the hosted flow agent's fixed grant set covers this gate — the
     fact behind "this skill is the runner's": a person is out of its audience
     by default because the runner never was."""
-    from app.services.bundles import capability_covers  # noqa: PLC0415 — bundles imports schemas
 
     return bool(required_capability) and capability_covers(
         frozenset(HOSTED_FLOW_AGENT_PERMISSIONS), required_capability
@@ -4849,23 +4669,13 @@ class CreateBusinessObjectRequest(BusinessObjectBase):
     title: str = Field(max_length=200)
 
 
-class UpdateBusinessObjectRequest(RequestModel):
-    object_type: str | None = Field(default=None, max_length=100)
-    title: str | None = Field(default=None, max_length=200)
-    summary: str | None = Field(default=None, max_length=2000)
-    payload: dict[str, Any] | None = None
-    source_text: str | None = Field(default=None, max_length=10000)
-    status: BusinessObjectStatus | None = None
-    created_by: str | None = Field(default=None, max_length=100)
+UpdateBusinessObjectRequest = partial_model("UpdateBusinessObjectRequest", BusinessObjectBase)
 
 
-class DeleteBusinessObjectRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteBusinessObjectRequest = delete_request_model("DeleteBusinessObjectRequest")
 
 
-class RestoreBusinessObjectRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestoreBusinessObjectRequest = restore_request_model("RestoreBusinessObjectRequest")
 
 
 class BusinessObjectRead(APIModel):
@@ -4908,14 +4718,7 @@ class CreateApprovalTargetRequest(ApprovalTargetBase):
     title: str = Field(max_length=200)
 
 
-class UpdateApprovalTargetRequest(RequestModel):
-    target_type: str | None = Field(default=None, max_length=100)
-    title: str | None = Field(default=None, max_length=200)
-    summary: str | None = Field(default=None, max_length=2000)
-    payload: dict[str, Any] | None = None
-    source_text: str | None = Field(default=None, max_length=10000)
-    status: ApprovalTargetStatus | None = None
-    created_by: str | None = Field(default=None, max_length=100)
+UpdateApprovalTargetRequest = partial_model("UpdateApprovalTargetRequest", ApprovalTargetBase)
 
 
 DeleteApprovalTargetRequest = DeleteBusinessObjectRequest
@@ -5078,29 +4881,23 @@ class CreateTimesheetHeaderRequest(TimesheetHeaderBase):
     entries: list[TimesheetEntryBase] = Field(default_factory=list, max_length=100)
 
 
-class UpdateTimesheetHeaderRequest(RequestModel):
-    status: TimesheetStatus | None = None
-    source_report_text: str | None = Field(default=None, max_length=10000)
-    custom_fields: dict[str, Any] | None = None
+UpdateTimesheetHeaderRequest = partial_model("UpdateTimesheetHeaderRequest", TimesheetHeaderBase, exclude=("employee_id", "period_start", "period_end"))
 
 
-class DeleteTimesheetHeaderRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteTimesheetHeaderRequest = delete_request_model("DeleteTimesheetHeaderRequest")
 
 
-class RestoreTimesheetHeaderRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestoreTimesheetHeaderRequest = restore_request_model("RestoreTimesheetHeaderRequest")
 
 
-class SubmitTimesheetRequest(RequestModel):
-    submitted_by: str | None = None
-    source: SourceType | None = None
+SubmitTimesheetRequest = submit_request_model("SubmitTimesheetRequest")
 
 
 class TimesheetHeaderRead(APIModel):
     id: str
     employee_id: str
+    # the person's name, read beside the id at answer time (never stored)
+    employee_name: str | None = None
     period_start: date
     period_end: date
     status: TimesheetStatus
@@ -5154,14 +4951,14 @@ class UpdateEmployeeLeaveRequest(RequestModel):
     custom_fields: dict[str, Any] | None = None
 
 
-class DeleteEmployeeLeaveRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteEmployeeLeaveRequest = delete_request_model("DeleteEmployeeLeaveRequest")
 
 
 class EmployeeLeaveRead(APIModel):
     id: str
     employee_id: str
+    # the person's name, read beside the id at answer time (never stored)
+    employee_name: str | None = None
     leave_type: str
     from_date: date
     thru_date: date
@@ -5222,15 +5019,7 @@ class CreateTimesheetEntryRequest(TimesheetEntryBase):
     hours: float = Field(gt=0, le=24)
 
 
-class UpdateTimesheetEntryRequest(RequestModel):
-    project_id: str | None = None
-    project_name_snapshot: str | None = Field(default=None, max_length=200)
-    client: str | None = Field(default=None, max_length=200)
-    task: str | None = Field(default=None, max_length=200)
-    hours: float | None = Field(default=None, gt=0, le=24)
-    work_type: WorkType | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateTimesheetEntryRequest = partial_model("UpdateTimesheetEntryRequest", TimesheetEntryBase, exclude=("header_id", "employee_id", "work_date"))
 
 
 class TimesheetEntryRead(APIModel):
@@ -5269,32 +5058,23 @@ class CreateExpenseClaimRequest(ExpenseClaimBase):
     title: str = Field(max_length=200)
 
 
-class UpdateExpenseClaimRequest(RequestModel):
-    title: str | None = Field(default=None, max_length=200)
-    claim_date: date | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: ExpenseStatus | None = None
-    source_report_text: str | None = Field(default=None, max_length=10000)
-    custom_fields: dict[str, Any] | None = None
+UpdateExpenseClaimRequest = partial_model("UpdateExpenseClaimRequest", ExpenseClaimBase, exclude=("employee_id",))
 
 
-class DeleteExpenseClaimRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteExpenseClaimRequest = delete_request_model("DeleteExpenseClaimRequest")
 
 
-class RestoreExpenseClaimRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestoreExpenseClaimRequest = restore_request_model("RestoreExpenseClaimRequest")
 
 
-class SubmitExpenseClaimRequest(RequestModel):
-    submitted_by: str | None = None
-    source: SourceType | None = None
+SubmitExpenseClaimRequest = submit_request_model("SubmitExpenseClaimRequest")
 
 
 class ExpenseClaimRead(APIModel):
     id: str
     employee_id: str
+    # the person's name, read beside the id at answer time (never stored)
+    employee_name: str | None = None
     title: str
     claim_date: date | None = None
     currency: str
@@ -5355,22 +5135,7 @@ class SaveExpenseClaimRequest(RequestModel):
     items: list[SaveExpenseItemRow] = Field(max_length=100)
 
 
-class UpdateExpenseItemRequest(RequestModel):
-    expense_date: date | None = None
-    category: ExpenseCategory | None = None
-    amount: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    tax_amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    vendor_id: str | None = None
-    merchant: str | None = Field(default=None, max_length=200)
-    invoice_number: str | None = Field(default=None, max_length=100)
-    invoice_type: InvoiceType | None = None
-    project_id: str | None = None
-    project_name_snapshot: str | None = Field(default=None, max_length=200)
-    client: str | None = Field(default=None, max_length=200)
-    attachment_id: str | None = None
-    extracted_fields: dict[str, Any] | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateExpenseItemRequest = partial_model("UpdateExpenseItemRequest", ExpenseItemBase, exclude=("claim_id", "employee_id"))
 
 
 class ExpenseItemRead(APIModel):
@@ -5427,35 +5192,23 @@ class CreatePurchaseRequestRequest(PurchaseRequestBase):
     items: list[PurchaseRequestItemBase] = Field(default_factory=list, max_length=200)
 
 
-class UpdatePurchaseRequestRequest(RequestModel):
-    title: str | None = Field(default=None, max_length=200)
-    request_date: date | None = None
-    needed_by: date | None = None
-    vendor_id: str | None = None
-    vendor_name_snapshot: str | None = Field(default=None, max_length=200)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    status: PurchaseStatus | None = None
-    source_report_text: str | None = Field(default=None, max_length=10000)
-    custom_fields: dict[str, Any] | None = None
+UpdatePurchaseRequestRequest = partial_model("UpdatePurchaseRequestRequest", PurchaseRequestBase, exclude=("employee_id",))
 
 
-class DeletePurchaseRequestRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeletePurchaseRequestRequest = delete_request_model("DeletePurchaseRequestRequest")
 
 
-class RestorePurchaseRequestRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestorePurchaseRequestRequest = restore_request_model("RestorePurchaseRequestRequest")
 
 
-class SubmitPurchaseRequestRequest(RequestModel):
-    submitted_by: str | None = None
-    source: SourceType | None = None
+SubmitPurchaseRequestRequest = submit_request_model("SubmitPurchaseRequestRequest")
 
 
 class PurchaseRequestRead(APIModel):
     id: str
     employee_id: str
+    # the person's name, read beside the id at answer time (never stored)
+    employee_name: str | None = None
     title: str
     request_date: date | None = None
     needed_by: date | None = None
@@ -5498,20 +5251,9 @@ class CreatePurchaseRequestItemRequest(PurchaseRequestItemBase):
     quantity: float = Field(gt=0, le=9_999_999.99)
 
 
-class UpdatePurchaseRequestItemRequest(RequestModel):
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
+class UpdatePurchaseRequestItemRequest(partial_model("UpdatePurchaseRequestItemRequestFields", PurchaseRequestItemBase, exclude=("request_id",))):
     # explicit null detaches the line from the sales order (back to stock)
-    sales_order_item_id: str | None = None
-    attachment_id: str | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+    pass
 
 
 class PurchaseRequestItemRead(APIModel):
@@ -5820,6 +5562,8 @@ class TodoTargetSummary(APIModel):
 class TodoRead(APIModel):
     id: str
     employee_id: str
+    # the person's name, read beside the id at answer time (never stored)
+    employee_name: str | None = None
     entity_type: TodoEntityType
     entity_id: str
     title: str
@@ -5955,40 +5699,17 @@ class CreateSalesQuotationRequest(SalesQuotationBase):
     title: str = Field(max_length=200)
 
 
-class UpdateSalesQuotationRequest(RequestModel):
-    opportunity_id: str | None = None
-    customer_id: str | None = None
-    customer_name_snapshot: str | None = Field(default=None, max_length=200)
-    contact_name: str | None = Field(default=None, max_length=200)
-    contact_phone: str | None = Field(default=None, max_length=50)
-    contact_email: str | None = Field(default=None, max_length=320)
-    title: str | None = Field(default=None, max_length=200)
-    project_id: str | None = None
-    quote_date: date | None = None
-    valid_until: date | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    payment_terms: str | None = Field(default=None, max_length=2000)
-    delivery_terms: str | None = Field(default=None, max_length=2000)
-    total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: QuotationStatus | None = None
+class UpdateSalesQuotationRequest(partial_model("UpdateSalesQuotationRequestFields", SalesQuotationBase, exclude=("employee_id", "quote_number"))):
     outcome_note: str | None = Field(default=None, max_length=2000)
-    remarks: str | None = Field(default=None, max_length=2000)
-    source_report_text: str | None = Field(default=None, max_length=10000)
-    custom_fields: dict[str, Any] | None = None
 
 
-class DeleteSalesQuotationRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteSalesQuotationRequest = delete_request_model("DeleteSalesQuotationRequest")
 
 
-class RestoreSalesQuotationRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestoreSalesQuotationRequest = restore_request_model("RestoreSalesQuotationRequest")
 
 
-class SubmitSalesQuotationRequest(RequestModel):
-    submitted_by: str | None = None
-    source: SourceType | None = None
+SubmitSalesQuotationRequest = submit_request_model("SubmitSalesQuotationRequest")
 
 
 class SendSalesQuotationRequest(RequestModel):
@@ -6055,7 +5776,6 @@ class SalesQuotationRead(APIModel):
 SalesQuotationListEnvelope = ListEnvelope[SalesQuotationRead]
 
 
-SalesQuotationEnvelope = Envelope[SalesQuotationRead]
 
 
 class SalesQuotationItemBase(RequestModel):
@@ -6083,23 +5803,7 @@ class CreateSalesQuotationItemRequest(SalesQuotationItemBase):
     quantity: float = Field(gt=0, le=9_999_999.99)
 
 
-class UpdateSalesQuotationItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1)
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    list_price_snapshot: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    tax_rate: float | None = Field(default=None, ge=0, le=100)
-    is_gift: bool | None = None
-    lead_time: str | None = Field(default=None, max_length=100)
-    attachment_id: str | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateSalesQuotationItemRequest = partial_model("UpdateSalesQuotationItemRequest", SalesQuotationItemBase, exclude=("quotation_id",))
 
 
 class SalesQuotationItemRead(APIModel):
@@ -6196,14 +5900,9 @@ class CreateSalesQuotationAdjustmentRequest(SalesQuotationAdjustmentBase):
     quotation_item_id: str | None = None
 
 
-class UpdateSalesQuotationAdjustmentRequest(RequestModel):
-    adjustment_type: SalesAdjustmentType | None = None
-    description: str | None = Field(default=None, max_length=500)
-    amount: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
-    source_percentage: float | None = Field(default=None, ge=0, le=100)
+class UpdateSalesQuotationAdjustmentRequest(partial_model("UpdateSalesQuotationAdjustmentRequestFields", SalesQuotationAdjustmentBase)):
     # explicit null detaches the adjustment back to header level
     quotation_item_id: str | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class SalesQuotationAdjustmentRead(APIModel):
@@ -6241,13 +5940,8 @@ class CreateSalesOrderAdjustmentRequest(SalesOrderAdjustmentBase):
     order_item_id: str | None = None
 
 
-class UpdateSalesOrderAdjustmentRequest(RequestModel):
-    adjustment_type: SalesAdjustmentType | None = None
-    description: str | None = Field(default=None, max_length=500)
-    amount: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
-    source_percentage: float | None = Field(default=None, ge=0, le=100)
+class UpdateSalesOrderAdjustmentRequest(partial_model("UpdateSalesOrderAdjustmentRequestFields", SalesOrderAdjustmentBase)):
     order_item_id: str | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class SalesOrderAdjustmentRead(APIModel):
@@ -6314,24 +6008,11 @@ class CreatePurchaseOrderRequest(PurchaseOrderBase):
     adjustments: list[InlineAdjustmentRow] = Field(default_factory=list, max_length=50)
 
 
-class UpdatePurchaseOrderRequest(RequestModel):
+class UpdatePurchaseOrderRequest(partial_model("UpdatePurchaseOrderRequestFields", PurchaseOrderBase, exclude=("po_number", "employee_id", "source_report_text"))):
     # returns only: linkage recorded later; order_kind is identity, no field
     original_order_id: str | None = None
-    contract_id: str | None = None
     vendor_id: str | None = None
     billing_account_id: str | None = None
-    vendor_name_snapshot: str | None = Field(default=None, max_length=200)
-    title: str | None = Field(default=None, max_length=200)
-    contract_no: str | None = Field(default=None, max_length=64)
-    order_date: date | None = None
-    promised_date: date | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    payment_terms: str | None = Field(default=None, max_length=2000)
-    delivery_terms: str | None = Field(default=None, max_length=2000)
-    total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: str | None = Field(default=None, max_length=30)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
 class PurchaseOrderRead(APIModel):
@@ -6404,23 +6085,9 @@ class CreatePurchaseOrderItemRequest(PurchaseOrderItemBase):
     quantity: float = Field(gt=0, le=9_999_999.99)
 
 
-class UpdatePurchaseOrderItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1)
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    tax_rate: float | None = Field(default=None, ge=0, le=100)
-    promised_date: date | None = None
+class UpdatePurchaseOrderItemRequest(partial_model("UpdatePurchaseOrderItemRequestFields", PurchaseOrderItemBase, exclude=("po_id",))):
     # explicit null detaches the line from the request (direct purchase)
-    purchase_request_item_id: str | None = None
-    attachment_id: str | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+    pass
 
 
 class PurchaseOrderItemRead(APIModel):
@@ -6468,13 +6135,8 @@ class CreatePurchaseOrderAdjustmentRequest(PurchaseOrderAdjustmentBase):
     po_item_id: str | None = None
 
 
-class UpdatePurchaseOrderAdjustmentRequest(RequestModel):
-    adjustment_type: SalesAdjustmentType | None = None
-    description: str | None = Field(default=None, max_length=500)
-    amount: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
-    source_percentage: float | None = Field(default=None, ge=0, le=100)
+class UpdatePurchaseOrderAdjustmentRequest(partial_model("UpdatePurchaseOrderAdjustmentRequestFields", PurchaseOrderAdjustmentBase)):
     po_item_id: str | None = None
-    metadata: dict[str, Any] | None = None
 
 
 class PurchaseOrderAdjustmentRead(APIModel):
@@ -6603,9 +6265,7 @@ class InvoiceBase(RequestModel):
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
 
-class DeleteInvoiceRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteInvoiceRequest = delete_request_model("DeleteInvoiceRequest")
 
 
 class CreateInvoiceRequest(InvoiceBase):
@@ -6622,32 +6282,8 @@ class CreateInvoiceRequest(InvoiceBase):
     items: list[InvoiceItemBase] = Field(default_factory=list, max_length=200)
 
 
-class UpdateInvoiceRequest(RequestModel):
-    invoice_type: InvoiceTypeOption | None = None
-    contract_id: str | None = None
-    customer_id: str | None = None
-    billing_account_id: str | None = None
-    vendor_id: str | None = None
-    payee_employee_id: str | None = None
-    counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
-    title: str | None = Field(default=None, max_length=200)
-    period_start: date | None = None
-    period_end: date | None = None
-    invoice_date: date | None = None
-    due_date: date | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    tax_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    tax_invoice_code: str | None = Field(default=None, max_length=32)
-    tax_invoice_number: str | None = Field(default=None, max_length=64)
-    extracted_fields: dict[str, Any] | None = None
-    attachment_id: str | None = None
-    sales_order_id: str | None = None
-    purchase_order_id: str | None = None
-    project_id: str | None = None
-    status: str | None = Field(default=None, max_length=30)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+class UpdateInvoiceRequest(partial_model("UpdateInvoiceRequestFields", InvoiceBase, exclude=("invoice_no", "employee_id", "source_report_text"))):
+    pass
 
 
 class InvoiceRead(APIModel):
@@ -6749,25 +6385,9 @@ class SaveInvoiceLinesRequest(RequestModel):
     items: list[SaveInvoiceItemRow] = Field(max_length=200)
 
 
-class UpdateInvoiceItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1)
-    invoice_item_type: InvoiceItemType | None = None
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    amount: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
-    tax_rate: float | None = Field(default=None, ge=0, le=100)
-    tax_amount: float | None = Field(default=None, ge=-9_999_999.99, le=9_999_999.99)
+class UpdateInvoiceItemRequest(partial_model("UpdateInvoiceItemRequestFields", InvoiceItemBase, exclude=("invoice_id",))):
     # explicit null detaches the line from the order it billed
-    sales_order_item_id: str | None = None
-    purchase_order_item_id: str | None = None
-    pay_history_id: str | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+    pass
 
 
 class InvoiceItemRead(APIModel):
@@ -7049,22 +6669,10 @@ class CreateBillingAccountRequest(BillingAccountBase):
     opening_balance: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
 
 
-class UpdateBillingAccountRequest(RequestModel):
-    name: str | None = Field(default=None, max_length=200)
-    owner_name_snapshot: str | None = Field(default=None, max_length=200)
-    credit_limit: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    valid_from: date | None = None
-    valid_until: date | None = None
-    status: BillingAccountStatus | None = None
-    external_account_id: str | None = Field(default=None, max_length=64)
-    description: str | None = Field(default=None, max_length=2000)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateBillingAccountRequest = partial_model("UpdateBillingAccountRequest", BillingAccountBase, exclude=("account_code", "unit", "customer_id", "vendor_id", "employee_id", "source_report_text"))
 
 
-class DeleteBillingAccountRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteBillingAccountRequest = delete_request_model("DeleteBillingAccountRequest")
 
 
 class BillingAccountRead(APIModel):
@@ -7344,28 +6952,11 @@ class CreatePaymentRequest(PaymentBase):
     amount: float = Field(gt=0, le=9_999_999_999.99)
 
 
-class UpdatePaymentRequest(RequestModel):
-    payment_method: PaymentMethod | None = None
-    contract_id: str | None = None
-    customer_id: str | None = None
-    vendor_id: str | None = None
-    payee_employee_id: str | None = None
-    counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
-    payment_date: date | None = None
+class UpdatePaymentRequest(partial_model("UpdatePaymentRequestFields", PaymentBase, exclude=("payment_no", "employee_id", "source_report_text"))):
     amount: float | None = Field(default=None, gt=0, le=9_999_999_999.99)
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    bank_account: str | None = Field(default=None, max_length=200)
-    counterparty_account: str | None = Field(default=None, max_length=200)
-    reference_no: str | None = Field(default=None, max_length=100)
-    attachment_id: str | None = None
-    status: str | None = Field(default=None, max_length=30)
-    remarks: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
 
 
-class DeletePaymentRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeletePaymentRequest = delete_request_model("DeletePaymentRequest")
 
 
 class PaymentRead(APIModel):
@@ -7445,6 +7036,18 @@ class PaymentDetailRead(BaseModel):
 PaymentDetailEnvelope = Envelope[PaymentDetailRead]
 
 
+def require_cents(value: float, field: str) -> float:
+    """Money is kept to the cent (NUMERIC(12,2)). A finer value would be
+    rounded by the database row by row after the API had already summed the
+    unrounded figures, and the running total would stop equalling its rows
+    (deep-test F4, 2026-09-24: two lines of 0.016 stored as 0.02 + 0.02 under
+    a total of 0.03). Refused at the boundary, so what is summed is what is
+    stored."""
+    if Decimal(str(value)).as_tuple().exponent < -2:
+        raise ValueError(f"{field} has more than two decimals ({value}); money is recorded to the cent")
+    return value
+
+
 class ApplyPaymentLine(RequestModel):
     applied_to_type: PaymentApplicationTarget
     applied_to_id: str
@@ -7454,6 +7057,11 @@ class ApplyPaymentLine(RequestModel):
     # optional line-level refinement when the target is an invoice
     invoice_item_id: str | None = None
     note: str | None = Field(default=None, max_length=500)
+
+    @field_validator("amount_applied")
+    @classmethod
+    def _to_the_cent(cls, value: float) -> float:
+        return require_cents(value, "amount_applied")
 
 
 class ApplyPaymentRequest(RequestModel):
@@ -7555,52 +7163,22 @@ class CreateSalesOrderRequest(SalesOrderBase):
     adjustments: list[InlineAdjustmentRow] = Field(default_factory=list, max_length=50)
 
 
-class UpdateSalesOrderRequest(RequestModel):
+class UpdateSalesOrderRequest(partial_model("UpdateSalesOrderRequestFields", SalesOrderBase, exclude=("employee_id", "order_no", "opportunity_id"))):
     # returns only: a return recorded before its order was known gains the
     # linkage later. order_kind is identity and has no update field.
     original_order_id: str | None = None
-    quotation_id: str | None = None
-    source_quote_number: str | None = Field(default=None, max_length=64)
-    customer_id: str | None = None
-    billing_account_id: str | None = None
-    customer_name_snapshot: str | None = Field(default=None, max_length=200)
-    store_id: str | None = None
-    contract_id: str | None = None
-    contact_name: str | None = Field(default=None, max_length=200)
-    contact_phone: str | None = Field(default=None, max_length=50)
-    ship_to_address: str | None = Field(default=None, max_length=500)
-    title: str | None = Field(default=None, max_length=200)
-    project_id: str | None = None
-    contract_no: str | None = Field(default=None, max_length=64)
-    order_date: date | None = None
-    promised_date: date | None = None
-    currency: str | None = Field(default=None, min_length=3, max_length=3)
-    payment_terms: str | None = Field(default=None, max_length=2000)
-    delivery_terms: str | None = Field(default=None, max_length=2000)
-    total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    status: OrderStatus | None = None
-    logistics_company: str | None = Field(default=None, max_length=100)
-    logistics_tracking_no: str | None = Field(default=None, max_length=100)
     # F-65: the business moments, when they differ from the PATCH's own
     shipped_at: datetime | None = None
     signed_at: datetime | None = None
-    remarks: str | None = Field(default=None, max_length=2000)
-    source_report_text: str | None = Field(default=None, max_length=10000)
-    custom_fields: dict[str, Any] | None = None
 
 
-class DeleteSalesOrderRequest(RequestModel):
-    deleted_by: str | None = Field(default=None, max_length=100)
-    delete_reason: str | None = Field(default=None, max_length=2000)
+DeleteSalesOrderRequest = delete_request_model("DeleteSalesOrderRequest")
 
 
-class RestoreSalesOrderRequest(RequestModel):
-    restored_by: str | None = Field(default=None, max_length=100)
+RestoreSalesOrderRequest = restore_request_model("RestoreSalesOrderRequest")
 
 
-class SubmitSalesOrderRequest(RequestModel):
-    submitted_by: str | None = None
-    source: SourceType | None = None
+SubmitSalesOrderRequest = submit_request_model("SubmitSalesOrderRequest")
 
 
 class SalesOrderRead(APIModel):
@@ -7650,7 +7228,6 @@ class SalesOrderRead(APIModel):
 SalesOrderListEnvelope = ListEnvelope[SalesOrderRead]
 
 
-SalesOrderEnvelope = Envelope[SalesOrderRead]
 
 
 class SalesOrderItemBase(RequestModel):
@@ -7678,28 +7255,14 @@ class CreateSalesOrderItemRequest(SalesOrderItemBase):
     quantity: float = Field(gt=0, le=9_999_999.99)
 
 
-class UpdateSalesOrderItemRequest(RequestModel):
-    line_no: int | None = Field(default=None, ge=1)
-    product_id: str | None = None
-    sku_id: str | None = None
-    product_name_snapshot: str | None = Field(default=None, max_length=200)
-    spec: str | None = Field(default=None, max_length=200)
-    quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
-    unit: str | None = Field(default=None, max_length=50)
-    list_price_snapshot: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    tax_rate: float | None = Field(default=None, ge=0, le=100)
-    is_gift: bool | None = None
-    promised_date: date | None = None
-    attachment_id: str | None = None
-    notes: str | None = Field(default=None, max_length=2000)
-    custom_fields: dict[str, Any] | None = None
+UpdateSalesOrderItemRequest = partial_model("UpdateSalesOrderItemRequest", SalesOrderItemBase, exclude=("order_id",))
 
 
 class SalesOrderItemRead(APIModel):
     id: str
     order_id: str
+    # the order's own number, read beside its id at answer time
+    order_no: str | None = None
     line_no: int | None = None
     product_id: str | None = None
     sku_id: str | None = None

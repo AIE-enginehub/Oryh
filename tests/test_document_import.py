@@ -15,9 +15,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import invite_member, seeded_tenants
 
 TEST_TENANT = "44444444-4444-4444-4444-444444444444"
 TEST_API_KEY = "doc-import-key"
@@ -26,13 +25,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Migration Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Migration Co", TEST_API_KEY))
 
 
 def seed_master_data(client: TestClient) -> None:
@@ -278,28 +271,8 @@ def test_a_member_key_cannot_backfill_history_under_a_colleagues_name(client: Te
     assert "tenant.act_for_any_employee" not in DEFAULT_ROLE_PERMISSIONS["member"]
 
     # a user-bound key on the default member role
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "mei@migration.example", "role": "member", "employee_id": employee_id},
-        headers=HEADERS,
-    )
-    assert invited.status_code == 201, invited.text
-    from app.services.emails import outbox
-
-    token = next(
-        line.rsplit("token=", 1)[1].strip()
-        for line in outbox.messages[-1].body.splitlines()
-        if "token=" in line
-    )
-    accepted = client.post(
-        "/api/v1/auth/invitations/accept", json={"token": token, "password": "mei-pass1"}
-    )
-    assert accepted.status_code in (200, 201), accepted.text
-    member_key = client.post(
-        "/api/v1/tenant/api-keys",
-        json={"label": "member-agent", "user_id": invited.json()["data"]["id"]},
-        headers=HEADERS,
-    ).json()["data"]["plain_text_api_key"]
+    member_key = invite_member(client, HEADERS, "mei", role="member", email="mei@migration.example",
+                               employee_id=employee_id)["X-API-Key"]
 
     denied = client.post(
         "/api/v1/sales-quotations/bulk",

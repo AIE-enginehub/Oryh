@@ -9,18 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.browser_auth import SESSION_COOKIE
 from app.main import app
 
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    """Invitation emails still carry a token; only the tenant's own creation
-    stopped going through the mailbox."""
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError(f"no token in email body: {body!r}")
+from conftest import create, invite_member, provision_tenant as bootstrap_tenant
 
 
 def provision_tenant(client: TestClient, slug: str = "catalog") -> dict:
@@ -45,32 +35,8 @@ def role_user(
     permissions: list[str] | None,
     email: str,
 ) -> dict[str, str]:
-    if permissions is not None:
-        response = client.post(
-            "/api/v1/roles",
-            json={"name": role, "permissions": permissions},
-            headers=service,
-        )
-        assert response.status_code == 201, response.text
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": email, "role": role},
-        headers=service,
-    )
-    assert invited.status_code == 201, invited.text
-    user_id = invited.json()["data"]["id"]
-    accepted = client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": extract_token(outbox.messages[-1].body), "password": "invitee-pass1"},
-    )
-    assert accepted.status_code == 200, accepted.text
-    key = client.post(
-        "/api/v1/tenant/api-keys",
-        json={"label": role, "user_id": user_id},
-        headers=service,
-    )
-    assert key.status_code == 201, key.text
-    return {"X-API-Key": key.json()["data"]["plain_text_api_key"]}
+    # `permissions` given: a new role by that name; None: an existing role
+    return dict(invite_member(client, service, role, permissions, role=None if permissions is not None else role, email=email))
 
 
 def create_product(client: TestClient, headers: dict[str, str], **overrides) -> dict:
@@ -80,9 +46,7 @@ def create_product(client: TestClient, headers: dict[str, str], **overrides) -> 
     # collide between two fixtures in the same tenant. Derive it from the name
     # instead; callers that care still pass their own.
     payload.setdefault("product_code", "CAT-" + payload["name"].replace(" ", "-").upper())
-    response = client.post("/api/v1/products", json=payload, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, headers, "products", **payload)
 
 
 def create_sku(
@@ -93,17 +57,13 @@ def create_sku(
 ) -> dict:
     payload = {"product_id": product_id, "sku_code": "CAT-SKU", "variant_attrs": {"size": "M"}}
     payload.update(overrides)
-    response = client.post("/api/v1/product-skus", json=payload, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, headers, "product-skus", **payload)
 
 
 def create_employee(client: TestClient, headers: dict[str, str], **overrides) -> dict:
     payload = {"name": "Console Employee"}
     payload.update(overrides)
-    response = client.post("/api/v1/employees", json=payload, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, headers, "employees", **payload)
 
 
 def test_product_pagination_filters_sku_counts_and_query_shape(

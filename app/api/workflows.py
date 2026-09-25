@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.api.common import ORDER_BY_DOC, PAGE_SIZE_DOC, envelope, get_tenant_id, list_rows, requested_pagination
+from app.api.common import ORDER_BY_DOC, PAGE_SIZE_DOC, envelope, get_scoped_or_404, get_tenant_id, list_rows, requested_pagination
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
 from app.models import BusinessObject, ObjectTypeDefinition, WorkflowDefinition
@@ -93,7 +93,7 @@ def validate_workflow_subject(
         # billing accounts) are not workflow subjects
         if object_type not in BUILTIN_MACHINES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"unknown builtin object_type {object_type!r} — "
                     f"one of {', '.join(sorted(BUILTIN_MACHINES))}"
@@ -101,7 +101,7 @@ def validate_workflow_subject(
             )
         if active_definition is None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"builtin object_type {object_type!r} has no active definition",
             )
         return
@@ -116,7 +116,7 @@ def validate_workflow_subject(
     )
     if active_definition is None and existing_object is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"business object_type {object_type!r} has neither an active "
                 "definition nor existing data"
@@ -189,9 +189,7 @@ def get_workflow_definition(
 ):
     """Fetch any published version by id — including superseded ones, so past
     routing decisions stay traceable to the definition they were based on."""
-    definition = db.get(WorkflowDefinition, definition_id)
-    if definition is None or definition.tenant_id != tenant_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="WorkflowDefinition not found")
+    definition = get_scoped_or_404(db, WorkflowDefinition, tenant_id, definition_id)
     return envelope(WorkflowDefinitionRead.model_validate(definition).model_dump())
 
 

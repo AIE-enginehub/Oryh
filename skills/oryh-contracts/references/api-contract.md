@@ -50,6 +50,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /payments/{payment_id}
 
@@ -63,6 +65,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /purchase-orders/{po_id}
 
@@ -84,6 +88,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /type-options/{type_option_id}
 

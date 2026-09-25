@@ -25,22 +25,16 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
-    ListFilters,
-    list_filters,
-    ORDER_BY_DOC,
-    PAGE_SIZE_DOC,
     commit_or_conflict,
     envelope,
     get_scoped_or_404,
-    get_tenant_id,
-    list_rows,
-    requested_pagination,
 )
+from app.api.registry import ORDER_BY, PAGE, SIZE, GetResource, ListResource, Param, register
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -84,7 +78,7 @@ def _load_and_gate(db: Session, actor: Actor, entity_type: str, entity_id: str):
     spec = LINKABLE_DOCUMENTS.get(entity_type)
     if spec is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"entity_type {entity_type!r} is not linkable — one of: "
                 + ", ".join(sorted(LINKABLE_DOCUMENTS))
@@ -96,42 +90,6 @@ def _load_and_gate(db: Session, actor: Actor, entity_type: str, entity_id: str):
         actor, capability, getattr(row, scope_attr) if scope_attr else None
     )
     return row
-
-
-@router.get(
-    "/external-document-links",
-    response_model=ExternalDocumentLinkListEnvelope,
-    response_model_exclude_unset=True,
-)
-def list_external_document_links(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    source: str | None = None,
-    external_kind: str | None = None,
-    external_no: str | None = None,
-    entity_type: str | None = None,
-    entity_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ExternalDocumentLink, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db,
-        select(ExternalDocumentLink).where(ExternalDocumentLink.tenant_id == tenant_id),
-        filters={
-            ExternalDocumentLink.source: source.strip().lower() if source else None,
-            ExternalDocumentLink.external_kind: external_kind,
-            ExternalDocumentLink.external_no: external_no.strip() if external_no else None,
-            ExternalDocumentLink.entity_type: entity_type,
-            ExternalDocumentLink.entity_id: entity_id,
-        },
-        order_by=(ExternalDocumentLink.created_at.desc(), ExternalDocumentLink.id.desc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=ExternalDocumentLinkRead,
-        extra=extra,
-    )
 
 
 @router.post(
@@ -210,20 +168,6 @@ def create_external_document_link(
     return envelope(ExternalDocumentLinkRead.model_validate(link).model_dump(by_alias=True))
 
 
-@router.get(
-    "/external-document-links/{link_id}",
-    response_model=ExternalDocumentLinkEnvelope,
-    response_model_exclude_unset=True,
-)
-def get_external_document_link(
-    link_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    link = get_scoped_or_404(db, ExternalDocumentLink, tenant_id, link_id)
-    return envelope(ExternalDocumentLinkRead.model_validate(link).model_dump(by_alias=True))
-
-
 @router.delete("/external-document-links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_external_document_link(
     link_id: str,
@@ -234,3 +178,29 @@ def delete_external_document_link(
     _load_and_gate(db, actor, link.entity_type, link.entity_id)
     db.delete(link)
     db.commit()
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+def _normalised_link_filters(stmt, values: dict):
+    """`source` and `external_no` are matched as they are stored: lower-cased
+    and stripped, the way the create path writes them."""
+    if values.get("source"):
+        stmt = stmt.where(ExternalDocumentLink.source == values["source"].strip().lower())
+    if values.get("external_no"):
+        stmt = stmt.where(ExternalDocumentLink.external_no == values["external_no"].strip())
+    return stmt
+
+
+register(
+    router,
+    ListResource(
+        path="/external-document-links", name="list_external_document_links", model=ExternalDocumentLink,
+        read_model=ExternalDocumentLinkRead, response_model=ExternalDocumentLinkListEnvelope,
+        params=(Param("source"), "external_kind", Param("external_no"), "entity_type", "entity_id", PAGE, SIZE, ORDER_BY),
+        order_by=(ExternalDocumentLink.created_at.desc(), ExternalDocumentLink.id.desc()),
+        where=_normalised_link_filters,
+    ),
+    GetResource(path="/external-document-links/{link_id}", name="get_external_document_link", model=ExternalDocumentLink,
+                read_model=ExternalDocumentLinkRead, response_model=ExternalDocumentLinkEnvelope, id_param="link_id"),
+)

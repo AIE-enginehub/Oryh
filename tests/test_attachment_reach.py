@@ -23,17 +23,9 @@ import pytest
 
 from app.api.common import ATTACHMENT_SOURCES
 from app.models import Base
-from app.services.emails import outbox
 
-from conftest import make_client
+from conftest import invite_member, make_client
 from conftest import provision_tenant as bootstrap_tenant
-
-
-def token_from(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
 
 
 @pytest.fixture()
@@ -49,18 +41,7 @@ def world() -> Generator[dict, None, None]:
 
         def key_holding(*permissions: str, employee_id: str | None = None) -> dict:
             seq["n"] += 1
-            role = f"role{seq['n']}"
-            client.post("/api/v1/roles", json={"name": role, "permissions": list(permissions)},
-                        headers=admin)
-            body = {"email": f"u{seq['n']}@reach-co.com", "role": role}
-            if employee_id:
-                body["employee_id"] = employee_id
-            user_id = client.post("/api/v1/auth/invitations", json=body, headers=admin).json()["data"]["id"]
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"})
-            plain = client.post("/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id},
-                                headers=admin).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": plain}
+            return dict(invite_member(client, admin, f"role{seq['n']}", list(permissions), employee_id=employee_id, domain="reach-co.com"))
 
         def upload(headers: dict, body: bytes, name: str) -> str:
             r = client.post("/api/v1/attachments", json={

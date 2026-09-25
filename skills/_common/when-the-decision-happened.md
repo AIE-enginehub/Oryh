@@ -9,7 +9,8 @@ before the record they decide existed.
 
 Send one only when the person you act for has told you the decision happened at
 another time, using a time they gave you or one the record already carries
-(backfilling a missing `submitted` fact from the document's own `submitted_at`
-is the normal case, and it is a stored fact rather than an estimate). Never
+(backfilling a `submitted` fact for a document that predates `/submit`
+recording it, from the document's own `submitted_at`, is the one common case —
+a stored fact rather than an estimate). Never
 infer it from a date on the document, and never send one because a field
 exists. A future time and a time before the target existed are both refused.

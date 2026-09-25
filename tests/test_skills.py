@@ -5,9 +5,9 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import Tenant
 
-from conftest import make_client
+from conftest import create, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -26,15 +26,7 @@ SKILL_FILES = {
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            Tenant(id=OTHER_TENANT, name="Other Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-            ApiKey(tenant_id=OTHER_TENANT, key_hash=hash_api_key(OTHER_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY), (OTHER_TENANT, "Other Tenant", OTHER_API_KEY))
 
 
 def create_skill(client: TestClient, **overrides) -> dict:
@@ -45,9 +37,7 @@ def create_skill(client: TestClient, **overrides) -> dict:
         "files": SKILL_FILES,
     }
     payload.update(overrides)
-    response = client.post("/api/v1/skills", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "skills", **payload)
 
 
 def test_skill_crud_and_versioning(client: TestClient) -> None:

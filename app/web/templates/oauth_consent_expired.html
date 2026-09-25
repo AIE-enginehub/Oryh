@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Authorization expired{% endblock %}
+{% block content %}
+<div class="card auth-card">
+  <h1>This authorization page has expired</h1>
+  <p>The approval for <strong>{{ client_host }}</strong> was left open too long, or its button was pressed twice. Nothing was granted.</p>
+  <p class="muted">Open the authorization page again to approve now, or go back to the agent without authorizing.</p>
+  <div class="row">
+    <a class="btn pri" href="{{ reopen_url }}">Open the authorization page again</a>
+    <a class="btn plain" href="{{ client_url }}">Return to {{ client_host }} without authorizing</a>
+  </div>
+</div>
+{% endblock %}

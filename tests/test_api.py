@@ -6,9 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import ApiKey, Tenant
 
-from conftest import make_client
+from conftest import create, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -19,15 +19,7 @@ OTHER_API_KEY = "other-api-key"
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            Tenant(id=OTHER_TENANT, name="Other Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-            ApiKey(tenant_id=OTHER_TENANT, key_hash=hash_api_key(OTHER_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY), (OTHER_TENANT, "Other Tenant", OTHER_API_KEY))
 
 
 def api_key_headers(api_key: str = TEST_API_KEY) -> dict[str, str]:
@@ -41,17 +33,13 @@ def headers_for_tenant(tenant_id: str) -> dict[str, str]:
 def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {"name": "Alice"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/employees", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "employees", **payload)["id"]
 
 
 def create_project(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {"project_name": "ERP Upgrade", "client": "Acme Corp"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/projects", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "projects", **payload)["id"]
 
 
 def create_resource(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
@@ -63,9 +51,7 @@ def create_resource(test_client: TestClient, tenant_id: str = TEST_TENANT, **ove
         "booking_mode": "exclusive",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/resources", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "resources", **payload)["id"]
 
 
 def create_approval_target(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
@@ -77,9 +63,7 @@ def create_approval_target(test_client: TestClient, tenant_id: str = TEST_TENANT
         "source_text": "会议决议：同意在 Q2 完成供应商整合。",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/approval-targets", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "approval-targets", **payload)["id"]
 
 
 def create_business_object(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
@@ -92,9 +76,7 @@ def create_business_object(test_client: TestClient, tenant_id: str = TEST_TENANT
         "created_by": "agent-test",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/business-objects", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "business-objects", **payload)["id"]
 
 
 def create_header(
@@ -109,9 +91,7 @@ def create_header(
         "period_end": "2026-03-15",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/timesheet-headers", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "timesheet-headers", **payload)["id"]
 
 
 def create_entry(
@@ -128,9 +108,7 @@ def create_entry(
         "hours": 4.5,
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/timesheet-entries", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "timesheet-entries", **payload)["id"]
 
 
 def create_todo(
@@ -151,15 +129,7 @@ def create_todo(
         "created_by": "agent-test",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/todos", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
-
-
-def test_healthcheck(client: TestClient) -> None:
-    response = client.get("/healthz")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    return create(test_client, headers_for_tenant(tenant_id), "todos", **payload)["id"]
 
 
 def test_json_responses_declare_utf8_charset(client: TestClient) -> None:

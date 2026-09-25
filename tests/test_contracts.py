@@ -18,9 +18,8 @@ import base64
 
 import pytest
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 PDF = b"%PDF-1.4\n% signed contract\n"
 PAYMENT_CLAUSE = "第五条 付款方式:合同签订后三个工作日内支付合同总价的30%作为预付款;首批货物发出前支付60%;验收合格后支付余款10%。"
@@ -33,18 +32,7 @@ def desk():
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
         def holder(name: str, permissions: list[str]) -> dict:
-            client.post("/api/v1/roles", json={"name": name, "permissions": permissions},
-                        headers=admin)
-            uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{name}@deal.example", "role": name},
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            return {"X-API-Key": client.post(
-                "/api/v1/tenant/api-keys", json={"label": name, "user_id": uid},
-                headers=admin).json()["data"]["plain_text_api_key"]}
+            return dict(invite_member(client, admin, name, permissions))
 
         buyer = holder("buyer", ["contract.manage:purchase", "purchase_order.manage"])
         seller = holder("seller", ["contract.manage:sales"])

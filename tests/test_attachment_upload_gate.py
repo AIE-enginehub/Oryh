@@ -29,9 +29,8 @@ from fastapi.testclient import TestClient
 from app.api.workspace import ATTACHMENT_FILING_CAPABILITIES
 from app.core.permissions import SYSTEM_CAPABILITY_NAMES
 from app.models import Base
-from app.services.emails import outbox
 
-from conftest import make_client
+from conftest import invite_member, make_client
 from conftest import provision_tenant as bootstrap_tenant
 
 # What files each attachment-backed record. Declared rather than derived: the
@@ -91,13 +90,6 @@ def test_every_listed_capability_is_a_real_one() -> None:
     assert not unknown, f"not system capabilities: {unknown}"
 
 
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
-
-
 @pytest.fixture()
 def tenant() -> Generator[dict, None, None]:
     """A tenant plus a factory for user-bound keys holding named capabilities
@@ -111,23 +103,7 @@ def tenant() -> Generator[dict, None, None]:
 
         def key_holding(*permissions: str) -> dict:
             seq["n"] += 1
-            role = f"role{seq['n']}"
-            assert client.post(
-                "/api/v1/roles", json={"name": role, "permissions": list(permissions)},
-                headers=service,
-            ).status_code == 201
-            email = f"user{seq['n']}@attach-co.com"
-            user_id = client.post(
-                "/api/v1/auth/invitations", json={"email": email, "role": role}, headers=service
-            ).json()["data"]["id"]
-            client.post(
-                "/api/v1/auth/invitations/accept",
-                json={"token": extract_token(outbox.messages[-1].body), "password": "invitee-pass1"},
-            )
-            plain = client.post(
-                "/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id}, headers=service
-            ).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": plain}
+            return dict(invite_member(client, service, f"role{seq['n']}", list(permissions), domain="attach-co.com"))
 
         yield {"client": client, "service": service, "key_holding": key_holding}
 

@@ -26,13 +26,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.line_math import derive_line_amount
+from app.api.visibility import scoped
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -41,7 +42,6 @@ from app.api.common import (
     allocate_number,
     apply_status_change,
     commit_or_conflict,
-    delete_document,
     ensure_document_editable,
     envelope,
     get_active_document_or_404,
@@ -52,11 +52,12 @@ from app.api.common import (
     requested_pagination,
     catalog_list_price,
     require_machine_state,
-    require_type_option,
-    restore_document,
     rows_revision,
     save_rows,
 )
+from app.services.type_options import require_type_option
+from app.api.family_routes import Verb, register_document_verbs
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, ListResource, register
 from app.api.deps import Actor, enforce_member_employee, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -284,22 +285,7 @@ def update_lead(
     return envelope(LeadRead.model_validate(lead).model_dump(by_alias=True))
 
 
-@router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_lead(
-    lead_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Lead, lead_id)
-
-
-@router.post("/leads/{lead_id}/restore")
-def restore_lead(
-    lead_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Lead, lead_id)
+register_document_verbs(router, Lead, path="/leads", id_param="lead_id", delete=Verb(), restore=Verb())
 
 
 def _customer_for_conversion(db: Session, tenant_id: str, lead: Lead, payload: ConvertLeadRequest) -> tuple[Customer, CustomerContact | None]:
@@ -361,15 +347,16 @@ def _customer_for_conversion(db: Session, tenant_id: str, lead: Lead, payload: C
 @router.post("/leads/{lead_id}/convert", response_model_exclude_unset=True)
 def convert_lead(
     lead_id: str,
-    payload: ConvertLeadRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: ConvertLeadRequest = Body(default=None),
 ):
     """The one orchestration the server owns: lead → customer (+rolodex
     entry) [+opportunity], one transaction. It exists because the agent
     holding `crm.own` does not hold `master_data.manage` — promotion into
     master data is the conversion's whole meaning, so the bridge carries
     that single write rather than handing the salesperson the catalog."""
+    payload = payload or ConvertLeadRequest()
     tenant_id = actor.tenant_id
     require_permission(actor, "crm.own")
     lead = get_active_document_or_404(db, Lead, tenant_id, lead_id)
@@ -590,22 +577,10 @@ def update_opportunity(
     return envelope(OpportunityRead.model_validate(opportunity).model_dump(by_alias=True))
 
 
-@router.delete("/opportunities/{opportunity_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_opportunity(
-    opportunity_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Opportunity, opportunity_id)
-
-
-@router.post("/opportunities/{opportunity_id}/restore")
-def restore_opportunity(
-    opportunity_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Opportunity, opportunity_id)
+register_document_verbs(
+    router, Opportunity, path="/opportunities", id_param="opportunity_id", singular="opportunity",
+    delete=Verb(), restore=Verb(),
+)
 
 
 # --- campaigns ----------------------------------------------------------------
@@ -667,13 +642,13 @@ def _campaign_fields(db: Session, tenant_id: str, payload, *, current: Campaign 
         require_type_option(db, tenant_id, "campaign_type", fields["campaign_type"])
     if fields.get("parent_campaign_id"):
         if current is not None and fields["parent_campaign_id"] == current.id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="a campaign cannot be its own parent")
         get_active_document_or_404(db, Campaign, tenant_id, fields["parent_campaign_id"])
     start = fields.get("start_date", current.start_date if current else None)
     end = fields.get("end_date", current.end_date if current else None)
     if start and end and end < start:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="end_date is before start_date")
 
 
@@ -755,19 +730,21 @@ def get_campaign_detail(
             .group_by(CampaignMember.member_status)
         )
     }
-    live_leads = select(Lead).where(
+    # what the campaign earned, counted over the leads and deals this
+    # reader may see — the same rule the lists apply
+    live_leads = scoped(db, select(Lead).where(
         Lead.tenant_id == tenant_id, Lead.campaign_id == campaign.id, Lead.deleted_at.is_(None)
-    )
+    ), Lead)
     leads_total = db.scalar(select(func.count()).select_from(live_leads.subquery())) or 0
     leads_converted = db.scalar(
         select(func.count()).select_from(
             live_leads.where(Lead.converted_customer_id.is_not(None)).subquery()
         )
     ) or 0
-    live_deals = select(Opportunity).where(
+    live_deals = scoped(db, select(Opportunity).where(
         Opportunity.tenant_id == tenant_id, Opportunity.campaign_id == campaign.id,
         Opportunity.deleted_at.is_(None),
-    )
+    ), Opportunity)
     deals_total = db.scalar(select(func.count()).select_from(live_deals.subquery())) or 0
     won = live_deals.where(Opportunity.status == "won").subquery()
     deals_won = db.scalar(select(func.count()).select_from(won)) or 0
@@ -814,22 +791,7 @@ def update_campaign(
     return envelope(CampaignRead.model_validate(campaign).model_dump(by_alias=True))
 
 
-@router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_campaign(
-    campaign_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Campaign, campaign_id)
-
-
-@router.post("/campaigns/{campaign_id}/restore")
-def restore_campaign(
-    campaign_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Campaign, campaign_id)
+register_document_verbs(router, Campaign, path="/campaigns", id_param="campaign_id", delete=Verb(), restore=Verb())
 
 
 # --- campaign members --------------------------------------------------------
@@ -845,42 +807,6 @@ def _member_write(db: Session, actor: Actor, *, lead_id: str | None) -> None:
         enforce_member_employee(actor, lead.employee_id)
         return
     require_permission(actor, "campaign.manage")
-
-
-@router.get("/campaign-members", response_model=CampaignMemberListEnvelope,
-            response_model_exclude_unset=True)
-def list_campaign_members(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    campaign_id: str | None = None,
-    lead_id: str | None = None,
-    customer_id: str | None = None,
-    contact_id: str | None = None,
-    member_status: str | None = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(CampaignMember, ranges=('created_at', 'responded_at'), equals=()))] = None,
-):
-    stmt = select(CampaignMember).where(CampaignMember.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            CampaignMember.campaign_id: campaign_id,
-            CampaignMember.lead_id: lead_id,
-            CampaignMember.customer_id: customer_id,
-            CampaignMember.contact_id: contact_id,
-            CampaignMember.member_status: member_status,
-        },
-        keyword=keyword,
-        keyword_columns=(cast(CampaignMember.id, String), CampaignMember.remarks),
-        order_by=(CampaignMember.created_at.desc(), CampaignMember.id.desc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=CampaignMemberRead,
-        extra=extra,
-    )
 
 
 @router.post("/campaign-members", response_model=CampaignMemberEnvelope,
@@ -900,7 +826,7 @@ def create_campaign_member(
     if payload.contact_id:
         contact = get_scoped_or_404(db, CustomerContact, tenant_id, payload.contact_id)
         if contact.customer_id != payload.customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="contact_id belongs to a different customer")
     if payload.member_status:
         require_type_option(db, tenant_id, "campaign_member_status", payload.member_status)
@@ -964,11 +890,11 @@ def update_campaign_member(
         require_type_option(db, tenant_id, "campaign_member_status", updates["member_status"])
     if updates.get("contact_id"):
         if not member.customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="a lead member has no customer contacts")
         contact = get_scoped_or_404(db, CustomerContact, tenant_id, updates["contact_id"])
         if contact.customer_id != member.customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="contact_id belongs to a different customer")
     for field, value in updates.items():
         setattr(member, field, value)
@@ -1028,36 +954,8 @@ def _line_product(db: Session, tenant_id: str, product_id: str | None, sku_id: s
     if sku_id:
         sku = get_scoped_or_404(db, ProductSku, tenant_id, sku_id)
         if product_id and sku.product_id != product_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="sku_id belongs to a different product")
-
-
-@router.get("/opportunity-items", response_model=OpportunityItemListEnvelope, response_model_exclude_unset=True)
-def list_opportunity_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    opportunity_id: str | None = None,
-    product_id: str | None = None,
-    sku_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(OpportunityItem, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(OpportunityItem).where(OpportunityItem.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            OpportunityItem.opportunity_id: opportunity_id,
-            OpportunityItem.product_id: product_id,
-            OpportunityItem.sku_id: sku_id,
-        },
-        order_by=(OpportunityItem.line_no.asc().nulls_last(), OpportunityItem.created_at.asc(), OpportunityItem.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=OpportunityItemRead,
-        extra=extra,
-    )
 
 
 def build_opportunity_item(db: Session, tenant_id: str, opportunity: Opportunity, payload) -> OpportunityItem:
@@ -1068,7 +966,7 @@ def build_opportunity_item(db: Session, tenant_id: str, opportunity: Opportunity
     if payload.product_id and not name_snapshot:
         name_snapshot = db.get(Product, payload.product_id).name
     if not (payload.product_id or (name_snapshot or "").strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="a line names a product — by id, or by name when the catalog has none")
     item = OpportunityItem(
         tenant_id=tenant_id,
@@ -1105,7 +1003,7 @@ def apply_opportunity_item_updates(db: Session, tenant_id: str, item: Opportunit
             if sku is None or sku.product_id != item.product_id:
                 item.sku_id = None
     if not (item.product_id or (item.product_name_snapshot or "").strip()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="a line names a product — by id, or by name when the catalog has none")
     if stated & {"quantity", "unit_price", "amount"}:
         item.amount = derive_line_amount(item.quantity, item.unit_price, updates.get("amount"))
@@ -1209,7 +1107,7 @@ def delete_opportunity_item(
 def _contact_of_deal(db: Session, tenant_id: str, opportunity: Opportunity, contact_id: str) -> CustomerContact:
     contact = get_scoped_or_404(db, CustomerContact, tenant_id, contact_id)
     if opportunity.customer_id and contact.customer_id != opportunity.customer_id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="that person belongs to a different customer than this deal")
     return contact
 
@@ -1222,34 +1120,6 @@ def _demote_other_primaries(db: Session, tenant_id: str, opportunity_id: str, ke
     )):
         if row.id != keep:
             row.is_primary = False
-
-
-@router.get("/opportunity-contacts", response_model=OpportunityContactListEnvelope, response_model_exclude_unset=True)
-def list_opportunity_contacts(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    opportunity_id: str | None = None,
-    contact_id: str | None = None,
-    role: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(OpportunityContact, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(OpportunityContact).where(OpportunityContact.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            OpportunityContact.opportunity_id: opportunity_id,
-            OpportunityContact.contact_id: contact_id,
-            OpportunityContact.role: role,
-        },
-        order_by=(OpportunityContact.is_primary.desc(), OpportunityContact.created_at.asc(), OpportunityContact.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=OpportunityContactRead,
-        extra=extra,
-    )
 
 
 @router.post("/opportunity-contacts", response_model=OpportunityContactEnvelope,
@@ -1369,24 +1239,26 @@ def get_opportunity_detail(
         )
         for row, person in cast_rows
     ]
+    # the deal's paperwork and contact record, as far as this reader may see
+    # them — the same rule the lists apply
     quotations = db.scalars(
-        select(SalesQuotation).where(SalesQuotation.tenant_id == tenant_id, SalesQuotation.opportunity_id == opportunity.id,
-                                     SalesQuotation.deleted_at.is_(None))
+        scoped(db, select(SalesQuotation).where(SalesQuotation.tenant_id == tenant_id, SalesQuotation.opportunity_id == opportunity.id,
+                                                SalesQuotation.deleted_at.is_(None)), SalesQuotation)
         .order_by(SalesQuotation.created_at.desc())
     ).all()
     orders = db.scalars(
-        select(SalesOrder).where(SalesOrder.tenant_id == tenant_id, SalesOrder.opportunity_id == opportunity.id,
-                                 SalesOrder.deleted_at.is_(None))
+        scoped(db, select(SalesOrder).where(SalesOrder.tenant_id == tenant_id, SalesOrder.opportunity_id == opportunity.id,
+                                            SalesOrder.deleted_at.is_(None)), SalesOrder)
         .order_by(SalesOrder.created_at.desc())
     ).all()
     campaign = db.get(Campaign, opportunity.campaign_id) if opportunity.campaign_id else None
-    activities = db.scalars(select(Activity).where(Activity.tenant_id == tenant_id, Activity.opportunity_id == opportunity.id,
-                                                   Activity.deleted_at.is_(None)).order_by(Activity.occurred_at.desc()).limit(10)).all()
-    events = db.scalars(select(Event).where(Event.tenant_id == tenant_id, Event.opportunity_id == opportunity.id,
-                                            Event.deleted_at.is_(None)).order_by(Event.starts_at.desc()).limit(10)).all()
-    communications = db.scalars(select(CommunicationEvent).where(
+    activities = db.scalars(scoped(db, select(Activity).where(Activity.tenant_id == tenant_id, Activity.opportunity_id == opportunity.id,
+                                                              Activity.deleted_at.is_(None)), Activity).order_by(Activity.occurred_at.desc()).limit(10)).all()
+    events = db.scalars(scoped(db, select(Event).where(Event.tenant_id == tenant_id, Event.opportunity_id == opportunity.id,
+                                                       Event.deleted_at.is_(None)), Event).order_by(Event.starts_at.desc()).limit(10)).all()
+    communications = db.scalars(scoped(db, select(CommunicationEvent).where(
         CommunicationEvent.tenant_id == tenant_id, CommunicationEvent.opportunity_id == opportunity.id,
-        CommunicationEvent.deleted_at.is_(None)).order_by(CommunicationEvent.occurred_at.desc()).limit(10)).all()
+        CommunicationEvent.deleted_at.is_(None)), CommunicationEvent).order_by(CommunicationEvent.occurred_at.desc()).limit(10)).all()
     detail = OpportunityDetailRead(
         revision=rows_revision(db, opportunity, OpportunityRead, {"items": OPPORTUNITY_ROWS}),
         opportunity=OpportunityRead.model_validate(opportunity),
@@ -1416,9 +1288,9 @@ def _agreed_price(db: Session, tenant_id: str, customer_id: str | None, product_
              status_code=status.HTTP_201_CREATED)
 def quote_opportunity(
     opportunity_id: str,
-    payload: QuoteOpportunityRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: QuoteOpportunityRequest = Body(default=None),
 ):
     """The one orchestration between the pipeline and the quotation: a draft
     quotation from the deal's own lines, priced from each line's stated
@@ -1426,6 +1298,7 @@ def quote_opportunity(
     says which per line — with the deal's primary contact on it and the
     deal moved to its `quoting` state, one transaction. Needs the quoting
     grant as well as the deal: the draft is a quotation like any other."""
+    payload = payload or QuoteOpportunityRequest()
     tenant_id = actor.tenant_id
     require_permission(actor, "quotation.submit_own")
     opportunity = _own_opportunity(db, actor, opportunity_id, editable=False)
@@ -1434,7 +1307,7 @@ def quote_opportunity(
         .order_by(OpportunityItem.line_no.asc().nulls_last(), OpportunityItem.created_at.asc())
     ).all()
     if not items:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="the opportunity has no lines to quote — add opportunity items first")
     machine = get_builtin_machine(db, tenant_id, "opportunity")
     quoting = state_for_role(machine, "opportunity", "quoting")
@@ -1518,3 +1391,27 @@ def quote_opportunity(
         for line, basis in zip(lines, bases)
     ]
     return envelope(data)
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/campaign-members", name="list_campaign_members", model=CampaignMember, read_model=CampaignMemberRead, response_model=CampaignMemberListEnvelope,
+        params=("campaign_id", "lead_id", "customer_id", "contact_id", "member_status", KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(CampaignMember.created_at.desc(), CampaignMember.id.desc()),
+        keyword_columns=(cast(CampaignMember.id, String), CampaignMember.remarks),
+        ranges=("created_at", "responded_at"),
+    ),
+    ListResource(
+        path="/opportunity-items", name="list_opportunity_items", model=OpportunityItem, read_model=OpportunityItemRead, response_model=OpportunityItemListEnvelope,
+        params=("opportunity_id", "product_id", "sku_id", PAGE, SIZE, ORDER_BY),
+        order_by=(OpportunityItem.line_no.asc().nulls_last(), OpportunityItem.created_at.asc(), OpportunityItem.id.asc()),
+    ),
+    ListResource(
+        path="/opportunity-contacts", name="list_opportunity_contacts", model=OpportunityContact, read_model=OpportunityContactRead, response_model=OpportunityContactListEnvelope,
+        params=("opportunity_id", "contact_id", "role", PAGE, SIZE, ORDER_BY),
+        order_by=(OpportunityContact.is_primary.desc(), OpportunityContact.created_at.asc(), OpportunityContact.id.asc()),
+    ),
+)

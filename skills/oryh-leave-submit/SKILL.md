@@ -106,8 +106,8 @@ POST /employee-leaves
 
 6. **Amending**: while the request is `draft` or `returned`, `PATCH` it.
    A returned request carries the reason in the rework todo's `description` and
-   the latest `returned` approval record's `comment`: read both, fix, resubmit,
-   then close your own rework todo. Once approved, the dates are settled — see
+   the latest `returned` approval record's `comment`: read both, fix, resubmit
+   (the resubmit closes the rework todo itself). Once approved, the dates are settled — see
    below.
 
 ## Cancelling, and recording leave as taken

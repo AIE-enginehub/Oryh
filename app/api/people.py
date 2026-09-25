@@ -32,13 +32,16 @@ from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    commit_or_code_conflict,
+    named_read,
+    reads_with_employee_names,
+    with_employee_name,
     ListFilters,
     list_filters,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     apply_status_change,
     commit_or_conflict,
-    delete_document,
     ensure_content_edit_allowed,
     envelope,
     exclude_rows_with_open_todo,
@@ -51,9 +54,10 @@ from app.api.common import (
     page_only_pagination,
     requested_pagination,
     require_machine_state,
-    restore_document,
-    submit_document,
 )
+from app.api.family_routes import Verb, register_document_verbs
+from app.api.objects import TODO_KEYWORD_COLUMNS, TODO_ORDER
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
 from app.core.permissions import (
     HOSTED_FLOW_AGENT_DISPLAY_NAME,
@@ -200,30 +204,6 @@ def resolve_display_names(
 # --- employees: the record, and the todos addressed to one ------------------
 
 
-@router.get("/employees", response_model=EmployeeListEnvelope, response_model_exclude_unset=True)
-def list_employees(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Employee, ranges=('created_at', 'hire_date'), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Employee).where(Employee.tenant_id == tenant_id),
-        filters={Employee.status: status_filter},
-        keyword=keyword,
-        keyword_columns=(Employee.name,),
-        order_by=(Employee.created_at.desc(), Employee.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=EmployeeRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/employees",
     response_model=EmployeeEnvelope,
@@ -247,18 +227,8 @@ def create_employee(
         metadata_jsonb=payload.metadata,
     )
     db.add(employee)
-    db.commit()
+    commit_or_code_conflict(db, employee)
     db.refresh(employee)
-    return envelope(EmployeeRead.model_validate(employee).model_dump(by_alias=True))
-
-
-@router.get("/employees/{employee_id}", response_model=EmployeeEnvelope, response_model_exclude_unset=True)
-def get_employee(
-    employee_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    employee = get_scoped_or_404(db, Employee, tenant_id, employee_id)
     return envelope(EmployeeRead.model_validate(employee).model_dump(by_alias=True))
 
 
@@ -276,7 +246,7 @@ def update_employee(
         employee.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(employee, field, value)
-    db.commit()
+    commit_or_code_conflict(db, employee)
     db.refresh(employee)
     return envelope(EmployeeRead.model_validate(employee).model_dump(by_alias=True))
 
@@ -311,16 +281,12 @@ def list_employee_todos(
             Todo.entity_id: entity_id,
         },
         keyword=keyword,
-        keyword_columns=(
-            Todo.title,
-            Todo.description,
-            Todo.todo_type,
-            cast(Todo.entity_id, String),
-        ),
-        order_by=(Todo.created_at.desc(), Todo.id.desc()),
+        keyword_columns=TODO_KEYWORD_COLUMNS,
+        order_by=TODO_ORDER,
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TodoRead,
+        render=lambda rows: reads_with_employee_names(db, tenant_id, TodoRead, rows),
     )
     for row in result["data"]:
         row.pop("target", None)
@@ -394,6 +360,7 @@ def list_employee_leaves(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=EmployeeLeaveRead,
+        render=lambda rows: reads_with_employee_names(db, tenant_id, EmployeeLeaveRead, rows),
         extra=extra,
     )
 
@@ -420,7 +387,7 @@ def create_employee_leave(
     initial_status = require_machine_state(db, actor, EmployeeLeave, payload.status)
     if payload.thru_date < payload.from_date:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="thru_date cannot precede from_date",
         )
     leave = EmployeeLeave(
@@ -438,7 +405,7 @@ def create_employee_leave(
     db.add(leave)
     db.commit()
     db.refresh(leave)
-    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+    return envelope(named_read(db, leave.tenant_id, EmployeeLeaveRead, leave))
 
 
 @router.get(
@@ -452,7 +419,7 @@ def get_employee_leave(
     db: Annotated[Session, Depends(get_db)],
 ):
     leave = get_scoped_or_404(db, EmployeeLeave, tenant_id, leave_id)
-    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+    return envelope(named_read(db, leave.tenant_id, EmployeeLeaveRead, leave))
 
 
 @router.patch(
@@ -477,7 +444,7 @@ def update_employee_leave(
     thru_date = updates.get("thru_date", leave.thru_date)
     if thru_date < from_date:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="thru_date cannot precede from_date",
         )
     if "status" in updates and updates["status"] != leave.status:
@@ -488,35 +455,13 @@ def update_employee_leave(
         setattr(leave, field, value)
     db.commit()
     db.refresh(leave)
-    return envelope(EmployeeLeaveRead.model_validate(leave).model_dump(by_alias=True))
+    return envelope(named_read(db, leave.tenant_id, EmployeeLeaveRead, leave))
 
 
-@router.delete("/employee-leaves/{leave_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_employee_leave(
-    leave_id: str,
-    payload: DeleteEmployeeLeaveRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
-    return delete_document(db, actor, EmployeeLeave, leave_id, payload)
-
-
-@router.post("/employee-leaves/{leave_id}/restore")
-def restore_employee_leave(
-    leave_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, EmployeeLeave, leave_id)
-
-
-@router.post("/employee-leaves/{leave_id}/submit")
-def submit_employee_leave(
-    leave_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, EmployeeLeave, leave_id)
+register_document_verbs(
+    router, EmployeeLeave, path="/employee-leaves", id_param="leave_id",
+    delete=Verb(body=DeleteEmployeeLeaveRequest), restore=Verb(), submit=Verb(),
+)
 
 
 # --- pay histories: the salary terms a payslip is computed from -------------
@@ -605,7 +550,7 @@ def ensure_pay_term_states_something(payload) -> None:
     a rate with nothing to apply it to is not a rule, it is half of one."""
     if payload.amount is None and payload.rate is None and not payload.formula:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a pay term states an amount, a rate (with the basis it applies to), "
                 "or a formula in words — this one states none of them"
@@ -613,7 +558,7 @@ def ensure_pay_term_states_something(payload) -> None:
         )
     if payload.rate is not None and not payload.basis:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a rate needs the basis it applies to — 回款额, 毛利, 签约额, "
                 "whatever this workspace calls it"
@@ -681,7 +626,7 @@ def create_pay_history(
     ensure_pay_term_states_something(payload)
     if payload.effective_thru is not None and payload.effective_thru < payload.effective_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="effective_thru cannot precede effective_from",
         )
 
@@ -787,7 +732,7 @@ def update_pay_history(
     effective_thru = updates.get("effective_thru", record.effective_thru)
     if effective_thru is not None and effective_thru < effective_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="effective_thru cannot precede effective_from",
         )
     if "effective_from" in updates or "effective_thru" in updates:
@@ -846,3 +791,18 @@ def get_employee_pay_history(
         pagination=None,
         read_model=PayHistoryRead,
     )
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/employees", name="list_employees", model=Employee, read_model=EmployeeRead, response_model=EmployeeListEnvelope,
+        params=(KEYWORD, Filter("status"), PAGE, SIZE, ORDER_BY),
+        order_by=(Employee.created_at.desc(), Employee.id.desc()),
+        keyword_columns=(Employee.name,),
+        ranges=("created_at", "hire_date"),
+    ),
+    GetResource(path="/employees/{employee_id}", name="get_employee", model=Employee, read_model=EmployeeRead, response_model=EmployeeEnvelope, id_param="employee_id"),
+)

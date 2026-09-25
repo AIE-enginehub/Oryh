@@ -35,8 +35,6 @@ oryh:
 <!-- /only -->
 ```
 
-## Steps
-
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/confirm-before-you-write.md}}
@@ -48,6 +46,8 @@ oryh:
 {{include:_common/read-before-you-decide.md}}
 
 {{include:_common/leave-no-orphan-work.md}}
+
+## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.

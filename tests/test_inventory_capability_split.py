@@ -20,12 +20,10 @@ import pathlib
 import re
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.core.permissions import SYSTEM_CAPABILITY_NAMES
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -39,19 +37,7 @@ def desks():
 
         def key_holding(*permissions: str) -> dict:
             seq["n"] += 1
-            role = f"desk{seq['n']}"
-            client.post("/api/v1/roles", json={"name": role, "permissions": list(permissions)},
-                        headers=admin)
-            uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{role}@split.example", "role": role},
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            plain = client.post("/api/v1/tenant/api-keys", json={"label": role, "user_id": uid},
-                                headers=admin).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": plain}
+            return dict(invite_member(client, admin, f"desk{seq['n']}", list(permissions)))
 
         product = client.post("/api/v1/products", json={"name": "Widget", "product_code": "W-1"},
                               headers=admin).json()["data"]["id"]

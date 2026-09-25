@@ -16,9 +16,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import invite_member, make_client, seeded_tenants
 
 from conftest import provision_tenant as bootstrap_tenant
 
@@ -29,13 +28,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Payroll Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Payroll Co", TEST_API_KEY))
 
 
 def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
@@ -559,6 +552,7 @@ def test_a_payslip_is_settled_by_an_outbound_payment(client: TestClient) -> None
     """The whole payables chain is reused: no new settlement code at all."""
     person, hr = employee(client), employee(client, "HR")
     slip = payslip(client, hr, person, JULY)
+    post(client, f"/api/v1/invoices/{slip['id']}/submit", {}, expect=200)
     payout = post(
         client, "/api/v1/payments",
         {
@@ -624,38 +618,11 @@ def test_setting_a_salary_needs_the_payroll_capability(scoped_client) -> None:
 def scoped_client() -> Generator[tuple[dict, dict], None, None]:
     """A registered tenant plus a user-bound key that can read payroll but not
     set salaries."""
-    from app.services.emails import outbox
-
-    def token_from(body: str) -> str:
-        for line in body.splitlines():
-            if "token=" in line:
-                return line.rsplit("token=", 1)[1].strip()
-        raise AssertionError("no token in email")
-
     with make_client([]) as test_client:
         data = bootstrap_tenant(test_client, company_name="HR Co", email="admin@hr-co.com", password="hr-pass12345")
         service = {"client": test_client, "headers": {"X-API-Key": data["plain_text_api_key"]}}
-
-        assert test_client.post(
-            "/api/v1/roles",
-            json={"name": "payroll_viewer", "permissions": ["payroll.read"]},
-            headers=service["headers"],
-        ).status_code == 201
-        user_id = test_client.post(
-            "/api/v1/auth/invitations",
-            json={"email": "viewer@hr-co.com", "role": "payroll_viewer"},
-            headers=service["headers"],
-        ).json()["data"]["id"]
-        test_client.post(
-            "/api/v1/auth/invitations/accept",
-            json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-        )
-        key = test_client.post(
-            "/api/v1/tenant/api-keys",
-            json={"label": "viewer", "user_id": user_id},
-            headers=service["headers"],
-        ).json()["data"]["plain_text_api_key"]
-        yield service, {"client": test_client, "headers": {"X-API-Key": key}}
+        viewer = invite_member(test_client, service["headers"], "payroll_viewer", ["payroll.read"], email="viewer@hr-co.com")
+        yield service, {"client": test_client, "headers": dict(viewer)}
 
 
 def _audit_payroll_checks() -> list[tuple[str, str]]:
@@ -730,6 +697,7 @@ def test_the_integrity_audits_payroll_invariants_hold_on_real_payroll(client: Te
                 ],
             },
         )
+        post(client, f"/api/v1/invoices/{payslip['id']}/submit", {}, expect=200)
         net = gross + 500.0 - round(gross * 0.08, 2) - 300.0
         payout = post(
             client, "/api/v1/payments",

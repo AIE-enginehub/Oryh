@@ -18,6 +18,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /expense-items/{item_id}
 
@@ -94,10 +96,6 @@ Get Attachment Content
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `attachment_id` | path | string | yes |  |
-
-## GET /auth/me
-
-Me
 
 ## GET /employees
 
@@ -621,47 +619,6 @@ Body:
 | `project_code` | string (≤64 chars) | optional |  |
 | `start_date` | date | optional |  |
 | `status` | `active` | `archived` | optional |  |
-
-## POST /todos
-
-Create Todo
-
-Body:
-
-| field | type | | notes |
-|---|---|---|---|
-| `employee_id` | string | required |  |
-| `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
-| `title` | string (≤200 chars) | required |  |
-| `created_by` | string (≤100 chars) | optional |  |
-| `description` | string (≤2000 chars) | optional |  |
-| `due_at` | date-time | optional |  |
-| `metadata` | object | optional |  |
-| `status` | `open` | `completed` | `cancelled` | optional |  |
-| `todo_type` | string (≤50 chars) | optional |  |
-
-## POST /todos/bulk
-
-Bulk Create Todos
-
-Body:
-
-| field | type | | notes |
-|---|---|---|---|
-| `items` | array of objects (fields below) | required |  |
-| ↳ each `items[]` item: | | | |
-  | `employee_id` | string | required |  |
-  | `entity_id` | string | required |  |
-  | `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
-  | `title` | string (≤200 chars) | required |  |
-  | `created_by` | string (≤100 chars) | optional |  |
-  | `description` | string (≤2000 chars) | optional |  |
-  | `due_at` | date-time | optional |  |
-  | `metadata` | object | optional |  |
-  | `status` | `open` | `completed` | `cancelled` | optional |  |
-  | `todo_type` | string (≤50 chars) | optional |  |
-| `on_error` | `abort` | `skip` | optional |  |
 
 ## POST /type-options
 

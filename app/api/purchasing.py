@@ -24,6 +24,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    named_read,
+    reads_with_employee_names,
+    with_employee_name,
     ListFilters,
     list_filters,
     dry_run_readback,
@@ -39,11 +42,6 @@ from app.api.common import (
     apply_status_change,
     attachments_for_items,
     build_item,
-    create_adjustment,
-    create_item,
-    delete_adjustment,
-    delete_document,
-    delete_item,
     document_approvals,
     ensure_content_edit_allowed,
     ensure_document_not_deleted,
@@ -51,13 +49,9 @@ from app.api.common import (
     envelope,
     exclude_rows_with_open_todo,
     get_active_document_or_404,
-    get_adjustment,
-    get_item,
     get_scoped_or_404,
     get_tenant_id,
     grouped_linked_lines,
-    list_adjustments,
-    list_items,
     list_rows,
     load_item_catalog_context,
     normalize_vendor_context,
@@ -71,13 +65,10 @@ from app.api.common import (
     require_original_order,
     resolve_chargeable_account,
     resolve_item_refs,
-    restore_document,
     serve_document_attachment,
     sku_pending_flag,
-    submit_document,
-    update_adjustment,
-    update_item,
 )
+from app.api.family_routes import LineRoutes, Verb, register_document_verbs, register_lines
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -145,7 +136,7 @@ from app.schemas import (
     UpdatePurchaseRequestRequest,
 )
 from app.services.audit import record_audit
-from app.services.inventory_import import _find_item as find_inventory_item, post_inventory_detail
+from app.services.inventory_import import find_inventory_item, post_inventory_detail
 from app.services.state_machines import validate_status_filter
 
 router = APIRouter()
@@ -250,6 +241,7 @@ def list_purchase_requests(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=PurchaseRequestRead,
+        render=lambda rows: reads_with_employee_names(db, tenant_id, PurchaseRequestRead, rows),
         extra=extra,
     )
 
@@ -301,7 +293,7 @@ def create_purchase_request(
             detail="a purchase request with these identifying fields already exists",
         )
     db.refresh(request)
-    data = PurchaseRequestRead.model_validate(request).model_dump(by_alias=True)
+    data = named_read(db, request.tenant_id, PurchaseRequestRead, request)
     if items:
         data["items"] = [
             PurchaseRequestItemRead.model_validate(item).model_dump(by_alias=True)
@@ -320,7 +312,7 @@ def get_purchase_request(
     request = get_scoped_or_404(db, PurchaseRequest, tenant_id, request_id)
     if not include_deleted:
         ensure_document_not_deleted(request)
-    return envelope(PurchaseRequestRead.model_validate(request).model_dump(by_alias=True))
+    return envelope(named_read(db, request.tenant_id, PurchaseRequestRead, request))
 
 
 @router.patch("/purchase-requests/{request_id}")
@@ -358,37 +350,15 @@ def update_purchase_request(
         setattr(request, field, value)
     db.commit()
     db.refresh(request)
-    return envelope(PurchaseRequestRead.model_validate(request).model_dump(by_alias=True))
+    return envelope(named_read(db, request.tenant_id, PurchaseRequestRead, request))
 
 
-@router.delete("/purchase-requests/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase_request(
-    request_id: str,
-    payload: DeletePurchaseRequestRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
-    return delete_document(db, actor, PurchaseRequest, request_id, payload)
-
-
-@router.post("/purchase-requests/{request_id}/restore")
-def restore_purchase_request(
-    request_id: str,
-    payload: RestorePurchaseRequestRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, PurchaseRequest, request_id)
-
-
-@router.post("/purchase-requests/{request_id}/submit")
-def submit_purchase_request(
-    request_id: str,
-    payload: SubmitPurchaseRequestRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, PurchaseRequest, request_id)
+register_document_verbs(
+    router, PurchaseRequest, path="/purchase-requests", id_param="request_id",
+    delete=Verb(body=DeletePurchaseRequestRequest),
+    restore=Verb(body=RestorePurchaseRequestRequest),
+    submit=Verb(body=SubmitPurchaseRequestRequest),
+)
 
 
 @router.get(
@@ -492,55 +462,21 @@ def get_purchase_request_detail(
         unpriced_item_count=sum(1 for e in estimates if e is None),
         pending_sku_count=sum(1 for item in detail_items if item.sku_pending),
     )
-    return envelope(detail.model_dump(by_alias=True))
+    data = detail.model_dump(by_alias=True)
+    with_employee_name(db, tenant_id, data["request"])
+    return envelope(data)
 
 
-@router.get("/purchase-request-items")
-def list_purchase_request_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    request_id: str | None = None,
-    product_id: str | None = None,
-    sku_id: str | None = None,
-):
-    return list_items(db, tenant_id, PurchaseRequestItem, {"request_id": request_id, "product_id": product_id, "sku_id": sku_id})
-
-
-@router.post("/purchase-request-items", status_code=status.HTTP_201_CREATED)
-def create_purchase_request_item(
-    payload: CreatePurchaseRequestItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_item(db, actor, PurchaseRequestItem, payload)
-
-
-@router.get("/purchase-request-items/{item_id}")
-def get_purchase_request_item(
-    item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_item(db, tenant_id, PurchaseRequestItem, item_id)
-
-
-@router.patch("/purchase-request-items/{item_id}")
-def update_purchase_request_item(
-    item_id: str,
-    payload: UpdatePurchaseRequestItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_item(db, actor, PurchaseRequestItem, item_id, payload)
-
-
-@router.delete("/purchase-request-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase_request_item(
-    item_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_item(db, actor, PurchaseRequestItem, item_id)
+register_lines(
+    router,
+    # the request's lines answer without paging or a response model: the
+    # contract they were written to, kept as it is
+    LineRoutes(
+        path="/purchase-request-items", model=PurchaseRequestItem,
+        create_model=CreatePurchaseRequestItemRequest, update_model=UpdatePurchaseRequestItemRequest,
+        filters=("request_id", "product_id", "sku_id"), paged=False,
+    ),
+)
 
 
 # --- purchase orders: the commitment to a vendor -----------------------------
@@ -621,7 +557,7 @@ def create_purchase_order(
         # return must not occupy our credit at the vendor
         if payload.billing_account_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     "a return is not charged to a billing account — the vendor's "
                     "refund is a payment document; leave billing_account_id off"
@@ -629,7 +565,7 @@ def create_purchase_order(
             )
     elif payload.original_order_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="original_order_id belongs on a return (order_kind='return')",
         )
     require_original_order(db, tenant_id, PurchaseOrder, payload.original_order_id)
@@ -735,7 +671,7 @@ def update_purchase_order(
     if "original_order_id" in updates:
         if po.order_kind != "return":
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="original_order_id belongs on a return (order_kind='return')",
             )
         require_original_order(db, tenant_id, PurchaseOrder, updates["original_order_id"])
@@ -743,7 +679,7 @@ def update_purchase_order(
         # the create-time guard, held on the PATCH path too — otherwise a
         # return acquires an account after the fact and occupies credit
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a return is not charged to a billing account — the vendor's "
                 "refund is a payment document"
@@ -784,158 +720,44 @@ def update_purchase_order(
     return envelope(PurchaseOrderRead.model_validate(po).model_dump(by_alias=True))
 
 
-@router.delete("/purchase-orders/{po_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase_order(
-    po_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, PurchaseOrder, po_id)
+register_document_verbs(
+    router, PurchaseOrder, path="/purchase-orders", id_param="po_id",
+    delete=Verb(),
+    restore=Verb(response_model=PurchaseOrderEnvelope),
+)
 
 
-@router.post("/purchase-orders/{po_id}/restore", response_model=PurchaseOrderEnvelope, response_model_exclude_unset=True)
-def restore_purchase_order(
-    po_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, PurchaseOrder, po_id)
-
-
-@router.get("/purchase-order-items", response_model=PurchaseOrderItemListEnvelope, response_model_exclude_unset=True)
-def list_purchase_order_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    po_id: str | None = None,
-    purchase_request_item_id: str | None = None,
-    sales_order_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrderItem, ranges=('created_at', 'promised_date'), equals=('attachment_id', 'product_id', 'sku_id')))] = None,
-):
+def _po_lines_for_order(values: dict) -> list:
     """`sales_order_id` walks the procurement chain for a whole order at once:
     every PO line whose request line pins one of this order's lines. The
     order-flow agent used to ask per order line, inside a per-order loop."""
-    where = []
-    if sales_order_id:
-        pinned = (
-            select(PurchaseRequestItem.id)
-            .join(SalesOrderItem, PurchaseRequestItem.sales_order_item_id == SalesOrderItem.id)
-            .where(SalesOrderItem.order_id == sales_order_id, PurchaseRequestItem.tenant_id == tenant_id)
-        )
-        where.append(PurchaseOrderItem.purchase_request_item_id.in_(pinned))
-    return list_items(
-        db, tenant_id, PurchaseOrderItem,
-        {"po_id": po_id, "purchase_request_item_id": purchase_request_item_id},
-        where=where,
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
+    if not values.get("sales_order_id"):
+        return []
+    pinned = (
+        select(PurchaseRequestItem.id)
+        .join(SalesOrderItem, PurchaseRequestItem.sales_order_item_id == SalesOrderItem.id)
+        .where(SalesOrderItem.order_id == values["sales_order_id"], PurchaseRequestItem.tenant_id == values["tenant_id"])
     )
+    return [PurchaseOrderItem.purchase_request_item_id.in_(pinned)]
 
 
-@router.post(
-    "/purchase-order-items",
-    status_code=status.HTTP_201_CREATED,
-    response_model=PurchaseOrderItemEnvelope,
-    response_model_exclude_unset=True,
+register_lines(
+    router,
+    LineRoutes(
+        path="/purchase-order-items", model=PurchaseOrderItem,
+        create_model=CreatePurchaseOrderItemRequest, update_model=UpdatePurchaseOrderItemRequest,
+        envelope=PurchaseOrderItemEnvelope, list_envelope=PurchaseOrderItemListEnvelope,
+        filters=("po_id", "purchase_request_item_id"), params=("sales_order_id",), where=_po_lines_for_order,
+        ranges=("created_at", "promised_date"), equals=("attachment_id", "product_id", "sku_id"),
+        doc=_po_lines_for_order.__doc__,
+    ),
+    LineRoutes(
+        path="/purchase-order-adjustments", model=PurchaseOrderAdjustment, kind="adjustment",
+        create_model=CreatePurchaseOrderAdjustmentRequest, update_model=UpdatePurchaseOrderAdjustmentRequest,
+        envelope=PurchaseOrderAdjustmentEnvelope, list_envelope=PurchaseOrderAdjustmentListEnvelope,
+        filters=("po_id", "po_item_id", "adjustment_type"),
+    ),
 )
-def create_purchase_order_item(
-    payload: CreatePurchaseOrderItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_item(db, actor, PurchaseOrderItem, payload)
-
-
-@router.get("/purchase-order-items/{item_id}", response_model=PurchaseOrderItemEnvelope, response_model_exclude_unset=True)
-def get_purchase_order_item(
-    item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_item(db, tenant_id, PurchaseOrderItem, item_id)
-
-
-@router.patch("/purchase-order-items/{item_id}", response_model=PurchaseOrderItemEnvelope, response_model_exclude_unset=True)
-def update_purchase_order_item(
-    item_id: str,
-    payload: UpdatePurchaseOrderItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_item(db, actor, PurchaseOrderItem, item_id, payload)
-
-
-@router.delete("/purchase-order-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase_order_item(
-    item_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_item(db, actor, PurchaseOrderItem, item_id)
-
-
-@router.get("/purchase-order-adjustments", response_model=PurchaseOrderAdjustmentListEnvelope, response_model_exclude_unset=True)
-def list_purchase_order_adjustments(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    po_id: str | None = None,
-    po_item_id: str | None = None,
-    adjustment_type: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrderAdjustment, ranges=('created_at',), equals=()))] = None,
-):
-    return list_adjustments(
-        db, tenant_id, PurchaseOrderAdjustment,
-        parent_id=po_id, item_id=po_item_id, adjustment_type=adjustment_type,
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
-    )
-
-
-@router.post(
-    "/purchase-order-adjustments",
-    status_code=status.HTTP_201_CREATED,
-    response_model=PurchaseOrderAdjustmentEnvelope,
-    response_model_exclude_unset=True,
-)
-def create_purchase_order_adjustment(
-    payload: CreatePurchaseOrderAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_adjustment(db, actor, PurchaseOrderAdjustment, payload)
-
-
-@router.get("/purchase-order-adjustments/{adjustment_id}", response_model=PurchaseOrderAdjustmentEnvelope, response_model_exclude_unset=True)
-def get_purchase_order_adjustment(
-    adjustment_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_adjustment(db, tenant_id, PurchaseOrderAdjustment, adjustment_id)
-
-
-@router.patch("/purchase-order-adjustments/{adjustment_id}", response_model=PurchaseOrderAdjustmentEnvelope, response_model_exclude_unset=True)
-def update_purchase_order_adjustment(
-    adjustment_id: str,
-    payload: UpdatePurchaseOrderAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_adjustment(db, actor, PurchaseOrderAdjustment, adjustment_id, payload)
-
-
-@router.delete("/purchase-order-adjustments/{adjustment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchase_order_adjustment(
-    adjustment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_adjustment(db, actor, PurchaseOrderAdjustment, adjustment_id)
 
 
 @router.get(
@@ -1070,7 +892,7 @@ def receive_purchase_order(
         # on a purchase return the goods LEAVE — receiving against one would
         # book phantom stock and a nonsense received_quantity
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "goods leave on a purchase return — record the outbound as an "
                 "`issued` inventory movement naming this return "
@@ -1090,7 +912,7 @@ def receive_purchase_order(
                 product_id = sku.product_id if sku is not None else None
             if product_id is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=(
                         "landing a receipt in inventory needs a cataloged product on the line — "
                         "free-text lines can be received without a facility"

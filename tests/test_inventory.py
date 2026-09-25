@@ -10,20 +10,15 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant as bootstrap_tenant
+from conftest import admin_headers, create
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Stock Co", email="admin@stock-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Stock Co", email="admin@stock-co.example", password="admin-pass1")
 
 
 def create_product(client: TestClient, headers, code: str, name: str = "内窥镜镜头") -> str:
-    response = client.post(
-        "/api/v1/products", json={"product_code": code, "name": name}, headers=headers
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, headers, "products", product_code=code, name=name)["id"]
 
 
 def bulk(client: TestClient, headers, rows, **options) -> dict:

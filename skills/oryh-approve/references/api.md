@@ -1,6 +1,6 @@
 # Oryh Approve API Reference
 
-{{include:_common/api-auth-approver.md}}
+{{include:_common/api-auth-principal.md}}
 
 {{include:_common/api-conventions.md}}
 
@@ -22,8 +22,8 @@ GET /expense-claims/{claim_id}/attachments/{attachment_id}/content       → a r
 GET /purchase-requests/{request_id}/attachments/{attachment_id}/content  → a quote file
 ```
 
-`entity_type` is one of `timesheet_header`, `expense_claim`,
-`purchase_request`, `sales_quotation`, `sales_order`.
+`entity_type` is one of `timesheet_header`, `employee_leave`, `expense_claim`,
+`purchase_request`, `sales_quotation`, `sales_order`, `invoice`, `payment`.
 
 An attachment is reached through the document that carries it, never by its id
 alone: the server answers "may this person see this document" first, and only
@@ -50,16 +50,19 @@ POST /approval-records
 ```
 
 Allowed actions: `approved`, `rejected`, `returned`, `commented` (an objection
-that does not decide). `submitted` is written by the submitter side.
+that does not decide). `submitted` is written by `/submit` itself.
 
-{{include:_common/approval-record-idempotency.md}}
-
-`approver_id` is server-attributed from the authenticated user; a
-self-reported value is ignored for user credentials.
+Idempotent on (entity, round_no, sequence_no, action): retries return the
+recorded fact. `approver_id` is server-attributed from the authenticated
+user; a self-reported value is ignored for user credentials.
 
 {{include:_common/when-the-decision-happened.md}}
 
-## Complete Own Todo
+## Completing A Todo By Hand
+
+Recording the fact closes your own todo in the same transaction; this call
+is for a todo the fact did not close (a note-to-self, a task somebody
+assigned you outside an approval).
 
 ```json
 PATCH /todos/{todo_id}
@@ -67,7 +70,7 @@ PATCH /todos/{todo_id}
 ```
 
 Members can only complete todos assigned to their own employee — completing
-someone else's returns 403.
+someone else's is refused: 403 when you may read it, 404 when you may not.
 
 ## Explicitly Out Of Scope
 

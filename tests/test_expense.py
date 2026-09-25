@@ -6,9 +6,9 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import Tenant
 
-from conftest import make_client
+from conftest import create, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -22,15 +22,7 @@ RECEIPT_BASE64 = base64.b64encode(RECEIPT_BYTES).decode("ascii")
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            Tenant(id=OTHER_TENANT, name="Other Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-            ApiKey(tenant_id=OTHER_TENANT, key_hash=hash_api_key(OTHER_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY), (OTHER_TENANT, "Other Tenant", OTHER_API_KEY))
 
 
 def api_key_headers(api_key: str = TEST_API_KEY) -> dict[str, str]:
@@ -44,9 +36,7 @@ def headers_for_tenant(tenant_id: str) -> dict[str, str]:
 def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {"name": "Alice"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/employees", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "employees", **payload)["id"]
 
 
 def create_claim(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> str:
@@ -56,9 +46,7 @@ def create_claim(test_client: TestClient, employee_id: str, tenant_id: str = TES
         "claim_date": "2026-07-10",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/expense-claims", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "expense-claims", **payload)["id"]
 
 
 def upload_receipt(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
@@ -82,9 +70,7 @@ def create_item(test_client: TestClient, claim_id: str, employee_id: str, tenant
         "amount": 186.5,
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/expense-items", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "expense-items", **payload)
 
 
 def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
@@ -409,9 +395,7 @@ def test_claim_soft_delete_restore_and_validation(client: TestClient) -> None:
 def create_vendor(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {"name": "上海某餐饮有限公司", "tax_id": "91310000MA1FL0000X"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/vendors", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "vendors", **payload)
 
 
 def test_vendor_master_data_and_item_association(client: TestClient) -> None:

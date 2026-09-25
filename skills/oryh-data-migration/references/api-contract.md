@@ -26,6 +26,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /payments/{payment_id}
 
@@ -39,6 +41,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /products/{product_id}
 
@@ -68,6 +72,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /sales-quotations/{quotation_id}
 
@@ -81,6 +87,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## GET /customers
 

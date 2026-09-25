@@ -409,9 +409,6 @@ def _zh() -> bool:
     return settings.resolved_locale == "zh"
 
 
-NOTIFICATION_SUBJECTS = NOTIFICATION_SUBJECTS_ZH  # kept for callers that import the name
-
-
 def send_work_notification(
     *,
     to: str,

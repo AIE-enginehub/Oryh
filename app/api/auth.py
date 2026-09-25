@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.api.common import PAGE_SIZE_DOC, requested_pagination
-from app.api.deps import Actor, get_actor, require_permission
+from app.api.common import PAGE_SIZE_DOC, envelope, get_scoped_or_404, paginated_envelope, requested_pagination
+from app.api.deps import Actor, as_utc, get_actor, require_permission, utc_now
 from app.core.browser_auth import (
     clear_browser_auth_cookies,
     require_same_origin,
@@ -18,7 +18,7 @@ from app.core.browser_auth import (
     set_session_cookie,
 )
 from app.core.config import settings
-from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
+from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, permissions_fingerprint
 from app.core.request_context import resolved_base_url
 from app.core.login_throttle import login_keys, throttle
 from app.core.security import generate_token, hash_password, hash_token, verify_password
@@ -80,25 +80,6 @@ class BrowserCsrfEnvelope(BaseModel):
     meta: BrowserEnvelopeMeta = Field(default_factory=BrowserEnvelopeMeta)
 
 
-def envelope(data, total: int | None = None) -> dict:
-    meta: dict[str, int] = {}
-    if total is not None:
-        meta["total"] = total
-    return {"data": data, "meta": meta}
-
-
-def paginated_envelope(data, *, total: int, page: int, page_size: int) -> dict:
-    return {
-        "data": data,
-        "meta": {
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "pages": max(1, (total + page_size - 1) // page_size),
-        },
-    }
-
-
 def invitation_user_data(user: User, token: str, *, email_sent: bool = True) -> dict:
     """Keep the historical flat User response and add the one-time URL only
     for the non-delivering console backend.
@@ -128,14 +109,6 @@ def password_reset_email_data(user: User, *, email_sent: bool) -> dict:
 PASSWORD_RESET_REQUEST_MESSAGE = (
     "if an active account exists for this email, a password reset link has been sent"
 )
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def as_utc(value: datetime) -> datetime:
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
 def start_session(db: Session, user: User) -> tuple[str, UserSession]:
@@ -182,7 +155,7 @@ def ensure_role_exists(db: Session, tenant_id: str, role_name: str) -> None:
     role = db.scalar(select(Role).where(Role.tenant_id == tenant_id, Role.name == role_name))
     if role is None and role_name not in DEFAULT_ROLE_PERMISSIONS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"role {role_name!r} is not defined for this tenant",
         )
 
@@ -443,6 +416,9 @@ def me(
 
     data = UserRead.model_validate(user).model_dump()
     data["permissions"] = sorted(actor.permissions)
+    # a client that cached what this credential could see compares this on
+    # its next call: a grant revoked since narrows lists without a word
+    data["permissions_fingerprint"] = permissions_fingerprint(actor.permissions)
     data.update(bundle_identity(db.get(Tenant, actor.tenant_id)))
     return envelope(data)
 
@@ -470,9 +446,7 @@ def invite_user(
             detail="email cannot be used for this invitation",
         )
     if payload.employee_id is not None:
-        employee = db.get(Employee, payload.employee_id)
-        if employee is None or employee.tenant_id != actor.tenant_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+        employee = get_scoped_or_404(db, Employee, actor.tenant_id, payload.employee_id)
         if db.scalar(select(User).where(User.employee_id == payload.employee_id)) is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -641,13 +615,11 @@ def update_user(
         ensure_role_exists(db, actor.tenant_id, updates["role"])
     if updates.get("status") == "active" and user.invitation_pending:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="an unverified user must accept an invitation before activation",
         )
     if "employee_id" in updates and updates["employee_id"] is not None:
-        employee = db.get(Employee, updates["employee_id"])
-        if employee is None or employee.tenant_id != actor.tenant_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+        employee = get_scoped_or_404(db, Employee, actor.tenant_id, updates["employee_id"])
         other = db.scalar(select(User).where(User.employee_id == updates["employee_id"]))
         if other is not None and other.id != user.id:
             raise HTTPException(
@@ -663,7 +635,7 @@ def update_user(
             user_overrides={user.id: (proposed_status, proposed_role)},
         ):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="tenant must keep at least one active user with users.manage (lockout guard)",
             )
     for field, value in updates.items():

@@ -1,4 +1,5 @@
-"""Bulk import of historical sales documents — quotations and orders.
+"""Bulk import of historical documents — quotations, orders, purchase orders,
+invoices and payments.
 
 A migration path, not a second way to file today's work. Hundreds of
 thousands of rows arrive from an Excel export of a retired system, so three
@@ -36,6 +37,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from app.core.line_math import derive_line_amount
+from app.services.state_machines import BUILTIN_MACHINES
 from app.models import (
     Customer,
     Employee,
@@ -56,7 +58,7 @@ from app.models import (
     SalesQuotationItem,
 )
 from app.models import Vendor
-from app.services.master_data_import import _payload, _same_value
+from app.services.master_data_import import import_payload, same_value
 
 # family key → everything that differs between quotations and orders
 FAMILIES: dict[str, dict[str, Any]] = {
@@ -69,6 +71,10 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "adjustment_item_field": "quotation_item_id",
         "date_field": "quote_date",
         "label": "sales_quotation",
+        # who may backfill this family, and whether that means writing under
+        # other people's names (see api/common._run_document_import)
+        "permission": "quotation.submit_own",
+        "acts_for_others": True,
     },
     "order": {
         "model": SalesOrder,
@@ -79,6 +85,8 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "adjustment_item_field": "order_item_id",
         "date_field": "order_date",
         "label": "sales_order",
+        "permission": "order.submit_own",
+        "acts_for_others": True,
     },
     "purchase_order": {
         "model": PurchaseOrder,
@@ -89,6 +97,7 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "adjustment_item_field": "po_item_id",
         "date_field": "order_date",
         "label": "purchase_order",
+        "permission": "purchase_order.manage",
     },
     # 期初应收应付: the open bills a company carries across the switch. No
     # adjustment model — charges and allowances are line TYPES on an invoice
@@ -102,6 +111,8 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "adjustment_item_field": None,
         "date_field": "invoice_date",
         "label": "invoice",
+        "permission": "invoice.manage",
+        "scope_by_direction": True,
         # one column for either side, since the direction already says which
         "snapshot_field": "counterparty_name_snapshot",
     },
@@ -119,9 +130,12 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "adjustment_item_field": None,
         "date_field": "payment_date",
         "label": "payment",
+        "permission": "payment.record",
         "snapshot_field": "counterparty_name_snapshot",
     },
 }
+# every importable family drives a builtin machine — checked at import
+assert {spec["label"] for spec in FAMILIES.values()} <= set(BUILTIN_MACHINES), FAMILIES.keys()
 
 # header columns that map straight through, per family
 _COMMON_HEADER_FIELDS = (
@@ -468,7 +482,7 @@ def bulk_import_documents(
         prepared.append((index, number, row, resolved))
 
     if on_error == "abort" and any(r["outcome"] == "error" for r in results):
-        return _payload(results, dry_run=dry_run, applied=False, total=len(rows))
+        return import_payload(results, dry_run=dry_run, applied=False, total=len(rows))
 
     # Pass 2 — resolve existing documents in ONE query.
     numbers = [number for _i, number, _r, _res in prepared]
@@ -513,7 +527,7 @@ def bulk_import_documents(
 
         changed = [
             field for field, value in values.items()
-            if field != "custom_fields_jsonb" and not _same_value(getattr(document, field), value)
+            if field != "custom_fields_jsonb" and not same_value(getattr(document, field), value)
         ]
         for field, value in values.items():
             setattr(document, field, value)
@@ -529,7 +543,7 @@ def bulk_import_documents(
             "id": document.id, "changed": changed,
         })
 
-    return _payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
+    return import_payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
 
 
 def _why_not_rewritable(db: Session, document) -> str | None:
@@ -648,7 +662,7 @@ def _replace_children(
         current_values = [{field: getattr(row, field) for field in fields} for row in current_rows]
         pairs = zip(sorted(current_values, key=order_key), sorted(incoming, key=order_key))
         return all(
-            all(_same_value(current[field], values[field]) for field in fields)
+            all(same_value(current[field], values[field]) for field in fields)
             for current, values in pairs
         )
 

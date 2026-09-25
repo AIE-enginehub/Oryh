@@ -29,6 +29,12 @@ from sqlalchemy.orm import Session
 
 from app.api.visibility import is_visible
 from app.api.common import (
+    live_rows,
+    rows_revision,
+    ensure_uuid_or_404,
+    named_read,
+    reads_with_employee_names,
+    with_employee_name,
     ListFilters,
     list_filters,
     dry_run_readback,
@@ -36,7 +42,6 @@ from app.api.common import (
     PAGE_SIZE_DOC,
     apply_status_change,
     attachments_for_items,
-    delete_document,
     document_approvals,
     ensure_content_edit_allowed,
     ensure_document_editable,
@@ -54,10 +59,7 @@ from app.api.common import (
     register_attachment_source,
     requested_pagination,
     require_machine_state,
-    restore_document,
     serve_document_attachment,
-    submit_document,
-    aggregate_revision,
     finish_save,
     require_revision,
     restate_rows,
@@ -67,6 +69,7 @@ from app.api.common import (
 # are the invoice family's own arithmetic (a declared header total wins over
 # the line sum); re-deriving it here would be a second answer to one question.
 from app.api.billing import invoice_billed_total, live_invoice_items
+from app.api.family_routes import Verb, register_document_verbs
 from app.api.deps import Actor, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -192,6 +195,7 @@ def list_timesheet_headers(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=TimesheetHeaderRead,
+        render=lambda rows: reads_with_employee_names(db, tenant_id, TimesheetHeaderRead, rows),
         extra=extra,
     )
 
@@ -262,7 +266,7 @@ def create_timesheet_header(
             )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
     db.refresh(header)
-    data = TimesheetHeaderRead.model_validate(header).model_dump(by_alias=True)
+    data = named_read(db, header.tenant_id, TimesheetHeaderRead, header)
     if entries:
         # the response IS the read-back: what landed, row by row
         data["entries"] = [
@@ -282,7 +286,7 @@ def get_timesheet_header(
     header = get_scoped_or_404(db, TimesheetHeader, tenant_id, header_id)
     if not include_deleted:
         ensure_document_not_deleted(header)
-    return envelope(TimesheetHeaderRead.model_validate(header).model_dump(by_alias=True))
+    return envelope(named_read(db, header.tenant_id, TimesheetHeaderRead, header))
 
 
 @router.patch("/timesheet-headers/{header_id}")
@@ -309,39 +313,18 @@ def update_timesheet_header(
         setattr(header, field, value)
     db.commit()
     db.refresh(header)
-    return envelope(TimesheetHeaderRead.model_validate(header).model_dump(by_alias=True))
+    return envelope(named_read(db, header.tenant_id, TimesheetHeaderRead, header))
 
 
-@router.delete("/timesheet-headers/{header_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_timesheet_header(
-    header_id: str,
-    payload: DeleteTimesheetHeaderRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
-    _locked_timesheet(db, actor.tenant_id, header_id, allow_deleted=True)
-    return delete_document(db, actor, TimesheetHeader, header_id, payload)
-
-
-@router.post("/timesheet-headers/{header_id}/restore")
-def restore_timesheet_header(
-    header_id: str,
-    payload: RestoreTimesheetHeaderRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, TimesheetHeader, header_id)
-
-
-@router.post("/timesheet-headers/{header_id}/submit")
-def submit_timesheet_header(
-    header_id: str,
-    payload: SubmitTimesheetRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    _locked_timesheet(db, actor.tenant_id, header_id)
-    return submit_document(db, actor, TimesheetHeader, header_id)
+register_document_verbs(
+    router, TimesheetHeader, path="/timesheet-headers", id_param="header_id",
+    # the lock serializes the verb against a whole-document save in flight
+    delete=Verb(body=DeleteTimesheetHeaderRequest,
+                before=lambda db, actor, header_id: _locked_timesheet(db, actor.tenant_id, header_id, allow_deleted=True)),
+    restore=Verb(body=RestoreTimesheetHeaderRequest),
+    submit=Verb(body=SubmitTimesheetRequest,
+                before=lambda db, actor, header_id: _locked_timesheet(db, actor.tenant_id, header_id)),
+)
 
 
 @router.get("/timesheet-headers/{header_id}/detail")
@@ -370,6 +353,7 @@ def get_timesheet_detail(
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
     )
     data = detail.model_dump(by_alias=True)
+    with_employee_name(db, tenant_id, data["header"])
     data["revision"] = timesheet_document_revision(header, entries)
     return envelope(data)
 
@@ -424,19 +408,19 @@ def build_timesheet_entry(
     require_type_option(db, tenant_id, "work_type", payload.work_type)
     if header is None:
         if not payload.header_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="header_id is required")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="header_id is required")
         header = _locked_timesheet(db, tenant_id, payload.header_id)
         ensure_document_editable(db, header)
     elif payload.header_id and payload.header_id != header.id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="inline entries belong to the header being created; do not name another header_id",
         )
     enforce_member_employee(actor, header.employee_id)
     employee_id = payload.employee_id or header.employee_id
     get_scoped_or_404(db, Employee, tenant_id, employee_id)
     if payload.work_date is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="work_date is required")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="work_date is required")
     validate_header_entry_link(header, employee_id, payload.work_date)
     project_id, project_name_snapshot = normalize_project_context(
         db,
@@ -464,6 +448,7 @@ def build_timesheet_entry(
 
 def _locked_timesheet(db, tenant_id, header_id, *, allow_deleted=False):
     """Serialize aggregate saves against the legacy header/row write endpoints."""
+    ensure_uuid_or_404(TimesheetHeader, header_id)
     header = db.scalar(select(TimesheetHeader).where(
         TimesheetHeader.id == header_id, TimesheetHeader.tenant_id == tenant_id,
     ).with_for_update().execution_options(populate_existing=True))
@@ -704,6 +689,7 @@ def list_expense_claims(
         pagination=requested_pagination(page, size),
         sort=order_by,
         read_model=ExpenseClaimRead,
+        render=lambda rows: reads_with_employee_names(db, tenant_id, ExpenseClaimRead, rows),
         extra=extra,
     )
 
@@ -740,7 +726,7 @@ def create_expense_claim(
         return _dry_run_readback(db, claim, ExpenseClaimRead, items, ExpenseItemRead, "items")
     db.commit()
     db.refresh(claim)
-    data = ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True)
+    data = named_read(db, claim.tenant_id, ExpenseClaimRead, claim)
     if items:
         data["items"] = [
             ExpenseItemRead.model_validate(item).model_dump(by_alias=True) for item in items
@@ -758,7 +744,7 @@ def get_expense_claim(
     claim = get_scoped_or_404(db, ExpenseClaim, tenant_id, claim_id)
     if not include_deleted:
         ensure_document_not_deleted(claim)
-    return envelope(ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True))
+    return envelope(named_read(db, claim.tenant_id, ExpenseClaimRead, claim))
 
 
 @router.patch("/expense-claims/{claim_id}")
@@ -785,63 +771,45 @@ def update_expense_claim(
         setattr(claim, field, value)
     db.commit()
     db.refresh(claim)
-    return envelope(ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True))
+    return envelope(named_read(db, claim.tenant_id, ExpenseClaimRead, claim))
 
 
-@router.delete("/expense-claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_expense_claim(
-    claim_id: str,
-    payload: DeleteExpenseClaimRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
+def _before_delete_expense_claim(db: Session, actor: Actor, claim_id: str) -> None:
     """A claim that has been paid out cannot be hidden: the payment applied to
     it would keep pointing at a document nobody can see."""
     claim = get_scoped_or_404(db, ExpenseClaim, actor.tenant_id, claim_id)
-    if claim.deleted_at is None:
-        ensure_nothing_applied(db, claim, label="expense claim")
-        # …and since money now reaches a claim through the reimbursement
-        # invoice raised from it, the claim's OWN applied_amount stays zero
-        # however much has been paid. Without this the check above became
-        # decorative the moment settlement moved: a fully paid claim would
-        # delete cleanly and leave a payable whose origin was gone.
-        raised = db.scalar(
-            select(Invoice).where(
-                Invoice.tenant_id == actor.tenant_id,
-                Invoice.expense_claim_id == claim_id,
-                Invoice.deleted_at.is_(None),
-            )
+    if claim.deleted_at is not None:
+        return
+    ensure_nothing_applied(db, claim, label="expense claim")
+    # …and since money now reaches a claim through the reimbursement
+    # invoice raised from it, the claim's OWN applied_amount stays zero
+    # however much has been paid. Without this the check above became
+    # decorative the moment settlement moved: a fully paid claim would
+    # delete cleanly and leave a payable whose origin was gone.
+    raised = db.scalar(
+        select(Invoice).where(
+            Invoice.tenant_id == actor.tenant_id,
+            Invoice.expense_claim_id == claim_id,
+            Invoice.deleted_at.is_(None),
         )
-        if raised is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"reimbursement invoice {raised.invoice_no} was raised from this claim — "
-                    "delete or void that invoice first, or the payable outlives the document "
-                    "it came from"
-                ),
-            )
-    return delete_document(db, actor, ExpenseClaim, claim_id, payload)
+    )
+    if raised is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"reimbursement invoice {raised.invoice_no} was raised from this claim — "
+                "delete or void that invoice first, or the payable outlives the document "
+                "it came from"
+            ),
+        )
 
 
-@router.post("/expense-claims/{claim_id}/restore")
-def restore_expense_claim(
-    claim_id: str,
-    payload: RestoreExpenseClaimRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, ExpenseClaim, claim_id)
-
-
-@router.post("/expense-claims/{claim_id}/submit")
-def submit_expense_claim(
-    claim_id: str,
-    payload: SubmitExpenseClaimRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, ExpenseClaim, claim_id)
+register_document_verbs(
+    router, ExpenseClaim, path="/expense-claims", id_param="claim_id",
+    delete=Verb(body=DeleteExpenseClaimRequest, doc=_before_delete_expense_claim.__doc__, before=_before_delete_expense_claim),
+    restore=Verb(body=RestoreExpenseClaimRequest),
+    submit=Verb(body=SubmitExpenseClaimRequest),
+)
 
 
 @router.get(
@@ -939,7 +907,9 @@ def get_expense_claim_detail(
         uninvoiced_amount=round(float(sum(item.amount for item in items)) - invoiced, 2),
         revision=expense_claim_revision(db, claim),
     )
-    return envelope(detail.model_dump(by_alias=True))
+    data = detail.model_dump(by_alias=True)
+    with_employee_name(db, tenant_id, data["claim"])
+    return envelope(data)
 
 
 @router.get("/expense-items")
@@ -990,12 +960,12 @@ def build_expense_item(
     require_type_option(db, tenant_id, "expense_category", payload.category)
     if claim is None:
         if not payload.claim_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="claim_id is required")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="claim_id is required")
         claim = get_active_document_or_404(db, ExpenseClaim, tenant_id, payload.claim_id)
         ensure_document_editable(db, claim)
     elif payload.claim_id and payload.claim_id != claim.id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="inline items belong to the claim being created; do not name another claim_id",
         )
     enforce_member_employee(actor, claim.employee_id)
@@ -1004,9 +974,9 @@ def build_expense_item(
     if claim.employee_id != employee_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="employee_id must match the claim")
     if payload.expense_date is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="expense_date is required")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="expense_date is required")
     if payload.amount is None:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="amount is required")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="amount is required")
     ensure_invoice_not_duplicated(db, tenant_id, payload.invoice_number)
     if payload.attachment_id:
         get_scoped_or_404(db, Attachment, tenant_id, payload.attachment_id)
@@ -1070,17 +1040,11 @@ def apply_expense_item_updates(db: Session, tenant_id: str, item: ExpenseItem, u
         setattr(item, field, value)
 
 
-def _live_expense_items(db: Session, tenant_id: str, claim_id: str) -> list[ExpenseItem]:
-    return list(db.scalars(select(ExpenseItem).where(
-        ExpenseItem.tenant_id == tenant_id, ExpenseItem.claim_id == claim_id, ExpenseItem.deleted_at.is_(None))))
+EXPENSE_ROWS = {"items": (ExpenseItem, "claim_id", ExpenseItemRead)}
 
 
 def expense_claim_revision(db: Session, claim: ExpenseClaim) -> str:
-    return aggregate_revision(
-        ExpenseClaimRead.model_validate(claim).model_dump(mode="json", by_alias=True),
-        items=[ExpenseItemRead.model_validate(row).model_dump(mode="json", by_alias=True)
-               for row in _live_expense_items(db, claim.tenant_id, claim.id)],
-    )
+    return rows_revision(db, claim, ExpenseClaimRead, EXPENSE_ROWS)
 
 
 @router.post("/expense-claims/{claim_id}/save")
@@ -1099,6 +1063,7 @@ def save_expense_claim(
     writes nothing."""
     tenant_id = actor.tenant_id
     require_permission(actor, "expense.submit_own")
+    ensure_uuid_or_404(ExpenseClaim, claim_id)
     claim = db.scalar(select(ExpenseClaim).where(ExpenseClaim.tenant_id == tenant_id, ExpenseClaim.id == claim_id)
                       .with_for_update().execution_options(populate_existing=True))
     if claim is None or claim.deleted_at is not None or not is_visible(db, claim):
@@ -1113,7 +1078,7 @@ def save_expense_claim(
         setattr(claim, field_name, value)
     restate_rows(
         db, actor, ExpenseClaim, claim.id, payload.items,
-        {row.id: row for row in _live_expense_items(db, tenant_id, claim.id)},
+        {row.id: row for row in live_rows(db, claim, ExpenseItem, "claim_id")},
         build=lambda row: build_expense_item(db, actor, row, claim=claim),
         update=lambda item, changed: apply_expense_item_updates(db, tenant_id, item, changed),
         remove=soft_remove, new_model=ExpenseItemBase, update_model=UpdateExpenseItemRequest,
@@ -1121,9 +1086,9 @@ def save_expense_claim(
 
     def read_back() -> dict:
         db.refresh(claim)
-        items = _live_expense_items(db, tenant_id, claim.id)
+        items = live_rows(db, claim, ExpenseItem, "claim_id")
         return {
-            "claim": ExpenseClaimRead.model_validate(claim).model_dump(by_alias=True),
+            "claim": named_read(db, claim.tenant_id, ExpenseClaimRead, claim),
             "items": [ExpenseItemRead.model_validate(row).model_dump(by_alias=True)
                       for row in sorted(items, key=lambda r: (r.expense_date, r.created_at))],
             "total_amount": round(sum(float(row.amount or 0) for row in items), 2),

@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.common import ORDER_BY_DOC, PAGE_SIZE_DOC, envelope, get_tenant_id, list_rows, requested_pagination
+from app.api.common import ORDER_BY_DOC, PAGE_SIZE_DOC, envelope, get_scoped_or_404, list_rows, requested_pagination
 from app.api.common import ListFilters, list_filters
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
@@ -43,10 +43,7 @@ router = APIRouter()
 
 
 def subscription_or_404(db: Session, tenant_id: str, subscription_id: str) -> FlowSubscription:
-    row = db.get(FlowSubscription, subscription_id)
-    if row is None or row.tenant_id != tenant_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="FlowSubscription not found")
-    return row
+    return get_scoped_or_404(db, FlowSubscription, tenant_id, subscription_id)
 
 
 @router.get(
@@ -310,9 +307,7 @@ def close_flow_run(
     db: Annotated[Session, Depends(get_db)],
 ):
     require_permission(actor, "flow_run.record")
-    run = db.get(FlowRun, run_id)
-    if run is None or run.tenant_id != actor.tenant_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="FlowRun not found")
+    run = get_scoped_or_404(db, FlowRun, actor.tenant_id, run_id)
     if run.status != "running":
         # Terminal is terminal: a late retry must not rewrite how a run ended,
         # and the ledger is worth less if the same run can report twice.
@@ -331,15 +326,3 @@ def close_flow_run(
     return envelope(FlowRunRead.model_validate(run).model_dump(by_alias=True))
 
 
-def stale_running_runs(db: Session, tenant_id: str, older_than: datetime) -> list[FlowRun]:
-    """Runs that opened and never reported. Not swept automatically — a hung run
-    is a fact worth seeing, not a row to tidy away."""
-    return list(
-        db.scalars(
-            select(FlowRun).where(
-                FlowRun.tenant_id == tenant_id,
-                FlowRun.status == "running",
-                FlowRun.started_at < older_than,
-            )
-        )
-    )

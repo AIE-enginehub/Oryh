@@ -18,7 +18,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant
+from conftest import invite_member, provision_tenant
 
 
 def post(client, headers, path, body, expect=(200, 201)):
@@ -215,20 +215,9 @@ def test_in_flight_requests_count_so_the_same_days_cannot_be_spent_twice(
 def test_a_member_files_their_own_and_cannot_approve_it(workspace: dict) -> None:
     """Same separation every family has: `leave.submit_own` files and submits;
     moving past submitted needs `leave.advance`, which a member does not hold."""
-    from app.services.emails import outbox
-
     client, root = workspace["client"], workspace["root"]
-    user_id = client.post("/api/v1/auth/invitations",
-                          json={"email": "wang@leave-co.com", "role": "member",
-                                "employee_id": workspace["staff"]},
-                          headers=root).json()["data"]["id"]
-    token = next(line.rsplit("token=", 1)[1].strip()
-                 for line in outbox.messages[-1].body.splitlines() if "token=" in line)
-    client.post("/api/v1/auth/invitations/accept",
-                json={"token": token, "password": "member-pass1"})
-    member = {"X-API-Key": client.post(
-        "/api/v1/tenant/api-keys", json={"label": "wang", "user_id": user_id},
-        headers=root).json()["data"]["plain_text_api_key"]}
+    member = dict(invite_member(client, root, "wang", role="member", email="wang@leave-co.com",
+                                employee_id=workspace["staff"]))
 
     filed = client.post("/api/v1/employee-leaves", json={
         "employee_id": workspace["staff"], "leave_type": "annual",

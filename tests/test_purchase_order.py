@@ -14,9 +14,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import create, invite_member, seeded_tenants
 
 TEST_TENANT = "77777777-7777-7777-7777-777777777777"
 TEST_API_KEY = "po-test-key"
@@ -25,53 +24,37 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="PO Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "PO Co", TEST_API_KEY))
 
 
 def create_employee(client: TestClient, **overrides) -> str:
     payload = {"name": "采购员小赵"}
     payload.update(overrides)
-    response = client.post("/api/v1/employees", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, HEADERS, "employees", **payload)["id"]
 
 
 def create_vendor(client: TestClient, **overrides) -> dict:
     payload = {"name": "戴尔（中国）有限公司", "vendor_code": "V-DELL"}
     payload.update(overrides)
-    response = client.post("/api/v1/vendors", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "vendors", **payload)
 
 
 def create_product(client: TestClient, **overrides) -> dict:
     payload = {"name": "27寸显示器", "product_code": "PRD-MON", "unit": "台", "list_price": 3199.0}
     payload.update(overrides)
-    response = client.post("/api/v1/products", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "products", **payload)
 
 
 def create_po(client: TestClient, vendor_id: str, employee_id: str, **overrides) -> dict:
     payload = {"vendor_id": vendor_id, "employee_id": employee_id, "title": "显示器采购"}
     payload.update(overrides)
-    response = client.post("/api/v1/purchase-orders", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "purchase-orders", **payload)
 
 
 def add_po_item(client: TestClient, po_id: str, **overrides) -> dict:
     payload = {"po_id": po_id, "quantity": 10}
     payload.update(overrides)
-    response = client.post("/api/v1/purchase-order-items", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "purchase-order-items", **payload)
 
 
 def test_po_lifecycle_numbering_and_machine(client: TestClient) -> None:
@@ -353,28 +336,8 @@ def test_purchase_order_manage_is_not_a_member_default(client: TestClient) -> No
 
     vendor = create_vendor(client)
     employee_id = create_employee(client)
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "buyer@po.example", "role": "member", "employee_id": employee_id},
-        headers=HEADERS,
-    )
-    assert invited.status_code == 201, invited.text
-    from app.services.emails import outbox
-
-    token = next(
-        line.rsplit("token=", 1)[1].strip()
-        for line in outbox.messages[-1].body.splitlines()
-        if "token=" in line
-    )
-    accepted = client.post(
-        "/api/v1/auth/invitations/accept", json={"token": token, "password": "buyer-pw1"}
-    )
-    assert accepted.status_code in (200, 201), accepted.text
-    member_key = client.post(
-        "/api/v1/tenant/api-keys",
-        json={"label": "member-agent", "user_id": invited.json()["data"]["id"]},
-        headers=HEADERS,
-    ).json()["data"]["plain_text_api_key"]
+    member_key = invite_member(client, HEADERS, "buyer", role="member", email="buyer@po.example",
+                               employee_id=employee_id)["X-API-Key"]
 
     denied = client.post(
         "/api/v1/purchase-orders",

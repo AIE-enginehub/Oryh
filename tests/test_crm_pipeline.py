@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 
 @pytest.fixture()
@@ -27,22 +26,8 @@ def pipeline():
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
         def salesperson(name: str) -> dict:
-            emp = client.post("/api/v1/employees", json={"name": name},
-                              headers=admin).json()["data"]["id"]
-            client.post("/api/v1/roles", json={"name": f"sales_{name}",
-                                               "permissions": ["crm.own"]}, headers=admin)
-            uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{name}@pipe.example", "role": f"sales_{name}",
-                                    "employee_id": emp},
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            key = client.post("/api/v1/tenant/api-keys",
-                              json={"label": name, "user_id": uid},
-                              headers=admin).json()["data"]["plain_text_api_key"]
-            return {"employee_id": emp, "key": {"X-API-Key": key}}
+            who = invite_member(client, admin, f"sales_{name}", ["crm.own"], employee=name)
+            return {"employee_id": who.employee_id, "key": dict(who)}
 
         yield {"client": client, "admin": admin, "salesperson": salesperson}
 

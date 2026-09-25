@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant
+from conftest import invite_member, provision_tenant
 
 
 @pytest.fixture()
@@ -164,7 +164,7 @@ def test_the_payout_settles_it(shop) -> None:
     shop["approve"](claim["id"])
     invoice = raise_invoice(shop, claim["id"]).json()["data"]
 
-    payout = shop["post"]("/payments", {
+    payout = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["employee"], "amount": 1300.0,
         "payment_date": "2026-07-25"})
@@ -206,18 +206,7 @@ def test_raising_it_takes_the_capability(client: TestClient) -> None:
     admin = {"X-API-Key": data["plain_text_api_key"]}
 
     def key_holding(role: str, *permissions: str) -> dict:
-        client.post("/api/v1/roles", json={"name": role, "permissions": list(permissions)},
-                    headers=admin)
-        uid = client.post("/api/v1/auth/invitations",
-                          json={"email": f"{role}@gate-co.example", "role": role},
-                          headers=admin).json()["data"]["id"]
-        token = next(l.rsplit("token=", 1)[1].strip()
-                     for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-        client.post("/api/v1/auth/invitations/accept",
-                    json={"token": token, "password": "invitee-pass1"})
-        plain = client.post("/api/v1/tenant/api-keys", json={"label": role, "user_id": uid},
-                            headers=admin).json()["data"]["plain_text_api_key"]
-        return {"X-API-Key": plain}
+        return dict(invite_member(client, admin, role, list(permissions)))
 
     emp = client.post("/api/v1/employees", json={"name": "Li"}, headers=admin).json()["data"]["id"]
     claim = client.post("/api/v1/expense-claims", headers=admin, json={
@@ -254,7 +243,7 @@ def test_it_is_settleable_the_moment_it_exists(shop) -> None:
     invoice = raise_invoice(shop, claim["id"]).json()["data"]
     assert invoice["status"] == "issued"
 
-    payout = shop["post"]("/payments", {
+    payout = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["employee"], "amount": 1300.0,
         "payment_date": "2026-07-25"})
@@ -356,7 +345,7 @@ def test_the_claim_reports_its_invoices_and_what_is_unbilled(shop) -> None:
     assert after["uninvoiced_amount"] == 0.0
     assert after["invoices"][0]["outstanding_amount"] == 1300.0
 
-    payout = shop["post"]("/payments", {
+    payout = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["employee"], "amount": 1300.0,
         "payment_date": "2026-07-25"})

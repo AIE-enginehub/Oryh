@@ -18,6 +18,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cancel_reason` | string (≤2000 chars) | optional |  |
+| `cancelled_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /resources/{resource_id}
 

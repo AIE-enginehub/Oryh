@@ -18,6 +18,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /expense-claims/{claim_id}
 
@@ -31,6 +33,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /object-type-definitions/{definition_id}
 
@@ -52,6 +56,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /sales-orders/{order_id}
 
@@ -65,6 +71,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /sales-quotations/{quotation_id}
 
@@ -78,6 +86,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /timesheet-headers/{header_id}
 
@@ -91,6 +101,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## GET /approval-records
 
@@ -119,10 +131,6 @@ Get Approval Record
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `approval_record_id` | path | string | yes |  |
-
-## GET /auth/me
-
-Me
 
 ## GET /business-objects
 

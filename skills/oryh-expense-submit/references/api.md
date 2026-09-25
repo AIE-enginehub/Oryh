@@ -7,7 +7,6 @@
 ## Identity And Reads
 
 ```text
-GET /auth/me                                             → linked employee_id + permissions
 GET /projects?keyword=&status=active                     → match a real project (read-only)
 GET /vendors?tax_id={seller_tax_id}                          → exact vendor match by tax id (read-only)
 GET /vendors?keyword={seller_name}&status=active           → fuzzy vendor match by name (read-only)
@@ -118,14 +117,15 @@ vendor_id       must exist in this tenant          → 404 otherwise (null is fi
 
 ## Submit
 
-```json
-POST /expense-claims/{claim_id}/submit
-{}
+```text
+POST /expense-claims/{claim_id}/submit          → no body
 ```
 
 Guarded by the tenant's lifecycle machine (draft/returned → submitted); idempotent on resubmit; sets `submitted_at`.
 
-## Submitted Fact (only if the role has approval.record)
+## Submitted Fact (recorded by `/submit`; shown for reference only)
+
+Do not post it — `/submit` already did. The shape, for reading the trail:
 
 ```json
 POST /approval-records
@@ -139,7 +139,7 @@ POST /approval-records
 }
 ```
 
-403 here is expected in tenants whose member role is fact-free — the workflow admin backfills it. After a return, resubmit with `round_no` incremented.
+After a return, `/submit` records the next round's fact itself.
 
 ## Correcting The Claim Header Before Submitting
 
@@ -167,7 +167,4 @@ POST /expense-claims/{id}/save
  "items": [{"id": "<existing item>", "amount": 120}, {"expense_date": "2026-09-03", "category": "lodging", "amount": 300}]}
 ```
 
-A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
-and changes only in the fields it states; a row without an id is added
-through the create rules; a live line not listed is removed. A stale
-`expected_revision` is a 409 — read again, restate. Header fields stated are set with the items in the same transaction; only while the claim is editable.
+The diff rules are the conventions' (*Writes rewritten*). Header fields stated are set with the items in the same transaction; only while the claim is editable.

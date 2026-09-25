@@ -20,19 +20,26 @@ router.
 
 from __future__ import annotations
 
+import uuid
+
+import threading
+
+import collections
+
 from datetime import date
 from typing import Annotated
 
 import math
 import re
 import unicodedata
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, STATUS, GetResource, ListResource, Param, register
+from app.api.visibility import scoped
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -55,106 +62,112 @@ from app.api.common import (
     status_scope,
     rows_revision,
     save_rows,
-    soft_remove,
 )
 from app.api.geo import customer_territory
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
-    Employee,
+    Activity,
     Attachment,
     BillOfMaterials,
     BomItem,
+    CommunicationEvent,
     Customer,
     CustomerContact,
     CustomerProduct,
+    Employee,
+    Event,
     ExternalProductMap,
-    normalize_external_name,
     Facility,
     InventoryItem,
     InventoryItemDetail,
-    PurchaseOrder,
-    SalesChannel,
-    Store,
-    StoreFacility,
-    SalesOrder,
-    SalesOrderItem,
+    normalize_external_name,
+    Opportunity,
     Product,
     ProductCategory,
     ProductImage,
     ProductPrice,
     ProductSku,
+    SalesChannel,
+    SalesOrder,
+    SalesOrderItem,
+    SalesQuotation,
+    Store,
+    StoreFacility,
     SupplierProduct,
+    Territory,
     Vendor,
 )
 from app.schemas import (
+    ActivityRead,
     BatchCreateProductSkusEnvelope,
     BatchCreateProductSkusRequest,
+    BillOfMaterialsEnvelope,
+    BillOfMaterialsListEnvelope,
+    BillOfMaterialsRead,
+    BomExplodedLineRead,
+    BomExplodeEnvelope,
+    BomExplodeRead,
+    BomItemBase,
+    BomItemEnvelope,
+    BomItemListEnvelope,
+    BomItemRead,
+    BomLeafRequirementRead,
     BulkCustomerUpsertRequest,
     BulkInventoryUpsertRequest,
     BulkProductUpsertRequest,
     BulkUpsertEnvelope,
     BulkVendorUpsertRequest,
-    CreateCustomerRequest,
-    ReleaseStockRequest,
-    ReserveStockRequest,
-    StockReservationEnvelope,
-    StockReservationLineRead,
-    StockReservationRead,
-    CreateInventoryItemRequest,
-    CreateProductPriceRequest,
-    CreateFacilityRequest,
-    CreateProductCategoryRequest,
-    CreateProductRequest,
-    CreateExternalProductMapRequest,
-    CreateProductSkuRequest,
-    CreateSupplierProductRequest,
-    CreateVendorRequest,
-    ExternalProductMapEnvelope,
-    ExternalProductMapListEnvelope,
-    FacilityEnvelope,
-    FacilityListEnvelope,
-    FacilityRead,
-    ExternalProductMapRead,
-    BillOfMaterialsEnvelope,
-    BillOfMaterialsListEnvelope,
-    BillOfMaterialsRead,
-    BomExplodeEnvelope,
-    BomExplodeRead,
-    BomExplodedLineRead,
-    BomItemEnvelope,
-    BomItemListEnvelope,
-    BomItemRead,
-    BomLeafRequirementRead,
+    CommunicationEventRead,
     CreateBillOfMaterialsRequest,
     CreateBomItemRequest,
-    CreateProductImageRequest,
-    ProductImageEnvelope,
-    ProductImageListEnvelope,
-    ProductImageRead,
-    UpdateProductImageRequest,
     CreateCustomerContactRequest,
     CreateCustomerProductRequest,
+    CreateCustomerRequest,
+    CreateExternalProductMapRequest,
+    CreateFacilityRequest,
+    CreateInventoryItemRequest,
+    CreateProductCategoryRequest,
+    CreateProductImageRequest,
+    CreateProductPriceRequest,
+    CreateProductRequest,
+    CreateProductSkuRequest,
+    CreateSalesChannelRequest,
+    CreateStoreFacilityRequest,
+    CreateStoreRequest,
+    CreateSupplierProductRequest,
+    CreateVendorRequest,
     CustomerContactEnvelope,
     CustomerContactListEnvelope,
     CustomerContactRead,
     CustomerDetailEnvelope,
+    CustomerDetailRead,
     CustomerEnvelope,
+    CustomerListEnvelope,
     CustomerProductEnvelope,
     CustomerProductListEnvelope,
     CustomerProductRead,
-    CustomerListEnvelope,
     CustomerRead,
-    InventoryItemDetailEnvelope,
+    EventRead,
+    ExternalProductMapEnvelope,
+    ExternalProductMapListEnvelope,
+    ExternalProductMapRead,
+    FacilityEnvelope,
+    FacilityListEnvelope,
+    FacilityRead,
     InventoryItemDetailListEnvelope,
     InventoryItemDetailRead,
     InventoryItemEnvelope,
     InventoryItemListEnvelope,
     InventoryItemRead,
+    OpportunityRead,
     ProductCategoryEnvelope,
     ProductCategoryListEnvelope,
     ProductCategoryRead,
     ProductEnvelope,
+    ProductImageEnvelope,
+    ProductImageListEnvelope,
+    ProductImageRead,
     ProductListEnvelope,
     ProductPriceEnvelope,
     ProductPriceListEnvelope,
@@ -163,47 +176,52 @@ from app.schemas import (
     ProductSkuEnvelope,
     ProductSkuListEnvelope,
     ProductSkuRead,
+    ReleaseStockRequest,
+    ReserveStockRequest,
+    ResolveExternalProductsRequest,
+    SalesChannelEnvelope,
+    SalesChannelListEnvelope,
+    SalesChannelRead,
+    SalesOrderRead,
+    SalesQuotationRead,
+    SaveBomLinesRequest,
+    SavedLinesEnvelope,
+    StockReservationEnvelope,
+    StockReservationLineRead,
+    StockReservationRead,
+    StoreEnvelope,
+    StoreFacilityEnvelope,
+    StoreFacilityListEnvelope,
+    StoreFacilityRead,
+    StoreListEnvelope,
+    StoreRead,
     SupplierProductEnvelope,
     SupplierProductListEnvelope,
     SupplierProductRead,
+    TerritoryRead,
     UpdateBillOfMaterialsRequest,
     UpdateBomItemRequest,
     UpdateCustomerContactRequest,
     UpdateCustomerProductRequest,
     UpdateCustomerRequest,
-    ResolveExternalProductsRequest,
     UpdateExternalProductMapRequest,
-    UpdateInventoryItemRequest,
-    UpdateProductPriceRequest,
-    CreateStoreFacilityRequest,
-    CreateSalesChannelRequest,
-    CreateStoreRequest,
-    StoreEnvelope,
-    StoreFacilityEnvelope,
-    StoreFacilityListEnvelope,
-    StoreFacilityRead,
-    SalesChannelEnvelope,
-    SalesChannelListEnvelope,
-    SalesChannelRead,
-    StoreListEnvelope,
-    StoreRead,
     UpdateFacilityRequest,
+    UpdateInventoryItemRequest,
     UpdateProductCategoryRequest,
-    UpdateStoreFacilityRequest,
-    UpdateSalesChannelRequest,
-    UpdateStoreRequest,
+    UpdateProductImageRequest,
+    UpdateProductPriceRequest,
     UpdateProductRequest,
     UpdateProductSkuRequest,
+    UpdateSalesChannelRequest,
+    UpdateStoreFacilityRequest,
+    UpdateStoreRequest,
     UpdateSupplierProductRequest,
     UpdateVendorRequest,
     VendorEnvelope,
     VendorListEnvelope,
     VendorRead,
-    SaveBomLinesRequest,
-    SavedLinesEnvelope,
-    BomItemBase,
 )
-from app.services.inventory_import import _find_item, bulk_inventory_upsert, post_inventory_detail
+from app.services.inventory_import import bulk_inventory_upsert, find_inventory_item, post_inventory_detail
 from app.services.state_machines import get_builtin_machine, is_terminal_state
 from app.services.master_data_import import bulk_upsert
 from app.services.type_options import require_type_option
@@ -474,18 +492,15 @@ def get_customer_detail(
     """What a visit brief needs, in one read (F-16): the people, the open
     deals, the last ten contacts, what is scheduled, the last ten messages,
     the recent quotations and orders, and the territory covering it."""
-    from app.models import Activity, CommunicationEvent, Event, Opportunity, SalesOrder, SalesQuotation, Territory
-    from app.schemas import (
-        ActivityRead, CommunicationEventRead, CustomerDetailRead, EventRead, OpportunityRead,
-        SalesOrderRead, SalesQuotationRead, TerritoryRead,
-    )
     customer = get_scoped_or_404(db, Customer, tenant_id, customer_id)
 
     def recent(model, order_column, *, live=True, limit=10):
         stmt = select(model).where(model.tenant_id == tenant_id, model.customer_id == customer.id)
         if live and hasattr(model, "deleted_at"):
             stmt = stmt.where(model.deleted_at.is_(None))
-        return db.scalars(stmt.order_by(order_column.desc()).limit(limit)).all()
+        # a shared customer's brief shows this reader the deals and orders
+        # THEY may read, the same rule the lists apply
+        return db.scalars(scoped(db, stmt, model).order_by(order_column.desc()).limit(limit)).all()
 
     contacts = db.scalars(select(CustomerContact).where(
         CustomerContact.tenant_id == tenant_id, CustomerContact.customer_id == customer.id,
@@ -636,7 +651,7 @@ def require_sales_channel(db: Session, tenant_id: str, *, source: str | None = N
     ))
     if channel is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"no sales channel with code {source!r} — register it first "
                 "(POST /sales-channels), never invent one"
@@ -919,7 +934,7 @@ def create_product_image(
     content_type = attachment.content_type.lower()
     if not (content_type.startswith("image/") or content_type == "application/pdf"):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"attachment {payload.attachment_id} is {attachment.content_type} — a "
                 "product picture is image/* (or a PDF design draft); a spreadsheet or a "
@@ -1016,7 +1031,7 @@ def _require_makeable_parent(db: Session, tenant_id: str, product_id: str) -> Pr
     product = get_scoped_or_404(db, Product, tenant_id, product_id)
     if product.product_type not in MAKEABLE_TYPES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"product {product_id} is a {product.product_type} — a bill of "
                 "materials is built for a finished or semi-finished good; set "
@@ -1058,13 +1073,13 @@ def _require_component(
         recipes = {}
     if component_product_id == parent_product_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a product cannot be a component of itself",
         )
     component = get_scoped_or_404(db, Product, tenant_id, component_product_id)
     if component.product_type == "service":
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"product {component_product_id} is a service — a recipe is made of goods",
         )
     seen: set[str] = set()
@@ -1080,7 +1095,7 @@ def _require_component(
         for line in recipes[current]:
             if line.component_product_id == parent_product_id:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=(
                         f"component {component_product_id} is made (through "
                         f"{current}) from {parent_product_id} itself — a recipe "
@@ -1427,7 +1442,7 @@ def _require_usable_parent(
         return
     if moving is not None and parent_id == moving.id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a category cannot be its own parent",
         )
     node = get_scoped_or_404(db, ProductCategory, tenant_id, parent_id)
@@ -1444,13 +1459,13 @@ def _require_usable_parent(
         if node.id in seen:
             # a pre-existing loop in the data; refuse to extend it
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="the category tree already contains a cycle at this branch",
             )
         seen.add(node.id)
         if moving is not None and node.parent_id == moving.id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"category {parent_id} sits below {moving.id} — moving a "
                     "category under its own descendant would close a loop"
@@ -1637,6 +1652,41 @@ def _match_keys(text_value: str) -> set[str]:
     return keys
 
 
+_MATCHERS: "collections.OrderedDict[str, tuple[tuple, _CatalogMatcher]]" = collections.OrderedDict()
+_MATCHERS_LOCK = threading.Lock()
+_MATCHERS_KEPT = 64
+
+
+def _catalog_fingerprint(db: Session, tenant_id: str) -> tuple:
+    """What the matcher was built from: how many active products and SKUs,
+    and the newest change to either. Two aggregate queries — far cheaper
+    than the catalog they stand for."""
+    return tuple(db.execute(
+        select(func.count(Product.id), func.max(Product.updated_at)).where(Product.tenant_id == tenant_id, Product.status == "active")
+    ).one()) + tuple(db.execute(
+        select(func.count(ProductSku.id), func.max(ProductSku.updated_at)).where(ProductSku.tenant_id == tenant_id, ProductSku.status == "active")
+    ).one())
+
+
+def catalog_matcher(db: Session, tenant_id: str) -> "_CatalogMatcher":
+    """The tenant's matcher, rebuilt only when its catalog changed. A single
+    `/product-matches` call used to load and index the whole catalog; now a
+    burst of them (an import's worth of titles, one at a time) loads it once."""
+    fingerprint = _catalog_fingerprint(db, tenant_id)
+    with _MATCHERS_LOCK:
+        kept = _MATCHERS.get(tenant_id)
+        if kept is not None and kept[0] == fingerprint:
+            _MATCHERS.move_to_end(tenant_id)
+            return kept[1]
+    built = _CatalogMatcher(db, tenant_id)
+    with _MATCHERS_LOCK:
+        _MATCHERS[tenant_id] = (fingerprint, built)
+        _MATCHERS.move_to_end(tenant_id)
+        while len(_MATCHERS) > _MATCHERS_KEPT:
+            _MATCHERS.popitem(last=False)
+    return built
+
+
 class _CatalogMatcher:
     """The tenant's active catalog, loaded and indexed ONCE, then asked about
     any number of titles. `GET /product-matches` builds one for its single
@@ -1780,7 +1830,7 @@ def match_products_by_title(
     the candidate covers, in [0, 1]; `matched_terms` lists the phrases;
     `sku_candidates` names the variants whose own text the title also
     matches, so a spec in the title resolves to a SKU, not just a product."""
-    matcher = _CatalogMatcher(db, tenant_id)
+    matcher = catalog_matcher(db, tenant_id)
     return envelope(_hydrate_candidates(db, tenant_id, [matcher.shortlist(title, limit)])[0])
 
 
@@ -2605,7 +2655,7 @@ def resolve_external_products(
             unmapped_titles.append((index, listing.external_name))
         answers.append(answer)
     if unmapped_titles:
-        matcher = _CatalogMatcher(db, tenant_id)
+        matcher = catalog_matcher(db, tenant_id)
         shortlist_by_title: dict[str, list[dict]] = {}
         for _index, title in unmapped_titles:
             if title not in shortlist_by_title:
@@ -2636,7 +2686,7 @@ def create_external_product_map(
         sku = get_scoped_or_404(db, ProductSku, tenant_id, payload.sku_id)
         if sku.product_id != payload.product_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"sku {payload.sku_id} belongs to product {sku.product_id}, not {payload.product_id}",
             )
     # Only an OPEN live assertion claims the slot: a row with a closed window
@@ -2715,7 +2765,7 @@ def update_external_product_map(
         sku = get_scoped_or_404(db, ProductSku, actor.tenant_id, updates["sku_id"])
         if sku.product_id != row.product_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"sku {updates['sku_id']} belongs to product {sku.product_id}, not {row.product_id}",
             )
     if "external_name" in updates:
@@ -2724,7 +2774,7 @@ def update_external_product_map(
             # that keeps ids uneditable: close the window and add the row
             # the platform now shows, never bend this one
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     "this map is keyed by its title (no external_product_id); the "
                     "title is its identity. A renamed listing is a swap: close this "
@@ -2742,7 +2792,7 @@ def update_external_product_map(
             and row.effective_to <= row.effective_from):
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "effective_to must be after effective_from — the window is "
                 "[from, to), and a zero-length window asserts nothing"
@@ -2814,13 +2864,13 @@ def create_inventory_item(
             facility = registered.name
         elif facility != registered.name:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"facility {facility!r} does not match facility_id's registered "
                     f"name {registered.name!r} — pass one, or make them agree"
                 ),
             )
-    existing = _find_item(db, tenant_id, payload.product_id, payload.sku_id, facility, lot_id)
+    existing = find_inventory_item(db, tenant_id, payload.product_id, payload.sku_id, facility, lot_id)
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -2904,6 +2954,34 @@ def delete_inventory_item(
     return archive_row(db, actor, InventoryItem, item_id, permission="inventory.manage")
 
 
+def inventory_detail_reads(db: Session, tenant_id: str, rows) -> list[dict]:
+    """Movements with the product they moved: `product_id`, `product_name` and
+    `sku_code` beside `inventory_item_id`, read live from the position. The
+    ledger listed positions as UUIDs and every reader joined them by hand."""
+    reads = [InventoryItemDetailRead.model_validate(row).model_dump(by_alias=True) for row in rows]
+    ids = {read["inventory_item_id"] for read in reads}
+    if not ids:
+        return reads
+    positions = {
+        row.id: (row.product_id, row.sku_id)
+        for row in db.execute(
+            select(InventoryItem.id, InventoryItem.product_id, InventoryItem.sku_id).where(
+                InventoryItem.tenant_id == tenant_id, InventoryItem.id.in_(ids)
+            )
+        )
+    }
+    product_ids = {product_id for product_id, _ in positions.values()}
+    sku_ids = {sku_id for _, sku_id in positions.values() if sku_id}
+    names = dict(db.execute(select(Product.id, Product.name).where(Product.id.in_(product_ids))).all()) if product_ids else {}
+    codes = dict(db.execute(select(ProductSku.id, ProductSku.sku_code).where(ProductSku.id.in_(sku_ids))).all()) if sku_ids else {}
+    for read in reads:
+        product_id, sku_id = positions.get(read["inventory_item_id"], (None, None))
+        read["product_id"] = product_id
+        read["product_name"] = names.get(product_id)
+        read["sku_code"] = codes.get(sku_id)
+    return reads
+
+
 @router.get(
     "/inventory-item-details",
     response_model=InventoryItemDetailListEnvelope,
@@ -2952,6 +3030,7 @@ def list_inventory_item_details(
         pagination=page_only_pagination(page, size, default=50),
         sort=order_by,
         read_model=InventoryItemDetailRead,
+        render=lambda rows: inventory_detail_reads(db, tenant_id, rows),
         extra=extra,
     )
 
@@ -3004,6 +3083,44 @@ def _order_lines_by_goods(db: Session, order: SalesOrder) -> dict[tuple[str, str
     return lines
 
 
+def _require_order_line(db: Session, order: SalesOrder, item: InventoryItem, order_item_id: str | None) -> None:
+    """The order line a hold names becomes the ledger row's source. It must
+    be a live line of THIS order and sell the goods the position holds —
+    deep-test F7 (2026-09-24) reserved stock against an order line that did
+    not exist, and the ledger kept the reference."""
+    if order_item_id is None:
+        return
+    try:
+        uuid.UUID(order_item_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"order_item_id {order_item_id!r} is not an id",
+        ) from None
+    line = db.scalar(
+        select(SalesOrderItem).where(
+            SalesOrderItem.tenant_id == order.tenant_id,
+            SalesOrderItem.order_id == order.id,
+            SalesOrderItem.id == order_item_id,
+            SalesOrderItem.deleted_at.is_(None),
+        )
+    )
+    if line is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"order_item_id {order_item_id} is not a live line of order {order.order_no}",
+        )
+    if line.product_id != item.product_id or (line.sku_id is not None and line.sku_id != item.sku_id):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"order line {order_item_id} sells product {line.product_id}"
+                + (f" sku {line.sku_id}" if line.sku_id else "")
+                + f", not what position {item.id} holds"
+            ),
+        )
+
+
 def _lock_position(db: Session, tenant_id: str, item_id: str) -> InventoryItem:
     """The row lock before any running sum is read (review N02): two holds
     that both read ATP=10 both passed and left -4. `populate_existing` so the
@@ -3026,7 +3143,7 @@ def _position_for_order(db: Session, order: SalesOrder, inventory_item_id: str) 
     goods = _order_lines_by_goods(db, order)
     if (item.product_id, item.sku_id) not in goods and (item.product_id, None) not in goods:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"inventory item {item.id} holds product {item.product_id}"
                 + (f" sku {item.sku_id}" if item.sku_id else "")
@@ -3069,6 +3186,7 @@ def reserve_stock_for_order(
     # earlier line of the same request already applied
     for line in sorted(payload.lines, key=lambda l: l.inventory_item_id):
         item = _position_for_order(db, order, line.inventory_item_id)
+        _require_order_line(db, order, item, line.order_item_id)
         item = _lock_position(db, tenant_id, item.id)
         _require_hold_within_bounds(db, item, "reserved", -line.quantity, order.id)
         detail = post_inventory_detail(
@@ -3094,15 +3212,16 @@ def reserve_stock_for_order(
 )
 def release_stock_for_order(
     order_id: str,
-    payload: ReleaseStockRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: ReleaseStockRequest = Body(default=None),
 ):
     """Give a hold back by hand — a cancelled order, a line the customer
     dropped. Without `lines`, every outstanding hold of the order is
     released; with them, exactly those quantities, never more than the
     order still holds at that position (post-stock already released what
     the shipment consumed)."""
+    payload = payload or ReleaseStockRequest()
     require_inventory_manage(actor)
     tenant_id = actor.tenant_id
     order = get_scoped_or_404(db, SalesOrder, tenant_id, order_id)

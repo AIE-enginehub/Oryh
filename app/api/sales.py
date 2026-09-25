@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -42,11 +42,6 @@ from app.api.common import (
     catalog_list_price,
     CENT,
     commit_or_conflict,
-    create_adjustment,
-    create_item,
-    delete_adjustment,
-    delete_document,
-    delete_item,
     document_approvals,
     ensure_content_edit_allowed,
     ensure_document_editable,
@@ -56,13 +51,9 @@ from app.api.common import (
     envelope,
     exclude_rows_with_open_todo,
     get_active_document_or_404,
-    get_adjustment,
-    get_item,
     get_scoped_or_404,
     get_tenant_id,
     grouped_linked_lines,
-    list_adjustments,
-    list_items,
     list_rows,
     load_item_catalog_context,
     normalize_customer_context,
@@ -76,14 +67,11 @@ from app.api.common import (
     require_original_order,
     resolve_chargeable_account,
     resolve_item_refs,
-    restore_document,
     retire_open_work_if_finished,
     serve_document_attachment,
     sku_pending_flag,
-    submit_document,
-    update_adjustment,
-    update_item,
 )
+from app.api.family_routes import LineRoutes, Verb, register_document_verbs, register_lines
 from app.api.deps import Actor, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -508,51 +496,33 @@ def update_sales_quotation(
     return envelope(SalesQuotationRead.model_validate(quotation).model_dump(by_alias=True))
 
 
-@router.delete("/sales-quotations/{quotation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_quotation(
-    quotation_id: str,
-    payload: DeleteSalesQuotationRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
+def _before_delete_sales_quotation(db: Session, actor: Actor, quotation_id: str) -> None:
     quotation = get_scoped_or_404(db, SalesQuotation, actor.tenant_id, quotation_id)
     if quotation.deleted_at is None:
         # archiving it would take the baseline out from under a live order just
         # as surely as editing it
         ensure_not_consumed_by_an_order(db, quotation)
-    return delete_document(db, actor, SalesQuotation, quotation_id, payload)
 
 
-@router.post("/sales-quotations/{quotation_id}/restore")
-def restore_sales_quotation(
-    quotation_id: str,
-    payload: RestoreSalesQuotationRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, SalesQuotation, quotation_id)
-
-
-@router.post("/sales-quotations/{quotation_id}/submit")
-def submit_sales_quotation(
-    quotation_id: str,
-    payload: SubmitSalesQuotationRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, SalesQuotation, quotation_id)
+register_document_verbs(
+    router, SalesQuotation, path="/sales-quotations", id_param="quotation_id",
+    delete=Verb(body=DeleteSalesQuotationRequest, before=_before_delete_sales_quotation),
+    restore=Verb(body=RestoreSalesQuotationRequest),
+    submit=Verb(body=SubmitSalesQuotationRequest),
+)
 
 
 @router.post("/sales-quotations/{quotation_id}/send")
 def send_sales_quotation(
     quotation_id: str,
-    payload: SendSalesQuotationRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: SendSalesQuotationRequest = Body(default=None),
 ):
     """The sales rep's own lifecycle write: the quotation went out to the
     customer. A fact registration, not an approval — the approval segment is
     already behind it (machine: approved → sent)."""
+    payload = payload or SendSalesQuotationRequest()
     quotation = get_active_document_or_404(db, SalesQuotation, actor.tenant_id, quotation_id)
     require_permission(actor, "quotation.submit_own")
     enforce_member_employee(actor, quotation.employee_id)
@@ -637,14 +607,15 @@ def close_sales_quotation(
 @router.post("/sales-quotations/{quotation_id}/revise", status_code=status.HTTP_201_CREATED)
 def revise_sales_quotation(
     quotation_id: str,
-    payload: ReviseSalesQuotationRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: ReviseSalesQuotationRequest = Body(default=None),
 ):
     """Renegotiation: an approved/sent quotation is an immutable fact, so a
     price change issues a new draft revision under the same quote_number and
     steps the source aside (superseded). Line facts are copied; catalog
     snapshots refresh to quoting-time truth for lines still on the catalog."""
+    payload = payload or ReviseSalesQuotationRequest()
     tenant_id = actor.tenant_id
     source = get_active_document_or_404(db, SalesQuotation, tenant_id, quotation_id)
     require_permission(actor, "quotation.submit_own")
@@ -895,123 +866,21 @@ def get_sales_quotation_detail(
     return envelope(detail.model_dump(by_alias=True))
 
 
-@router.get("/sales-quotation-items", response_model=SalesQuotationItemListEnvelope, response_model_exclude_unset=True)
-def list_sales_quotation_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    quotation_id: str | None = None,
-    product_id: str | None = None,
-    sku_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SalesQuotationItem, ranges=('created_at',), equals=('attachment_id',)))] = None,
-):
-    return list_items(
-        db, tenant_id, SalesQuotationItem,
-        {"quotation_id": quotation_id, "product_id": product_id, "sku_id": sku_id},
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
-    )
-
-
-@router.post("/sales-quotation-items", response_model=SalesQuotationItemEnvelope, response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
-def create_sales_quotation_item(
-    payload: CreateSalesQuotationItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_item(db, actor, SalesQuotationItem, payload)
-
-
-@router.get("/sales-quotation-items/{item_id}", response_model=SalesQuotationItemEnvelope, response_model_exclude_unset=True)
-def get_sales_quotation_item(
-    item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_item(db, tenant_id, SalesQuotationItem, item_id)
-
-
-@router.patch("/sales-quotation-items/{item_id}", response_model=SalesQuotationItemEnvelope, response_model_exclude_unset=True)
-def update_sales_quotation_item(
-    item_id: str,
-    payload: UpdateSalesQuotationItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_item(db, actor, SalesQuotationItem, item_id, payload)
-
-
-@router.delete("/sales-quotation-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_quotation_item(
-    item_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_item(db, actor, SalesQuotationItem, item_id)
-
-
-@router.get("/sales-quotation-adjustments", response_model=SalesQuotationAdjustmentListEnvelope, response_model_exclude_unset=True)
-def list_sales_quotation_adjustments(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    quotation_id: str | None = None,
-    quotation_item_id: str | None = None,
-    adjustment_type: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SalesQuotationAdjustment, ranges=('created_at',), equals=()))] = None,
-):
-    return list_adjustments(
-        db, tenant_id, SalesQuotationAdjustment,
-        parent_id=quotation_id, item_id=quotation_item_id, adjustment_type=adjustment_type,
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
-    )
-
-
-@router.post(
-    "/sales-quotation-adjustments",
-    status_code=status.HTTP_201_CREATED,
-    response_model=SalesQuotationAdjustmentEnvelope,
-    response_model_exclude_unset=True,
+register_lines(
+    router,
+    LineRoutes(
+        path="/sales-quotation-items", model=SalesQuotationItem,
+        create_model=CreateSalesQuotationItemRequest, update_model=UpdateSalesQuotationItemRequest,
+        envelope=SalesQuotationItemEnvelope, list_envelope=SalesQuotationItemListEnvelope,
+        filters=("quotation_id", "product_id", "sku_id"), equals=("attachment_id",),
+    ),
+    LineRoutes(
+        path="/sales-quotation-adjustments", model=SalesQuotationAdjustment, kind="adjustment",
+        create_model=CreateSalesQuotationAdjustmentRequest, update_model=UpdateSalesQuotationAdjustmentRequest,
+        envelope=SalesQuotationAdjustmentEnvelope, list_envelope=SalesQuotationAdjustmentListEnvelope,
+        filters=("quotation_id", "quotation_item_id", "adjustment_type"),
+    ),
 )
-def create_sales_quotation_adjustment(
-    payload: CreateSalesQuotationAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_adjustment(db, actor, SalesQuotationAdjustment, payload)
-
-
-@router.get("/sales-quotation-adjustments/{adjustment_id}", response_model=SalesQuotationAdjustmentEnvelope, response_model_exclude_unset=True)
-def get_sales_quotation_adjustment(
-    adjustment_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_adjustment(db, tenant_id, SalesQuotationAdjustment, adjustment_id)
-
-
-@router.patch("/sales-quotation-adjustments/{adjustment_id}", response_model=SalesQuotationAdjustmentEnvelope, response_model_exclude_unset=True)
-def update_sales_quotation_adjustment(
-    adjustment_id: str,
-    payload: UpdateSalesQuotationAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_adjustment(db, actor, SalesQuotationAdjustment, adjustment_id, payload)
-
-
-@router.delete("/sales-quotation-adjustments/{adjustment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_quotation_adjustment(
-    adjustment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_adjustment(db, actor, SalesQuotationAdjustment, adjustment_id)
 
 
 # --- sales orders: what they actually ordered --------------------------------
@@ -1110,12 +979,12 @@ def create_sales_order(
         # would count the customer's money against them twice
         if payload.quotation_id or payload.source_quote_number:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="a return fulfils no quotation — link the original order instead",
             )
         if payload.billing_account_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     "a return is not charged to a billing account — the refund "
                     "is a payment document; leave billing_account_id off"
@@ -1123,7 +992,7 @@ def create_sales_order(
             )
     elif payload.original_order_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="original_order_id belongs on a return (order_kind='return')",
         )
     require_original_order(db, tenant_id, SalesOrder, payload.original_order_id)
@@ -1230,7 +1099,7 @@ def create_sales_order(
     data = SalesOrderRead.model_validate(order).model_dump(by_alias=True)
     if items:
         data["items"] = [
-            SalesOrderItemRead.model_validate(item).model_dump(by_alias=True)
+            {**SalesOrderItemRead.model_validate(item).model_dump(by_alias=True), "order_no": order.order_no}
             for item in items
         ]
     if adjustments:
@@ -1306,7 +1175,7 @@ def update_sales_order(
     if "original_order_id" in updates:
         if order.order_kind != "return":
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="original_order_id belongs on a return (order_kind='return')",
             )
         require_original_order(db, tenant_id, SalesOrder, updates["original_order_id"])
@@ -1316,12 +1185,12 @@ def update_sales_order(
         # fact would occupy credit for money that flows the other way
         if updates.get("quotation_id") or updates.get("source_quote_number"):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="a return fulfils no quotation — link the original order instead",
             )
         if updates.get("billing_account_id"):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     "a return is not charged to a billing account — the refund "
                     "is a payment document"
@@ -1393,42 +1262,20 @@ def update_sales_order(
     return envelope(SalesOrderRead.model_validate(order).model_dump(by_alias=True))
 
 
-@router.delete("/sales-orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_order(
-    order_id: str,
-    payload: DeleteSalesOrderRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
-    return delete_document(db, actor, SalesOrder, order_id, payload)
-
-
-@router.post("/sales-orders/{order_id}/restore")
-def restore_sales_order(
-    order_id: str,
-    payload: RestoreSalesOrderRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, SalesOrder, order_id)
-
-
-@router.post("/sales-orders/{order_id}/submit")
-def submit_sales_order(
-    order_id: str,
-    payload: SubmitSalesOrderRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, SalesOrder, order_id)
+register_document_verbs(
+    router, SalesOrder, path="/sales-orders", id_param="order_id",
+    delete=Verb(body=DeleteSalesOrderRequest),
+    restore=Verb(body=RestoreSalesOrderRequest),
+    submit=Verb(body=SubmitSalesOrderRequest),
+)
 
 
 @router.post("/sales-orders/{order_id}/revise", status_code=status.HTTP_201_CREATED)
 def revise_sales_order(
     order_id: str,
-    payload: ReviseSalesOrderRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: ReviseSalesOrderRequest = Body(default=None),
 ):
     """The warehouse cannot ship a confirmed order as written, and the order
     is past its machine's editable states. The tenant's own answer — cancel
@@ -1443,13 +1290,14 @@ def revise_sales_order(
     reversed, never revised. An order a shipment already names is partly on
     its way — that is a return or a second parcel, not a replacement.
     """
+    payload = payload or ReviseSalesOrderRequest()
     tenant_id = actor.tenant_id
     source = get_active_document_or_404(db, SalesOrder, tenant_id, order_id)
     require_permission(actor, "order.submit_own")
     enforce_member_employee(actor, source.employee_id)
     if source.order_kind != "order":
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a return is reversed, not revised — record a second return against the same original",
         )
     machine = get_builtin_machine(db, tenant_id, "sales_order")
@@ -1645,37 +1493,52 @@ def revise_sales_order(
     db.refresh(revision)
     data = SalesOrderRead.model_validate(revision).model_dump(by_alias=True)
     data["items"] = [
-        SalesOrderItemRead.model_validate(copy).model_dump(by_alias=True)
+        {**SalesOrderItemRead.model_validate(copy).model_dump(by_alias=True), "order_no": revision.order_no}
         for copy in copied_items.values()
     ]
     return envelope(data)
 
 
-def fulfilment_lines(db: Session, tenant_id: str, order: SalesOrder, items: list[SalesOrderItem]) -> list[dict]:
-    """What has left the warehouse against each line: posted outbound legs
-    summed per (product, sku), allocated to the order's lines in line order
-    when two lines name the same goods (a shipment line does not yet point
-    at an order line — E-28)."""
-    shipped: dict[tuple[str | None, str | None], float] = {}
-    for product_id, sku_id, quantity in db.execute(
-        select(ShipmentItem.product_id, ShipmentItem.sku_id, func.coalesce(func.sum(ShipmentItem.quantity), 0))
+def shipped_by_order(db: Session, tenant_id: str, order_ids: list[str]) -> dict[str, dict[tuple[str | None, str | None], float]]:
+    """Posted outbound legs summed per (product, sku), for every order named
+    — one query for a whole backlog instead of one per order."""
+    shipped: dict[str, dict[tuple[str | None, str | None], float]] = {}
+    if not order_ids:
+        return shipped
+    for order_id, product_id, sku_id, quantity in db.execute(
+        select(Shipment.sales_order_id, ShipmentItem.product_id, ShipmentItem.sku_id, func.coalesce(func.sum(ShipmentItem.quantity), 0))
         .join(Shipment, Shipment.id == ShipmentItem.shipment_id)
         .where(
             ShipmentItem.tenant_id == tenant_id,
             ShipmentItem.deleted_at.is_(None),
-            Shipment.sales_order_id == order.id,
+            Shipment.sales_order_id.in_(order_ids),
             Shipment.direction == "outbound",
             Shipment.deleted_at.is_(None),
             Shipment.stock_posted_at.is_not(None),
         )
-        .group_by(ShipmentItem.product_id, ShipmentItem.sku_id)
+        .group_by(Shipment.sales_order_id, ShipmentItem.product_id, ShipmentItem.sku_id)
     ):
-        shipped[(product_id, sku_id)] = float(quantity)
-    # a leg written against the product alone also serves a SKU line
-    by_product: dict[str | None, float] = {}
-    for (product_id, sku_id), quantity in shipped.items():
-        if sku_id is None:
-            by_product[product_id] = by_product.get(product_id, 0.0) + quantity
+        shipped.setdefault(order_id, {})[(product_id, sku_id)] = float(quantity)
+    return shipped
+
+
+def fulfilment_lines(
+    db: Session, tenant_id: str, order: SalesOrder, items: list[SalesOrderItem],
+    shipped: dict[tuple[str | None, str | None], float] | None = None,
+) -> list[dict]:
+    """What has left the warehouse against each line: posted outbound legs
+    summed per (product, sku), allocated to the order's lines in line order
+    when two lines name the same goods (a shipment line does not yet point
+    at an order line — E-28). A caller holding the legs for many orders
+    passes this order's share as `shipped`."""
+    if shipped is None:
+        shipped = shipped_by_order(db, tenant_id, [order.id]).get(order.id, {})
+    # One pool per (product, sku), drawn down as lines take from it. A leg
+    # written against the product alone is the (product, None) pool, which
+    # generic lines and SKU lines share — a unit leaves it once. Deep-test
+    # F6 (2026-09-24): a copy of that pool let a generic line and a SKU line
+    # both report the same three units as shipped.
+    shipped = dict(shipped)
     rows = []
     for item in items:
         ordered = float(item.quantity)
@@ -1686,10 +1549,10 @@ def fulfilment_lines(db: Session, tenant_id: str, order: SalesOrder, items: list
             taken = min(ordered, pool)
             shipped[key] = pool - taken
             if item.sku_id is not None and taken < ordered:
-                spare = by_product.get(item.product_id, 0.0)
+                generic = (item.product_id, None)
+                spare = shipped.get(generic, 0.0)
                 more = min(ordered - taken, spare)
-                by_product[item.product_id] = spare - more
-                shipped[(item.product_id, None)] = shipped.get((item.product_id, None), 0.0) - more
+                shipped[generic] = spare - more
                 taken += more
         rows.append({
             "order_item_id": item.id,
@@ -1760,10 +1623,11 @@ def list_fulfilment_backlog(
             Todo.entity_id.in_(order_ids), Todo.status == "open",
         ).group_by(Todo.entity_id)
     ).all())
+    shipped = shipped_by_order(db, tenant_id, order_ids)
     now = datetime.now(timezone.utc)
     rows = []
     for order in orders:
-        lines = fulfilment_lines(db, tenant_id, order, items_by_order.get(order.id, []))
+        lines = fulfilment_lines(db, tenant_id, order, items_by_order.get(order.id, []), shipped.get(order.id, {}))
         if not any(line["outstanding"] > 0 for line in lines):
             continue
         since = order.submitted_at or order.created_at
@@ -1838,7 +1702,7 @@ def get_sales_order_detail(
         product, sku = resolve_item_refs(item, skus_by_id, products_by_id)
         detail_items.append(
             SalesOrderItemDetailRead(
-                **SalesOrderItemRead.model_validate(item).model_dump(),
+                **{**SalesOrderItemRead.model_validate(item).model_dump(), "order_no": order.order_no},
                 product=(
                     QuotationProductReferenceRead(
                         id=product.id,
@@ -1907,123 +1771,21 @@ def get_sales_order_detail(
     return envelope(detail.model_dump(by_alias=True))
 
 
-@router.get("/sales-order-items", response_model=SalesOrderItemListEnvelope, response_model_exclude_unset=True)
-def list_sales_order_items(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    order_id: str | None = None,
-    product_id: str | None = None,
-    sku_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SalesOrderItem, ranges=('created_at', 'promised_date'), equals=('attachment_id',)))] = None,
-):
-    return list_items(
-        db, tenant_id, SalesOrderItem,
-        {"order_id": order_id, "product_id": product_id, "sku_id": sku_id},
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
-    )
-
-
-@router.post("/sales-order-items", response_model=SalesOrderItemEnvelope, response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
-def create_sales_order_item(
-    payload: CreateSalesOrderItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_item(db, actor, SalesOrderItem, payload)
-
-
-@router.get("/sales-order-items/{item_id}", response_model=SalesOrderItemEnvelope, response_model_exclude_unset=True)
-def get_sales_order_item(
-    item_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_item(db, tenant_id, SalesOrderItem, item_id)
-
-
-@router.patch("/sales-order-items/{item_id}", response_model=SalesOrderItemEnvelope, response_model_exclude_unset=True)
-def update_sales_order_item(
-    item_id: str,
-    payload: UpdateSalesOrderItemRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_item(db, actor, SalesOrderItem, item_id, payload)
-
-
-@router.delete("/sales-order-items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_order_item(
-    item_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_item(db, actor, SalesOrderItem, item_id)
-
-
-@router.get("/sales-order-adjustments", response_model=SalesOrderAdjustmentListEnvelope, response_model_exclude_unset=True)
-def list_sales_order_adjustments(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    order_id: str | None = None,
-    order_item_id: str | None = None,
-    adjustment_type: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(SalesOrderAdjustment, ranges=('created_at',), equals=()))] = None,
-):
-    return list_adjustments(
-        db, tenant_id, SalesOrderAdjustment,
-        parent_id=order_id, item_id=order_item_id, adjustment_type=adjustment_type,
-        pagination=requested_pagination(page, size), sort=order_by,
-        extra=extra,
-    )
-
-
-@router.post(
-    "/sales-order-adjustments",
-    status_code=status.HTTP_201_CREATED,
-    response_model=SalesOrderAdjustmentEnvelope,
-    response_model_exclude_unset=True,
+register_lines(
+    router,
+    LineRoutes(
+        path="/sales-order-items", model=SalesOrderItem,
+        create_model=CreateSalesOrderItemRequest, update_model=UpdateSalesOrderItemRequest,
+        envelope=SalesOrderItemEnvelope, list_envelope=SalesOrderItemListEnvelope,
+        filters=("order_id", "product_id", "sku_id"), ranges=("created_at", "promised_date"), equals=("attachment_id",),
+    ),
+    LineRoutes(
+        path="/sales-order-adjustments", model=SalesOrderAdjustment, kind="adjustment",
+        create_model=CreateSalesOrderAdjustmentRequest, update_model=UpdateSalesOrderAdjustmentRequest,
+        envelope=SalesOrderAdjustmentEnvelope, list_envelope=SalesOrderAdjustmentListEnvelope,
+        filters=("order_id", "order_item_id", "adjustment_type"),
+    ),
 )
-def create_sales_order_adjustment(
-    payload: CreateSalesOrderAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return create_adjustment(db, actor, SalesOrderAdjustment, payload)
-
-
-@router.get("/sales-order-adjustments/{adjustment_id}", response_model=SalesOrderAdjustmentEnvelope, response_model_exclude_unset=True)
-def get_sales_order_adjustment(
-    adjustment_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return get_adjustment(db, tenant_id, SalesOrderAdjustment, adjustment_id)
-
-
-@router.patch("/sales-order-adjustments/{adjustment_id}", response_model=SalesOrderAdjustmentEnvelope, response_model_exclude_unset=True)
-def update_sales_order_adjustment(
-    adjustment_id: str,
-    payload: UpdateSalesOrderAdjustmentRequest,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return update_adjustment(db, actor, SalesOrderAdjustment, adjustment_id, payload)
-
-
-@router.delete("/sales-order-adjustments/{adjustment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sales_order_adjustment(
-    adjustment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_adjustment(db, actor, SalesOrderAdjustment, adjustment_id)
 
 
 # --- the original document, reached through the record that carries it ------

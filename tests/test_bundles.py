@@ -10,17 +10,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.dialects import postgresql
 
 from app.api.bundles import skill_bundle_user_for_update
-from app.services.emails import outbox
 from app.services.provisioning import PRODUCT_SKILLS_DIR
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
+from conftest import create, invite_member, provision_tenant as bootstrap_tenant
 
 
 def provision_tenant(client: TestClient) -> dict:
@@ -29,14 +21,7 @@ def provision_tenant(client: TestClient) -> dict:
 
 
 def invite(client: TestClient, headers: dict, email: str, role: str, employee_id: str) -> str:
-    user_id = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": email, "role": role, "employee_id": employee_id},
-        headers=headers,
-    ).json()["data"]["id"]
-    token = extract_token(outbox.messages[-1].body)
-    client.post("/api/v1/auth/invitations/accept", json={"token": token, "password": "invitee-pass1"})
-    return user_id
+    return invite_member(client, headers, role, role=role, email=email, employee_id=employee_id, key=False).user_id
 
 
 def bundle_zip(client: TestClient, headers: dict, user_id: str) -> zipfile.ZipFile:
@@ -124,9 +109,7 @@ def make_skill(client: TestClient, headers: dict, name: str, *, capability: str 
         body["required_capability"] = capability
     if mode is not None:
         body["distribution_mode"] = mode
-    response = client.post("/api/v1/skills", json=body, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, headers, "skills", **body)
 
 
 def assign(client: TestClient, headers: dict, name: str, subject_type: str, subject_id: str) -> dict:

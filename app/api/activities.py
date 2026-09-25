@@ -30,7 +30,6 @@ from app.api.common import (
     allocate_number,
     apply_status_change,
     commit_or_conflict,
-    delete_document,
     ensure_document_editable,
     envelope,
     get_active_document_or_404,
@@ -39,9 +38,10 @@ from app.api.common import (
     list_rows,
     requested_pagination,
     require_machine_state,
-    require_type_option,
-    restore_document,
 )
+from app.services.type_options import require_type_option
+from app.api.family_routes import Verb, register_document_verbs
+from app.api.registry import ORDER_BY, PAGE, SIZE, Filter, ListResource, register
 from app.api.deps import Actor, enforce_member_employee, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -94,7 +94,7 @@ def _own_employee(db: Session, actor: Actor, employee_id: str | None) -> str:
     require_permission(actor, "crm.own")
     if employee_id is None:
         if actor.employee_id is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="employee_id is required for a credential with no linked employee")
         employee_id = actor.employee_id
     get_scoped_or_404(db, Employee, actor.tenant_id, employee_id)
@@ -116,21 +116,21 @@ def _parties(db: Session, tenant_id: str, fields: dict) -> None:
     if fields.get("opportunity_id"):
         opportunity = get_active_document_or_404(db, Opportunity, tenant_id, fields["opportunity_id"])
         if customer_id and opportunity.customer_id and opportunity.customer_id != customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="opportunity_id belongs to a different customer than customer_id")
         if fields.get("lead_id") and getattr(opportunity, "lead_id", None) and opportunity.lead_id != fields["lead_id"]:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="opportunity_id came from a different lead than lead_id")
     if fields.get("contact_id"):
         contact = get_scoped_or_404(db, CustomerContact, tenant_id, fields["contact_id"])
         owner = customer_id or (opportunity.customer_id if opportunity is not None else None)
         if owner and contact.customer_id != owner:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="contact_id belongs to a different customer")
     if fields.get("event_id"):
         event = get_active_document_or_404(db, Event, tenant_id, fields["event_id"])
         if customer_id and event.customer_id and event.customer_id != customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="event_id belongs to a different customer than customer_id")
     if fields.get("communication_event_id"):
         get_active_document_or_404(db, CommunicationEvent, tenant_id, fields["communication_event_id"])
@@ -275,7 +275,7 @@ def update_activity(
         "communication_event_id": updates.get("communication_event_id", activity.communication_event_id),
     }
     if not (merged["customer_id"] or merged["lead_id"] or merged["opportunity_id"]):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="an activity hangs off a customer, a lead or an opportunity — at least one")
     _parties(db, tenant_id, merged)
     _activity_options(db, tenant_id, updates)
@@ -359,7 +359,7 @@ def _event_fields(db: Session, tenant_id: str, fields: dict, current: Event | No
     starts = fields.get("starts_at", current.starts_at if current else None)
     ends = fields.get("ends_at", current.ends_at if current else None)
     if starts and ends and ends < starts:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ends_at is before starts_at")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="ends_at is before starts_at")
 
 
 @router.post("/events", response_model=EventEnvelope, response_model_exclude_unset=True,
@@ -442,22 +442,7 @@ def update_event(
     return envelope(EventRead.model_validate(event).model_dump(by_alias=True))
 
 
-@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_event(
-    event_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Event, event_id)
-
-
-@router.post("/events/{event_id}/restore")
-def restore_event(
-    event_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Event, event_id)
+register_document_verbs(router, Event, path="/events", id_param="event_id", delete=Verb(), restore=Verb())
 
 
 _EVENT_TO_ACTIVITY = {"meeting": "meeting", "visit": "visit", "demo": "meeting", "call": "call", "training": "meeting"}
@@ -481,7 +466,7 @@ def log_event(
     event = get_active_document_or_404(db, Event, tenant_id, event_id)
     enforce_member_employee(actor, event.employee_id)
     if not (event.customer_id or event.lead_id or event.opportunity_id):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="the event names no customer, lead or opportunity — nothing to log against")
     machine = get_builtin_machine(db, tenant_id, "event")
     held = state_for_role(machine, "event", "held")
@@ -537,36 +522,6 @@ def _event_of_participant(db: Session, actor: Actor, event_id: str) -> Event:
     return event
 
 
-@router.get("/event-participants", response_model=EventParticipantListEnvelope, response_model_exclude_unset=True)
-def list_event_participants(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    event_id: str | None = None,
-    employee_id: str | None = None,
-    contact_id: str | None = None,
-    response: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(EventParticipant, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(EventParticipant).where(EventParticipant.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            EventParticipant.event_id: event_id,
-            EventParticipant.employee_id: employee_id,
-            EventParticipant.contact_id: contact_id,
-            EventParticipant.response: response,
-        },
-        order_by=(EventParticipant.created_at.asc(), EventParticipant.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=EventParticipantRead,
-        extra=extra,
-    )
-
-
 @router.post("/event-participants", response_model=EventParticipantEnvelope,
              response_model_exclude_unset=True, status_code=status.HTTP_201_CREATED)
 def create_event_participant(
@@ -581,7 +536,7 @@ def create_event_participant(
     if payload.contact_id:
         contact = get_scoped_or_404(db, CustomerContact, tenant_id, payload.contact_id)
         if event.customer_id and contact.customer_id != event.customer_id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="that person belongs to a different customer than the event")
     if payload.response:
         require_type_option(db, tenant_id, "event_response", payload.response)
@@ -788,7 +743,7 @@ def update_communication_event(
     updates = payload.model_dump(exclude_unset=True)
     merged = {k: updates.get(k, getattr(row, k)) for k in ("customer_id", "lead_id", "opportunity_id", "contact_id")}
     if all(v is None for v in merged.values()):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="a message names who it was with — a customer, a lead, an opportunity or a contact")
     _parties(db, tenant_id, merged)
     if "custom_fields" in updates:
@@ -814,3 +769,15 @@ def delete_communication_event(
     record_audit(db, tenant_id=actor.tenant_id, action="communication.deleted", entity_type="communication_event",
                  entity_id=row.id, actor=actor.label, detail={"subject": row.subject, "message_id": row.message_id})
     db.commit()
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/event-participants", name="list_event_participants", model=EventParticipant, read_model=EventParticipantRead, response_model=EventParticipantListEnvelope,
+        params=("event_id", "employee_id", "contact_id", "response", PAGE, SIZE, ORDER_BY),
+        order_by=(EventParticipant.created_at.asc(), EventParticipant.id.asc()),
+    ),
+)

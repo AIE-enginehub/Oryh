@@ -26,13 +26,22 @@ The contract (the shape Stripe made conventional):
   retrying.
 
 Pure ASGI (like the other middlewares here), so it sees the raw body and
-the raw response, and needs no cooperation from any handler.
+the raw response, and needs no cooperation from any handler — except one:
+an answer that must not be kept (a minted key) says `Idempotency-Replayable:
+false`, and the retry is told the first attempt completed, not the secret.
+
+The claim and the settle are three short statements each and run on the
+event loop on purpose. Moved to a worker thread, they overlapped with the
+request's own session being closed on another thread — harmless on a pooled
+database, but on the test stack's single shared connection a rollback from
+one thread swallowed the settle's UPDATE from the other, one run in two.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -47,13 +56,28 @@ from app.models import IdempotencyRecord
 
 HEADER = "Idempotency-Key"
 REPLAYED_HEADER = "Idempotency-Replayed"
+# A handler whose answer must not be kept (a minted key, a bundle with a key
+# inside) says so with this response header; the client sees it too.
+REPLAYABLE_HEADER = "Idempotency-Replayable"
 WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 KEY_MAX_LENGTH = 200
 RETENTION = timedelta(hours=24)
 # An attempt that never reported back (process killed mid-request) must not
 # hold its key forever; after this long a retry takes the key over.
 IN_FLIGHT_GRACE = timedelta(minutes=5)
+# expired rows are swept on a claim, at most this often — not on every one
+PURGE_INTERVAL = timedelta(minutes=1)
 _KEPT_RESPONSE_HEADERS = (b"content-type", b"location")
+# An answer marked `Idempotency-Replayable: false` (a minted key, a bundle
+# with a key inside) or one that is not text is completed but not kept: the
+# retry learns that the first attempt finished, never the secret it carried.
+NOT_REPLAYABLE = (
+    "the first attempt with this Idempotency-Key completed, but its answer is not kept for replay — "
+    "it carried a credential shown once, or bytes that are not text. If you did not receive it, "
+    "revoke what it issued and send a new request with a new key"
+)
+log = logging.getLogger(__name__)
+_last_purge: datetime | None = None
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -134,8 +158,7 @@ class IdempotencyMiddleware:
             scope["method"].encode(), scope["path"].encode(), scope.get("query_string", b""), body,
         ])).hexdigest()
 
-        with self._session() as db:
-            verdict = self._claim(db, scope_hash, key, fingerprint, scope["method"], scope["path"])
+        verdict = self._claim_in_session(scope_hash, key, fingerprint, scope["method"], scope["path"])
         if verdict[0] == "replay":
             record = verdict[1]
             stored = json.loads(record.response_headers or "[]")
@@ -150,7 +173,7 @@ class IdempotencyMiddleware:
 
         replay_receive = _replay(body)
         held: list[dict] = []
-        state = {"status": None, "headers": [], "chunks": [], "settled": False}
+        state = {"status": None, "headers": [], "chunks": [], "settled": False, "no_store": False}
 
         async def capture(message):
             # The answer is stored BEFORE its first byte leaves. Stored after
@@ -164,13 +187,23 @@ class IdempotencyMiddleware:
             held.append(message)
             if message["type"] == "http.response.start":
                 state["status"] = message["status"]
-                state["headers"] = [(n, v) for n, v in message.get("headers") or [] if n.lower() in _KEPT_RESPONSE_HEADERS]
+                headers = message.get("headers") or []
+                state["headers"] = [(n, v) for n, v in headers if n.lower() in _KEPT_RESPONSE_HEADERS]
+                state["no_store"] = any(
+                    n.lower() == REPLAYABLE_HEADER.lower().encode() and v.strip().lower() == b"false" for n, v in headers
+                )
                 return
             if message["type"] == "http.response.body":
                 state["chunks"].append(message.get("body", b""))
                 if message.get("more_body", False):
                     return
-                self._settle(record_id, state)
+                try:
+                    self._settle(record_id, state)
+                except Exception:
+                    # the write below may already be committed: the claim
+                    # stays in flight rather than being forgotten, so a retry
+                    # is told to wait instead of running the write again
+                    log.exception("idempotency: the answer for claim %s could not be stored", record_id)
                 state["settled"] = True
                 for queued in held:
                     await send(queued)
@@ -193,21 +226,41 @@ class IdempotencyMiddleware:
         if status is None or status >= 500:
             self._forget(record_id)
             return
+        headers, body = state["headers"], b"".join(state["chunks"])
+        try:
+            text = body.decode("utf-8") if not state["no_store"] else None
+        except UnicodeDecodeError:
+            text = None
+        if text is None:
+            status, headers, body = _json_response(409, NOT_REPLAYABLE)
+            text = body.decode("utf-8")
         with self._session() as db:
             record = db.get(IdempotencyRecord, record_id)
             if record is not None:
                 record.status_code = status
-                record.response_headers = json.dumps([(n.decode("latin-1"), v.decode("latin-1")) for n, v in state["headers"]])
-                record.response_body = b"".join(state["chunks"]).decode("utf-8", errors="replace")
+                record.response_headers = json.dumps([(n.decode("latin-1"), v.decode("latin-1")) for n, v in headers])
+                record.response_body = text
                 record.completed_at = _now()
                 db.commit()
 
+    def _claim_in_session(self, *args):
+        with self._session() as db:
+            return self._claim(db, *args)
+
     def _claim(self, db: Session, scope_hash: str, key: str, fingerprint: str, method: str, path: str):
+        global _last_purge
         now = _now()
-        db.execute(delete(IdempotencyRecord).where(IdempotencyRecord.created_at < now - RETENTION))
-        db.commit()
+        if _last_purge is None or now - _last_purge >= PURGE_INTERVAL:
+            db.execute(delete(IdempotencyRecord).where(IdempotencyRecord.created_at < now - RETENTION))
+            db.commit()
+            _last_purge = now
         existing = db.scalar(select(IdempotencyRecord).where(
             IdempotencyRecord.scope_hash == scope_hash, IdempotencyRecord.key == key))
+        if existing is not None and _utc(existing.created_at) < now - RETENTION:
+            # past retention but not yet swept: the key is free again
+            db.delete(existing)
+            db.commit()
+            existing = None
         if existing is None:
             record = IdempotencyRecord(scope_hash=scope_hash, key=key, fingerprint=fingerprint, method=method, path=path)
             db.add(record)
@@ -221,7 +274,13 @@ class IdempotencyMiddleware:
         if existing.completed_at is None:
             if _utc(existing.created_at) > now - IN_FLIGHT_GRACE:
                 return ("refuse", _json_response(409, f"a request with this {HEADER} is still being processed; retry with the same key"))
-            existing.fingerprint, existing.created_at = fingerprint, now
+            if existing.fingerprint != fingerprint:
+                # a stale claim is taken over only by the same request: the
+                # key never becomes a way to run a different one
+                return ("refuse", _json_response(422, [{
+                    "type": "idempotency_key_reused", "loc": ["header", HEADER],
+                    "msg": f"{HEADER} was already used for a different request; a new request takes a new key", "input": key}]))
+            existing.created_at = now
             db.commit()
             return ("run", existing.id)
         if existing.fingerprint != fingerprint:

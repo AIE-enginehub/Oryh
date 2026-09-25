@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import seeded_tenants
 
 TEST_TENANT = "99999999-2222-4222-8222-999999999999"
 TEST_API_KEY = "settlement-test-key"
@@ -30,13 +30,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Settlement Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Settlement Co", TEST_API_KEY))
 
 
 def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
@@ -58,6 +52,9 @@ def vendor(client: TestClient) -> dict:
 
 
 def sales_invoice(client: TestClient, total: float = 10000.0, **overrides) -> dict:
+    """An invoice ready to be settled: filed and submitted, because a draft is
+    never settled (deep-test 2026-09-24). `submit=False` keeps the draft."""
+    submit = overrides.pop("submit", "status" not in overrides)
     body = {
         "direction": "sales",
         "employee_id": overrides.pop("employee_id", None) or employee(client),
@@ -66,7 +63,10 @@ def sales_invoice(client: TestClient, total: float = 10000.0, **overrides) -> di
         "total_amount": total,
     }
     body.update(overrides)
-    return post(client, "/api/v1/invoices", body)
+    row = post(client, "/api/v1/invoices", body)
+    if submit:
+        row = post(client, f"/api/v1/invoices/{row['id']}/submit", {}, expect=200)
+    return row
 
 
 def receipt(client: TestClient, amount: float = 10000.0, **overrides) -> dict:
@@ -116,8 +116,8 @@ def test_a_partial_receipt_settles_part_of_an_invoice(client: TestClient) -> Non
     detail = client.get(f"/api/v1/invoices/{invoice['id']}/detail", headers=HEADERS).json()["data"]
     assert detail["applied_amount"] == 4000.0
     assert detail["outstanding_amount"] == 6000.0
-    # still issued/draft — partial settlement is not a state
-    assert detail["invoice"]["status"] == "draft"
+    # still submitted — partial settlement is not a state
+    assert detail["invoice"]["status"] == "submitted"
     assert len(detail["applications"]) == 1
 
 
@@ -272,6 +272,7 @@ def test_an_inbound_payment_cannot_settle_a_vendor_bill(client: TestClient) -> N
             "total_amount": 8000.0,
         },
     )
+    post(client, f"/api/v1/invoices/{bill['id']}/submit", {}, expect=200)
     money = receipt(client, 8000.0, employee_id=person)
 
     body = apply(
@@ -383,7 +384,6 @@ def test_a_multi_line_call_may_carry_an_idempotency_key(client: TestClient) -> N
     assert len(ledger) == 2
 
 
-
 def reimbursement_invoice(client: TestClient, claim_id: str) -> dict:
     """Approve the claim and raise its reimbursement invoice — the route money
     takes now that the claim itself takes none."""
@@ -417,6 +417,7 @@ def test_a_payment_settles_an_expense_claim(client: TestClient) -> None:
         client, "/api/v1/expense-items",
         {"claim_id": claim["id"], "employee_id": person, "expense_date": "2026-07-12", "amount": 320.0},
     )
+    post(client, f"/api/v1/expense-claims/{claim['id']}/submit", {}, expect=200)
     # deliberately larger than the claim, so the guard that fires below is the
     # CLAIM's limit and not the payment's
     payout = post(
@@ -544,34 +545,41 @@ def test_a_paid_payments_amount_is_frozen(client: TestClient) -> None:
     ).json()["data"]["amount"] == 5000.0
 
 
-def test_a_draft_payments_amount_cannot_drop_below_what_is_applied(client: TestClient) -> None:
-    """The editable-state gate is the outer fence; this is the inner one, for a
-    payment still in draft that money has already been applied from."""
+def test_a_draft_payment_is_not_settled_and_a_settled_one_keeps_its_amount(client: TestClient) -> None:
+    """A payment still in draft has not moved money, so nothing is applied
+    from it (deep-test 2026-09-24: drafts are never settled). Once a paid
+    payment is applied, its amount IS what was settled — it can neither drop
+    nor rise; reverse first, or file the extra as its own receipt."""
     person = employee(client)
     buyer = customer(client)
     invoice = sales_invoice(client, 5000.0, employee_id=person, customer_id=buyer["id"])
-    money = post(
+    draft = post(
         client, "/api/v1/payments",
         {
             "direction": "inbound", "employee_id": person, "customer_id": buyer["id"],
             "amount": 5000.0,
         },
     )
-    assert money["status"] == "draft"
+    assert draft["status"] == "draft"
+    refused = apply(
+        client, draft["id"],
+        [{"applied_to_type": "invoice", "applied_to_id": invoice["id"], "amount_applied": 5000.0}],
+        expect=409,
+    )
+    assert "editable" in refused["detail"]
+
+    money = receipt(client, 5000.0, employee_id=person, customer_id=buyer["id"])
     apply(
         client, money["id"],
         [{"applied_to_type": "invoice", "applied_to_id": invoice["id"], "amount_applied": 5000.0}],
     )
-
-    response = client.patch(
-        f"/api/v1/payments/{money['id']}", json={"amount": 2000.0}, headers=HEADERS
-    )
-    assert response.status_code == 409
-    assert "already applied" in response.json()["detail"]
-    # raising it while still editable is fine
-    assert client.patch(
-        f"/api/v1/payments/{money['id']}", json={"amount": 8000.0}, headers=HEADERS
-    ).status_code == 200
+    for amount in (2000.0, 8000.0):
+        response = client.patch(
+            f"/api/v1/payments/{money['id']}", json={"amount": amount}, headers=HEADERS
+        )
+        # the state gate (paid is not editable) or the settlement gate — both
+        # refuse; which one speaks first is not the point
+        assert response.status_code == 409, amount
 
 
 def test_a_payment_names_exactly_one_counterparty(client: TestClient) -> None:
@@ -659,7 +667,7 @@ def test_the_receivables_queue_is_derived_from_the_ledger(client: TestClient) ->
     assert partly["id"] in ids
     # fully settled, so it has left the queue without any status change
     assert settled["id"] not in ids
-    assert client.get(f"/api/v1/invoices/{settled['id']}", headers=HEADERS).json()["data"]["status"] == "draft"
+    assert client.get(f"/api/v1/invoices/{settled['id']}", headers=HEADERS).json()["data"]["status"] == "submitted"
 
 
 def test_the_overdue_queue_combines_direction_outstanding_and_due_date(client: TestClient) -> None:
@@ -950,7 +958,9 @@ def test_the_ledgers_target_is_constrained_in_the_database() -> None:
     ) as (test_client, engine):
         person = employee(test_client)
         buyer = customer(test_client)
-        invoice = sales_invoice(test_client, 1000.0, employee_id=person, customer_id=buyer["id"])
+        # a draft, because the test adds a line to it below; settlement here
+        # is written straight into the table, not through /apply
+        invoice = sales_invoice(test_client, 1000.0, employee_id=person, customer_id=buyer["id"], submit=False)
         money = receipt(test_client, 1000.0, employee_id=person, customer_id=buyer["id"])
 
         def accepted(**columns) -> bool:

@@ -90,11 +90,33 @@ def _mcp_actor(
 # --- the tool surface ---------------------------------------------------------
 
 
-def _tool(name: str, description: str, properties: dict, required: list[str]) -> dict:
+def _tool(
+    name: str,
+    description: str,
+    properties: dict,
+    required: list[str],
+    *,
+    read_only: bool,
+    destructive: bool = False,
+    idempotent: bool = False,
+) -> dict:
+    """One MCP tool descriptor. The annotations are the standard hints a host
+    reads before calling: a client that treated `oryh_get` as a possible write
+    once dragged a person's screen to a sales order for asking a question.
+    `oryh_request` stays one tool for reads and writes — the skills document
+    operations as method + path, and the `method` argument is visible to the
+    host before the call — so it carries the writer's hints; a host that wants
+    to know whether one call reads looks at that argument."""
     return {
         "name": name,
         "description": description,
         "inputSchema": {"type": "object", "properties": properties, "required": required},
+        "annotations": {
+            "readOnlyHint": read_only,
+            "destructiveHint": False if read_only else destructive,
+            "idempotentHint": True if read_only else idempotent,
+            "openWorldHint": False,
+        },
     }
 
 
@@ -116,6 +138,8 @@ TOOLS: list[dict] = [
             "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 200},
         },
         ["method", "path"],
+        read_only=False,
+        destructive=True,
     ),
     _tool(
         "oryh_list",
@@ -123,17 +147,20 @@ TOOLS: list[dict] = [
         "master-data lists return active rows unless status=all is passed.",
         {"collection": {"type": "string"}, "filters": {"type": "object", "additionalProperties": True}},
         ["collection"],
+        read_only=True,
     ),
-    _tool("oryh_get", "Read one record by id.", {"collection": {"type": "string"}, "id": {"type": "string"}}, ["collection", "id"]),
-    _tool("oryh_detail", "Read a document's /detail — lines, derived totals, drift, execution.", {"collection": {"type": "string"}, "id": {"type": "string"}}, ["collection", "id"]),
-    _tool("builtin_object_types", "What oryh ships — before ever proposing a custom object.", {}, []),
-    _tool("object_directory", "Every object type this workspace has, builtin and custom, with counts.", {}, []),
-    _tool("setup_report", "Where this workspace stands: derived from live data, stored nowhere.", {}, []),
+    _tool("oryh_get", "Read one record by id.", {"collection": {"type": "string"}, "id": {"type": "string"}}, ["collection", "id"], read_only=True),
+    _tool("oryh_detail", "Read a document's /detail — lines, derived totals, drift, execution.", {"collection": {"type": "string"}, "id": {"type": "string"}}, ["collection", "id"], read_only=True),
+    _tool("builtin_object_types", "What oryh ships — before ever proposing a custom object.", {}, [], read_only=True),
+    _tool("object_directory", "Every object type this workspace has, builtin and custom, with counts.", {}, [], read_only=True),
+    _tool("setup_report", "Where this workspace stands: derived from live data, stored nowhere.", {}, [], read_only=True),
     _tool(
         "upload_attachment",
         "Upload evidence (receipt, contract original, picture) — base64 bytes, 10 MB max, deduplicated by content; returns the attachment id to link from a document.",
         {"filename": {"type": "string"}, "content_type": {"type": "string"}, "content_base64": {"type": "string"}},
         ["filename", "content_type", "content_base64"],
+        read_only=False,
+        idempotent=True,
     ),
 ]
 

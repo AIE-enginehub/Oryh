@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -144,7 +144,7 @@ def ensure_policy_visible(actor: Actor, policy: Policy) -> None:
 def ensure_policy_visibility_shape(visibility: str | None, required_capability) -> None:
     if visibility == "restricted" and not required_capability:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a restricted policy must name the capability that may read it "
                 "(`required_capability`) — one that names none is readable by "
@@ -248,7 +248,7 @@ def create_policy(
         payload.effective_thru < payload.effective_from
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="effective_thru cannot precede effective_from",
         )
     if payload.attachment_id:
@@ -337,7 +337,7 @@ def update_policy(
     effective_thru = updates.get("effective_thru", policy.effective_thru)
     if effective_from and effective_thru and effective_thru < effective_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="effective_thru cannot precede effective_from",
         )
     if "custom_fields" in updates:
@@ -387,9 +387,9 @@ def delete_policy(
 )
 def publish_policy(
     policy_id: str,
-    payload: PublishPolicyRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: PublishPolicyRequest = Body(default=None),
 ):
     """Publishing closes the previous version and opens this one, in one
     transaction — the same handover `POST /pay-histories` performs, and for the
@@ -400,6 +400,7 @@ def publish_policy(
     starts, so the pair reads as a continuous record rather than two documents
     that happen to be numbered.
     """
+    payload = payload or PublishPolicyRequest()
     require_permission(actor, "policy.publish")
     tenant_id = actor.tenant_id
     policy = get_live_or_404(db, Policy, tenant_id, policy_id)
@@ -411,7 +412,7 @@ def publish_policy(
     effective_from = payload.effective_from or policy.effective_from or date.today()
     if policy.effective_thru and policy.effective_thru < effective_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="this policy stops applying before the date it would start",
         )
 
@@ -534,14 +535,15 @@ def rescope_policy(
 )
 def repeal_policy(
     policy_id: str,
-    payload: RepealPolicyRequest,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
+    payload: RepealPolicyRequest = Body(default=None),
 ):
     """废止 — it stops applying, and it stops being visible to people who are
     not its authors, because a repealed rule left in the handbook is how
     somebody follows a rule that no longer exists. It is not deleted: what
     people were told, and until when, stays answerable."""
+    payload = payload or RepealPolicyRequest()
     require_permission(actor, "policy.publish")
     tenant_id = actor.tenant_id
     policy = get_live_or_404(db, Policy, tenant_id, policy_id)
@@ -567,7 +569,7 @@ def repeal_policy(
     effective_thru = payload.effective_thru or date.today()
     if policy.effective_from and effective_thru < policy.effective_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a policy cannot stop applying before it started",
         )
     policy.status = "repealed"

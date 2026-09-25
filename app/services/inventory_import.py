@@ -16,7 +16,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models import InventoryItem, InventoryItemDetail, Product, ProductSku
-from app.services.master_data_import import _payload, _same_value
+from app.services.master_data_import import import_payload, same_value
 
 
 def post_inventory_detail(
@@ -89,7 +89,7 @@ def post_inventory_detail(
     return detail
 
 
-def _find_item(
+def find_inventory_item(
     db: Session, tenant_id: str, product_id: str, sku_id: str | None, facility: str, lot_id: str
 ) -> InventoryItem | None:
     stmt = select(InventoryItem).where(
@@ -185,14 +185,14 @@ def bulk_inventory_upsert(
     prepared = kept
 
     if on_error == "abort" and any(r["outcome"] == "error" for r in results):
-        return _payload(results, dry_run=dry_run, applied=False, total=len(rows))
+        return import_payload(results, dry_run=dry_run, applied=False, total=len(rows))
 
     for index, row in prepared:
         code = row.product_code.strip()
         product = products[code]
         sku = sku_map.get((code, (row.sku_code or "").strip()))
         facility, lot_id = row.facility.strip(), row.lot_id.strip()
-        item = _find_item(db, tenant_id, product.id, sku.id if sku else None, facility, lot_id)
+        item = find_inventory_item(db, tenant_id, product.id, sku.id if sku else None, facility, lot_id)
         if item is not None:
             # the difference is computed against a locked position: two
             # identical counts at once each used to append the same delta
@@ -228,10 +228,10 @@ def bulk_inventory_upsert(
         changed = []
         for field in ("bin_number", "expire_date", "unit_cost"):
             value = getattr(row, field)
-            if value is not None and not _same_value(getattr(item, field), value):
+            if value is not None and not same_value(getattr(item, field), value):
                 setattr(item, field, value)
                 changed.append(field)
-        if not _same_value(item.quantity_on_hand, row.quantity):
+        if not same_value(item.quantity_on_hand, row.quantity):
             system = float(item.quantity_on_hand)
             diff = round(float(row.quantity) - system, 2)
             note = f"导入覆盖：系统数量 {system:g} → 导入数量 {row.quantity:g}（差异 {diff:+g}）"
@@ -256,4 +256,4 @@ def bulk_inventory_upsert(
             "changed": changed,
         })
 
-    return _payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
+    return import_payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))

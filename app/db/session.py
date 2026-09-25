@@ -10,8 +10,13 @@ class Base(DeclarativeBase):
     pass
 
 
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {"options": "-c search_path=oryh,public"}
-engine = create_engine(settings.database_url, future=True, connect_args=connect_args)
+connect_args = (
+    {"check_same_thread": False} if settings.database_url.startswith("sqlite")
+    else {"options": f"-c search_path={settings.database_schema},public"}
+)
+# pre-ping: a connection the database closed behind the pool's back (a
+# failover, an idle timeout) is replaced instead of failing the request
+engine = create_engine(settings.database_url, future=True, connect_args=connect_args, pool_pre_ping=True)
 
 if settings.database_url.startswith("postgresql"):
     @event.listens_for(engine, "connect")

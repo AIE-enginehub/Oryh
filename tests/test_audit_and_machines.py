@@ -9,10 +9,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.api.workflows import lock_workflow_publish_scope, workflow_publish_lock_key
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import Tenant
 from app.services.state_machines import DEFAULT_TIMESHEET_MACHINE
 
-from conftest import make_client
+from conftest import create, make_client, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -25,31 +25,15 @@ OTHER_HEADERS = {"X-API-Key": OTHER_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            Tenant(id=OTHER_TENANT, name="Other Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-            ApiKey(tenant_id=OTHER_TENANT, key_hash=hash_api_key(OTHER_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY), (OTHER_TENANT, "Other Tenant", OTHER_API_KEY))
 
 
 def create_employee(client: TestClient, name: str = "Alice") -> str:
-    response = client.post("/api/v1/employees", json={"name": name}, headers=HEADERS)
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(client, HEADERS, "employees", name=name)["id"]
 
 
 def create_header(client: TestClient, employee_id: str, start="2026-06-01", end="2026-06-07") -> str:
-    response = client.post(
-        "/api/v1/timesheet-headers",
-        json={"employee_id": employee_id, "period_start": start, "period_end": end},
-        headers=HEADERS,
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, HEADERS, "timesheet-headers", employee_id=employee_id, period_start=start, period_end=end)["id"]
 
 
 # ---------------------------------------------------------------------------

@@ -5,8 +5,9 @@ from collections.abc import Iterable, Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, permissions_cover
-from app.models import Role, Tenant, User
+from app.core.permissions import permissions_cover
+from app.services.roles import role_grants, role_permissions
+from app.models import Tenant, User
 
 
 def lock_tenant_identity(db: Session, tenant_id: str) -> None:
@@ -35,10 +36,7 @@ def tenant_has_active_user_manager(
     active user whose role covers ``users.manage``.
     """
     lock_tenant_identity(db, tenant_id)
-    roles = {
-        role.name: frozenset(role.permissions_jsonb)
-        for role in db.scalars(select(Role).where(Role.tenant_id == tenant_id))
-    }
+    roles = role_permissions(db, tenant_id)
     for role_name, permissions in (role_permission_overrides or {}).items():
         roles[role_name] = frozenset(permissions)
 
@@ -52,10 +50,7 @@ def tenant_has_active_user_manager(
         status, role_name = overrides.get(user.id, (user.status, user.role))
         if status != "active":
             continue
-        permissions = roles.get(
-            role_name,
-            frozenset(DEFAULT_ROLE_PERMISSIONS.get(role_name, ())),
-        )
+        permissions = role_grants(roles, role_name)
         if permissions_cover(permissions, "users.manage"):
             return True
 
@@ -64,10 +59,7 @@ def tenant_has_active_user_manager(
     for user_id, (status, role_name) in overrides.items():
         if user_id in seen_users or status != "active":
             continue
-        permissions = roles.get(
-            role_name,
-            frozenset(DEFAULT_ROLE_PERMISSIONS.get(role_name, ())),
-        )
+        permissions = role_grants(roles, role_name)
         if permissions_cover(permissions, "users.manage"):
             return True
     return False

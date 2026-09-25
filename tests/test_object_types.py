@@ -5,9 +5,9 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import Tenant
 
-from conftest import make_client
+from conftest import create, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -28,21 +28,13 @@ WARRANTY_SCHEMA = {
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY))
 
 
 def create_definition(client: TestClient, **overrides) -> dict:
     payload = {"object_type": "warranty_card", "title": "Warranty Card", "json_schema": WARRANTY_SCHEMA}
     payload.update(overrides)
-    response = client.post("/api/v1/object-type-definitions", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "object-type-definitions", **payload)
 
 
 def test_definition_crud(client: TestClient) -> None:
@@ -545,7 +537,10 @@ def test_a_record_cannot_change_type_to_borrow_another_types_write_grant(client:
 
     t = provision_tenant(client, company_name="Retype Co", email="admin@retype.example")
     admin = {"X-API-Key": t["plain_text_api_key"]}
-    scoped = invite_member(client, admin, "reviewer", ["business_object.write:review_allowed"])
+    # reads review records, writes only the allowed type: the record exists
+    # for them (without the read it would be 404), and the write check refuses
+    scoped = invite_member(client, admin, "reviewer",
+                           ["business_object.write:review_allowed", "business_object.read:review_record"])
     record = client.post("/api/v1/business-objects", headers=admin,
                          json={"object_type": "review_record", "title": "评审记录"}).json()["data"]
     assert client.patch(f"/api/v1/business-objects/{record['id']}", headers=scoped,

@@ -10,21 +10,12 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError(f"no token in email body: {body!r}")
+from conftest import admin_headers, invite_member
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Import Co", email="admin@import-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Import Co", email="admin@import-co.example", password="admin-pass1")
 
 
 def upsert(client: TestClient, headers, rows, **options) -> dict:
@@ -205,29 +196,12 @@ def test_reimporting_an_archived_code_revives_it(client: TestClient) -> None:
 
 def test_bulk_import_requires_master_data_manage(client: TestClient) -> None:
     headers = provision(client)
-    client.post(
-        "/api/v1/roles",
-        json={"name": "reader", "permissions": ["timesheet.submit_own"]},
-        headers=headers,
-    )
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "reader@import-co.example", "role": "reader"},
-        headers=headers,
-    )
-    user_id = invited.json()["data"]["id"]
-    client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": extract_token(outbox.messages[-1].body), "password": "reader-pass1"},
-    )
-    key = client.post(
-        "/api/v1/tenant/api-keys", json={"label": "r", "user_id": user_id}, headers=headers
-    ).json()["data"]["plain_text_api_key"]
+    reader = invite_member(client, headers, "reader", ["timesheet.submit_own"], email="reader@import-co.example")
 
     denied = client.post(
         "/api/v1/products/bulk",
         json={"rows": [{"product_code": "X-1", "name": "越权"}]},
-        headers={"X-API-Key": key},
+        headers=reader,
     )
     assert denied.status_code == 403
 
@@ -331,18 +305,8 @@ def test_master_data_skill_ships_only_to_authorized_bundles(client: TestClient) 
     headers = provision(client)
 
     def bundle_names(role: str, permissions: list[str], email: str) -> list[str]:
-        client.post(
-            "/api/v1/roles", json={"name": role, "permissions": permissions}, headers=headers
-        )
-        invited = client.post(
-            "/api/v1/auth/invitations", json={"email": email, "role": role}, headers=headers
-        )
-        user_id = invited.json()["data"]["id"]
-        client.post(
-            "/api/v1/auth/invitations/accept",
-            json={"token": extract_token(outbox.messages[-1].body), "password": "some-pass1"},
-        )
-        response = client.post(f"/api/v1/users/{user_id}/skill-bundle", headers=headers)
+        who = invite_member(client, headers, role, permissions, email=email, key=False)
+        response = client.post(f"/api/v1/users/{who.user_id}/skill-bundle", headers=headers)
         assert response.status_code == 200, response.text
         return zipfile.ZipFile(io.BytesIO(response.content)).namelist()
 

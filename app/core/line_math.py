@@ -36,7 +36,7 @@ def derive_line_amount(quantity, unit_price, amount, *, is_gift: bool = False, l
     computed = round(float(quantity or 0) * float(unit_price), 2)
     if amount is not None and abs(float(amount) - computed) > 0.005:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"{label} {float(amount):g} is not quantity × unit_price ({float(quantity or 0):g} × "
                 f"{float(unit_price):g} = {computed:g}); leave it out — the server computes it — "

@@ -7,7 +7,6 @@
 ## Identity And Reads
 
 ```text
-GET /auth/me                                              → linked employee_id + permissions
 GET /vendors?keyword=&status=active                       → match the target vendor (read-only)
 GET /vendors?tax_id=                                      → exact vendor match by tax id
 GET /products?keyword=&status=active                      → match catalog products (read-only; has_skus flags variant products)
@@ -85,34 +84,28 @@ sku_id          must belong to product_id (sku alone derives it) → 400 otherwi
 ## Restating The Whole Document
 
 ```text
-GET  /purchase-requests/{id}/detail                          → revision (a hash of header, live lines, adjustments)
+GET  /purchase-requests/{id}/detail                          → revision (a hash of header and live lines)
 POST /purchase-requests/{id}/save?validate_only=true         → the same run, nothing written
 POST /purchase-requests/{id}/save
 {"expected_revision": "<detail.revision>",
  "items": [{"id": "<existing line>", ...the fields that change...},   → updated through the PATCH rules
-           {...full line without id...}],                → added through the POST rules
- "adjustments": [{"id": "<existing>", "adjustment_type": "discount", "amount": -8},
-                 {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
+           {...full line without id...}]}                 → added through the POST rules
 ```
 
-A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
-(and anything pointing at it), a live line not listed is removed with the
-same audit a DELETE writes.
-Stale `expected_revision` → 409: read `/detail` again and restate. The
-header stays with PATCH; the editable-state gate is the same one every
-line write passes. One call replaces N PATCH/DELETE round trips when a
-person reworks a draft.
+The diff rules are the conventions' (*Writes rewritten*); the header stays
+with PATCH.
 
 ## Submit
 
-```json
-POST /purchase-requests/{request_id}/submit
-{}
+```text
+POST /purchase-requests/{request_id}/submit          → no body
 ```
 
 Guarded by the tenant's lifecycle machine (draft/returned → submitted); idempotent on resubmit; sets `submitted_at`.
 
-## Submitted Fact (only if the role has approval.record)
+## Submitted Fact (recorded by `/submit`; shown for reference only)
+
+Do not post it — `/submit` already did. The shape, for reading the trail:
 
 ```json
 POST /approval-records
@@ -126,7 +119,7 @@ POST /approval-records
 }
 ```
 
-403 here is expected in tenants whose member role is fact-free — the workflow admin backfills it. After a return, resubmit with `round_no` incremented.
+After a return, `/submit` records the next round's fact itself.
 
 ## Correcting The Request Header Before Submitting
 

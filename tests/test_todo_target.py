@@ -11,12 +11,11 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant as bootstrap_tenant
+from conftest import admin_headers
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Todo Co", email="admin@todo-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Todo Co", email="admin@todo-co.example", password="admin-pass1")
 
 
 def post(client: TestClient, headers: dict, path: str, body: dict) -> dict:

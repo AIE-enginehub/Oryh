@@ -31,6 +31,7 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    DOCUMENT_FAMILIES,
     ListFilters,
     list_filters,
     MAX_PAGE_SIZE,
@@ -43,10 +44,16 @@ from app.api.common import (
     get_tenant_id,
     list_rows,
     may_read_payroll,
-    page_only_pagination,
     requested_pagination,
     require_master_data_manage,
 )
+from app.api.billing import ensure_invoice_visible, ensure_payment_visible
+from app.api.visibility import entity_visible
+from app.core.entity_types import KIND_SPLIT_MACHINE_TYPES
+from app.core.permissions import permissions_cover_any_scope
+from app.services.bundles import audience_by_skill
+from app.services.provisioning import unheld_shipped_capabilities
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
 from app.api.deps import (
     Actor,
     attributed,
@@ -66,12 +73,34 @@ from app.models import (
     ApiKey,
     Attachment,
     AuditLog,
-    Project,
-    Tenant,
-    TypeOption,
-    User,
+    BillOfMaterials,
+    Customer,
+    CustomerContact,
+    CustomerProduct,
+    Employee,
+    ExternalDocumentLink,
+    ExternalProductMap,
+    Facility,
+    FinAccount,
+    FinAccountTrans,
+    FlowSubscription,
     generate_api_key,
     hash_api_key,
+    Invoice,
+    InvoiceItem,
+    Payment,
+    Product,
+    ProductCategory,
+    Project,
+    Role,
+    SalesChannel,
+    Store,
+    Tenant,
+    TenantSkill,
+    TypeOption,
+    User,
+    Vendor,
+    WorkflowDefinition,
 )
 from app.schemas import (
     ApiKeyEnvelope,
@@ -130,6 +159,7 @@ def get_current_tenant(
 @router.post("/tenants", status_code=status.HTTP_201_CREATED)
 def create_tenant(
     payload: CreateTenantRequest,
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
 ):
     # Legacy internal bootstrap path; self-service signup goes through
@@ -152,6 +182,8 @@ def create_tenant(
         api_key=ApiKeyRead.model_validate(api_key),
         plain_text_api_key=plain_text_api_key,
     )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Idempotency-Replayable"] = "false"
     return envelope(data.model_dump())
 
 
@@ -302,6 +334,7 @@ def list_api_key_owners(
 )
 def create_api_key(
     payload: CreateApiKeyRequest,
+    response: Response,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -310,9 +343,7 @@ def create_api_key(
     key_role = "service"
     user: User | None = None
     if payload.user_id is not None:
-        user = db.get(User, payload.user_id)
-        if user is None or user.tenant_id != actor.tenant_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        user = get_scoped_or_404(db, User, actor.tenant_id, payload.user_id)
         if user.status != "active":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="user is not active")
         key_role = user.role
@@ -337,6 +368,9 @@ def create_api_key(
         api_key=enriched_api_key(api_key, user),
         plain_text_api_key=plain_text_api_key,
     )
+    # a key is shown once: no cache and no idempotent replay keeps it
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Idempotency-Replayable"] = "false"
     return envelope(data.model_dump())
 
 
@@ -384,30 +418,6 @@ def update_api_key(
 # --- projects: the cost centre a timesheet or an expense books against ------
 
 
-@router.get("/projects", response_model=ProjectListEnvelope, response_model_exclude_unset=True)
-def list_projects(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Project, ranges=('created_at', 'end_date', 'start_date'), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Project).where(Project.tenant_id == tenant_id),
-        filters={Project.status: status_filter},
-        keyword=keyword,
-        keyword_columns=(Project.project_name,),
-        order_by=(Project.created_at.desc(), Project.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=ProjectRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/projects",
     response_model=ProjectEnvelope,
@@ -433,16 +443,6 @@ def create_project(
     db.add(project)
     commit_or_code_conflict(db, project)
     db.refresh(project)
-    return envelope(ProjectRead.model_validate(project).model_dump(by_alias=True))
-
-
-@router.get("/projects/{project_id}", response_model=ProjectEnvelope, response_model_exclude_unset=True)
-def get_project(
-    project_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    project = get_scoped_or_404(db, Project, tenant_id, project_id)
     return envelope(ProjectRead.model_validate(project).model_dump(by_alias=True))
 
 
@@ -486,7 +486,7 @@ def list_type_options(
 ):
     if family is not None and family not in TYPE_FAMILIES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"unknown family — one of: {', '.join(sorted(TYPE_FAMILIES))}",
         )
     return list_rows(
@@ -516,7 +516,7 @@ def create_type_option(
     tenant_id = actor.tenant_id
     if payload.family not in TYPE_FAMILIES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"unknown family — one of: {', '.join(sorted(TYPE_FAMILIES))}",
         )
     if payload.name in system_type_names(payload.family):
@@ -572,7 +572,7 @@ def update_type_option(
     updates = payload.model_dump(exclude_unset=True)
     if row.kind == "system" and ("title" in updates or "description" in updates):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a system value's wording follows the catalog; only its status is the tenant's",
         )
     # Recorded BEFORE the writes, and only what actually moves: a business
@@ -688,15 +688,10 @@ def _require_audited_record_visible(db: Session, caller: Actor, entity_type: str
     the record, so the id confirms nothing."""
     if entity_id is None or entity_type is None:
         return
-    from app.api.visibility import entity_visible
-
     # a colleague's timesheet, claim, order or deal: its trail carries the same
     # fields the record does (app/api/visibility.py)
     if not entity_visible(db, entity_type, entity_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
-    from app.api.billing import ensure_invoice_visible, ensure_payment_visible
-    from app.models import Invoice, InvoiceItem, Payment
-
     if entity_type in ("invoice", "payslip"):
         row = db.get(Invoice, entity_id)
         if row is not None and row.tenant_id == caller.tenant_id:
@@ -808,11 +803,11 @@ def create_attachment(
         content = base64.b64decode(payload.content_base64, validate=True)
     except (binascii.Error, ValueError):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="content_base64 is not valid base64",
         )
     if not content:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="attachment content is empty")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="attachment content is empty")
     if len(content) > MAX_ATTACHMENT_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -965,33 +960,6 @@ def workspace_setup_report(
     exists to drive, DEFINED (an active workflow definition). Usage counts
     ride along as facts. Admin-gated: the report exposes the access
     topology, which the member surface deliberately does not."""
-    from app.api.common import DOCUMENT_FAMILIES
-    from app.core.entity_types import KIND_SPLIT_MACHINE_TYPES
-    from app.core.permissions import permissions_cover_any_scope
-    from app.models import (
-        Customer,
-        BillOfMaterials,
-        CustomerContact,
-        CustomerProduct,
-        Facility,
-        ProductCategory,
-        SalesChannel,
-        Store,
-        Employee,
-        ExternalDocumentLink,
-        ExternalProductMap,
-        FinAccount,
-        FinAccountTrans,
-        FlowSubscription,
-        Product,
-        Role,
-        TypeOption,
-        User,
-        Vendor,
-        WorkflowDefinition,
-    )
-    from app.services.provisioning import unheld_shipped_capabilities
-
     require_permission(actor, "users.manage")
     tenant_id = actor.tenant_id
 
@@ -1148,6 +1116,20 @@ def workspace_setup_report(
         s.entity_type: s.parked_reason
         for s in subscriptions if s.enabled and s.parked_at is not None
     }
+    # a targeted skill with no audience reaches nobody: the flow skills ship
+    # targeted, and an agent that could not find one was never told why
+    audience = audience_by_skill(db, tenant_id)
+    unaudienced = sorted(
+        skill.name
+        for skill in db.scalars(
+            select(TenantSkill).where(
+                TenantSkill.tenant_id == tenant_id,
+                TenantSkill.status == "active",
+                TenantSkill.distribution_mode == "targeted",
+            )
+        )
+        if not any(audience.get(skill.id, {}).values())
+    )
     areas["flow_driving"] = {
         "status": (
             "partial" if parked
@@ -1158,11 +1140,15 @@ def workspace_setup_report(
             "enabled": sorted(s.entity_type for s in subscriptions if s.enabled),
             "disabled": sorted(s.entity_type for s in subscriptions if not s.enabled),
             "parked": dict(sorted(parked.items())),
+            "targeted_skills_without_audience": unaudienced,
         },
         "next": (
             "parked: " + ", ".join(sorted(parked)) + " — fix the cause (usually the "
             "workflow definition), then PATCH the subscription with clear_park"
             if parked
+            else "targeted skills reach nobody yet: " + ", ".join(unaudienced)
+            + " — name the roles or people they are for (POST /skills/{id}/assignments)"
+            if unaudienced
             else "subscriptions provision automatically; switch off what your own agents drive"
         ),
     }
@@ -1212,3 +1198,18 @@ def workspace_setup_report(
     }
 
     return envelope({"areas": areas})
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/projects", name="list_projects", model=Project, read_model=ProjectRead, response_model=ProjectListEnvelope,
+        params=(KEYWORD, Filter("status"), PAGE, SIZE, ORDER_BY),
+        order_by=(Project.created_at.desc(), Project.id.desc()),
+        keyword_columns=(Project.project_name,),
+        ranges=("created_at", "end_date", "start_date"),
+    ),
+    GetResource(path="/projects/{project_id}", name="get_project", model=Project, read_model=ProjectRead, response_model=ProjectEnvelope, id_param="project_id"),
+)

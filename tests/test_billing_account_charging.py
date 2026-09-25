@@ -46,7 +46,7 @@ def _detail(client, key, account):
 
 
 def _deposit(client, key, cust, amount, note):
-    payment = client.post("/api/v1/payments", json={
+    payment = client.post("/api/v1/payments", json={"status": "paid",
         "direction": "inbound", "customer_id": cust, "amount": amount,
         "employee_id": _deposit.employee, "remarks": note,
     }, headers=key)
@@ -94,6 +94,7 @@ def test_the_whole_prepaid_and_credit_story(shop) -> None:
     }, headers=key)
     assert invoice.status_code == 201, invoice.text
     invoice = invoice.json()["data"]["id"]
+    assert client.post(f"/api/v1/invoices/{invoice}/submit", headers=key).status_code == 200
     assert _detail(client, key, account) == (100.0, 150.0, 50.0)
 
     # 又存 100 —— 剩余 credit 150
@@ -244,7 +245,7 @@ def test_the_vendor_mirror_and_the_deposit_direction(shop) -> None:
         "vendor_id": vendor, "credit_limit": 100.0,
     }, headers=key).json()["data"]["id"]
 
-    prepay = client.post("/api/v1/payments", json={
+    prepay = client.post("/api/v1/payments", json={"status": "paid",
         "direction": "outbound", "vendor_id": vendor, "amount": 100.0,
         "employee_id": emp, "remarks": "给供应商的预付",
     }, headers=key).json()["data"]["id"]
@@ -268,7 +269,7 @@ def test_a_strangers_cheque_cannot_fund_this_account(shop) -> None:
     client, key, _emp, _cust, account = shop  # noqa: the underscore names are used below
     other = client.post("/api/v1/customers", json={"name": "路人"},
                         headers=key).json()["data"]["id"]
-    payment = client.post("/api/v1/payments", json={
+    payment = client.post("/api/v1/payments", json={"status": "paid",
         "direction": "inbound", "customer_id": other, "amount": 30.0,
         "employee_id": _emp, "remarks": "别人的钱",
     }, headers=key).json()["data"]["id"]

@@ -215,7 +215,4 @@ POST /invoices/{id}/save
 {"expected_revision": "<detail.revision>", "items": [{"id": "<existing line>", "quantity": 3}, {"product_id": "...", "quantity": 1, "unit_price": 8}]}
 ```
 
-A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
-and changes only in the fields it states; a row without an id is added
-through the create rules; a live line not listed is removed. A stale
-`expected_revision` is a 409 — read again, restate. Only while the invoice is editable (before it is issued); header fields keep their PATCH.
+The diff rules are the conventions' (*Writes rewritten*). Only while the invoice is editable (before it is issued); header fields keep their PATCH.

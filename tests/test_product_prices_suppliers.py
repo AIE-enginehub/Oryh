@@ -11,37 +11,20 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError(f"no token in email body: {body!r}")
+from conftest import admin_headers, create, invite_member
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Price Co", email="admin@price-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Price Co", email="admin@price-co.example", password="admin-pass1")
 
 
 def create_product(client: TestClient, headers, code: str = "P-001", name: str = "内窥镜镜头") -> str:
-    response = client.post(
-        "/api/v1/products", json={"product_code": code, "name": name}, headers=headers
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, headers, "products", product_code=code, name=name)["id"]
 
 
 def create_vendor(client: TestClient, headers, code: str = "V-001", name: str = "华东医疗器械") -> str:
-    response = client.post(
-        "/api/v1/vendors", json={"vendor_code": code, "name": name}, headers=headers
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, headers, "vendors", vendor_code=code, name=name)["id"]
 
 
 def bulk(client: TestClient, headers, rows, **options) -> dict:
@@ -170,20 +153,7 @@ def test_price_writes_need_master_data_manage(client: TestClient) -> None:
     headers = provision(client)
     product_id = create_product(client, headers)
     # a user-bound member key can read the price book but not write it
-    employee = client.post("/api/v1/employees", json={"name": "小王"}, headers=headers).json()["data"]["id"]
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "wang@price-co.example", "role": "member", "employee_id": employee},
-        headers=headers,
-    ).json()["data"]["id"]
-    client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": extract_token(outbox.messages[-1].body), "password": "wang-pass1"},
-    )
-    member_key = client.post(
-        "/api/v1/tenant/api-keys", json={"label": "member-agent", "user_id": invited}, headers=headers
-    ).json()["data"]["plain_text_api_key"]
-    member = {"X-API-Key": member_key}
+    member = dict(invite_member(client, headers, "wang", role="member", email="wang@price-co.example", employee="小王"))
 
     assert client.get("/api/v1/product-prices", headers=member).status_code == 200
     denied = client.post(

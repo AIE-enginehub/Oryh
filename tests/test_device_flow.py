@@ -7,37 +7,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
+from conftest import invite_member, provision_tenant as bootstrap_tenant
 
 
 def provision_member(client: TestClient) -> dict:
     """Tenant with one linked member; returns service headers + member login."""
     data = bootstrap_tenant(client, company_name="Device Co", email="admin@device-co.com", password="device-pass1")
     service = {"X-API-Key": data["plain_text_api_key"]}
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
-    user_id = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "wang@device-co.com", "role": "member", "employee_id": employee_id},
-        headers=service,
-    ).json()["data"]["id"]
-    invite_token = extract_token(outbox.messages[-1].body)
-    client.post("/api/v1/auth/invitations/accept", json={"token": invite_token, "password": "member-pass1"})
+    wang = invite_member(client, service, "wang", role="member", email="wang@device-co.com", employee="小王",
+                         password="member-pass1", key=False)
     client.cookies.clear()
-    return {
-        "service": service,
-        "user_id": user_id,
-        "email": "wang@device-co.com",
-        "password": "member-pass1",
-    }
+    return {"service": service, "user_id": wang.user_id, "email": wang.email, "password": wang.password}
 
 
 def start_flow(client: TestClient, client_name: str = "WorkBuddy on test") -> dict:

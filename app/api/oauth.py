@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.api import auth as auth_api
 from app.api import device as device_api
+from app.web.routes import get_web_actor, render
 from app.core.browser_auth import SESSION_COOKIE
 from app.core.request_context import resolved_base_url
 from app.core.security import generate_token, hash_token
@@ -225,7 +226,6 @@ def _validate_authorize(p: dict[str, str]):
 
 @router.get("/oauth/authorize", response_class=HTMLResponse)
 def authorize_page(request: Request, db: Annotated[Session, Depends(get_db)]):
-    from app.web.routes import get_web_actor, render
 
     p = _authorize_context(request)
     problem = _validate_authorize(p)
@@ -260,7 +260,6 @@ def authorize_page(request: Request, db: Annotated[Session, Depends(get_db)]):
 
 @router.post("/oauth/authorize", response_class=HTMLResponse)
 async def authorize_decide(request: Request, db: Annotated[Session, Depends(get_db)]):
-    from app.web.routes import get_web_actor
 
     form = await request.form()
     p = {key: str(form.get(key, "")) for key in (
@@ -290,11 +289,21 @@ async def authorize_decide(request: Request, db: Annotated[Session, Depends(get_
         .values(consumed_at=datetime.now(timezone.utc))
     ).rowcount
     if spent != 1:
+        # a person, not a client, is reading this: the consent page was left
+        # open past its life or its button pressed twice. Say so on a page
+        # with the way back, not in a JSON body they must decode themselves.
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="this consent was not shown to this session for these parameters, or it expired — open the authorization page again",
+        joiner = "&" if urlsplit(p["redirect_uri"]).query else "?"
+        page = render(
+            "oauth_consent_expired.html", request, actor, db,
+            client_host=_client_host(p["client_id"]),
+            reopen_url=f"/oauth/authorize?{urlencode(p)}",
+            client_url=p["redirect_uri"] + joiner + urlencode({
+                "error": "access_denied", "error_description": "the consent expired", "state": p["state"],
+            }),
         )
+        page.status_code = status.HTTP_403_FORBIDDEN
+        return page
     if str(form.get("decision", "")) != "approve":
         db.commit()
         return _redirect_with(p["redirect_uri"], {"error": "access_denied", "state": p["state"]})

@@ -13,18 +13,15 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant as bootstrap_tenant
+from conftest import admin_headers, create
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Inline Co", email="admin@inline-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Inline Co", email="admin@inline-co.example", password="admin-pass1")
 
 
 def employee(client: TestClient, headers: dict, name: str = "小林") -> str:
-    response = client.post("/api/v1/employees", json={"name": name}, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, headers, "employees", name=name)["id"]
 
 
 def test_timesheet_created_whole_and_submitted_in_two_calls(client: TestClient) -> None:

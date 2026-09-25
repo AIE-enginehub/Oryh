@@ -79,7 +79,7 @@ class ListResource:
     name: str                       # the endpoint function's name: operationId and summary derive from it
     model: type
     read_model: type | None         # None when `render` builds the rows
-    response_model: type
+    response_model: type | None     # None: the contract states no response model
     params: tuple[str | Filter | Param, ...]  # query parameters, in contract order
     order_by: tuple                 # the family's own ordering (the caller's `order_by=` leads)
     keyword_columns: tuple = ()
@@ -98,7 +98,7 @@ class GetResource:
     name: str
     model: type
     read_model: type
-    response_model: type
+    response_model: type | None
     id_param: str
     read: Callable[[Session, str, Any], dict] | None = None  # hook: (db, tenant_id, row) -> the read, when it is enriched
     doc: str | None = None
@@ -196,7 +196,8 @@ def register(router: APIRouter, *resources: ListResource | GetResource) -> None:
     """Build and mount one endpoint per declaration."""
     for resource in resources:
         build = _list_endpoint if isinstance(resource, ListResource) else _get_endpoint
-        router.get(resource.path, response_model=resource.response_model, response_model_exclude_unset=True)(build(resource))
+        kwargs = {"response_model": resource.response_model, "response_model_exclude_unset": True} if resource.response_model is not None else {}
+        router.get(resource.path, **kwargs)(build(resource))
         REGISTRY.append(resource)
 
 

@@ -30,13 +30,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.common import (
     ListFilters,
     list_filters,
-    dry_run_readback,
     ORDER_BY_DOC,
     PAGE_SIZE_DOC,
     allocate_number,
     apply_status_change,
     commit_or_conflict,
-    delete_document,
     DOCUMENT_FAMILIES,
     ensure_document_editable,
     envelope,
@@ -49,12 +47,11 @@ from app.api.common import (
     requested_pagination,
     require_family_permission,
     require_machine_state,
-    restore_document,
     serve_document_attachment,
     rows_revision,
     save_rows,
-    soft_remove,
 )
+from app.api.family_routes import Verb, register_document_verbs
 from app.api.deps import Actor, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -126,6 +123,21 @@ def _require_reader(actor: Actor) -> list[str]:
 def _side_clause(side: str):
     """Which rows are a side's: purchase contracts name a vendor, sales ones do not."""
     return Contract.vendor_id.is_not(None) if side == "purchase" else Contract.vendor_id.is_(None)
+
+
+def _restrict_to_sides(stmt, visible: list[str], *, through=None):
+    """Only the sides this credential reads. `through` is a child table's
+    contract column, joined so lines, originals and clauses follow the same
+    rule as the contracts themselves — without it the three child lists
+    answered every side's rows whenever no contract_id was named."""
+    if all(side in visible for side in SIDES):
+        return stmt
+    if through is not None:
+        stmt = stmt.join(Contract, Contract.id == through)
+    for hidden in SIDES:
+        if hidden not in visible:
+            stmt = stmt.where(_side_clause(next(s for s in SIDES if s != hidden)))
+    return stmt
 
 
 def _require_contract_access(db: Session, actor: Actor, contract_id: str) -> Contract:
@@ -211,9 +223,7 @@ def list_contracts(
     stmt = select(Contract).where(Contract.tenant_id == tenant_id)
     if not include_deleted:
         stmt = stmt.where(Contract.deleted_at.is_(None))
-    for hidden in SIDES:
-        if hidden not in visible:
-            stmt = stmt.where(_side_clause(next(s for s in SIDES if s != hidden)))
+    stmt = _restrict_to_sides(stmt, visible)
     if side in SIDES:
         stmt = stmt.where(_side_clause(side))
     return list_rows(
@@ -348,7 +358,7 @@ def create_contract(
             if row.document_index is not None:
                 if row.document_index >= len(documents):
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                         detail=f"terms[{index}].document_index {row.document_index} names no document of this request ({len(documents)} documents)",
                     )
                 document_id = documents[row.document_index].id
@@ -356,7 +366,7 @@ def create_contract(
                 # no document exists before the contract does; a term filed
                 # with the contract points at a document filed with it
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=f"terms[{index}].document_id names a document that cannot exist yet — use document_index",
                 )
             build_contract_term(db, tenant_id, contract, row, document_id)
@@ -405,7 +415,7 @@ def update_contract(
         get_scoped_or_404(db, Employee, tenant_id, updates["employee_id"])
     if updates.get("parent_contract_id"):
         if updates["parent_contract_id"] == contract.id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="a contract cannot supplement itself")
         get_scoped_or_404(db, Contract, tenant_id, updates["parent_contract_id"])
     # summary/remarks/custom_fields are the desk's notes and move at any
@@ -427,22 +437,7 @@ def update_contract(
     return envelope(_contract_read(db, tenant_id, contract, full=False))
 
 
-@router.delete("/contracts/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_contract(
-    contract_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Contract, contract_id)
-
-
-@router.post("/contracts/{contract_id}/restore")
-def restore_contract(
-    contract_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Contract, contract_id)
+register_document_verbs(router, Contract, path="/contracts", id_param="contract_id", delete=Verb(), restore=Verb())
 
 
 @router.get("/contracts/{contract_id}/attachments/{attachment_id}/content")
@@ -548,10 +543,11 @@ def list_contract_items(
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
     extra: Annotated[ListFilters, Depends(list_filters(ContractItem, ranges=('created_at',), equals=('currency',)))] = None,
 ):
-    _require_reader(actor)
+    visible = _require_reader(actor)
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractItem).options(selectinload(ContractItem.product)).where(ContractItem.tenant_id == actor.tenant_id)
+    stmt = _restrict_to_sides(stmt, visible, through=ContractItem.contract_id)
     return list_rows(
         db, stmt,
         filters={ContractItem.contract_id: contract_id, ContractItem.product_id: product_id},
@@ -665,10 +661,11 @@ def list_contract_documents(
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
     extra: Annotated[ListFilters, Depends(list_filters(ContractDocument, ranges=('created_at',), equals=('attachment_id',)))] = None,
 ):
-    _require_reader(actor)
+    visible = _require_reader(actor)
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractDocument).where(ContractDocument.tenant_id == actor.tenant_id)
+    stmt = _restrict_to_sides(stmt, visible, through=ContractDocument.contract_id)
     with_text = bool(keyword)
     return list_rows(
         db, stmt,
@@ -776,10 +773,11 @@ def list_contract_terms(
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
     extra: Annotated[ListFilters, Depends(list_filters(ContractTerm, ranges=('created_at',), equals=('document_id',)))] = None,
 ):
-    _require_reader(actor)
+    visible = _require_reader(actor)
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractTerm).where(ContractTerm.tenant_id == actor.tenant_id)
+    stmt = _restrict_to_sides(stmt, visible, through=ContractTerm.contract_id)
     return list_rows(
         db, stmt,
         filters={ContractTerm.contract_id: contract_id, ContractTerm.term_type: term_type},
@@ -804,7 +802,7 @@ def _require_term_document(db: Session, tenant_id: str, contract_id: str, docume
     document = get_scoped_or_404(db, ContractDocument, tenant_id, document_id)
     if document.contract_id != contract_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"document {document_id} belongs to contract {document.contract_id}, not this one",
         )
 

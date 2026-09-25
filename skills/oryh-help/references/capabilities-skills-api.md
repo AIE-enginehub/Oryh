@@ -42,8 +42,12 @@ land in a person's bundle.** Two enforcement paths, one vocabulary.
 
 Because layers 1 and 2 read the *same* string off the *same* role, the
 platform holds an invariant: **holding a skill implies permission to run it.**
-You can never be handed a skill whose API calls you'd be 403'd on, and
-stripping a capability removes both the API access and the skill together.
+You can never be handed a skill whose API calls you'd be 403'd on (a skill
+gated on a bare scopable verb reaches every holder of any scope of it — the
+API, not the bundle, keeps them to their scope), and stripping a capability
+removes both the API access and the skill together. Distribution has a
+second axis on top: a skill with `distribution_mode: targeted` reaches only
+the roles and people its audience names (`POST /skills/{id}/assignments`).
 
 ### The one principal that carries grants without a role
 
@@ -71,7 +75,7 @@ credential"; `principal_kind` answers "whose machine holds it".
 
 ## System Capability → API → Skill Map
 
-Every system capability, the endpoints it guards, and the skill(s) that gate
+The system capabilities an agent meets most, the endpoints each guards, and the skill(s) that gate
 on it. (Management capabilities at the bottom guard the console/REST only and
 intentionally back no agent skill.)
 
@@ -87,7 +91,7 @@ intentionally back no agent skill.)
 | `quotation.advance` | `PATCH /sales-quotations/{id}` (only when `status` changes — approval finalization and the expiry sweep) | `oryh-quotation-approval-flow` |
 | `order.submit_own` | `POST /sales-orders`, `POST /sales-orders/{id}/submit`, `POST /sales-order-items`, `PATCH`/`DELETE /sales-order-items/{id}`, field-level `PATCH /sales-orders/{id}` (logistics facts). Customer RETURNS are rows in the same collection (`order_kind=return`, `original_order_id` → the order reversed, SR- numbers, own `sales_return` machine) | `oryh-order-submit` |
 | `order.advance` | `PATCH /sales-orders/{id}` (only when `status` changes — confirmation and fact-driven fulfilment advancement) | `oryh-order-approval-flow` |
-| `invoice.manage` *(scopable `:sales` / `:purchase` / `:payroll`)* | `POST`/`PATCH`/`DELETE`/`restore` `/invoices*`, `POST /invoices/bulk`, `POST /invoices/{id}/submit`, `POST`/`PATCH`/`DELETE /invoice-items*` | `oryh-receivables` (`:sales`), `oryh-payables` (`:purchase`), `oryh-payroll` (`:payroll`) |
+| `invoice.manage` *(scopable `:sales` / `:purchase` / `:payroll` / `:reimbursement`)* | `POST`/`PATCH`/`DELETE`/`restore` `/invoices*`, `POST /invoices/bulk`, `POST /invoices/{id}/submit`, `POST`/`PATCH`/`DELETE /invoice-items*` | `oryh-receivables` (`:sales`), `oryh-payables` (`:purchase`), `oryh-payroll` (`:payroll`) |
 | `invoice.advance` | `PATCH /invoices/{id}` (only when `status` changes) | `oryh-invoice-approval-flow` |
 | `payment.record` | `POST`/`PATCH`/`DELETE`/`restore` `/payments*`, `POST /payments/bulk` | `oryh-receivables`, `oryh-payables`, `oryh-payroll` |
 | `payment.advance` | `PATCH /payments/{id}` (only when `status` changes) | `oryh-payment-approval-flow` |
@@ -106,7 +110,7 @@ intentionally back no agent skill.)
 | `business_object.summarize` *(scopable)* | *(none — no API gate)* | `oryh-business-object-summary` |
 | `approval.record` | `POST /approval-records` | `oryh-approve` (all document types) |
 | `flow_run.record` | `POST /flow-runs`, `PATCH /flow-runs/{id}` | *(none — held by the hosted flow agent so the runner needs no second, wider credential)* |
-| `todos.assign` | `POST /todos`, `POST /todos/bulk` | `approval-notifier` |
+| `todos.assign` | `POST /todos` for somebody else (a todo for oneself needs no grant), `POST /todos/bulk`, cancelling a todo one assigned | `approval-notifier` |
 | `todos.complete_own` | `PATCH /todos/{id}` | *(used within `oryh-my-work`, which is ungated)* |
 | `booking.own` | `POST`/`PATCH`/`DELETE /resource-bookings` | `oryh-resource-booking` |
 | `crm.own` | `POST`/`PATCH`/`DELETE /leads*`, `POST /leads/{id}/convert`, `POST`/`PATCH`/`DELETE /opportunities*` — the salesperson's own pipeline: one approval-free grant files AND advances; the conversion bridge creates the Customer (and rolodex entry) without master-data authority, because promotion IS the conversion's meaning. Reads are member-visible | `oryh-crm` |
@@ -156,8 +160,9 @@ Three deliberate asymmetries worth noting:
   404. `tests/test_read_visibility.py` walks every GET route as a stranger.
 - `payroll.read` gates a **read** of a different kind: pay is hidden from
   everyone without it, not only from colleagues.
-  Every other list here is tenant-scoped and nothing more, which is right for
-  shared business data (customers, products, stock, invoices) and unacceptable for pay. Without it a credential still
+  Shared business data (customers, products, stock) is tenant-scoped and
+  nothing more; personal documents follow the read rule above. Pay is
+  hidden from everyone without this grant. Without it a credential still
   sees its own payslip — an employee who cannot check what they were paid has
   no recourse — and someone else's is a 404 rather than a 403, because 403
   would confirm the document exists. Note that a tenant service key bypasses
@@ -166,9 +171,10 @@ Three deliberate asymmetries worth noting:
 
 ## The `verb:scope` Grammar
 
-Scopable verbs (`business_object.write`, `.advance`, `.summarize`) take an
-object-type scope, and it extends automatically as a tenant defines new object
-types — no code change. The same three forms satisfy both the API check and
+Scopable verbs take a scope after a colon: `business_object.write`,
+`.advance`, `.summarize`, `.read` an object type (extending automatically as a
+tenant defines new ones — no code change); `invoice.manage`, `invoice.read` and
+`contract.manage` a side; `billing_account.post` a unit; `skills.calibrate` a skill. The same three forms satisfy both the API check and
 skill distribution:
 
 | Grant on the role | Covers |

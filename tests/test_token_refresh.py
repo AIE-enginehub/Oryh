@@ -13,47 +13,22 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import ApiKey, hash_api_key
-from conftest import make_stack, provision_tenant
-
-
-@pytest.fixture()
-def stack():
-    with make_stack() as (client, engine):
-        yield client, engine
+from conftest import invite_member, provision_tenant
 
 
 def _session(engine) -> Session:
     return sessionmaker(bind=engine, future=True)()
 
 
-def _invitation_token() -> str:
-    from app.services.emails import outbox
-
-    for line in outbox.messages[-1].body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in the invitation email")
-
-
 def _mint_member_pair(client, admin_headers, suffix: str = "1") -> tuple[str, str, str]:
     """Invite → accept → admin issues the bundle; returns (user_id, api_key, refresh_token)."""
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        headers=admin_headers,
-        json={"email": f"member{suffix}@refresh.example", "role": "member", "name": f"Member {suffix}"},
-    )
-    assert invited.status_code == 201, invited.text
-    user_id = invited.json()["data"]["id"]
-    accepted = client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": _invitation_token(), "password": f"member{suffix}-pass1"},
-    )
-    assert accepted.status_code in (200, 201), accepted.text
+    user_id = invite_member(client, admin_headers, f"member{suffix}", role="member",
+                            email=f"member{suffix}@refresh.example", display_name=f"Member {suffix}",
+                            password=f"member{suffix}-pass1", key=False).user_id
 
     bundle = client.post(f"/api/v1/users/{user_id}/skill-bundle", headers=admin_headers)
     assert bundle.status_code == 200, bundle.text

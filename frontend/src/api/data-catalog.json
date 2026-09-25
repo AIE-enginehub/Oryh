@@ -579,11 +579,6 @@
       ],
       "update": [
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "title",
           "required": false,
           "type": "string"
@@ -619,6 +614,11 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
           "required": false,
           "type": "string"
         }
@@ -1603,11 +1603,6 @@
           "type": "string"
         },
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "facility_type",
           "required": false,
           "type": "string"
@@ -1630,6 +1625,11 @@
             "active",
             "archived"
           ]
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
         }
       ],
       "remove": true,
@@ -2258,11 +2258,6 @@
           "type": "string"
         },
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "parent_id",
           "required": false,
           "type": "string"
@@ -2280,6 +2275,11 @@
             "active",
             "archived"
           ]
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
         }
       ],
       "remove": true,
@@ -3225,16 +3225,6 @@
       ],
       "update": [
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "channel_kind",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "remarks",
           "required": false,
           "type": "string"
@@ -3247,6 +3237,16 @@
             "active",
             "archived"
           ]
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel_kind",
+          "required": false,
+          "type": "string"
         }
       ],
       "remove": true,
@@ -3553,20 +3553,6 @@
           "type": "string"
         },
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "channel",
-          "required": false,
-          "type": "string",
-          "enum": [
-            "offline",
-            "online"
-          ]
-        },
-        {
           "name": "sales_channel_id",
           "required": false,
           "type": "string"
@@ -3593,6 +3579,20 @@
           "enum": [
             "active",
             "archived"
+          ]
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "channel",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "offline",
+            "online"
           ]
         }
       ],
@@ -4647,6 +4647,10 @@
         },
         {
           "name": "order_id",
+          "type": "string"
+        },
+        {
+          "name": "order_no",
           "type": "string"
         },
         {
@@ -5795,11 +5799,6 @@
       ],
       "update": [
         {
-          "name": "original_order_id",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "quotation_id",
           "required": false,
           "type": "string"
@@ -5912,6 +5911,21 @@
           "type": "string"
         },
         {
+          "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_report_text",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "original_order_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "shipped_at",
           "required": false,
           "type": "string",
@@ -5922,16 +5936,6 @@
           "required": false,
           "type": "string",
           "format": "date-time"
-        },
-        {
-          "name": "remarks",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "source_report_text",
-          "required": false,
-          "type": "string"
         }
       ],
       "remove": true,
@@ -6531,17 +6535,17 @@
           "type": "string"
         },
         {
-          "name": "outcome_note",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "remarks",
           "required": false,
           "type": "string"
         },
         {
           "name": "source_report_text",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "outcome_note",
           "required": false,
           "type": "string"
         }
@@ -7461,22 +7465,7 @@
       ],
       "update": [
         {
-          "name": "original_order_id",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "contract_id",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "vendor_id",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "billing_account_id",
           "required": false,
           "type": "string"
         },
@@ -7534,6 +7523,21 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "original_order_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "vendor_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "billing_account_id",
           "required": false,
           "type": "string"
         }
@@ -7700,6 +7704,10 @@
         },
         {
           "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "employee_name",
           "type": "string"
         },
         {
@@ -7980,6 +7988,18 @@
         },
         {
           "name": "inventory_item_id",
+          "type": "string"
+        },
+        {
+          "name": "product_id",
+          "type": "string"
+        },
+        {
+          "name": "product_name",
+          "type": "string"
+        },
+        {
+          "name": "sku_code",
           "type": "string"
         },
         {
@@ -10085,6 +10105,10 @@
           "type": "string"
         },
         {
+          "name": "employee_name",
+          "type": "string"
+        },
+        {
           "name": "title",
           "type": "string"
         },
@@ -10419,11 +10443,6 @@
       ],
       "update": [
         {
-          "name": "name",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "institution",
           "required": false,
           "type": "string"
@@ -10454,6 +10473,11 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
           "required": false,
           "type": "string"
         }
@@ -11291,12 +11315,12 @@
       ],
       "update": [
         {
-          "name": "invoice_type",
+          "name": "contract_id",
           "required": false,
           "type": "string"
         },
         {
-          "name": "contract_id",
+          "name": "invoice_type",
           "required": false,
           "type": "string"
         },
@@ -11900,12 +11924,12 @@
       ],
       "update": [
         {
-          "name": "payment_method",
+          "name": "contract_id",
           "required": false,
           "type": "string"
         },
         {
-          "name": "contract_id",
+          "name": "payment_method",
           "required": false,
           "type": "string"
         },
@@ -11934,11 +11958,6 @@
           "required": false,
           "type": "string",
           "format": "date"
-        },
-        {
-          "name": "amount",
-          "required": false,
-          "type": "number"
         },
         {
           "name": "currency",
@@ -11974,6 +11993,11 @@
           "name": "remarks",
           "required": false,
           "type": "string"
+        },
+        {
+          "name": "amount",
+          "required": false,
+          "type": "number"
         }
       ],
       "remove": true,
@@ -12339,6 +12363,10 @@
         },
         {
           "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "employee_name",
           "type": "string"
         },
         {
@@ -12825,6 +12853,10 @@
         },
         {
           "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "employee_name",
           "type": "string"
         },
         {
@@ -13745,11 +13777,6 @@
           "type": "string"
         },
         {
-          "name": "employee_id",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "start_date",
           "required": false,
           "type": "string",
@@ -13793,6 +13820,11 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
           "required": false,
           "type": "string"
         }
@@ -15197,11 +15229,6 @@
       ],
       "update": [
         {
-          "name": "title",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "customer_id",
           "required": false,
           "type": "string"
@@ -15264,6 +15291,11 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
           "required": false,
           "type": "string"
         }
@@ -16603,11 +16635,6 @@
       ],
       "update": [
         {
-          "name": "title",
-          "required": false,
-          "type": "string"
-        },
-        {
           "name": "contract_type",
           "required": false,
           "type": "string"
@@ -16677,6 +16704,11 @@
         },
         {
           "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
           "required": false,
           "type": "string"
         }
@@ -17923,6 +17955,10 @@
         },
         {
           "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "employee_name",
           "type": "string"
         },
         {

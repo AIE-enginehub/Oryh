@@ -31,11 +31,9 @@ from __future__ import annotations
 import re
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 MEMBER_READS: dict[tuple[str, str], str] = {
     # --- business documents: tenant-visible by design; payroll filtered inside
@@ -118,17 +116,7 @@ def surface():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Surface Co", email="admin@surface.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        client.post("/api/v1/roles", json={"name": "nobody", "permissions": []}, headers=admin)
-        uid = client.post("/api/v1/auth/invitations",
-                          json={"email": "n@surface.example", "role": "nobody"},
-                          headers=admin).json()["data"]["id"]
-        token = next(l.rsplit("token=", 1)[1].strip()
-                     for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-        client.post("/api/v1/auth/invitations/accept",
-                    json={"token": token, "password": "invitee-pass1"})
-        key = client.post("/api/v1/tenant/api-keys",
-                          json={"label": "nobody", "user_id": uid},
-                          headers=admin).json()["data"]["plain_text_api_key"]
+        nobody = invite_member(client, admin, "nobody", [], email="n@surface.example")
 
         from app.main import app
         FAKE = "00000000-0000-0000-0000-000000000000"
@@ -140,7 +128,7 @@ def surface():
                 if method == "parameters":
                     continue
                 url = re.sub(r"\{[^}]+\}", FAKE, path)
-                r = client.request(method.upper(), url, headers={"X-API-Key": key},
+                r = client.request(method.upper(), url, headers=nobody,
                                    json={} if method in ("post", "patch", "put") else None)
                 reached[(method.upper(), path)] = r.status_code
         yield reached

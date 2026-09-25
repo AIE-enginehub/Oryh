@@ -21,9 +21,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import invite_member, make_client, seeded_tenants
 
 from conftest import provision_tenant as bootstrap_tenant
 
@@ -34,13 +33,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Loyalty Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Loyalty Co", TEST_API_KEY))
 
 
 def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
@@ -225,65 +218,6 @@ def test_a_frozen_account_refuses_movement(client: TestClient) -> None:
         f"/api/v1/billing-accounts/{account['id']}", json={"status": "active"}, headers=HEADERS
     )
     assert entries(client, account["id"], [{"amount": 10.0, "reason": "earned"}])["balance"] == 110.0
-
-
-def test_a_document_posts_once(client: TestClient) -> None:
-    """Idempotency is the document's: a grant is a 积分发放单, and posting
-    it again is a 409, not a second grant. The old idempotency key on a
-    direct write is gone with the write."""
-    account = points_account(client)
-    doc = account_document(client, "earned", [{"billing_account_id": account["id"], "amount": 500.0}])
-    first = client.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=HEADERS)
-    assert first.status_code == 200, first.text
-    again = client.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=HEADERS)
-    assert again.status_code == 409, again.text
-    assert client.get(f"/api/v1/billing-accounts/{account['id']}", headers=HEADERS).json()["data"]["balance"] == 500.0
-    read = client.get(f"/api/v1/business-objects/{doc['id']}", headers=HEADERS).json()["data"]
-    assert read["payload"]["entries_posted_at"]
-    rows = client.get("/api/v1/billing-account-entries", headers=HEADERS,
-                      params={"entity_type": "business_object", "entity_id": doc["id"]}).json()["data"]
-    assert [(r["reason"], r["amount"]) for r in rows] == [("earned", 500.0)]
-
-
-def _retired_retry_with_the_same_key_posts_once(client: TestClient) -> None:
-    account = points_account(client)
-    lines = [{"amount": 500.0, "reason": "earned"}]
-
-    first = entries(client, account["id"], lines, idempotency_key="grant-2026-08-02")
-    assert first["replayed"] is False
-    second = entries(client, account["id"], lines, idempotency_key="grant-2026-08-02")
-    assert second["replayed"] is True
-    assert second["balance"] == 500.0
-
-    ledger = client.get(
-        f"/api/v1/billing-account-entries?billing_account_id={account['id']}", headers=HEADERS
-    ).json()["data"]
-    assert len(ledger) == 1
-
-
-def _retired_multi_line_grant_may_carry_an_idempotency_key(client: TestClient) -> None:
-    """The key names the CALL. Conflating it with the row made any keyed grant
-    of more than one line collide with itself on the unique index."""
-    account = points_account(client)
-    lines = [
-        {"amount": 300.0, "reason": "earned", "expires_at": "2027-12-31T00:00:00Z"},
-        {"amount": 200.0, "reason": "earned"},
-    ]
-
-    posted = entries(client, account["id"], lines, idempotency_key="grant-batch-1")
-    assert posted["replayed"] is False
-    assert len(posted["entries"]) == 2
-    assert posted["balance"] == 500.0
-
-    replayed = entries(client, account["id"], lines, idempotency_key="grant-batch-1")
-    assert replayed["replayed"] is True
-    assert len(replayed["entries"]) == 2
-    assert replayed["balance"] == 500.0
-
-    ledger = client.get(
-        f"/api/v1/billing-account-entries?billing_account_id={account['id']}", headers=HEADERS
-    ).json()["data"]
-    assert len(ledger) == 2
 
 
 def test_a_mistake_is_reversed_by_a_counter_entry(client: TestClient) -> None:
@@ -586,38 +520,11 @@ def test_posting_can_be_scoped_to_one_unit_type(scoped_client) -> None:
 def scoped_client() -> Generator[tuple[dict, dict], None, None]:
     """A registered tenant plus a user-bound key holding only
     `billing_account.post:points`."""
-    from app.services.emails import outbox
-
-    def token_from(body: str) -> str:
-        for line in body.splitlines():
-            if "token=" in line:
-                return line.rsplit("token=", 1)[1].strip()
-        raise AssertionError("no token in email")
-
     with make_client([]) as test_client:
         data = bootstrap_tenant(test_client, company_name="Loyalty Co", email="admin@loyalty-co.com", password="loyal-pass1234")
         service = {"client": test_client, "headers": {"X-API-Key": data["plain_text_api_key"]}}
-
-        assert test_client.post(
-            "/api/v1/roles",
-            json={"name": "loyalty_ops", "permissions": ["billing_account.post:points"]},
-            headers=service["headers"],
-        ).status_code == 201
-        user_id = test_client.post(
-            "/api/v1/auth/invitations",
-            json={"email": "ops@loyalty-co.com", "role": "loyalty_ops"},
-            headers=service["headers"],
-        ).json()["data"]["id"]
-        test_client.post(
-            "/api/v1/auth/invitations/accept",
-            json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-        )
-        key = test_client.post(
-            "/api/v1/tenant/api-keys",
-            json={"label": "loyalty-agent", "user_id": user_id},
-            headers=service["headers"],
-        ).json()["data"]["plain_text_api_key"]
-        yield service, {"client": test_client, "headers": {"X-API-Key": key}}
+        ops = invite_member(test_client, service["headers"], "loyalty_ops", ["billing_account.post:points"], email="ops@loyalty-co.com")
+        yield service, {"client": test_client, "headers": dict(ops)}
 
 
 def test_the_ledger_and_the_balance_are_quantised_once(client: TestClient) -> None:

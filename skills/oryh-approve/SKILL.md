@@ -16,7 +16,9 @@ status transitions, assigning the next approver, rework todos, marking paid,
 clearing a rep to send — belongs to the flow skills
 (`the hosted workflow admin agent`, `the hosted workflow admin agent`,
 `the hosted workflow admin agent`, `the hosted workflow admin agent`,
-`the hosted workflow admin agent`), executed by the workflow admin agent.
+`the hosted workflow admin agent`, `the hosted workflow admin agent`,
+`the hosted workflow admin agent`, `the hosted workflow admin agent`), executed by
+the workflow admin agent.
 
 ## Trigger Examples
 
@@ -61,8 +63,6 @@ decision there, saying so; a decision belongs after the submission or the
 trail cannot show it followed one. If the todo carries no sequence, use the
 next free one in the round.
 
-## Steps
-
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/confirm-before-you-write.md}}
@@ -72,6 +72,8 @@ next free one in the round.
 {{include:_common/who-you-are-acting-as.md}}
 
 {{include:_common/stay-current.md}}
+
+## Steps
 
 1. **Read context** — the document's own `/detail`, which returns the lines,
    the totals, and the prior approval trail in one call:

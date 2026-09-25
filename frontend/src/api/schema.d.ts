@@ -491,7 +491,13 @@ export interface paths {
         /** List Approval Targets */
         get: operations["list_approval_targets_api_v1_approval_targets_get"];
         put?: never;
-        /** Create Approval Target */
+        /**
+         * Create Approval Target
+         * @description The older name for a business object, on the same table. Every
+         *     approval-target write runs the business-object rule — the alias once
+         *     carried its own copy, which fell behind three guards (posted rows were
+         *     deletable through it).
+         */
         post: operations["create_approval_target_api_v1_approval_targets_post"];
         delete?: never;
         options?: never;
@@ -1601,7 +1607,10 @@ export interface paths {
         /**
          * List Capabilities
          * @description Catalog for the console matrix: system + custom rows, plus the
-         *     tenant's object types so scopable verbs can be expanded per type.
+         *     tenant's object types so scopable verbs can be expanded per type. Each
+         *     system row names the API collections it governs, so a client building a
+         *     menu from a credential's permissions reads the mapping instead of keeping
+         *     one.
          */
         get: operations["list_capabilities_api_v1_capabilities_get"];
         put?: never;
@@ -3553,6 +3562,12 @@ export interface paths {
          *     agent serving two employers knows which directory this answer is about, and
          *     a company that renamed itself still reaches the copies on people's laptops
          *     (the per-skill hashes cover templates only, and would not move).
+         *
+         *     `meta.withheld` names the skills the caller could run but was not
+         *     named to (`not_in_audience`): the sync says so instead of skipping them
+         *     silently, and the person knows what to ask their admin for. Skills the
+         *     caller lacks the capability for are not listed — `/my/skills/reach`
+         *     explains those.
          */
         get: operations["my_skills_manifest_api_v1_my_skills_manifest_get"];
         put?: never;
@@ -3634,7 +3649,8 @@ export interface paths {
          *     Custom types are the union of definitions and actual data, so schema-less
          *     types created before the definition catalog was introduced remain visible.
          *     Counts include soft-deleted records because the object console can browse
-         *     them with ``include_deleted=true``.
+         *     them with ``include_deleted=true``, and count only what the caller may
+         *     read — the rule the lists apply.
          */
         get: operations["get_object_directory_api_v1_object_directory_get"];
         put?: never;
@@ -8763,6 +8779,8 @@ export interface components {
         };
         /** CapabilityRead */
         CapabilityRead: {
+            /** Collections */
+            collections?: string[];
             /**
              * Created At
              * Format: date-time
@@ -12162,6 +12180,8 @@ export interface components {
             duration_days: number;
             /** Employee Id */
             employee_id: string;
+            /** Employee Name */
+            employee_name?: string | null;
             /**
              * From Date
              * Format: date
@@ -13032,6 +13052,8 @@ export interface components {
             };
             /** Employee Id */
             employee_id: string;
+            /** Employee Name */
+            employee_name?: string | null;
             /** Id */
             id: string;
             /** Source Report Text */
@@ -13654,6 +13676,10 @@ export interface components {
             inventory_item_id: string;
             /** Item Status */
             item_status?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Product Name */
+            product_name?: string | null;
             /** Purchase Order Id */
             purchase_order_id?: string | null;
             /** Quantity On Hand Diff */
@@ -13665,6 +13691,8 @@ export interface components {
             reason: "initial" | "import_initial" | "import_override" | "received" | "issued" | "adjustment" | "damaged" | "returned" | "transfer" | "other" | "reserved" | "reservation_released" | "production";
             /** Sales Order Id */
             sales_order_id?: string | null;
+            /** Sku Code */
+            sku_code?: string | null;
             /** Unit Cost */
             unit_cost?: number | null;
         };
@@ -16311,6 +16339,8 @@ export interface components {
             };
             /** Employee Id */
             employee_id: string;
+            /** Employee Name */
+            employee_name?: string | null;
             /** Id */
             id: string;
             /** Needed By */
@@ -16987,6 +17017,8 @@ export interface components {
             notes?: string | null;
             /** Order Id */
             order_id: string;
+            /** Order No */
+            order_no?: string | null;
             product?: components["schemas"]["QuotationProductReferenceRead"] | null;
             /** Product Id */
             product_id?: string | null;
@@ -17044,6 +17076,8 @@ export interface components {
             notes?: string | null;
             /** Order Id */
             order_id: string;
+            /** Order No */
+            order_no?: string | null;
             /** Product Id */
             product_id?: string | null;
             /** Product Name Snapshot */
@@ -18756,6 +18790,8 @@ export interface components {
             };
             /** Employee Id */
             employee_id: string;
+            /** Employee Name */
+            employee_name?: string | null;
             /** Id */
             id: string;
             /**
@@ -18817,6 +18853,8 @@ export interface components {
             due_at?: string | null;
             /** Employee Id */
             employee_id: string;
+            /** Employee Name */
+            employee_name?: string | null;
             /** Entity Id */
             entity_id: string;
             /**
@@ -22319,7 +22357,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteBusinessObjectRequest"] | null;
+                "application/json": components["schemas"]["DeleteBusinessObjectRequest"];
             };
         };
         responses: {
@@ -22403,7 +22441,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreBusinessObjectRequest"];
             };
@@ -23490,7 +23528,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteBillingAccountRequest"] | null;
+                "application/json": components["schemas"]["DeleteBillingAccountRequest"];
             };
         };
         responses: {
@@ -24552,7 +24590,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteBusinessObjectRequest"] | null;
+                "application/json": components["schemas"]["DeleteBusinessObjectRequest"];
             };
         };
         responses: {
@@ -24676,7 +24714,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreBusinessObjectRequest"];
             };
@@ -27621,7 +27659,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteEmployeeLeaveRequest"] | null;
+                "application/json": components["schemas"]["DeleteEmployeeLeaveRequest"];
             };
         };
         responses: {
@@ -28752,7 +28790,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteExpenseClaimRequest"] | null;
+                "application/json": components["schemas"]["DeleteExpenseClaimRequest"];
             };
         };
         responses: {
@@ -28955,7 +28993,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreExpenseClaimRequest"];
             };
@@ -29045,7 +29083,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SubmitExpenseClaimRequest"];
             };
@@ -31673,7 +31711,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteInvoiceRequest"] | null;
+                "application/json": components["schemas"]["DeleteInvoiceRequest"];
             };
         };
         responses: {
@@ -32178,7 +32216,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["ConvertLeadRequest"];
             };
@@ -32908,7 +32946,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["QuoteOpportunityRequest"];
             };
@@ -33887,7 +33925,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeletePaymentRequest"] | null;
+                "application/json": components["schemas"]["DeletePaymentRequest"];
             };
         };
         responses: {
@@ -34920,7 +34958,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["PublishPolicyRequest"];
             };
@@ -34964,7 +35002,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RepealPolicyRequest"];
             };
@@ -37715,7 +37753,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeletePurchaseRequestRequest"] | null;
+                "application/json": components["schemas"]["DeletePurchaseRequestRequest"];
             };
         };
         responses: {
@@ -37878,7 +37916,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestorePurchaseRequestRequest"];
             };
@@ -37968,7 +38006,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SubmitPurchaseRequestRequest"];
             };
@@ -38156,7 +38194,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteResourceBookingRequest"] | null;
+                "application/json": components["schemas"]["DeleteResourceBookingRequest"];
             };
         };
         responses: {
@@ -39540,7 +39578,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteSalesOrderRequest"] | null;
+                "application/json": components["schemas"]["DeleteSalesOrderRequest"];
             };
         };
         responses: {
@@ -39703,7 +39741,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["ReleaseStockRequest"];
             };
@@ -39791,7 +39829,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreSalesOrderRequest"];
             };
@@ -39835,7 +39873,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["ReviseSalesOrderRequest"];
             };
@@ -39925,7 +39963,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SubmitSalesOrderRequest"];
             };
@@ -40598,7 +40636,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteSalesQuotationRequest"] | null;
+                "application/json": components["schemas"]["DeleteSalesQuotationRequest"];
             };
         };
         responses: {
@@ -40805,7 +40843,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreSalesQuotationRequest"];
             };
@@ -40849,7 +40887,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["ReviseSalesQuotationRequest"];
             };
@@ -40939,7 +40977,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SendSalesQuotationRequest"];
             };
@@ -40983,7 +41021,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SubmitSalesQuotationRequest"];
             };
@@ -43727,7 +43765,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DeleteTimesheetHeaderRequest"] | null;
+                "application/json": components["schemas"]["DeleteTimesheetHeaderRequest"];
             };
         };
         responses: {
@@ -43851,7 +43889,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["RestoreTimesheetHeaderRequest"];
             };
@@ -43941,7 +43979,7 @@ export interface operations {
                 oryh_csrf?: string | null;
             };
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SubmitTimesheetRequest"];
             };

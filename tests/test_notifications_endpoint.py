@@ -19,7 +19,7 @@ import pytest
 
 from app.core.config import settings
 from app.services.emails import outbox
-from conftest import provision_tenant
+from conftest import invite_member, provision_tenant
 
 
 @pytest.fixture()
@@ -210,30 +210,12 @@ def test_a_key_without_the_permission_is_refused(client, workspace):
     so this drives a real member-bound key at the real route.
     """
     headers, employee_id, _ = workspace
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        headers=headers,
-        json={"email": "member@notify.example", "role": "member", "name": "普通成员"},
-    )
-    assert invited.status_code == 201, invited.text
+    member = invite_member(client, headers, "member", role="member", email="member@notify.example",
+                           display_name="普通成员", password="member-pass1", key=False)
 
     from app.services.emails import outbox as mailbox
 
-    token = next(
-        line.rsplit("token=", 1)[1].strip()
-        for line in mailbox.messages[-1].body.splitlines()
-        if "token=" in line
-    )
-    assert (
-        client.post(
-            "/api/v1/auth/invitations/accept",
-            json={"token": token, "password": "member-pass1"},
-        ).status_code
-        in (200, 201)
-    )
-    bundle = client.post(
-        f"/api/v1/users/{invited.json()['data']['id']}/skill-bundle", headers=headers
-    )
+    bundle = client.post(f"/api/v1/users/{member.user_id}/skill-bundle", headers=headers)
     assert bundle.status_code == 200, bundle.text
 
     import io

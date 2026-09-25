@@ -191,7 +191,4 @@ POST /picklists/{id}/save
 {"expected_revision": "<picklist.revision>", "items": [{"id": "<existing line>", "quantity": 4}]}
 ```
 
-A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
-and changes only in the fields it states; a row without an id is added
-through the create rules; a live line not listed is removed. A stale
-`expected_revision` is a 409 — read again, restate. Only while the run is editable.
+The diff rules are the conventions' (*Writes rewritten*). Only while the run is editable.

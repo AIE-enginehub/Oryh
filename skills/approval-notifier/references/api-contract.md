@@ -6,14 +6,6 @@ Every endpoint this skill names, with the parameters the server actually
 accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
-## GET /console/bootstrap
-
-Bootstrap
-
-## GET /console/dashboard
-
-Dashboard
-
 ## GET /employees
 
 List Employees

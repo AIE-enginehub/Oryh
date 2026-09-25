@@ -4,16 +4,8 @@ from fastapi.testclient import TestClient
 
 from app.api.workspace import enriched_api_key
 from app.models import ApiKey
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
+from conftest import invite_member, provision_tenant as bootstrap_tenant
 
 
 def provision_tenant(client: TestClient) -> dict:
@@ -34,20 +26,8 @@ def invite_with_role(
     employee_id: str | None = None,
     name: str | None = None,
 ) -> dict:
-    body = {"email": email, "role": role}
-    if employee_id:
-        body["employee_id"] = employee_id
-    if name:
-        body["name"] = name
-    response = client.post("/api/v1/auth/invitations", json=body, headers=headers)
-    assert response.status_code == 201, response.text
-    user_id = response.json()["data"]["id"]
-    token = extract_token(outbox.messages[-1].body)
-    client.post("/api/v1/auth/invitations/accept", json={"token": token, "password": "invitee-pass1"})
-    key = client.post(
-        "/api/v1/tenant/api-keys", json={"label": f"{role}-agent", "user_id": user_id}, headers=headers
-    ).json()["data"]["plain_text_api_key"]
-    return {"user_id": user_id, "headers": {"X-API-Key": key}}
+    who = invite_member(client, headers, role, role=role, email=email, employee_id=employee_id, display_name=name)
+    return {"user_id": who.user_id, "headers": dict(who)}
 
 
 def test_provisioning_seeds_catalog_and_roles(client: TestClient) -> None:
@@ -167,7 +147,10 @@ def test_business_object_link_delete_requires_write_on_both_object_types(
         "/api/v1/roles",
         json={
             "name": "source_writer",
-            "permissions": ["business_object.write:source_type"],
+            # reads the target type, writes only the source type: the link is
+            # visible to them (both ends readable), and the write check is
+            # what refuses — without the read the target would be 404 for them
+            "permissions": ["business_object.write:source_type", "business_object.read:target_type"],
         },
         headers=service,
     )

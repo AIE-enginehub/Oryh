@@ -74,6 +74,18 @@ Two rules worth knowing before you design a permission scheme:
   a family, ships, invoices or pays already reads it. A team that wants an
   open pipeline grants `crm.read_all` to `member`; that is a decision, not a
   default.
+- **Shared paper is read by grant too.** Invoices, payments, purchase orders,
+  shipments, stock, business objects and accounts are nobody's "own"; each
+  family has a read grant (`invoice.read`, `payment.read`,
+  `purchase_order.read`, `shipment.read`, `inventory.read`,
+  `business_object.read`, `billing_account.read`). `member` holds them all by
+  default, so an employee reads the company's paper; the desk that writes a
+  family reads it, and a scoped grant reads its scope only
+  (`invoice.manage:sales` reads sales invoices, `business_object.write:
+  warranty_card` reads warranty cards). When you make a role for an outside
+  party — a vendor's or a customer's representative — give it only the reads
+  and writes it needs: without a family's read grant it sees what it handled,
+  what it created and what was routed to it, and nothing else.
 - **Prose cannot widen a grant.** Skill instructions and calibration change how
   work is done; the server decides what is allowed, regardless of any
   instruction. That is what makes editing skill text safe to do casually.

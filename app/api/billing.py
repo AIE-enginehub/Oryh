@@ -38,13 +38,14 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.core.line_math import derive_line_amount
 from app.api.common import (
+    save_rows,
     ListFilters,
     list_filters,
     dry_run_readback,
@@ -53,12 +54,12 @@ from app.api.common import (
     requested_pagination,
     _run_document_import,
     account_position,
+    charged_documents,
     allocate_document_number,
     allocate_number,
     apply_status_change,
     CENT,
     commit_or_conflict,
-    delete_document,
     document_approvals,
     DOCUMENT_FAMILIES,
     ensure_document_editable,
@@ -72,13 +73,10 @@ from app.api.common import (
     get_live_or_404,
     get_scoped_or_404,
     get_tenant_id,
-    invoice_billed_amount,
     list_rows,
     load_item_catalog_context,
     may_read_payroll,
     normalize_product_context,
-    order_billed_on_account,
-    order_live_total,
     own_employee_id,
     page_only_pagination,
     recheck_charged_document,
@@ -89,17 +87,13 @@ from app.api.common import (
     require_machine_state,
     resolve_chargeable_account,
     resolve_item_refs,
-    restore_document,
     serve_document_attachment,
-    submit_document,
     visible_payroll_filter,
-    finish_save,
-    live_rows,
-    require_revision,
-    restate_rows,
     rows_revision,
     soft_remove,
 )
+from app.api.family_routes import Verb, register_document_verbs
+from app.api.registry import ORDER_BY, PAGE, SIZE, STATUS, Filter, ListResource, register
 from app.api.deps import Actor, attributed, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -207,7 +201,7 @@ def _require_contract_side(db, tenant_id: str, contract_id, direction: str, side
     side = sides.get(direction)
     if side is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"a {direction} {noun} executes no contract — leave contract_id off",
         )
     require_contract_for(db, tenant_id, contract_id, side)
@@ -338,6 +332,55 @@ def handles_money(actor: Actor) -> bool:
         or has_permission(actor, "payment.apply")
         or has_permission(actor, "payment.advance")
     )
+
+
+def ensure_unsettled_fields(document, updates: dict, fields: tuple[str, ...]) -> None:
+    """Money that has been applied fixes what it was applied against. While a
+    document carries a net application, its amounts, its currency and the
+    party it names are what the settlement measured, and a PATCH cannot
+    restate them — reverse the applications first, or record the difference
+    as its own document. Deep-test F1/F2 (2026-09-24): a settled draft
+    invoice went from 100 to 1 and read as settled beyond what it billed; a
+    settled payment changed customer and its own reversal was then refused
+    as "a different party"."""
+    applied = float(getattr(document, "applied_amount", 0) or 0)
+    if abs(applied) < CENT:
+        return
+    changing = [
+        field
+        for field in fields
+        if field in updates and updates[field] != getattr(document, field)
+    ]
+    if not changing:
+        return
+    family = DOCUMENT_FAMILIES[type(document)]
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"{applied:.2f} is applied against this {family.parent_noun} — "
+            f"{', '.join(sorted(changing))} cannot change while it is settled. "
+            "Reverse the applications first, or record the difference as its own document"
+        ),
+    )
+
+
+def require_settleable(db: Session, document) -> None:
+    """A draft is a document nobody has stood behind. Money moves against
+    documents that have been asserted: one still in its machine's editable
+    states cannot take part in settlement, on either side — submit it first.
+    (Deep-test F1, 2026-09-24; the workspace's decision is that drafts are
+    never settled, whichever states the tenant calls editable.)"""
+    family = DOCUMENT_FAMILIES[type(document)]
+    machine = get_builtin_machine(db, document.tenant_id, family.object_type)
+    editable = editable_states(machine, family.object_type)
+    if document.status in editable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"this {family.parent_noun} is {document.status!r}, still editable — "
+                "a document takes part in settlement only after it is submitted"
+            ),
+        )
 
 
 def ensure_money_fields_editable(db: Session, document, updates: dict, fields: tuple[str, ...]) -> None:
@@ -500,12 +543,12 @@ def resolve_invoice_counterparty(
     for other in sorted(fields - {wanted}):
         if given.get(other) is not None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"a {direction!r} invoice carries {wanted}, not {other}",
             )
     if given.get(wanted) is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"a {direction!r} invoice needs {wanted}",
         )
     party = get_scoped_or_404(db, COUNTERPARTY_MODEL_BY_DIRECTION[direction], tenant_id, given[wanted])
@@ -524,7 +567,7 @@ def ensure_invoice_order_link(db: Session, tenant_id: str, direction: str, updat
         if field == wanted or updates.get(field) is None:
             continue
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"a payslip bills no order, so it carries neither sales_order_id "
                 f"nor purchase_order_id"
@@ -540,7 +583,7 @@ def ensure_invoice_order_link(db: Session, tenant_id: str, direction: str, updat
             # the three-way match reads this link as "the order billed" — a
             # return's money moves the other way, as a refund payment
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"{updates[wanted]} is a return — an invoice bills an ORDER; "
                     "a return's money moves back as a refund payment. Link the "
@@ -559,17 +602,17 @@ def ensure_payroll_shape(db: Session, tenant_id: str, payload) -> None:
     sales invoice."""
     if payload.period_start is None or payload.period_end is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a payslip covers a pay period: send period_start and period_end",
         )
     if payload.period_end < payload.period_start:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="period_end cannot precede period_start",
         )
     if payload.total_amount is not None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a payslip's net pay is the sum of its lines — do not declare a "
                 "total_amount, state the earnings and deductions instead"
@@ -577,7 +620,7 @@ def ensure_payroll_shape(db: Session, tenant_id: str, payload) -> None:
         )
     if not payload.items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a payslip is its lines: send the earnings and deductions as items",
         )
 
@@ -591,7 +634,7 @@ def ensure_line_sign(db: Session, tenant_id: str, family: str, item_type: str, a
     sign = type_option_sign(db, tenant_id, family, item_type)
     if sign is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"{item_type!r} does not say whether it adds to pay or deducts from it — "
                 "set `sign` (+1 or -1) on the type option before using it on a payslip"
@@ -600,7 +643,7 @@ def ensure_line_sign(db: Session, tenant_id: str, family: str, item_type: str, a
     if amount == 0 or (amount > 0) != (sign > 0):
         expected = "positive" if sign > 0 else "negative"
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"{item_type!r} is {'an earning' if sign > 0 else 'a deduction'}, so its "
                 f"amount must be {expected} — got {amount}"
@@ -669,7 +712,7 @@ def ensure_payslip_line_explains_itself(direction: str, notes, pay_history_id) -
         return
     if notes is None or not str(notes).strip():
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a payslip line must show its working: either cite the pay record it "
                 "comes from (`pay_history_id`) or state the calculation in `notes` "
@@ -830,7 +873,7 @@ def create_invoice(
         owner_field = CHARGE_OWNER_BY_DIRECTION.get(payload.direction)
         if owner_field is None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="a payroll invoice cannot be charged to a billing account",
             )
         charged_account = resolve_chargeable_account(
@@ -844,7 +887,7 @@ def create_invoice(
     # this call precisely so that stating both at once is the easy path.
     if payload.total_amount is None and not payload.items:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "an invoice needs something to bill: send `items`, or a "
                 "`total_amount` when the amount is agreed as one figure (汇总开票)"
@@ -962,6 +1005,10 @@ def update_invoice(
     ensure_money_fields_editable(
         db, invoice, updates, ("total_amount", "tax_amount", "currency", "billing_account_id")
     )
+    ensure_unsettled_fields(
+        invoice, updates,
+        ("total_amount", "tax_amount", "currency", "billing_account_id", "customer_id", "vendor_id", "payee_employee_id"),
+    )
     if "billing_account_id" in updates and updates["billing_account_id"] != invoice.billing_account_id:
         if float(invoice.applied_amount or 0) != 0:
             raise HTTPException(
@@ -975,7 +1022,7 @@ def update_invoice(
             owner_field = CHARGE_OWNER_BY_DIRECTION.get(invoice.direction)
             if owner_field is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="a payroll invoice cannot be charged to a billing account",
                 )
             resolve_chargeable_account(
@@ -1027,37 +1074,20 @@ def update_invoice(
     return envelope(InvoiceRead.model_validate(invoice).model_dump(by_alias=True))
 
 
-@router.delete("/invoices/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_invoice(
-    invoice_id: str,
-    payload: DeleteInvoiceRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
+def _before_delete_invoice(db: Session, actor: Actor, invoice_id: str) -> None:
     """An invoice payments have settled cannot be hidden — same rule the
     payment side keeps, for the same reason."""
     invoice = get_scoped_or_404(db, Invoice, actor.tenant_id, invoice_id)
     if invoice.deleted_at is None:
         ensure_nothing_applied(db, invoice, label="invoice")
-    return delete_document(db, actor, Invoice, invoice_id, payload)
 
 
-@router.post("/invoices/{invoice_id}/restore", response_model=InvoiceEnvelope, response_model_exclude_unset=True)
-def restore_invoice(
-    invoice_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Invoice, invoice_id)
-
-
-@router.post("/invoices/{invoice_id}/submit", response_model=InvoiceEnvelope, response_model_exclude_unset=True)
-def submit_invoice(
-    invoice_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, Invoice, invoice_id)
+register_document_verbs(
+    router, Invoice, path="/invoices", id_param="invoice_id",
+    delete=Verb(body=DeleteInvoiceRequest, doc=_before_delete_invoice.__doc__, before=_before_delete_invoice),
+    restore=Verb(response_model=InvoiceEnvelope),
+    submit=Verb(response_model=InvoiceEnvelope),
+)
 
 
 def invoice_line_amount(item: InvoiceItem) -> float | None:
@@ -1301,7 +1331,7 @@ def ensure_invoice_item_order_link(
         for field in ("sales_order_item_id", "purchase_order_item_id"):
             if updates.get(field) is not None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=f"a payslip line bills no order, so it may not pin {field}",
                 )
         return
@@ -1309,7 +1339,7 @@ def ensure_invoice_item_order_link(
     other, *_ = ORDER_ITEM_LINK_BY_DIRECTION["purchase" if invoice.direction == "sales" else "sales"]
     if updates.get(other) is not None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"a line of a {invoice.direction!r} invoice may pin {wanted}, not {other}",
         )
     link_id = updates.get(wanted)
@@ -1319,7 +1349,7 @@ def ensure_invoice_item_order_link(
     billed_order_id = getattr(invoice, ORDER_LINK_BY_DIRECTION[invoice.direction])
     if billed_order_id is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"pin the invoice to its order first: set "
                 f"{ORDER_LINK_BY_DIRECTION[invoice.direction]} on the invoice"
@@ -1327,7 +1357,7 @@ def ensure_invoice_item_order_link(
         )
     if getattr(line, parent_field) != billed_order_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="that order line belongs to a different order than this invoice bills",
         )
 
@@ -1392,7 +1422,7 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
         named = getattr(payload, "invoice_id", None)
         if named and named != invoice.id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     "inline lines belong to the invoice being created; "
                     "do not name another invoice_id"
@@ -1410,7 +1440,7 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
         record = get_scoped_or_404(db, PayHistory, tenant_id, payload.pay_history_id)
         if record.employee_id != invoice.payee_employee_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="that salary record belongs to a different employee than this payslip pays",
             )
     product_id, sku_id, product_name_snapshot, unit = normalize_product_context(
@@ -1418,7 +1448,7 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
     )
     if product_id is None and not product_name_snapshot:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="an invoice line needs a product_id (or sku_id) or a free-text product_name_snapshot",
         )
     item = InvoiceItem(
@@ -1541,23 +1571,15 @@ def save_invoice_lines(
     once over the result."""
     invoice = _invoice_for_line(db, actor, invoice_id)
     ensure_invoice_visible(actor, invoice)
-    db.refresh(invoice, with_for_update=True)
-    require_revision(rows_revision(db, invoice, InvoiceRead, INVOICE_ROWS), payload.expected_revision)
-    restate_rows(
-        db, actor, Invoice, invoice.id, payload.items,
-        {row.id: row for row in live_rows(db, invoice, InvoiceItem, "invoice_id")},
+    return save_rows(
+        db, actor, document=invoice, parent_model=Invoice, header_read=InvoiceRead, spec=INVOICE_ROWS["items"],
+        payload=payload,
         build=lambda row: build_invoice_item(db, actor, row, invoice=invoice),
         update=lambda item, changed: apply_invoice_item_updates(db, actor.tenant_id, invoice, item, changed),
         remove=soft_remove, new_model=InvoiceItemBase, update_model=UpdateInvoiceItemRequest,
+        validate_only=validate_only,
+        after=lambda: recheck_charged_document(db, invoice, label="invoice"),
     )
-    recheck_charged_document(db, invoice, label="invoice")
-
-    def read_back() -> dict:
-        rows = sorted(live_rows(db, invoice, InvoiceItem, "invoice_id"), key=lambda r: (r.line_no or 0, r.created_at))
-        return {"id": invoice.id, "revision": rows_revision(db, invoice, InvoiceRead, INVOICE_ROWS),
-                "items": [InvoiceItemRead.model_validate(r).model_dump(by_alias=True) for r in rows]}
-
-    return finish_save(db, validate_only, read_back)
 
 
 @router.patch("/invoice-items/{item_id}", response_model=InvoiceItemEnvelope, response_model_exclude_unset=True)
@@ -1611,7 +1633,7 @@ def resolve_account_owner(db: Session, tenant_id: str, values: dict) -> tuple[di
     named = [field for field in ACCOUNT_OWNER_FIELDS if values.get(field)]
     if len(named) != 1:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "an account names exactly one owner: customer_id, vendor_id or employee_id"
             ),
@@ -1630,7 +1652,7 @@ def validate_account_unit(db: Session, tenant_id: str, unit_type: str, unit: str
     if unit_type == "currency":
         if len(unit) != 3 or not unit.isalpha():
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"a currency account's unit is a 3-letter currency code, not {unit!r}",
             )
         return
@@ -1638,10 +1660,7 @@ def validate_account_unit(db: Session, tenant_id: str, unit_type: str, unit: str
 
 
 def get_active_account_or_404(db: Session, tenant_id: str, account_id: str) -> BillingAccount:
-    account = get_scoped_or_404(db, BillingAccount, tenant_id, account_id)
-    if account.deleted_at is not None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="BillingAccount not found")
-    return account
+    return get_active_document_or_404(db, BillingAccount, tenant_id, account_id)
 
 
 def post_account_entries(
@@ -1680,13 +1699,13 @@ def post_account_entries(
     for line in lines:
         if abs(line.amount) < CENT:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="amount must not be zero — an entry records the balance moving",
             )
         require_type_option(db, tenant_id, "billing_account_entry_reason", line.reason)
         if getattr(line, "expires_at", None) is not None and account.unit_type != "points":
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at only means something on a points account",
             )
         delta += Decimal(str(line.amount)).quantize(CENT_D)
@@ -1743,25 +1762,6 @@ def post_account_entries(
         },
     )
     return written
-
-
-def account_entries_replay(
-    db: Session, tenant_id: str, account_id: str, idempotency_key: str
-) -> list[BillingAccountEntry]:
-    return list(
-        db.scalars(
-            select(BillingAccountEntry)
-            .where(
-                BillingAccountEntry.tenant_id == tenant_id,
-                BillingAccountEntry.billing_account_id == account_id,
-                BillingAccountEntry.idempotency_key == idempotency_key,
-            )
-            .order_by(
-                BillingAccountEntry.idempotency_seq.asc().nulls_first(),
-                BillingAccountEntry.id.asc(),
-            )
-        ).all()
-    )
 
 
 def ensure_replay_matches(recorded: list[tuple], requested: list[tuple], *, key: str, label: str) -> None:
@@ -2001,7 +2001,7 @@ def update_billing_account(
 @router.delete("/billing-accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_billing_account(
     account_id: str,
-    payload: DeleteBillingAccountRequest | None = None,
+    payload: DeleteBillingAccountRequest = Body(default=None),
     actor: Annotated[Actor, Depends(get_actor)] = None,
     db: Annotated[Session, Depends(get_db)] = None,
 ):
@@ -2074,53 +2074,24 @@ def get_billing_account_detail(
         if account.unit_type == "points"
         else []
     )
-    balance, exposure, available = account_position(db, account)
+    charged = charged_documents(db, account)
+    balance, exposure, available = account_position(db, account, charged)
     credit_limit = float(account.credit_limit or 0)
 
-    def charged_order_reads(model, spec_label):
-        rows = []
-        for order in db.scalars(
-            select(model).where(
-                model.tenant_id == tenant_id,
-                model.billing_account_id == account.id,
-                model.deleted_at.is_(None),
+    def charged_reads(kinds: tuple[str, ...]) -> list[ChargedDocumentRead]:
+        # fully billed or settled documents occupy nothing any more: the
+        # invoice side, or the payment, carries them now
+        return [
+            ChargedDocumentRead(
+                id=doc.document.id, kind=doc.kind, number=doc.number, title=doc.document.title,
+                total=round(doc.total, 2), consumed=round(doc.consumed, 2), occupied=round(doc.occupied, 2),
             )
-        ):
-            total = order_live_total(db, order)
-            billed = order_billed_on_account(db, order, account.id)
-            occupied = round(max(total - billed, 0.0), 2)
-            if occupied <= 0:
-                continue        # fully billed: the invoice side carries it now
-            rows.append(ChargedDocumentRead(
-                id=order.id, kind=spec_label,
-                number=getattr(order, "order_number", None) or getattr(order, "po_number", None),
-                title=order.title, total=round(total, 2),
-                consumed=round(billed, 2), occupied=occupied,
-            ))
-        return rows
+            for doc in charged
+            if doc.kind in kinds and round(doc.occupied, 2) > 0
+        ]
 
-    charged_orders = (
-        charged_order_reads(SalesOrder, "sales_order")
-        + charged_order_reads(PurchaseOrder, "purchase_order")
-    )
-    charged_invoices = []
-    for invoice in db.scalars(
-        select(Invoice).where(
-            Invoice.tenant_id == tenant_id,
-            Invoice.billing_account_id == account.id,
-            Invoice.deleted_at.is_(None),
-        )
-    ):
-        billed = invoice_billed_amount(db, invoice)
-        applied = float(invoice.applied_amount or 0)
-        occupied = round(max(billed - applied, 0.0), 2)
-        if occupied <= 0:
-            continue            # settled: it occupies nothing any more
-        charged_invoices.append(ChargedDocumentRead(
-            id=invoice.id, kind="invoice", number=invoice.invoice_no,
-            title=invoice.title, total=round(billed, 2),
-            consumed=round(applied, 2), occupied=occupied,
-        ))
+    charged_orders = charged_reads(("sales_order", "purchase_order"))
+    charged_invoices = charged_reads(("invoice",))
 
     detail = BillingAccountDetailRead(
         account=BillingAccountRead.model_validate(account),
@@ -2170,7 +2141,7 @@ def expire_billing_account_entries(
     for index, line in enumerate(payload.lines):
         if line.entry_id in seen:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"lines[{index}]: batch {line.entry_id} appears twice — one line per batch, the amount summed",
             )
         seen.add(line.entry_id)
@@ -2181,13 +2152,13 @@ def expire_billing_account_entries(
         ))
         if batch is None or float(batch.amount) <= 0 or batch.expires_at is None:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"lines[{index}]: {line.entry_id} is not an earn batch with an expiry on this account",
             )
         expires_at = batch.expires_at if batch.expires_at.tzinfo else batch.expires_at.replace(tzinfo=timezone.utc)
         if expires_at > now:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"lines[{index}]: batch {batch.id} expires {expires_at.date().isoformat()} — it has not lapsed yet",
             )
         already = db.scalar(select(BillingAccountEntry.id).where(
@@ -2203,7 +2174,7 @@ def expire_billing_account_entries(
             )
         if line.amount > float(batch.amount) + 1e-9:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"lines[{index}]: batch {batch.id} holds {float(batch.amount):.2f}, not {line.amount:.2f}",
             )
         lines.append(SimpleNamespace(
@@ -2256,41 +2227,6 @@ def get_expiring_billing_account_entries(
         expiring_amount=round(float(sum(float(row.amount) for row in entries)), 2),
     )
     return envelope(result.model_dump(by_alias=True))
-
-
-@router.get(
-    "/billing-account-entries",
-    response_model=BillingAccountEntryListEnvelope,
-    response_model_exclude_unset=True,
-)
-def list_billing_account_entries(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    billing_account_id: str | None = None,
-    reason: str | None = None,
-    entity_type: str | None = None,
-    entity_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(BillingAccountEntry, ranges=('created_at', 'effective_at', 'expires_at'), equals=()))] = None,
-):
-    """Read-only: the ledger has no update or delete. Corrections are
-    counter-entries posted through POST /billing-accounts/{id}/entries."""
-    return list_rows(
-        db, select(BillingAccountEntry).where(BillingAccountEntry.tenant_id == tenant_id),
-        filters={
-            BillingAccountEntry.billing_account_id: billing_account_id,
-            BillingAccountEntry.reason: reason,
-            BillingAccountEntry.entity_type: entity_type,
-            BillingAccountEntry.entity_id: entity_id,
-        },
-        order_by=(BillingAccountEntry.effective_at.desc(), BillingAccountEntry.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=BillingAccountEntryRead,
-        extra=extra,
-    )
 
 
 @dataclass(frozen=True)
@@ -2604,7 +2540,7 @@ def resolve_payment_counterparty(db: Session, tenant_id: str, values: dict) -> t
     named = [field for field in PAYMENT_COUNTERPARTY_FIELDS if values.get(field)]
     if len(named) != 1:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "a payment names exactly one counterparty: customer_id (收款), "
                 "vendor_id (付供应商) or payee_employee_id (付员工/报销)"
@@ -2783,6 +2719,7 @@ def update_payment(
     # the amount is what an approver approved and what the ledger measures
     # against; restating it after the fact is a different payment
     ensure_money_fields_editable(db, payment, updates, ("amount", "currency"))
+    ensure_unsettled_fields(payment, updates, ("amount", "currency", *PAYMENT_COUNTERPARTY_FIELDS))
     if "payment_method" in updates and updates["payment_method"] is not None:
         require_type_option(db, tenant_id, "payment_method", updates["payment_method"])
     if any(field in updates for field in PAYMENT_COUNTERPARTY_FIELDS):
@@ -2798,18 +2735,6 @@ def update_payment(
         updates.setdefault("counterparty_name_snapshot", party_name)
     if updates.get("attachment_id"):
         get_scoped_or_404(db, Attachment, tenant_id, updates["attachment_id"])
-    if "amount" in updates and updates["amount"] != float(payment.amount):
-        # the ledger is a running sum of this number; letting it drop below what
-        # is already applied would make the payment owe money it never held
-        applied = float(payment.applied_amount or 0)
-        if updates["amount"] < applied - CENT:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"{applied:.2f} is already applied from this payment — reverse the "
-                    "applications before reducing its amount"
-                ),
-            )
     if "status" in updates and updates["status"] != payment.status:
         machine = apply_status_change(db, actor, payment, updates["status"])
         if updates["status"] == state_for_role(machine, "payment", "paid") and payment.paid_at is None:
@@ -2823,13 +2748,7 @@ def update_payment(
     return envelope(PaymentRead.model_validate(payment).model_dump(by_alias=True))
 
 
-@router.delete("/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_payment(
-    payment_id: str,
-    payload: DeletePaymentRequest | None = None,
-    actor: Annotated[Actor, Depends(get_actor)] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
-):
+def _before_delete_payment(db: Session, actor: Actor, payment_id: str) -> None:
     """A payment carrying applications cannot be hidden: the documents it
     settled would keep a running total sourced from a row nobody can see.
     Reverse the applications first."""
@@ -2842,25 +2761,14 @@ def delete_payment(
                 "reverse those applications before deleting it"
             ),
         )
-    return delete_document(db, actor, Payment, payment_id, payload)
 
 
-@router.post("/payments/{payment_id}/restore", response_model=PaymentEnvelope, response_model_exclude_unset=True)
-def restore_payment(
-    payment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Payment, payment_id)
-
-
-@router.post("/payments/{payment_id}/submit", response_model=PaymentEnvelope, response_model_exclude_unset=True)
-def submit_payment(
-    payment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return submit_document(db, actor, Payment, payment_id)
+register_document_verbs(
+    router, Payment, path="/payments", id_param="payment_id",
+    delete=Verb(body=DeletePaymentRequest, doc=_before_delete_payment.__doc__, before=_before_delete_payment),
+    restore=Verb(response_model=PaymentEnvelope),
+    submit=Verb(response_model=PaymentEnvelope),
+)
 
 
 @router.get(
@@ -2949,6 +2857,7 @@ def apply_payment(
     tenant_id = actor.tenant_id
     require_permission(actor, "payment.apply")
     payment = get_active_document_or_404(db, Payment, tenant_id, payment_id)
+    require_settleable(db, payment)
 
     if payload.idempotency_key:
         replay = list(
@@ -2984,12 +2893,12 @@ def apply_payment(
     for line in payload.lines:
         if abs(line.amount_applied) < CENT:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="amount_applied must not be zero — an application records money moving",
             )
         if line.applied_to_type == "payment" and line.applied_to_id == payment.id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="a payment cannot settle itself",
             )
         key = (line.applied_to_type, line.applied_to_id)
@@ -2998,6 +2907,8 @@ def apply_payment(
             row = resolve_settlement_target(db, tenant_id, line.applied_to_type, line.applied_to_id)
             target_rows[key] = row
         spec = SETTLEMENT_TARGETS[line.applied_to_type]
+        if line.applied_to_type != "billing_account":
+            require_settleable(db, row)
         if spec.settlement_precondition is not None:
             refusal = spec.settlement_precondition(db, tenant_id, row)
             if refusal:
@@ -3066,13 +2977,13 @@ def apply_payment(
         if line.invoice_item_id is not None:
             if line.applied_to_type != "invoice":
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="invoice_item_id only applies when settling an invoice",
                 )
             item = get_live_or_404(db, InvoiceItem, tenant_id, line.invoice_item_id)
             if item.invoice_id != row.id:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="that invoice line belongs to a different invoice",
                 )
         target_deltas[key] = target_deltas.get(key, 0.0) + line.amount_applied
@@ -3301,7 +3212,7 @@ def list_payment_applications(
     if applied_to_type is not None:
         if applied_to_type not in SETTLEMENT_TARGETS:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"unknown applied_to_type {applied_to_type!r} — "
                     f"one of {', '.join(sorted(SETTLEMENT_TARGETS))}"
@@ -3313,7 +3224,7 @@ def list_payment_applications(
             stmt = stmt.where(column == applied_to_id)
     elif applied_to_id is not None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="applied_to_id needs applied_to_type to say which kind of document it names",
         )
     return list_rows(
@@ -3592,3 +3503,18 @@ def raise_reimbursement_invoice(
     db.commit()
     db.refresh(invoice)
     return envelope(InvoiceRead.model_validate(invoice).model_dump(by_alias=True))
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/billing-account-entries", name="list_billing_account_entries", model=BillingAccountEntry, read_model=BillingAccountEntryRead, response_model=BillingAccountEntryListEnvelope,
+        params=("billing_account_id", "reason", "entity_type", "entity_id", PAGE, SIZE, ORDER_BY),
+        order_by=(BillingAccountEntry.effective_at.desc(), BillingAccountEntry.id.desc()),
+        ranges=("created_at", "effective_at", "expires_at"),
+        doc="""Read-only: the ledger has no update or delete. Corrections are
+    counter-entries posted through POST /billing-accounts/{id}/entries.""",
+    ),
+)

@@ -54,7 +54,7 @@ oryh:
 <!-- only: bundle -->
 Minimum required values:
 
-- `base_url`
+- `api_base_url`
 - `api_key`
 
 <!-- /only -->
@@ -67,18 +67,6 @@ Minimum required values:
 - `resource_type` is stored on `resources.resource_type`, such as `meeting_room`, `device`, or `vehicle`.
 - `source_text` is stored on `resource_bookings.source_text` to preserve the user's natural-language request.
 - `metadata` fields are extension data, not core relational facts.
-
-## HTTP conventions
-
-<!-- only: bundle -->
-- Send `X-API-Key: <api_key>` on every authenticated request.
-- Use the API base path `/api/v1`.
-<!-- /only -->
-<!-- only: mcp -->
-- Make every call with the `oryh_request` tool; the connection carries the identity.
-<!-- /only -->
-- Expect responses in `{ "data": ..., "meta": ... }`.
-- Do not send `tenant_id`. The server derives tenant scope from the credential.
 
 ## Core rules
 

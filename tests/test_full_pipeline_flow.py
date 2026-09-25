@@ -18,9 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 
 @pytest.fixture()
@@ -30,25 +29,8 @@ def company():
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
         def desk(name: str, permissions: list[str], employee: bool = False) -> dict:
-            emp = None
-            if employee:
-                emp = client.post("/api/v1/employees", json={"name": name},
-                                  headers=admin).json()["data"]["id"]
-            client.post("/api/v1/roles", json={"name": name, "permissions": permissions},
-                        headers=admin)
-            body = {"email": f"{name}@fullchain.example", "role": name}
-            if emp:
-                body["employee_id"] = emp
-            uid = client.post("/api/v1/auth/invitations", json=body,
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            key = client.post("/api/v1/tenant/api-keys",
-                              json={"label": name, "user_id": uid},
-                              headers=admin).json()["data"]["plain_text_api_key"]
-            return {"employee_id": emp, "key": {"X-API-Key": key}}
+            who = invite_member(client, admin, name, permissions, employee=name if employee else None)
+            return {"employee_id": who.employee_id, "key": dict(who)}
 
         yield {"client": client, "admin": admin, "desk": desk}
 
@@ -148,9 +130,9 @@ def test_from_lead_to_cash_every_desk_plays_itself(company) -> None:
         "direction": "sales", "employee_id": sales["employee_id"],
         "customer_id": customer_id, "title": "泵站改造货款", "total_amount": 440.0,
     }).json()["data"]
-    for state in ("submitted", "issued"):
-        client.patch(f"/api/v1/invoices/{invoice['id']}", headers=admin,
-                     json={"status": state})
+    assert client.post(f"/api/v1/invoices/{invoice['id']}/submit", headers=admin).status_code == 200
+    assert client.patch(f"/api/v1/invoices/{invoice['id']}", headers=admin,
+                        json={"status": "issued"}).status_code == 200
     payment = client.post("/api/v1/payments", headers=finance["key"], json={
         "direction": "inbound", "employee_id": sales["employee_id"],
         "customer_id": customer_id, "amount": 440.0, "status": "paid",

@@ -293,9 +293,8 @@ the approval trail restarts with no record that a previous round happened.
 Correct the lines on the original and resubmit; the round number advances and
 the whole exchange stays readable.
 
-After a successful resubmit, close your own rework todo
-(`PATCH /todos/{todo_id}` `{"status": "completed"}`). While it stays open the
-document is invisible to the flow admin's queue, so nobody picks it up.
+A successful resubmit completes your rework todo itself; there is nothing
+to close by hand.
 
 If voiding really is right — the whole batch was computed against the wrong
 month, say — then it is a void, and the rules in "Leave No Orphan Work" above

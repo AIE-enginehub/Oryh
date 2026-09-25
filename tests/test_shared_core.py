@@ -1,4 +1,4 @@
-"""`common.py` may only hold what is actually shared.
+"""`app/api/common` may only hold what is actually shared.
 
 The decomposition of `routes.py` fed this module for seven commits, and a
 shared-core module has one failure mode: it becomes the drawer. A helper lands
@@ -25,8 +25,12 @@ import pathlib
 from collections import defaultdict
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-COMMON = ROOT / "app/api/common.py"
+COMMON = ROOT / "app/api/common"          # a package: one layered module per concern
 SKIP = {".venv", "node_modules", "__pycache__", ".claude", "dist", "build"}
+# Modules that mount routes from declarations on behalf of many modules: a
+# helper only they import (`create_item`, `submit_document`) is the act behind
+# every declared route, shared by every module that declares one.
+FACTORIES = {"app/api/family_routes.py", "app/api/registry.py"}
 
 
 def _top_level(source: str) -> dict[str, ast.AST]:
@@ -53,6 +57,8 @@ def _importers() -> dict[str, set[str]]:
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module == "app.api.common":
+                # the package's own modules import each other through
+                # `app.api.common.<part>`, which is not "an importer"
                 for alias in node.names:
                     found[alias.name].add(str(path.relative_to(ROOT)))
     return found
@@ -68,15 +74,24 @@ def _used_inside(definitions: dict[str, ast.AST]) -> set[str]:
     return used
 
 
+def _core_definitions() -> dict[str, ast.AST]:
+    """Every top-level definition across the package's modules, as one map."""
+    found: dict[str, ast.AST] = {}
+    for part in sorted(COMMON.glob("*.py")):
+        if part.name != "__init__.py":
+            found.update(_top_level(part.read_text(encoding="utf-8")))
+    return found
+
+
 def test_the_shared_core_was_found() -> None:
     """Guard the guard: an analysis that stops seeing the module must fail."""
-    definitions = _top_level(COMMON.read_text(encoding="utf-8"))
+    definitions = _core_definitions()
     assert len(definitions) > 50, f"only {len(definitions)} definitions parsed from common.py"
     assert _importers(), "nothing imports app.api.common any more"
 
 
 def test_nothing_in_common_is_used_by_only_one_module() -> None:
-    definitions = _top_level(COMMON.read_text(encoding="utf-8"))
+    definitions = _core_definitions()
     importers = _importers()
     inside = _used_inside(definitions)
 
@@ -84,7 +99,7 @@ def test_nothing_in_common_is_used_by_only_one_module() -> None:
     for name in definitions:
         everyone = importers.get(name, set())
         api = {user for user in everyone if user.startswith("app/api/")}
-        if len(api) == 1 and name not in inside and not (everyone - api):
+        if len(api) == 1 and name not in inside and not (everyone - api) and not (api & FACTORIES):
             lonely.append(f"{name} — only {next(iter(api))} imports it")
 
     assert not lonely, (

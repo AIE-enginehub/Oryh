@@ -19,6 +19,8 @@ Validation semantics ("tenants own their tuning", capabilities-style):
 
 from __future__ import annotations
 
+from app.core.config import settings
+
 TYPE_NAME_PATTERN = r"^[a-z][a-z0-9_]{0,49}$"
 
 # family → (name, title, description); the shipped vocabulary each tenant
@@ -664,7 +666,6 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
 
 def system_type_options() -> dict[str, tuple[tuple[str, str, str], ...]]:
     """The shipped vocabulary in the deployment's content locale."""
-    from app.core.config import settings  # noqa: PLC0415 - config imports nothing from here
 
     return SYSTEM_TYPE_OPTIONS_EN if settings.resolved_locale == "en" else SYSTEM_TYPE_OPTIONS
 

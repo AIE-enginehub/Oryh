@@ -223,7 +223,7 @@ def _pending(instance: object, verb: str, detail: dict, actor: str | None) -> di
 def catalogue_write(function):
     """Marks a function that writes the SHIPPED catalogue, not a tenant's work.
 
-    The catalogue is 111 type options, the capabilities, the system roles, the
+    The catalogue is the type options, the capabilities, the system roles, the
     product skills — none of it anyone's decision about their business. Trailed,
     a new workspace opens with several hundred entries and the tenant's first
     real change is buried under them.
@@ -256,7 +256,7 @@ def suppressed(session: Session):
     """Don't trail these writes.
 
     For provisioning a workspace, which inserts the shipped catalogue —
-    111 type options, the capabilities, the system roles, the product skills.
+    the type options, the capabilities, the system roles, the product skills.
     None of it is anyone's decision about their business, and recording it
     buries the first real change under a hundred rows nobody asked for.
     """

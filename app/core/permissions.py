@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.core.config import settings
+from app.core.entity_types import HOSTED_ADVANCE_VERBS, MEMBER_SUBMIT_VERBS
+
+import hashlib
+
 # Permission grammar: "verb" or "verb:scope". A bare grant of a scopable verb
 # or an explicit "verb:*" covers every scope; "verb:<object_type>" covers one.
 #
@@ -51,7 +56,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ),
     # Payroll must not be readable by every credential in the workspace, so it
     # got a READ capability — the first one. Personal documents followed
-    # (`*.read_all`, below); shared business data stays tenant-scoped.
+    # (`*.read_all`, below), then shared paper (`*.read`, further below).
     (
         "payroll.read",
         False,
@@ -101,7 +106,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "business_object.summarize",
         True,
         "汇总业务对象",
-        "按对象类型作用域，门禁汇总类 skill 的分发（如经理汇总日报）——business-objects 读取本身不受此闸控制",
+        "按对象类型作用域，门禁汇总类 skill 的分发（如经理汇总日报）；持有它也读得到该类型的对象",
     ),
     ("approval.record", False, "记录审批事实", "写入审批记录（approved/rejected/returned/commented）"),
     (
@@ -122,6 +127,35 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ("quotation.read_all", False, "查看全部报价", "查看所有销售的报价单；没有此权限只看得到自己的，以及转到自己手上审批的"),
     ("order.read_all", False, "查看全部销售订单", "查看所有销售的订单与退单；没有此权限只看得到自己的，以及转到自己手上的"),
     ("crm.read_all", False, "查看全部线索与商机", "查看所有人的线索、商机与跟进记录；没有此权限只看得到自己的"),
+    # Reading the documents nobody files "as themselves" — invoices, payments,
+    # purchase orders, freight, stock, the workspace's own object types,
+    # account balances. Until 2026-09-25 belonging to the workspace read all of
+    # them, which is right for an employee and wrong for the outside party a
+    # workspace lets in: a vendor with warranty-card rights read every other
+    # vendor's invoice. Each family now has a read grant, held by `member` by
+    # default and implied by the desks that write the family (a scoped grant,
+    # `invoice.manage:sales`, implies the read of its scope only). A credential
+    # without it reads what names it, what it wrote and what was routed to it
+    # — the personal-family rule, applied to shared paper. (app/api/visibility.py)
+    (
+        "invoice.read",
+        True,
+        "查看发票",
+        "查看发票；可按方向作用域（invoice.read:sales 仅销项，:purchase 仅进项）；工资条另受 payroll.read 约束；"
+        "没有此权限只看得到自己经办或收款的，以及转到自己手上的",
+    ),
+    ("payment.read", False, "查看收付款", "查看收款与付款单及核销记录；没有此权限只看得到自己经办或收款的，以及转到自己手上的"),
+    ("purchase_order.read", False, "查看采购订单", "查看采购订单及其行；没有此权限只看得到自己经办的，以及转到自己手上的"),
+    ("shipment.read", False, "查看运单", "查看运单及其行；没有此权限只看得到转到自己手上的"),
+    ("inventory.read", False, "查看库存", "查看库位、库存流水与拣货单；没有此权限只看得到转到自己手上的拣货单"),
+    (
+        "business_object.read",
+        True,
+        "查看业务对象",
+        "按对象类型作用域（business_object.read:warranty_card 仅保修卡）；写、推进、汇总某类型的权限都隐含读它；"
+        "没有此权限只看得到自己创建的，以及转到自己手上的",
+    ),
+    ("billing_account.read", False, "查看往来账户", "查看往来账户、积分账户及其流水；没有此权限只看得到自己名下的"),
     ("todos.assign", False, "为他人创建待办", "创建指派给任何员工的待办"),
     (
         "notification.send",
@@ -261,7 +295,7 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "billing_account.post": ("Post account entries", "Write account movements (deposit, charge, grant points, redeem, expire); scopable by unit (billing_account.post:currency for money only, :points for points only); granting points is a fraud-prone act, kept apart from opening accounts"),
     "business_object.write": ("Create / edit business objects", "Scopable by object type; includes links and soft delete / restore"),
     "business_object.advance": ("Advance business object status", "Status transitions scoped by object type: the flow-driving grant"),
-    "business_object.summarize": ("Summarise business objects", "Scoped by object type; gates the distribution of summary skills (a manager summarising daily reports); reading business objects is not gated by it"),
+    "business_object.summarize": ("Summarise business objects", "Scoped by object type; gates the distribution of summary skills (a manager summarising daily reports); holding it also reads that type"),
     "approval.record": ("Record approval facts", "Write approval records (approved / rejected / returned / commented)"),
     "flow_run.record": ("Record flow-agent runs", "Write the flow agent's own run ledger (start, end, outcome): the agent's trail of its own work; advances no document"),
     "timesheet.read_all": ("Read all timesheets", "Read everyone's timesheets; without it a person reads their own and those routed to them"),
@@ -271,6 +305,13 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "quotation.read_all": ("Read all quotations", "Read every salesperson's quotations; without it a person reads their own and those routed to them"),
     "order.read_all": ("Read all sales orders", "Read every salesperson's orders and returns; without it a person reads their own and those routed to them"),
     "crm.read_all": ("Read all leads and deals", "Read everyone's leads, opportunities and contact records; without it a person reads their own"),
+    "invoice.read": ("Read invoices", "Read invoices; scopable by direction (invoice.read:sales for sales only, :purchase for purchase only); payslips stay behind payroll.read; without it a person reads what they handled or were paid by, and what was routed to them"),
+    "payment.read": ("Read payments", "Read receipts, payments and settlements; without it a person reads what they handled or were paid by, and what was routed to them"),
+    "purchase_order.read": ("Read purchase orders", "Read purchase orders and their lines; without it a person reads what they handled and what was routed to them"),
+    "shipment.read": ("Read shipments", "Read shipments and their lines; without it a person reads what was routed to them"),
+    "inventory.read": ("Read stock", "Read stock positions, the stock ledger and picklists; without it a person reads the picklists routed to them"),
+    "business_object.read": ("Read business objects", "Scopable by object type (business_object.read:warranty_card); writing, advancing or summarising a type implies reading it; without it a person reads what they created and what was routed to them"),
+    "billing_account.read": ("Read accounts", "Read account and points balances and their entries; without it a person reads the accounts in their own name"),
     "todos.assign": ("Create todos for others", "Create todos assigned to any employee"),
     "notification.send": ("Send work notifications", "Email the employee concerned about assignments, returns and decisions; the address is resolved from the employee record, never chosen by the caller; no arbitrary content to arbitrary addresses"),
     "todos.complete_own": ("Complete own todos", "Complete todos assigned to oneself"),
@@ -296,7 +337,6 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
 
 def system_capabilities() -> tuple[tuple[str, bool, str, str], ...]:
     """The capability catalogue in the deployment's content locale."""
-    from app.core.config import settings  # noqa: PLC0415
 
     if settings.resolved_locale != "en":
         return SYSTEM_CAPABILITIES
@@ -306,6 +346,102 @@ def system_capabilities() -> tuple[tuple[str, bool, str, str], ...]:
     )
 
 SYSTEM_CAPABILITY_NAMES = frozenset(name for name, *_ in SYSTEM_CAPABILITIES)
+
+
+# What each capability governs, as the API collections (paths under /api/v1,
+# without the prefix) its reads and writes land in. A console that builds its menu from
+# a credential's permissions reads this instead of maintaining a table of its
+# own; a scopable verb (`business_object.write:warranty_card`) names its object
+# type after the colon and is not listed here. Grants with no collection of
+# their own (`tenant.act_for_any_employee`, `keys.manage`) map to nothing.
+CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
+    "timesheet.submit_own": ("timesheet-headers", "timesheet-entries"),
+    "timesheet.advance": ("timesheet-headers", "timesheet-entries"),
+    "timesheet.read_all": ("timesheet-headers", "timesheet-entries"),
+    "leave.submit_own": ("employee-leaves",),
+    "leave.advance": ("employee-leaves",),
+    "leave.read_all": ("employee-leaves",),
+    "expense.submit_own": ("expense-claims", "expense-items"),
+    "expense.advance": ("expense-claims", "expense-items"),
+    "expense.read_all": ("expense-claims", "expense-items"),
+    "purchase.submit_own": ("purchase-requests", "purchase-request-items"),
+    "purchase.advance": ("purchase-requests", "purchase-request-items"),
+    "purchase.read_all": ("purchase-requests", "purchase-request-items"),
+    "quotation.submit_own": ("sales-quotations", "sales-quotation-items", "sales-quotation-adjustments"),
+    "quotation.advance": ("sales-quotations", "sales-quotation-items", "sales-quotation-adjustments"),
+    "quotation.read_all": ("sales-quotations", "sales-quotation-items", "sales-quotation-adjustments"),
+    "order.submit_own": ("sales-orders", "sales-order-items", "sales-order-adjustments"),
+    "order.advance": ("sales-orders", "sales-order-items", "sales-order-adjustments"),
+    "order.read_all": ("sales-orders", "sales-order-items", "sales-order-adjustments"),
+    "invoice.manage": ("invoices", "invoice-items"),
+    "invoice.advance": ("invoices", "invoice-items"),
+    "payment.record": ("payments", "payment-applications"),
+    "payment.advance": ("payments", "payment-applications"),
+    "payment.apply": ("payments", "payment-applications"),
+    "payroll.read": ("pay-histories",),
+    "payroll.manage": ("pay-histories",),
+    "policy.manage": ("policies",),
+    "policy.publish": ("policies",),
+    "billing_account.manage": ("billing-accounts", "billing-account-entries"),
+    "billing_account.post": ("billing-account-entries",),
+    "business_object.write": (),
+    "business_object.advance": (),
+    "business_object.summarize": (),
+    "approval.record": ("approval-records", "approval-targets"),
+    "flow_run.record": ("flow-runs", "flow-subscriptions"),
+    "crm.read_all": ("leads", "opportunities", "opportunity-items", "opportunity-contacts", "activities", "communication-events"),
+    "crm.own": ("leads", "opportunities", "opportunity-items", "opportunity-contacts", "activities", "communication-events"),
+    "invoice.read": ("invoices", "invoice-items"),
+    "payment.read": ("payments", "payment-applications"),
+    "purchase_order.read": ("purchase-orders", "purchase-order-items", "purchase-order-adjustments"),
+    "shipment.read": ("shipments", "shipment-items"),
+    "inventory.read": ("inventory-items", "inventory-item-details", "picklists", "picklist-items"),
+    "business_object.read": (),
+    "billing_account.read": ("billing-accounts", "billing-account-entries"),
+    "campaign.manage": ("campaigns", "campaign-members", "events", "event-participants"),
+    "todos.assign": ("todos",),
+    "todos.complete_own": ("todos",),
+    "notification.send": (),
+    "booking.own": ("resources", "resource-bookings"),
+    "master_data.manage": (
+        "customers", "customer-contacts", "customer-products", "vendors", "supplier-products",
+        "products", "product-skus", "product-categories", "product-prices", "product-images",
+        "bills-of-materials", "bom-items", "facilities", "projects", "sales-channels", "stores",
+        "store-facilities", "external-product-maps", "geos", "territories", "type-options",
+    ),
+    "inventory.manage": ("inventory-items", "inventory-item-details", "picklists", "picklist-items"),
+    "shipment.manage": ("shipments", "shipment-items", "fulfilment-backlog"),
+    "fin_account.manage": ("fin-accounts", "fin-account-transactions"),
+    "contract.manage": ("contracts", "contract-items", "contract-terms", "contract-documents"),
+    "employees.manage": ("employees",),
+    "users.manage": ("auth/users", "roles", "capabilities"),
+    "keys.manage": ("tenant/api-keys",),
+    "object_types.manage": ("object-type-definitions", "type-options"),
+    "workflows.publish": ("workflow-definitions",),
+    "skills.manage": ("skills",),
+    "skills.calibrate": ("skills",),
+    "purchase_order.manage": ("purchase-orders", "purchase-order-items", "purchase-order-adjustments"),
+    "tenant.act_for_any_employee": (),
+}
+
+
+def capability_collections(name: str) -> tuple[str, ...]:
+    """The collections a capability reaches, its own and those of every verb
+    it implies (`inventory.manage` holds the shipment desk too)."""
+    own = list(CAPABILITY_COLLECTIONS.get(name, ()))
+    for verb, holders in IMPLIED_BY.items():
+        if name in holders:
+            own.extend(c for c in CAPABILITY_COLLECTIONS.get(verb, ()) if c not in own)
+    return tuple(own)
+
+
+def permissions_fingerprint(permissions) -> str:
+    """A short digest of an effective permission set. `GET /auth/me` carries
+    it so a client that cached what a credential could see knows, on its next
+    call, whether that set moved: a revoked read narrows lists silently (an
+    unreadable record does not exist for you), and a version counter would be
+    one more thing to bump on every path that changes a grant."""
+    return hashlib.sha256("\n".join(sorted(permissions)).encode("utf-8")).hexdigest()[:16]
 SCOPABLE_VERBS = frozenset(name for name, scopable, *_ in SYSTEM_CAPABILITIES if scopable)
 
 ALL_PERMISSIONS: tuple[str, ...] = tuple(
@@ -333,8 +469,19 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "todos.complete_own",
         "booking.own",
         "crm.own",
+        # the shared families an employee reads by being one; a workspace that
+        # lets an outside party in gives that role only the reads it needs
+        "invoice.read:*",
+        "payment.read",
+        "purchase_order.read",
+        "shipment.read",
+        "inventory.read",
+        "business_object.read:*",
+        "billing_account.read",
     ),
 }
+# a member files every hosted family's documents — one table, checked here
+assert set(MEMBER_SUBMIT_VERBS) <= set(DEFAULT_ROLE_PERMISSIONS["member"])
 
 
 # Principal kinds for tenant-level (service) API keys.
@@ -349,7 +496,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
 # company" is a list they can read, not a promise they have to take.
 PRINCIPAL_TENANT_SERVICE = "tenant_service"
 PRINCIPAL_HOSTED_FLOW_AGENT = "hosted_flow_agent"
-PRINCIPAL_KINDS: tuple[str, ...] = (PRINCIPAL_TENANT_SERVICE, PRINCIPAL_HOSTED_FLOW_AGENT)
 
 # Rendered wherever the hosted agent's writes are attributed. It comes from
 # this constant, never from the key's label, so a tenant cannot mint a key that
@@ -393,6 +539,8 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
     "notification.send",
     "flow_run.record",
 )
+# the agent's advance verbs are the hosted families' — one table, checked here
+assert {v for v in HOSTED_FLOW_AGENT_PERMISSIONS if v.endswith(".advance")} == set(HOSTED_ADVANCE_VERBS.values())
 
 
 # A verb the holder of another verb also has. Not an alias: the wider grant
@@ -432,6 +580,24 @@ def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
     if any(grant.startswith(prefix) for grant in permissions):
         return True
     return any(permissions_cover_any_scope(permissions, wider) for wider in IMPLIED_BY.get(verb, ()))
+
+
+def capability_covers(permissions: frozenset[str], required: str) -> bool:
+    """A skill's required_capability is either a system verb — bare, or
+    scoped like `business_object.write:daily_report`, in which case the
+    scope must match exactly, via `verb:*`, or via the bare verb — or a
+    custom capability (exact grant, scope-less by grammar)."""
+    verb, _, scope = required.partition(":")
+    if verb in SYSTEM_CAPABILITY_NAMES:
+        if scope:
+            return permissions_cover(permissions, verb, scope)
+        # a skill gated on the BARE verb teaches the operations the API
+        # allows under any scope of it: the purchase-contract desk holding
+        # `contract.manage:purchase` must receive oryh-contracts, and the
+        # API — not the bundle — is what keeps them to their scope
+        # (review R12). Nobody is handed `:*` to make a download work.
+        return permissions_cover_any_scope(permissions, verb)
+    return required in permissions
 
 
 def validate_permission_grammar(grant: str, known_custom: frozenset[str]) -> str | None:

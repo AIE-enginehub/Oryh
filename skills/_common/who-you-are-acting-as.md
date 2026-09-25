@@ -66,6 +66,7 @@ Two separate facts, and `GET /auth/me` states them separately:
 |---|---|
 | `tenant.id`, `tenant.slug`, `tenant.name` | WHICH COMPANY these skills serve |
 | `environment_id` | WHICH DEPLOYMENT serves it — a test box, a private install |
+| `permissions_fingerprint` | WHAT YOU MAY DO, as one short digest — it changes when a grant does, so a cached answer from before it moved is stale |
 
 A deployment name is not a company. A city, "test", "staging" name machines;
 they never appear as a party to a document, and a record is not another

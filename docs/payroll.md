@@ -175,9 +175,10 @@ over-application guard all work unchanged.
 
 ## Confidentiality: the first gated read
 
-Every other read in this API is tenant-scoped only. That is right for business
-documents and unacceptable for pay, so payroll is the first thing here that
-belonging to the workspace does not entitle you to see.
+Shared business data is tenant-scoped; a personal document is read by its
+person, by whoever it was routed to, and by the family's `read_all` holders
+(docs/capabilities-skills-api.md). Pay is stricter still: payroll was the
+first thing here that belonging to the workspace does not entitle you to see.
 
 `payroll.read` gates six paths, and the gate is only worth what its least
 covered path is:

@@ -18,24 +18,19 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from sqlalchemy import String, cast, select
 from sqlalchemy.orm import Session
 
 from app.api.common import (
-    ListFilters,
-    list_filters,
-    ORDER_BY_DOC,
-    PAGE_SIZE_DOC,
+    commit_or_code_conflict,
     archive_row,
     envelope,
     get_scoped_or_404,
     get_tenant_id,
-    list_rows,
-    page_only_pagination,
-    requested_pagination,
     require_master_data_manage,
 )
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -157,36 +152,6 @@ def build_resource_availability(
 # --- resources: the bookable thing itself -----------------------------------
 
 
-@router.get("/resources", response_model=ResourceListEnvelope, response_model_exclude_unset=True)
-def list_resources(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    keyword: str | None = None,
-    resource_type: str | None = None,
-    booking_mode: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Resource, ranges=('created_at',), equals=()))] = None,
-):
-    return list_rows(
-        db, select(Resource).where(Resource.tenant_id == tenant_id),
-        filters={
-            Resource.resource_type: resource_type,
-            Resource.booking_mode: booking_mode,
-            Resource.status: status_filter,
-        },
-        keyword=keyword,
-        keyword_columns=(Resource.name,),
-        order_by=(Resource.created_at.desc(), Resource.id.desc()),
-        pagination=page_only_pagination(page, size, default=50),
-        sort=order_by,
-        read_model=ResourceRead,
-        extra=extra,
-    )
-
-
 @router.post(
     "/resources",
     response_model=ResourceEnvelope,
@@ -212,18 +177,8 @@ def create_resource(
         metadata_jsonb=payload.metadata,
     )
     db.add(resource)
-    db.commit()
+    commit_or_code_conflict(db, resource)
     db.refresh(resource)
-    return envelope(ResourceRead.model_validate(resource).model_dump(by_alias=True))
-
-
-@router.get("/resources/{resource_id}", response_model=ResourceEnvelope, response_model_exclude_unset=True)
-def get_resource(
-    resource_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    resource = get_scoped_or_404(db, Resource, tenant_id, resource_id)
     return envelope(ResourceRead.model_validate(resource).model_dump(by_alias=True))
 
 
@@ -241,7 +196,7 @@ def update_resource(
         resource.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
         setattr(resource, field, value)
-    db.commit()
+    commit_or_code_conflict(db, resource)
     db.refresh(resource)
     return envelope(ResourceRead.model_validate(resource).model_dump(by_alias=True))
 
@@ -271,53 +226,6 @@ def get_resource_availability(
 
 
 # --- bookings: one interval on one resource ---------------------------------
-
-
-@router.get(
-    "/resource-bookings",
-    response_model=ResourceBookingListEnvelope,
-    response_model_exclude_unset=True,
-)
-def list_resource_bookings(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    resource_id: str | None = None,
-    booked_by_employee_id: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(ResourceBooking, ranges=('cancelled_at', 'created_at', 'end_at', 'start_at'), equals=()))] = None,
-):
-    return list_rows(
-        db, select(ResourceBooking).where(ResourceBooking.tenant_id == tenant_id),
-        filters={
-            ResourceBooking.resource_id: resource_id,
-            ResourceBooking.booked_by_employee_id: booked_by_employee_id,
-            ResourceBooking.status: status_filter,
-        },
-        keyword=keyword,
-        keyword_columns=(
-            cast(ResourceBooking.id, String),
-            cast(ResourceBooking.resource_id, String),
-            cast(ResourceBooking.booked_by_employee_id, String),
-            ResourceBooking.title,
-            ResourceBooking.booking_type,
-            ResourceBooking.status,
-            ResourceBooking.source_text,
-            ResourceBooking.notes,
-        ),
-        order_by=(
-            ResourceBooking.start_at.asc(),
-            ResourceBooking.created_at.asc(),
-            ResourceBooking.id.asc(),
-        ),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=ResourceBookingRead,
-        extra=extra,
-    )
 
 
 @router.post("/resource-bookings", status_code=status.HTTP_201_CREATED)
@@ -376,16 +284,6 @@ def create_resource_booking(
     return envelope(ResourceBookingRead.model_validate(booking).model_dump(by_alias=True))
 
 
-@router.get("/resource-bookings/{booking_id}")
-def get_resource_booking(
-    booking_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    booking = get_scoped_or_404(db, ResourceBooking, tenant_id, booking_id)
-    return envelope(ResourceBookingRead.model_validate(booking).model_dump(by_alias=True))
-
-
 @router.patch("/resource-bookings/{booking_id}")
 def update_resource_booking(
     booking_id: str,
@@ -428,7 +326,7 @@ def delete_resource_booking(
     booking_id: str,
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
-    payload: DeleteResourceBookingRequest | None = None,
+    payload: DeleteResourceBookingRequest = Body(default=None),
 ):
     booking = get_scoped_or_404(db, ResourceBooking, actor.tenant_id, booking_id)
     require_permission(actor, "booking.own")
@@ -455,3 +353,31 @@ def delete_resource_booking(
     )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+# `status` is the raw value here, as it always was: bookings and resources
+# have no "active" default scope
+register(
+    router,
+    ListResource(
+        path="/resources", name="list_resources", model=Resource, read_model=ResourceRead, response_model=ResourceListEnvelope,
+        params=(KEYWORD, "resource_type", "booking_mode", Filter("status"), PAGE, SIZE, ORDER_BY),
+        order_by=(Resource.created_at.desc(), Resource.id.desc()),
+        keyword_columns=(Resource.name,),
+    ),
+    GetResource(path="/resources/{resource_id}", name="get_resource", model=Resource, read_model=ResourceRead, response_model=ResourceEnvelope, id_param="resource_id"),
+    ListResource(
+        path="/resource-bookings", name="list_resource_bookings", model=ResourceBooking, read_model=ResourceBookingRead, response_model=ResourceBookingListEnvelope,
+        params=("resource_id", "booked_by_employee_id", Filter("status"), KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(ResourceBooking.start_at.asc(), ResourceBooking.created_at.asc(), ResourceBooking.id.asc()),
+        keyword_columns=(
+            cast(ResourceBooking.id, String), cast(ResourceBooking.resource_id, String),
+            cast(ResourceBooking.booked_by_employee_id, String), ResourceBooking.title, ResourceBooking.booking_type,
+            ResourceBooking.status, ResourceBooking.source_text, ResourceBooking.notes,
+        ),
+        ranges=("cancelled_at", "created_at", "end_at", "start_at"),
+    ),
+    GetResource(path="/resource-bookings/{booking_id}", name="get_resource_booking", model=ResourceBooking, read_model=ResourceBookingRead, response_model=None, id_param="booking_id"),
+)

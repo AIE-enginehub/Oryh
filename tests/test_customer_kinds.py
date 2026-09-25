@@ -16,18 +16,15 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from conftest import provision_tenant as bootstrap_tenant
+from conftest import admin_headers, create
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Retail Co", email="admin@retail-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Retail Co", email="admin@retail-co.example", password="admin-pass1")
 
 
 def create_customer(client: TestClient, headers, **fields) -> dict:
-    response = client.post("/api/v1/customers", json=fields, headers=headers)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, headers, "customers", **fields)
 
 
 def test_retail_and_b2b_customers_coexist_on_one_endpoint(client: TestClient) -> None:

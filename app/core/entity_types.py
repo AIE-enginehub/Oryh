@@ -19,8 +19,9 @@ fails the build rather than a month-end.
 
 from __future__ import annotations
 
-# Every builtin document family. Kept in step with `state_machines
-# .BUILTIN_MACHINES` and `routes.DOCUMENT_FAMILIES` by test, not by memory.
+# Every builtin document family — the one list. `state_machines.BUILTIN_MACHINES`,
+# `common.documents.DOCUMENT_FAMILIES`, `document_import.FAMILIES` and
+# `visibility.FAMILIES` assert against it when they are imported.
 DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
     "campaign",
     "contract",
@@ -75,38 +76,31 @@ TODO_ENTITY_TYPES: tuple[str, ...] = APPROVAL_ENTITY_TYPES + ("project",)
 # mapping lives in `routes.DOCUMENT_FAMILIES`, which this leaf must not import.
 # So it is declared, and `tests/test_new_document_family.py` pins it against
 # every registry it must agree with.
-HOSTED_DRIVABLE_ENTITY_TYPES: tuple[str, ...] = (
-    "employee_leave",
-    "expense_claim",
-    "invoice",
-    "payment",
-    "purchase_request",
-    "sales_order",
-    "sales_quotation",
-    "timesheet_header",
-)
-
-# entity_type -> the REST collection that answers "what here is unattended".
-#
-# This lived in `flow_runner/queues.py` — a second process, unable to import
-# this one, holding its own copy. That copy is exactly what went stale when
-# invoices and payments arrived: an unlisted type fell through to
-# `/business-objects?object_type=invoice`, which returns nothing, which returns
-# as an empty queue. A subscription that could never work was indistinguishable
-# from one with nothing to do.
-#
-# The server now hands the path to the runner with each subscription, so there
-# is one copy and it sits beside the list it must agree with.
-BUILTIN_QUEUE_PATHS: dict[str, str] = {
-    "employee_leave": "/employee-leaves",
-    "expense_claim": "/expense-claims",
-    "invoice": "/invoices",
-    "payment": "/payments",
-    "purchase_request": "/purchase-requests",
-    "sales_order": "/sales-orders",
-    "sales_quotation": "/sales-quotations",
-    "timesheet_header": "/timesheet-headers",
+# The eight families a hosted flow agent may drive: the queue its driver
+# skill reads, the advance verb that skill gates on, the submit verb a
+# member files with (none for invoices and payments, which a desk raises).
+# Every list below is read off this table; a family added here is added to
+# all of them at once.
+HOSTED_FAMILIES: dict[str, tuple[str, str, str | None]] = {
+    "employee_leave": ("/employee-leaves", "leave.advance", "leave.submit_own"),
+    "expense_claim": ("/expense-claims", "expense.advance", "expense.submit_own"),
+    "invoice": ("/invoices", "invoice.advance", None),
+    "payment": ("/payments", "payment.advance", None),
+    "purchase_request": ("/purchase-requests", "purchase.advance", "purchase.submit_own"),
+    "sales_order": ("/sales-orders", "order.advance", "order.submit_own"),
+    "sales_quotation": ("/sales-quotations", "quotation.advance", "quotation.submit_own"),
+    "timesheet_header": ("/timesheet-headers", "timesheet.advance", "timesheet.submit_own"),
 }
+
+HOSTED_DRIVABLE_ENTITY_TYPES: tuple[str, ...] = tuple(HOSTED_FAMILIES)
+
+BUILTIN_QUEUE_PATHS: dict[str, str] = {name: path for name, (path, _advance, _submit) in HOSTED_FAMILIES.items()}
+
+# entity_type -> the advance verb its driver skill gates on
+HOSTED_ADVANCE_VERBS: dict[str, str] = {name: advance for name, (_path, advance, _submit) in HOSTED_FAMILIES.items()}
+
+# the verbs a member files their own documents with
+MEMBER_SUBMIT_VERBS: tuple[str, ...] = tuple(submit for _path, _advance, submit in HOSTED_FAMILIES.values() if submit)
 
 
 # The approval actions that DECIDE. `commented` is deliberately outside: an

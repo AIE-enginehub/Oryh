@@ -56,7 +56,7 @@ def shop(client: TestClient):
 
     def payout(amount=800.0):
         return post("/payments", {
-            "direction": "outbound", "employee_id": employee, "payee_employee_id": employee,
+            "status": "paid", "direction": "outbound", "employee_id": employee, "payee_employee_id": employee,
             "amount": amount, "payment_date": "2026-07-25"})
 
     def apply_to(payment_id, target_type, target_id, amount):

@@ -35,7 +35,12 @@ def shop(client: TestClient):
         assert r.status_code in expect, f"{path} -> {r.status_code} {r.text[:300]}"
         return r.json()["data"]
 
-    return {"client": client, "headers": headers, "post": post,
+    def filed(path, body):
+        """Posted and submitted — a draft is never settled."""
+        row = post(path, body)
+        return post(f"{path}/{row['id']}/submit", {})
+
+    return {"client": client, "headers": headers, "post": post, "filed": filed,
             "employee": post("/employees", {"name": "李工"})["id"],
             "other_employee": post("/employees", {"name": "王工"})["id"],
             "vendor": post("/vendors", {"name": "Hotel Ltd"})["id"],
@@ -65,10 +70,10 @@ def test_paying_an_employee_does_not_settle_a_vendors_bill(shop) -> None:
     reimbursed — but the merchant was already paid, by the employee, out of the
     employee's own pocket. The company never owed them anything.
     """
-    bill = shop["post"]("/invoices", {
+    bill = shop["filed"]("/invoices", {
         "direction": "purchase", "employee_id": shop["employee"], "vendor_id": shop["vendor"],
         "title": "Hotel, 18 July", "total_amount": 820.0})
-    payout = shop["post"]("/payments", {
+    payout = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["employee"], "amount": 820.0, "payment_date": "2026-07-25"})
 
@@ -79,10 +84,10 @@ def test_paying_an_employee_does_not_settle_a_vendors_bill(shop) -> None:
 
 def test_the_right_vendor_still_settles_its_own_bill(shop) -> None:
     """The guard must not be a wall — this is the ordinary payables path."""
-    bill = shop["post"]("/invoices", {
+    bill = shop["filed"]("/invoices", {
         "direction": "purchase", "employee_id": shop["employee"], "vendor_id": shop["vendor"],
         "title": "Hotel, 18 July", "total_amount": 820.0})
-    payout = shop["post"]("/payments", {
+    payout = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"], "vendor_id": shop["vendor"],
         "amount": 820.0, "payment_date": "2026-07-25"})
 
@@ -94,10 +99,10 @@ def test_the_right_vendor_still_settles_its_own_bill(shop) -> None:
 def test_one_customers_payment_does_not_settle_anothers_invoice(shop) -> None:
     """The receivable side of the same error."""
     other = shop["post"]("/customers", {"name": "Beta Corp"})["id"]
-    bill = shop["post"]("/invoices", {
+    bill = shop["filed"]("/invoices", {
         "direction": "sales", "employee_id": shop["employee"], "customer_id": shop["customer"],
         "title": "June services", "total_amount": 5000.0})
-    receipt = shop["post"]("/payments", {
+    receipt = shop["post"]("/payments", {"status": "paid",
         "direction": "inbound", "employee_id": shop["employee"], "customer_id": other,
         "amount": 5000.0, "payment_date": "2026-07-25"})
 
@@ -122,13 +127,13 @@ def test_a_payout_to_one_employee_does_not_settle_anothers_reimbursement(shop) -
     invoice = client.post(f"/api/v1/expense-claims/{claim['id']}/invoice",
                           headers=headers).json()["data"]
 
-    wrong = shop["post"]("/payments", {
+    wrong = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["other_employee"], "amount": 300.0,
         "payment_date": "2026-07-25"})
     assert apply_to(shop, wrong["id"], "invoice", invoice["id"], 300.0).status_code == 409
 
-    right = shop["post"]("/payments", {
+    right = shop["post"]("/payments", {"status": "paid",
         "direction": "outbound", "employee_id": shop["employee"],
         "payee_employee_id": shop["employee"], "amount": 300.0, "payment_date": "2026-07-25"})
     assert apply_to(shop, right["id"], "invoice", invoice["id"], 300.0).status_code in (200, 201)

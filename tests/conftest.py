@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.session import Base, bind_tenant_context, get_db
+from app.models import ApiKey, Tenant, hash_api_key
 from app.main import app
 from app.services.emails import outbox
 
@@ -170,36 +171,123 @@ def provision_tenant(
         }
 
 
+def extract_token(body: str) -> str:
+    """The `token=` value from an invitation or reset mail in the outbox."""
+    return next(line.rsplit("token=", 1)[1].strip() for line in body.splitlines() if "token=" in line)
+
+
+class Credential(dict):
+    """An auth header that also remembers who it is: passes to `headers=` as
+    the dict it is, and `.user_id` / `.employee_id` answer the questions a
+    test used to make a second call for."""
+
+    user_id: str | None = None
+    employee_id: str | None = None
+    session_token: str | None = None
+    email: str | None = None
+    password: str | None = None
+
+
+def seeded_tenants(*tenants: tuple[str, str, str]) -> Generator[TestClient, None, None]:
+    """A client on tenants seeded straight into the table — (id, name, api key)
+    each, one primary service key per tenant, no roles or catalogue (the
+    old two-line files' shape; `provision_tenant` is the provisioned one).
+    Seventeen files wrote this fixture out in full."""
+    seed: list = []
+    for tenant_id, name, api_key in tenants:
+        seed.append(Tenant(id=tenant_id, name=name))
+        seed.append(ApiKey(tenant_id=tenant_id, key_hash=hash_api_key(api_key), label="primary"))
+    with make_client(seed) as test_client:
+        yield test_client
+
+
+def admin_headers(client: TestClient, **tenant) -> dict:
+    """Provision a tenant and answer with its service key header — the two
+    lines nine files wrote as their own `provision()`."""
+    return {"X-API-Key": provision_tenant(client, **tenant)["plain_text_api_key"]}
+
+
+def create(client: TestClient, headers: dict, collection: str, /, **fields) -> dict:
+    """POST one record and hand back its data; a 201 or the response text.
+    Positional-only so a field may be called `client` or `headers`."""
+    response = client.post(f"/api/v1/{collection}", json=fields, headers=headers)
+    assert response.status_code == 201, f"{collection}: {response.status_code} {response.text}"
+    return response.json()["data"]
+
+
 def invite_member(
     client: TestClient,
     admin: dict,
     name: str,
-    permissions: list[str],
+    permissions: list[str] | None = None,
     *,
     employee_id: str | None = None,
+    employee: str | None = None,
+    role: str | None = None,
+    email: str | None = None,
     domain: str = "example.test",
-) -> dict:
+    key: bool = True,
+    password: str = "invitee-pass1",
+    display_name: str | None = None,
+) -> Credential:
     """A credential holding exactly these capabilities, the way a real
     member gets one: a role, an invitation (optionally bound to an
-    employee), acceptance, a user-bound key. Returns the auth header.
+    employee), acceptance, a user-bound key. Returns the auth header, which
+    also carries `user_id` and `employee_id`.
+
+    `role=` invites into a role that already exists (`member`); `employee=`
+    creates the employee first, by that name; `key=False` stops before a
+    key is minted (the invitation tests want the person, not a key).
 
     Forty test files used to carry this dance inline, twelve lines each,
     and every one of them differed in something that did not matter."""
-    client.post("/api/v1/roles", json={"name": name, "permissions": permissions},
-                headers=admin)
-    body = {"email": f"{name}@{domain}", "role": name}
+    if role is None:
+        client.post("/api/v1/roles", json={"name": name, "permissions": permissions or []},
+                    headers=admin)
+        role = name
+    if employee is not None:
+        employee_id = create(client, admin, "employees", name=employee)["id"]
+    body = {"email": email or f"{name}@{domain}", "role": role}
     if employee_id:
         body["employee_id"] = employee_id
+    if display_name:
+        body["name"] = display_name
     invited = client.post("/api/v1/auth/invitations", json=body, headers=admin)
     assert invited.status_code == 201, invited.text
     user_id = invited.json()["data"]["id"]
-    token = next(line.rsplit("token=", 1)[1].strip()
-                 for line in outbox.messages[-1].body.splitlines() if "token=" in line)
-    client.post("/api/v1/auth/invitations/accept",
-                json={"token": token, "password": "invitee-pass1"})
-    key = client.post("/api/v1/tenant/api-keys", json={"label": name, "user_id": user_id},
-                      headers=admin).json()["data"]["plain_text_api_key"]
-    return {"X-API-Key": key}
+    accepted = client.post("/api/v1/auth/invitations/accept",
+                           json={"token": extract_token(outbox.messages[-1].body), "password": password})
+    assert accepted.status_code == 200, accepted.text
+    credential = Credential()
+    credential.session_token = accepted.json()["data"].get("session_token")
+    credential.email = body["email"]
+    credential.password = password
+    if key:
+        credential["X-API-Key"] = client.post(
+            "/api/v1/tenant/api-keys", json={"label": name, "user_id": user_id}, headers=admin,
+        ).json()["data"]["plain_text_api_key"]
+    credential.user_id = user_id
+    credential.employee_id = employee_id
+    return credential
+
+
+def rpc(client: TestClient, headers: dict, method: str, params: dict | None = None, request_id: int = 1):
+    """One JSON-RPC call to /mcp."""
+    body = {"jsonrpc": "2.0", "id": request_id, "method": method}
+    if params is not None:
+        body["params"] = params
+    return client.post("/mcp", json=body, headers=headers)
+
+
+def pkce_pair() -> tuple[str, str]:
+    """A PKCE verifier and its S256 challenge."""
+    import base64
+    import hashlib
+    import secrets
+
+    verifier = secrets.token_urlsafe(48)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    return verifier, challenge
 
 
 @pytest.fixture()

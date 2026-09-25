@@ -12,29 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.permissions import ALL_PERMISSIONS, SYSTEM_CAPABILITY_NAMES, permissions_cover, permissions_cover_any_scope
+from app.core.permissions import ALL_PERMISSIONS, capability_covers
 from app.core.request_context import resolved_api_base_url, resolved_base_url
-from app.models import Role, Tenant, TenantSkill, TenantSkillAssignment, User
+from app.models import Tenant, TenantSkill, TenantSkillAssignment, User
 from app.services.delivery import for_delivery
+from app.services.roles import role_permissions  # noqa: F401 — re-exported for the API modules
 from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
-
-# Placeholders rendered into skill files at download time. The registry only
-# ever stores templates; a rendered bundle exists solely in the HTTP response.
-PLACEHOLDERS = (
-    "ORYH_BASE_URL",
-    # The API root, rendered rather than derived. Most skills stated only
-    # `base_url` and never mentioned `/api/v1` at all, so an agent's first call
-    # went to the site root and came back 404 — recovered by a human telling it
-    # the prefix, which is a human doing the bundle's job. Two facts the server
-    # knows should not be one fact plus a convention the reader must supply.
-    "ORYH_API_BASE_URL",
-    "ORYH_API_KEY",
-    "EMPLOYEE_ID",
-    "USER_NAME",
-    "TENANT_NAME",
-    "TENANT_SLUG",
-    "INSTALL_DIR",
-)
 
 # oryh-connect is the one skill that must work before any tenant is known and
 # must serve EVERY employer the person has — so it is machine-level, not tenant
@@ -51,24 +34,6 @@ def connect_install_name() -> str:
     laptop connected to two servers (prod "oryh", test "calwbiz") keeps two
     distinct connect skills instead of clobbering one with the other."""
     return f"{settings.skill_brand}-connect"
-
-
-def capability_covers(permissions: frozenset[str], required: str) -> bool:
-    """A skill's required_capability is either a system verb — bare, or
-    scoped like `business_object.write:daily_report`, in which case the
-    scope must match exactly, via `verb:*`, or via the bare verb — or a
-    custom capability (exact grant, scope-less by grammar)."""
-    verb, _, scope = required.partition(":")
-    if verb in SYSTEM_CAPABILITY_NAMES:
-        if scope:
-            return permissions_cover(permissions, verb, scope)
-        # a skill gated on the BARE verb teaches the operations the API
-        # allows under any scope of it: the purchase-contract desk holding
-        # `contract.manage:purchase` must receive oryh-contracts, and the
-        # API — not the bundle — is what keeps them to their scope
-        # (review R12). Nobody is handed `:*` to make a download work.
-        return permissions_cover_any_scope(permissions, verb)
-    return required in permissions
 
 
 def service_permissions() -> frozenset[str]:
@@ -103,15 +68,6 @@ def can_run(skill: TenantSkill, permissions: frozenset[str]) -> bool:
     no `required_capability` is ungated — not gated on the empty string, which
     `capability_covers` would (correctly) reject."""
     return skill.required_capability is None or capability_covers(permissions, skill.required_capability)
-
-
-def role_permissions(db: Session, tenant_id: str) -> dict[str, frozenset[str]]:
-    """{role name: its grants} — the lookup every distribution question needs,
-    since a person's capability set is entirely their role's."""
-    return {
-        role.name: frozenset(role.permissions_jsonb or ())
-        for role in db.scalars(select(Role).where(Role.tenant_id == tenant_id)).all()
-    }
 
 
 def eligible_skills(

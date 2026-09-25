@@ -35,7 +35,7 @@ from __future__ import annotations
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -120,7 +120,7 @@ def flow_runner_tenants(_: Bootstrap, db: Db):
 
 
 @router.post("/tenants/{tenant_id}/credential", include_in_schema=False)
-def issue_flow_runner_credential(tenant_id: str, _: Bootstrap, db: Db):
+def issue_flow_runner_credential(tenant_id: str, response: Response, _: Bootstrap, db: Db):
     """Issue this tenant's hosted credential to the runner, and make it the one.
 
     Always mints rather than returning an existing key, because there is
@@ -207,6 +207,9 @@ def issue_flow_runner_credential(tenant_id: str, _: Bootstrap, db: Db):
     )
     db.commit()
     db.refresh(api_key)
+    # a key is shown once: no cache and no idempotent replay keeps it
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Idempotency-Replayable"] = "false"
     return envelope(
         {
             "tenant_id": tenant_id,

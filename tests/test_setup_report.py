@@ -23,10 +23,9 @@ from __future__ import annotations
 import pytest
 
 from app.api.common import DOCUMENT_FAMILIES
-from app.services.emails import outbox
 from app.services.provisioning import PRODUCT_SKILLS_DIR
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 
 @pytest.fixture()
@@ -41,19 +40,8 @@ def office():
             return r.json()["data"]["areas"]
 
         def invite(role: str, permissions: list[str]) -> dict:
-            client.post("/api/v1/roles", json={"name": role, "permissions": permissions},
-                        headers=admin)
-            uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{role}@fresh.example", "role": role},
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            key = client.post("/api/v1/tenant/api-keys",
-                              json={"label": role, "user_id": uid},
-                              headers=admin).json()["data"]["plain_text_api_key"]
-            return {"user_id": uid, "key": {"X-API-Key": key}}
+            who = invite_member(client, admin, role, permissions)
+            return {"user_id": who.user_id, "key": dict(who)}
 
         yield {"client": client, "admin": admin, "report": report, "invite": invite}
 

@@ -26,9 +26,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 FAKE = "00000000-0000-0000-0000-000000000000"
 
@@ -51,20 +50,8 @@ def channel():
             # order follows the order's own-record rule (E-30); an employee
             # binds to one user, so only that key takes it
             seq["n"] += 1
-            role = f"desk{seq['n']}"
-            client.post("/api/v1/roles", json={"name": role, "permissions": list(permissions)},
-                        headers=admin)
-            who = {"employee_id": emp} if "order.submit_own" in permissions else {}
-            uid = client.post("/api/v1/auth/invitations",
-                              json={"email": f"{role}@channel.example", "role": role, **who},
-                              headers=admin).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip()
-                         for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept",
-                        json={"token": token, "password": "invitee-pass1"})
-            plain = client.post("/api/v1/tenant/api-keys", json={"label": role, "user_id": uid},
-                                headers=admin).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": plain}
+            return dict(invite_member(client, admin, f"desk{seq['n']}", list(permissions),
+                                      employee_id=emp if "order.submit_own" in permissions else None))
 
         cust = client.post("/api/v1/customers", json={"name": "Marketplace Buyer"},
                            headers=admin).json()["data"]["id"]
@@ -348,7 +335,9 @@ def test_link_authority_follows_the_document(channel) -> None:
     outsider = client.post("/api/v1/external-document-links", headers=seller, json={
         "source": "tmall", "external_kind": "return", "external_no": "TMR-9",
         "entity_type": "business_object", "entity_id": note})
-    assert outsider.status_code == 403, "business_object links are scoped by the object's type"
+    # the seller may not read a return note (their grants name other types), so
+    # the note does not exist for them: 404, the same answer as any other read
+    assert outsider.status_code == 404, "business_object links are scoped by the object's type"
     clerk = channel["key_holding"]("business_object.write:return_note")
     allowed = client.post("/api/v1/external-document-links", headers=clerk, json={
         "source": "tmall", "external_kind": "return", "external_no": "TMR-9",

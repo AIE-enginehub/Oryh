@@ -69,7 +69,7 @@ def send_notification(
 
     if payload.event not in NOTIFIABLE_EVENTS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"event must be one of {', '.join(NOTIFIABLE_EVENTS)}",
         )
 

@@ -24,20 +24,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import (
-    ListFilters,
-    list_filters,
-    ORDER_BY_DOC,
-    PAGE_SIZE_DOC,
     commit_or_conflict,
     envelope,
     get_scoped_or_404,
     get_tenant_id,
-    list_rows,
-    requested_pagination,
     require_master_data_manage,
-    require_type_option,
-    status_scope,
 )
+from app.services.type_options import require_type_option
+from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, STATUS, GetResource, ListResource, register
 from app.api.deps import Actor, get_actor
 from app.core.config import settings
 from app.core.geo_templates import GEO_TEMPLATES
@@ -145,47 +139,14 @@ def customer_territory(db: Session, tenant_id: str, geo_id: str | None, territor
 # --- geos ---------------------------------------------------------------------
 
 
-@router.get("/geos", response_model=GeoListEnvelope, response_model_exclude_unset=True)
-def list_geos(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    geo_type: str | None = None,
-    parent_geo_id: str | None = None,
-    geo_code: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Geo, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(Geo).where(Geo.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            Geo.geo_type: geo_type,
-            Geo.parent_geo_id: parent_geo_id,
-            Geo.geo_code: geo_code,
-            Geo.status: status_scope(status_filter),
-        },
-        keyword=keyword,
-        keyword_columns=(cast(Geo.id, String), Geo.geo_code, Geo.name, Geo.abbreviation),
-        order_by=(Geo.geo_code.asc(), Geo.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=GeoRead,
-        extra=extra,
-    )
-
-
 def _geo_parent(db: Session, tenant_id: str, parent_geo_id: str | None, current: Geo | None = None) -> None:
     if not parent_geo_id:
         return
     if current is not None and parent_geo_id == current.id:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="a geo cannot be its own parent")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="a geo cannot be its own parent")
     get_scoped_or_404(db, Geo, tenant_id, parent_geo_id)
     if current is not None and any(g.id == current.id for g in geo_path(db, tenant_id, parent_geo_id)):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="that parent is below this geo — the hierarchy would loop")
 
 
@@ -255,16 +216,6 @@ def seed_geo_template(
     return SeedGeoTemplateRead(template=payload.template, created=created, existing=len(rows) - created)
 
 
-@router.get("/geos/{geo_id}", response_model=GeoEnvelope, response_model_exclude_unset=True)
-def get_geo(
-    geo_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    geo = get_scoped_or_404(db, Geo, tenant_id, geo_id)
-    return envelope(GeoRead.model_validate(geo).model_dump(by_alias=True))
-
-
 @router.get("/geos/{geo_id}/path", response_model=GeoListEnvelope, response_model_exclude_unset=True)
 def get_geo_path(
     geo_id: str,
@@ -306,39 +257,6 @@ def update_geo(
 # --- territories -------------------------------------------------------------------
 
 
-@router.get("/territories", response_model=TerritoryListEnvelope, response_model_exclude_unset=True)
-def list_territories(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    parent_territory_id: str | None = None,
-    manager_employee_id: str | None = None,
-    territory_code: str | None = None,
-    status_filter: Annotated[str | None, Query(alias="status")] = None,
-    keyword: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(Territory, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(Territory).where(Territory.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            Territory.parent_territory_id: parent_territory_id,
-            Territory.manager_employee_id: manager_employee_id,
-            Territory.territory_code: territory_code,
-            Territory.status: status_scope(status_filter),
-        },
-        keyword=keyword,
-        keyword_columns=(cast(Territory.id, String), Territory.territory_code, Territory.name, Territory.description),
-        order_by=(Territory.territory_code.asc(), Territory.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=TerritoryRead,
-        extra=extra,
-    )
-
-
 @router.get("/territory-resolution", response_model=TerritoryResolutionEnvelope, response_model_exclude_unset=True)
 def resolve(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
@@ -352,7 +270,7 @@ def resolve(
 def _territory_fields(db: Session, tenant_id: str, fields: dict, current: Territory | None = None) -> None:
     if fields.get("parent_territory_id"):
         if current is not None and fields["parent_territory_id"] == current.id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="a territory cannot be its own parent")
         get_scoped_or_404(db, Territory, tenant_id, fields["parent_territory_id"])
     if fields.get("manager_employee_id"):
@@ -388,16 +306,6 @@ def create_territory(
     return envelope(TerritoryRead.model_validate(territory).model_dump(by_alias=True))
 
 
-@router.get("/territories/{territory_id}", response_model=TerritoryEnvelope, response_model_exclude_unset=True)
-def get_territory(
-    territory_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    territory = get_scoped_or_404(db, Territory, tenant_id, territory_id)
-    return envelope(TerritoryRead.model_validate(territory).model_dump(by_alias=True))
-
-
 @router.patch("/territories/{territory_id}", response_model=TerritoryEnvelope, response_model_exclude_unset=True)
 def update_territory(
     territory_id: str,
@@ -423,29 +331,6 @@ def update_territory(
 
 
 # --- coverage --------------------------------------------------------------------------
-
-
-@router.get("/territory-geos", response_model=TerritoryGeoListEnvelope, response_model_exclude_unset=True)
-def list_territory_geos(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    territory_id: str | None = None,
-    geo_id: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(TerritoryGeo, ranges=('created_at',), equals=()))] = None,
-):
-    stmt = select(TerritoryGeo).where(TerritoryGeo.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={TerritoryGeo.territory_id: territory_id, TerritoryGeo.geo_id: geo_id},
-        order_by=(TerritoryGeo.created_at.asc(), TerritoryGeo.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=TerritoryGeoRead,
-        extra=extra,
-    )
 
 
 @router.post("/territory-geos", response_model=TerritoryGeoEnvelope, response_model_exclude_unset=True,
@@ -474,16 +359,6 @@ def create_territory_geo(
     return envelope(TerritoryGeoRead.model_validate(row).model_dump(by_alias=True))
 
 
-@router.get("/territory-geos/{row_id}", response_model=TerritoryGeoEnvelope, response_model_exclude_unset=True)
-def get_territory_geo(
-    row_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    row = get_scoped_or_404(db, TerritoryGeo, tenant_id, row_id)
-    return envelope(TerritoryGeoRead.model_validate(row).model_dump(by_alias=True))
-
-
 @router.delete("/territory-geos/{row_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_territory_geo(
     row_id: str,
@@ -501,34 +376,6 @@ def delete_territory_geo(
 # --- members ---------------------------------------------------------------------------
 
 
-@router.get("/territory-members", response_model=TerritoryMemberListEnvelope, response_model_exclude_unset=True)
-def list_territory_members(
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-    territory_id: str | None = None,
-    employee_id: str | None = None,
-    role: str | None = None,
-    page: Annotated[int | None, Query(ge=1)] = None,
-    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
-    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(TerritoryMember, ranges=('created_at', 'valid_from', 'valid_until'), equals=()))] = None,
-):
-    stmt = select(TerritoryMember).where(TerritoryMember.tenant_id == tenant_id)
-    return list_rows(
-        db, stmt,
-        filters={
-            TerritoryMember.territory_id: territory_id,
-            TerritoryMember.employee_id: employee_id,
-            TerritoryMember.role: role,
-        },
-        order_by=(TerritoryMember.created_at.asc(), TerritoryMember.id.asc()),
-        pagination=requested_pagination(page, size),
-        sort=order_by,
-        read_model=TerritoryMemberRead,
-        extra=extra,
-    )
-
-
 @router.post("/territory-members", response_model=TerritoryMemberEnvelope, response_model_exclude_unset=True,
              status_code=status.HTTP_201_CREATED)
 def create_territory_member(
@@ -543,7 +390,7 @@ def create_territory_member(
     if payload.role:
         require_type_option(db, tenant_id, "territory_member_role", payload.role)
     if payload.valid_from and payload.valid_until and payload.valid_until < payload.valid_from:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="valid_until is before valid_from")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="valid_until is before valid_from")
     row = TerritoryMember(
         tenant_id=tenant_id, territory_id=territory.id, employee_id=payload.employee_id, role=payload.role,
         valid_from=payload.valid_from, valid_until=payload.valid_until, metadata_jsonb=payload.metadata,
@@ -559,16 +406,6 @@ def create_territory_member(
                  detail={"territory_code": territory.territory_code, "employee_id": payload.employee_id, "role": payload.role})
     db.commit()
     db.refresh(row)
-    return envelope(TerritoryMemberRead.model_validate(row).model_dump(by_alias=True))
-
-
-@router.get("/territory-members/{row_id}", response_model=TerritoryMemberEnvelope, response_model_exclude_unset=True)
-def get_territory_member(
-    row_id: str,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    row = get_scoped_or_404(db, TerritoryMember, tenant_id, row_id)
     return envelope(TerritoryMemberRead.model_validate(row).model_dump(by_alias=True))
 
 
@@ -590,7 +427,7 @@ def update_territory_member(
     for field, value in updates.items():
         setattr(row, field, value)
     if row.valid_from and row.valid_until and row.valid_until < row.valid_from:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="valid_until is before valid_from")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="valid_until is before valid_from")
     record_audit(db, tenant_id=tenant_id, action="territory.member_changed", entity_type="territory",
                  entity_id=row.territory_id, actor=actor.label,
                  detail={"employee_id": row.employee_id, "fields": sorted(updates)})
@@ -611,3 +448,37 @@ def delete_territory_member(
                  entity_id=row.territory_id, actor=actor.label, detail={"employee_id": row.employee_id})
     db.delete(row)
     db.commit()
+
+
+# --- reads declared as data (app/api/registry.py) ---------------------------
+
+register(
+    router,
+    ListResource(
+        path="/geos", name="list_geos", model=Geo, read_model=GeoRead, response_model=GeoListEnvelope,
+        params=("geo_type", "parent_geo_id", "geo_code", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(Geo.geo_code.asc(), Geo.id.asc()),
+        keyword_columns=(cast(Geo.id, String), Geo.geo_code, Geo.name, Geo.abbreviation),
+    ),
+    GetResource(path="/geos/{geo_id}", name="get_geo", model=Geo, read_model=GeoRead, response_model=GeoEnvelope, id_param="geo_id"),
+    ListResource(
+        path="/territories", name="list_territories", model=Territory, read_model=TerritoryRead, response_model=TerritoryListEnvelope,
+        params=("parent_territory_id", "manager_employee_id", "territory_code", STATUS, KEYWORD, PAGE, SIZE, ORDER_BY),
+        order_by=(Territory.territory_code.asc(), Territory.id.asc()),
+        keyword_columns=(cast(Territory.id, String), Territory.territory_code, Territory.name, Territory.description),
+    ),
+    GetResource(path="/territories/{territory_id}", name="get_territory", model=Territory, read_model=TerritoryRead, response_model=TerritoryEnvelope, id_param="territory_id"),
+    ListResource(
+        path="/territory-geos", name="list_territory_geos", model=TerritoryGeo, read_model=TerritoryGeoRead, response_model=TerritoryGeoListEnvelope,
+        params=("territory_id", "geo_id", PAGE, SIZE, ORDER_BY),
+        order_by=(TerritoryGeo.created_at.asc(), TerritoryGeo.id.asc()),
+    ),
+    GetResource(path="/territory-geos/{row_id}", name="get_territory_geo", model=TerritoryGeo, read_model=TerritoryGeoRead, response_model=TerritoryGeoEnvelope, id_param="row_id"),
+    ListResource(
+        path="/territory-members", name="list_territory_members", model=TerritoryMember, read_model=TerritoryMemberRead, response_model=TerritoryMemberListEnvelope,
+        params=("territory_id", "employee_id", "role", PAGE, SIZE, ORDER_BY),
+        order_by=(TerritoryMember.created_at.asc(), TerritoryMember.id.asc()),
+        ranges=("created_at", "valid_from", "valid_until"),
+    ),
+    GetResource(path="/territory-members/{row_id}", name="get_territory_member", model=TerritoryMember, read_model=TerritoryMemberRead, response_model=TerritoryMemberEnvelope, id_param="row_id"),
+)

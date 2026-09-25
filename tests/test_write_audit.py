@@ -190,7 +190,7 @@ UNAUDITED: dict[str, str] = {
 
 def _helpers() -> dict[str, ast.AST]:
     found: dict[str, ast.AST] = {}
-    for path in sorted(API.glob("*.py")):
+    for path in sorted(API.glob("*.py")) + sorted((API / "common").glob("*.py")):
         for node in ast.parse(path.read_text(encoding="utf-8")).body:
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 found.setdefault(node.name, node)
@@ -211,11 +211,55 @@ def _audits(node: ast.AST, helpers: dict[str, ast.AST], seen: set[str] | None = 
     return False
 
 
+# routes declared as data (app/api/family_routes.py): the verb, its method
+# and path suffix, and the shared act it runs — audited if that act is
+_DECLARED_VERBS = {
+    "delete": ("DELETE", "", "delete_document"),
+    "restore": ("POST", "/restore", "restore_document"),
+    "submit": ("POST", "/submit", "submit_document"),
+}
+_LINE_ACTS = {
+    "item": ("item_id", ("create_item", "update_item", "delete_item")),
+    "adjustment": ("adjustment_id", ("create_adjustment", "update_adjustment", "delete_adjustment")),
+}
+
+
+def _declared_endpoints(path, tree: ast.Module, helpers: dict[str, ast.AST]) -> list[tuple[str, bool]]:
+    """The write routes a module mounts through `register_document_verbs`
+    and `register_lines`, classified by the shared act each runs plus the
+    verb's own `before` hook."""
+    found: list[tuple[str, bool]] = []
+    for node in tree.body:
+        call = node.value if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) else None
+        if call is None or not isinstance(call.func, ast.Name):
+            continue
+        kw = {k.arg: k.value for k in call.keywords}
+        if call.func.id == "register_document_verbs":
+            base = f"{kw['path'].value}/{{{kw['id_param'].value}}}"
+            for verb, (method, suffix, act) in _DECLARED_VERBS.items():
+                spec = kw.get(verb)
+                if spec is None:
+                    continue
+                before = next((k.value for k in spec.keywords if k.arg == "before"), None)
+                audited = _audits(helpers[act], helpers) or (before is not None and _audits(before, helpers))
+                found.append((f"{path.name} {method} {base}{suffix}", audited))
+        elif call.func.id == "register_lines":
+            for spec in call.args[1:]:
+                skw = {k.arg: k.value for k in spec.keywords}
+                kind = skw["kind"].value if "kind" in skw else "item"
+                id_param, acts = _LINE_ACTS[kind]
+                for method, suffix, act in (("POST", "", acts[0]), ("PATCH", f"/{{{id_param}}}", acts[1]), ("DELETE", f"/{{{id_param}}}", acts[2])):
+                    found.append((f"{path.name} {method} {skw['path'].value}{suffix}", _audits(helpers[act], helpers)))
+    return found
+
+
 def _write_endpoints() -> list[tuple[str, bool]]:
     helpers = _helpers()
     found: list[tuple[str, bool]] = []
     for path in sorted(API.glob("*.py")):
-        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        found += _declared_endpoints(path, tree, helpers)
+        for node in tree.body:
             if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
             routes = [

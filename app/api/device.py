@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import as_utc, utc_now
 from app.core.config import settings
 from app.core.request_context import resolved_base_url
 from app.core.security import generate_token, hash_token
@@ -22,14 +23,6 @@ router = APIRouter(prefix="/auth/device")
 # user_code alphabet without lookalikes (0/O, 1/I/L, A/4 …): typed by hand
 # from another screen.
 USER_CODE_ALPHABET = "BCDFGHJKMNPQRSTVWXZ23456789"
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def as_utc(value: datetime) -> datetime:
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
 def generate_user_code() -> str:

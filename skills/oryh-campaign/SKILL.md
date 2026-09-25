@@ -62,7 +62,9 @@ oryh:
    `members_by_status`, `leads_total`, `leads_converted`,
    `opportunities_total`, `opportunities_won`, `won_expected_amount`. Say
    out loud that the last is the won deals' ESTIMATES; the money is in
-   their orders (`GET /sales-orders?opportunity_id=`).
+   their orders (`GET /sales-orders?opportunity_id=` — read by the deal's
+   owner or a holder of `order.read_all`; marketing's own grant does not
+   open the order list, so say whose numbers you could not see).
 
 ## What This Skill Never Does
 

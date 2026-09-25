@@ -27,9 +27,10 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES, KIND_SPLIT_MACHINE_TYPES
+from app.core.entity_types import HOSTED_ADVANCE_VERBS, HOSTED_DRIVABLE_ENTITY_TYPES, KIND_SPLIT_MACHINE_TYPES
 from app.core.permissions import HOSTED_FLOW_AGENT_PERMISSIONS, PRINCIPAL_HOSTED_FLOW_AGENT
 from app.models import ApiKey, FlowSubscription, TenantSkill
+from app.services.audit import record_audit
 from app.services.audit_trail import catalogue_write
 from app.services.state_machines import editable_states, get_builtin_machine
 
@@ -123,19 +124,6 @@ def derived_driver_skill(db: Session, tenant_id: str, entity_type: str) -> str |
     return skill.name if skill is not None else None
 
 
-# entity_type -> the advance verb its driver skill gates on. Declared here
-# rather than imported from `routes.DOCUMENT_FAMILIES` because that module
-# imports this layer; `tests/test_new_document_family.py` pins the two together.
-HOSTED_ADVANCE_VERBS: dict[str, str] = {
-    "employee_leave": "leave.advance",
-    "expense_claim": "expense.advance",
-    "invoice": "invoice.advance",
-    "payment": "payment.advance",
-    "purchase_request": "purchase.advance",
-    "sales_order": "order.advance",
-    "sales_quotation": "quotation.advance",
-    "timesheet_header": "timesheet.advance",
-}
 
 
 def active_hosted_key_id(db: Session, tenant_id: str) -> str | None:
@@ -272,7 +260,6 @@ def unpark_on_new_definition(
     notice a stop recorded under the old one — which is how twenty invoices sat
     in `submitted` for a day after their admin had written how to move them.
     """
-    from app.services.audit import record_audit  # noqa: PLC0415 — audit imports models
 
     row = db.scalar(
         select(FlowSubscription).where(

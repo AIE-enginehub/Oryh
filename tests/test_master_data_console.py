@@ -2,18 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    """Invitation emails still carry a token; only the tenant's own creation
-    stopped going through the mailbox."""
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError(f"no token in email body: {body!r}")
+from conftest import invite_member, provision_tenant as bootstrap_tenant
 
 
 def provision_tenant(client: TestClient, slug: str = "master") -> dict:
@@ -37,30 +27,8 @@ def invite_role_user(
     role: str,
     email: str,
 ) -> dict:
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": email, "role": role},
-        headers=service,
-    )
-    assert invited.status_code == 201, invited.text
-    user_id = invited.json()["data"]["id"]
-    token = extract_token(outbox.messages[-1].body)
-    accepted = client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": token, "password": "member-pass1"},
-    )
-    assert accepted.status_code == 200, accepted.text
-    session_token = accepted.json()["data"]["session_token"]
-    key = client.post(
-        "/api/v1/tenant/api-keys",
-        json={"label": f"{role}-test", "user_id": user_id},
-        headers=service,
-    )
-    assert key.status_code == 201, key.text
-    return {
-        "headers": {"X-API-Key": key.json()["data"]["plain_text_api_key"]},
-        "session_token": session_token,
-    }
+    who = invite_member(client, service, role, role=role, email=email, password="member-pass1")
+    return {"headers": dict(who), "session_token": who.session_token}
 
 
 def create_master_rows(client: TestClient, headers: dict[str, str]) -> dict[str, str]:

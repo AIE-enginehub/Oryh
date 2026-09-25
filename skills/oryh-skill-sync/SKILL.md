@@ -52,9 +52,15 @@ If the person has more than one employer installed, sync the one this request is
    (the local file and the server list are independent; read both, then compare)
    → the server's current list for YOUR role, plus the same identity block:
      {"data": [{name, installed_as, title, version, files_hash}],
-      "meta": {total, tenant: {id, slug, name}, environment_id, install_dir,
+      "meta": {total, withheld: [{name, title, reasons}],
+                tenant: {id, slug, name}, environment_id, install_dir,
                 site_base_url,
                 api_base_url}}
+   `meta.withheld` names the skills you could run but were not named to
+   (`not_in_audience` — the flow skills ship targeted, and reach nobody until
+   an admin names roles or people). They are not installed and not an error:
+   say so in one line — *"the timesheet approval flow skill exists but you are
+   not in its audience; ask your admin"* — instead of letting it vanish silently.
 
 3. Compare:
    - `meta.tenant.id` must equal the installed `tenant.id`. If it does not, this

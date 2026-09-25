@@ -104,6 +104,17 @@ class CustomFieldsJsonbMixin:
 
 class Employee(TenantRecord, MetadataJsonbMixin, Base):
     __tablename__ = "employees"
+    # enforced on postgres since the baseline migration; declared here so the
+    # sqlite test schema refuses the same duplicate code (see Project)
+    __table_args__ = (
+        Index(
+            "employees_tenant_employee_code_uk",
+            "tenant_id", "employee_code",
+            unique=True,
+            postgresql_where=text("employee_code IS NOT NULL"),
+            sqlite_where=text("employee_code IS NOT NULL"),
+        ),
+    )
 
     employee_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
@@ -695,6 +706,10 @@ class ProductSku(TenantRecord, MetadataJsonbMixin, Base):
     what the dimensions mean per industry."""
 
     __tablename__ = "product_skus"
+    # the importers resolve SKU codes within a tenant (migration 0096)
+    __table_args__ = (
+        Index("product_skus_tenant_sku_code_idx", "tenant_id", "sku_code"),
+    )
 
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
     sku_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -1678,6 +1693,8 @@ class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
             "sales_order_id IS NULL OR purchase_order_id IS NULL",
             name="shipments_one_order_side_check",
         ),
+        # listed by tenant + status, newest first (migration 0096)
+        Index("shipments_tenant_status_idx", "tenant_id", "status", text("created_at DESC")),
     )
 
     shipment_no: Mapped[str] = mapped_column(String(64))
@@ -2047,6 +2064,8 @@ class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
             "company_name IS NOT NULL OR contact_name IS NOT NULL",
             name="leads_names_somebody_check",
         ),
+        # listed by tenant + status, newest first (migration 0096)
+        Index("leads_tenant_status_idx", "tenant_id", "status", text("created_at DESC")),
     )
 
     lead_no: Mapped[str] = mapped_column(String(64))
@@ -2094,6 +2113,8 @@ class Opportunity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     __tablename__ = "opportunities"
     __table_args__ = (
         UniqueConstraint("tenant_id", "opportunity_no", name="opportunities_opportunity_no_uk"),
+        # listed by tenant + status, newest first (migration 0096)
+        Index("opportunities_tenant_status_idx", "tenant_id", "status", text("created_at DESC")),
     )
 
     opportunity_no: Mapped[str] = mapped_column(String(64))
@@ -2240,6 +2261,15 @@ class FinAccountTrans(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJsonbMix
 
 class Resource(TenantRecord, MetadataJsonbMixin, Base):
     __tablename__ = "resources"
+    __table_args__ = (
+        Index(
+            "resources_tenant_code_uk",
+            "tenant_id", "code",
+            unique=True,
+            postgresql_where=text("code IS NOT NULL"),
+            sqlite_where=text("code IS NOT NULL"),
+        ),
+    )
 
     resource_type: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(200))
@@ -2935,6 +2965,8 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
             "order_kind = 'return' OR original_order_id IS NULL",
             name="purchase_orders_original_only_on_returns_check",
         ),
+        # listed by tenant + status, newest first (migration 0096)
+        Index("purchase_orders_tenant_status_idx", "tenant_id", "status", text("created_at DESC")),
     )
 
     po_number: Mapped[str] = mapped_column(String(64))
@@ -3288,6 +3320,8 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
             postgresql_where=text("direction = 'payroll' AND deleted_at IS NULL"),
             sqlite_where=text("direction = 'payroll' AND deleted_at IS NULL"),
         ),
+        # listed by tenant + direction + status, newest first (migration 0096)
+        Index("invoices_tenant_direction_status_created_idx", "tenant_id", "direction", "status", text("created_at DESC")),
     )
 
     invoice_no: Mapped[str] = mapped_column(String(64))
@@ -3476,6 +3510,8 @@ class Payment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
             "+ (case when payee_employee_id is null then 0 else 1 end) = 1",
             name="payments_single_counterparty_ck",
         ),
+        # listed by tenant + direction + status, newest first (migration 0096)
+        Index("payments_tenant_direction_status_created_idx", "tenant_id", "direction", "status", text("created_at DESC")),
     )
 
     payment_no: Mapped[str] = mapped_column(String(64))

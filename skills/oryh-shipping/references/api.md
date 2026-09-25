@@ -76,7 +76,4 @@ POST /shipments/{id}/save
 {"expected_revision": "<shipment.revision>", "items": [{"id": "<existing line>", "quantity": 3}, {"product_id": "...", "quantity": 2, "inventory_item_id": "..."}]}
 ```
 
-A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
-and changes only in the fields it states; a row without an id is added
-through the create rules; a live line not listed is removed. A stale
-`expected_revision` is a 409 — read again, restate. Only before the shipment is posted to stock. A line's product cannot change in place.
+The diff rules are the conventions' (*Writes rewritten*). Only before the shipment is posted to stock. A line's product cannot change in place.

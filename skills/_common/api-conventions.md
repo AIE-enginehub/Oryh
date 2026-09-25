@@ -93,14 +93,27 @@
 >   says (tax-inclusive practice varies), never derived. Document totals
 >   (`total_amount`) are the agreed figure; null means the line sum is the
 >   total, and every detail reports both.
+> - **Names beside ids.** A todo, timesheet, leave, expense claim or
+>   purchase request carries `employee_name` beside `employee_id`; an order
+>   line carries `order_no` beside `order_id`; an inventory movement carries
+>   `product_id`, `product_name` and `sku_code`. They are read live at answer
+>   time, never stored — use them to say who and what, never to look anything
+>   up (ids do that). Do not spend a call on `/employees/{id}` to learn a name
+>   the record already states.
+> - **Action routes take no body.** `/submit`, `/restore`, `/revise`,
+>   `/send`, `/publish`, `/repeal`, `/convert`, `/quote` and `/release`
+>   accept an empty request — send a body only when you have something to
+>   put in it (a `reason`, a date).
 > - **Dates and money.** Dates are `YYYY-MM-DD`; timestamps are ISO-8601
 >   with a timezone; amounts are decimal numbers with at most two decimals,
 >   never strings with currency signs.
 > - **Status codes tell you what to do next.** `401` — the credential, not
 >   the request: do not retry it (see how this skill authenticates above).
 >   `403` — the detail names the missing capability: stop and say so;
->   no other route grants it. `404` — the id is not this tenant's or the
->   record is gone: say so, do not search for it elsewhere. `409` — the
+>   no other route grants it. `404` — the id is not this tenant's, the
+>   record is gone, or it is one you may not read (see *What you can read*):
+>   say so, do not search for it elsewhere, and never call a colleague's
+>   document missing. `409` — the
 >   state or a uniqueness rule refuses it, and the detail names the existing
 >   record or the state: read it, it usually IS the answer. `422` — a field
 >   is wrong and the detail names it: fix that field, do not reshape the

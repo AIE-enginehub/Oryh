@@ -12,29 +12,16 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import provision_tenant as bootstrap_tenant
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError(f"no token in email body: {body!r}")
+from conftest import admin_headers, create, invite_member
 
 
 def provision(client: TestClient) -> dict[str, str]:
-    verified = bootstrap_tenant(client, company_name="Vocab Co", email="admin@vocab-co.example", password="admin-pass1")
-    return {"X-API-Key": verified["plain_text_api_key"]}
+    return admin_headers(client, company_name="Vocab Co", email="admin@vocab-co.example", password="admin-pass1")
 
 
 def create_product(client: TestClient, headers) -> str:
-    response = client.post(
-        "/api/v1/products", json={"product_code": "P-001", "name": "内窥镜镜头"}, headers=headers
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, headers, "products", product_code="P-001", name="内窥镜镜头")["id"]
 
 
 def options_by_name(client: TestClient, headers, family: str) -> dict[str, dict]:
@@ -255,20 +242,7 @@ def test_bulk_prices_respect_the_vocabulary(client: TestClient) -> None:
 
 def test_vocabulary_writes_need_object_types_manage(client: TestClient) -> None:
     headers = provision(client)
-    employee = client.post("/api/v1/employees", json={"name": "小李"}, headers=headers).json()["data"]["id"]
-    invited = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "li@vocab-co.example", "role": "member", "employee_id": employee},
-        headers=headers,
-    ).json()["data"]["id"]
-    client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": extract_token(outbox.messages[-1].body), "password": "li-pass1"},
-    )
-    member_key = client.post(
-        "/api/v1/tenant/api-keys", json={"label": "member", "user_id": invited}, headers=headers
-    ).json()["data"]["plain_text_api_key"]
-    member = {"X-API-Key": member_key}
+    member = dict(invite_member(client, headers, "li", role="member", email="li@vocab-co.example", employee="小李"))
 
     assert client.get("/api/v1/type-options?family=work_type", headers=member).status_code == 200
     denied = client.post(

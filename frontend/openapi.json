@@ -5680,6 +5680,13 @@
       },
       "CapabilityRead": {
         "properties": {
+          "collections": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Collections",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -17720,6 +17727,17 @@
             "title": "Employee Id",
             "type": "string"
           },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
+          },
           "from_date": {
             "format": "date",
             "title": "From Date",
@@ -20401,6 +20419,17 @@
             "title": "Employee Id",
             "type": "string"
           },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -22369,6 +22398,28 @@
             ],
             "title": "Item Status"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
           "purchase_order_id": {
             "anyOf": [
               {
@@ -22413,6 +22464,17 @@
               }
             ],
             "title": "Sales Order Id"
+          },
+          "sku_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku Code"
           },
           "unit_cost": {
             "anyOf": [
@@ -31084,6 +31146,17 @@
             "title": "Employee Id",
             "type": "string"
           },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -33221,6 +33294,17 @@
             "title": "Order Id",
             "type": "string"
           },
+          "order_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order No"
+          },
           "product": {
             "anyOf": [
               {
@@ -33448,6 +33532,17 @@
           "order_id": {
             "title": "Order Id",
             "type": "string"
+          },
+          "order_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order No"
           },
           "product_id": {
             "anyOf": [
@@ -39678,6 +39773,17 @@
             "title": "Employee Id",
             "type": "string"
           },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -39880,6 +39986,17 @@
           "employee_id": {
             "title": "Employee Id",
             "type": "string"
+          },
+          "employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Name"
           },
           "entity_id": {
             "title": "Entity Id",
@@ -53158,6 +53275,7 @@
         "summary": "List Approval Targets"
       },
       "post": {
+        "description": "The older name for a business object, on the same table. Every\napproval-target write runs the business-object rule — the alias once\ncarried its own copy, which fell behind three guards (posted rows were\ndeletable through it).",
         "operationId": "create_approval_target_api_v1_approval_targets_post",
         "parameters": [
           {
@@ -53396,15 +53514,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteBusinessObjectRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteBusinessObjectRequest"
               }
             }
           }
@@ -53804,8 +53914,7 @@
                 "$ref": "#/components/schemas/RestoreBusinessObjectRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -57060,15 +57169,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteBillingAccountRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteBillingAccountRequest"
               }
             }
           }
@@ -60866,15 +60967,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteBusinessObjectRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteBusinessObjectRequest"
               }
             }
           }
@@ -61404,8 +61497,7 @@
                 "$ref": "#/components/schemas/RestoreBusinessObjectRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -63678,7 +63770,7 @@
     },
     "/api/v1/capabilities": {
       "get": {
-        "description": "Catalog for the console matrix: system + custom rows, plus the\ntenant's object types so scopable verbs can be expanded per type.",
+        "description": "Catalog for the console matrix: system + custom rows, plus the\ntenant's object types so scopable verbs can be expanded per type. Each\nsystem row names the API collections it governs, so a client building a\nmenu from a credential's permissions reads the mapping instead of keeping\none.",
         "operationId": "list_capabilities_api_v1_capabilities_get",
         "parameters": [
           {
@@ -72308,15 +72400,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteEmployeeLeaveRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteEmployeeLeaveRequest"
               }
             }
           }
@@ -76511,15 +76595,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteExpenseClaimRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteExpenseClaimRequest"
               }
             }
           }
@@ -77302,8 +77378,7 @@
                 "$ref": "#/components/schemas/RestoreExpenseClaimRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -77589,8 +77664,7 @@
                 "$ref": "#/components/schemas/SubmitExpenseClaimRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -87921,15 +87995,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteInvoiceRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteInvoiceRequest"
               }
             }
           }
@@ -89819,8 +89885,7 @@
                 "$ref": "#/components/schemas/ConvertLeadRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -90020,7 +90085,7 @@
     },
     "/api/v1/my/skills/manifest": {
       "get": {
-        "description": "What the calling agent's principal is currently entitled to: name,\nversion, and content hash per eligible skill. A local agent compares this\nagainst its installed manifest.json to decide whether to re-sync — also\nsurfaces skills gained/lost through role changes.\n\n`meta` carries the same identity block the installed manifest holds, so an\nagent serving two employers knows which directory this answer is about, and\na company that renamed itself still reaches the copies on people's laptops\n(the per-skill hashes cover templates only, and would not move).",
+        "description": "What the calling agent's principal is currently entitled to: name,\nversion, and content hash per eligible skill. A local agent compares this\nagainst its installed manifest.json to decide whether to re-sync — also\nsurfaces skills gained/lost through role changes.\n\n`meta` carries the same identity block the installed manifest holds, so an\nagent serving two employers knows which directory this answer is about, and\na company that renamed itself still reaches the copies on people's laptops\n(the per-skill hashes cover templates only, and would not move).\n\n`meta.withheld` names the skills the caller could run but was not\nnamed to (`not_in_audience`): the sync says so instead of skipping them\nsilently, and the person knows what to ask their admin for. Skills the\ncaller lacks the capability for are not listed — `/my/skills/reach`\nexplains those.",
         "operationId": "my_skills_manifest_api_v1_my_skills_manifest_get",
         "parameters": [
           {
@@ -90242,7 +90307,7 @@
     },
     "/api/v1/object-directory": {
       "get": {
-        "description": "Discover every object collection available in the tenant console.\n\nCustom types are the union of definitions and actual data, so schema-less\ntypes created before the definition catalog was introduced remain visible.\nCounts include soft-deleted records because the object console can browse\nthem with ``include_deleted=true``.",
+        "description": "Discover every object collection available in the tenant console.\n\nCustom types are the union of definitions and actual data, so schema-less\ntypes created before the definition catalog was introduced remain visible.\nCounts include soft-deleted records because the object console can browse\nthem with ``include_deleted=true``, and count only what the caller may\nread — the rule the lists apply.",
         "operationId": "get_object_directory_api_v1_object_directory_get",
         "parameters": [
           {
@@ -92280,8 +92345,7 @@
                 "$ref": "#/components/schemas/QuoteOpportunityRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -96005,15 +96069,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeletePaymentRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeletePaymentRequest"
               }
             }
           }
@@ -99910,8 +99966,7 @@
                 "$ref": "#/components/schemas/PublishPolicyRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -100051,8 +100106,7 @@
                 "$ref": "#/components/schemas/RepealPolicyRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -109988,15 +110042,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeletePurchaseRequestRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeletePurchaseRequestRequest"
               }
             }
           }
@@ -110648,8 +110694,7 @@
                 "$ref": "#/components/schemas/RestorePurchaseRequestRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -110937,8 +110982,7 @@
                 "$ref": "#/components/schemas/SubmitPurchaseRequestRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -111579,15 +111623,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteResourceBookingRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteResourceBookingRequest"
               }
             }
           }
@@ -116747,15 +116783,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteSalesOrderRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteSalesOrderRequest"
               }
             }
           }
@@ -117408,8 +117436,7 @@
                 "$ref": "#/components/schemas/ReleaseStockRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -117689,8 +117716,7 @@
                 "$ref": "#/components/schemas/RestoreSalesOrderRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -117828,8 +117854,7 @@
                 "$ref": "#/components/schemas/ReviseSalesOrderRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -118117,8 +118142,7 @@
                 "$ref": "#/components/schemas/SubmitSalesOrderRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -120624,15 +120648,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteSalesQuotationRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteSalesQuotationRequest"
               }
             }
           }
@@ -121423,8 +121439,7 @@
                 "$ref": "#/components/schemas/RestoreSalesQuotationRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -121562,8 +121577,7 @@
                 "$ref": "#/components/schemas/ReviseSalesQuotationRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -121852,8 +121866,7 @@
                 "$ref": "#/components/schemas/SendSalesQuotationRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -121990,8 +122003,7 @@
                 "$ref": "#/components/schemas/SubmitSalesQuotationRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -131931,15 +131943,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/DeleteTimesheetHeaderRequest"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Payload"
+                "$ref": "#/components/schemas/DeleteTimesheetHeaderRequest"
               }
             }
           }
@@ -132462,8 +132466,7 @@
                 "$ref": "#/components/schemas/RestoreTimesheetHeaderRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -132749,8 +132752,7 @@
                 "$ref": "#/components/schemas/SubmitTimesheetRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {

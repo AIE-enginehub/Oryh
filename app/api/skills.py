@@ -38,26 +38,22 @@ MAX_TOTAL_FILE_BYTES = 512 * 1024
 MAX_FILE_COUNT = 32
 
 
-def get_tenant_id(actor: Annotated[Actor, Depends(get_actor)]) -> str:
-    return actor.tenant_id
-
-
 def validate_files(files: dict[str, str]) -> None:
     if "SKILL.md" not in files:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="files must include SKILL.md",
         )
     if len(files) > MAX_FILE_COUNT:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"a skill may contain at most {MAX_FILE_COUNT} files",
         )
     total = 0
     for path, content in files.items():
         if path.startswith("/") or ".." in path or "\\" in path or not path.strip():
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"invalid file path: {path!r} (relative paths only, no '..')",
             )
         total += len(content.encode("utf-8"))
@@ -66,12 +62,12 @@ def validate_files(files: dict[str, str]) -> None:
         problem = delivery_blocks_error(content)
         if problem:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"{path}: {problem}",
             )
     if total > MAX_TOTAL_FILE_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"skill files exceed {MAX_TOTAL_FILE_BYTES // 1024} KB total",
         )
 
@@ -87,7 +83,7 @@ def validate_required_capability(db: Session, tenant_id: str, name: str | None) 
     known_custom = custom_capability_names(db, tenant_id)
     error = validate_permission_grammar(name, known_custom)
     if error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"required_capability: {error}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"required_capability: {error}")
 
 
 def get_skill_or_404(db: Session, tenant_id: str, skill_ref: str) -> TenantSkill:

@@ -9,7 +9,6 @@
 {{include:_common/tenant-state-names.md}}
 
 ```text
-GET /auth/me                                               → linked employee_id + permissions
 GET /customers?keyword=&status=active                      → match the customer (read-only)
 GET /customers?tax_id=                                     → exact customer match by tax id
 GET /products?keyword=&status=active                       → match catalog products (read-only; has_skus flags variant products)
@@ -79,7 +78,7 @@ POST /sales-quotation-items
 ```
 
 - `list_price_snapshot` is captured **automatically** from the catalog (SKU price overrides product price) when the line references one — send it explicitly only when applying a special price list. Uncataloged free-text lines carry none; the discount is then not derivable, which approvers will see.
-- `amount` is the line total override (normally omit; `quantity × unit_price` is computed at read time). Changing `quantity`, `unit_price` or `is_gift` on a line clears a stored override so the line follows the new price — send `amount` again only to override it again.
+- `amount` is the server's arithmetic — `quantity × unit_price`, computed and stored on every write — so leave it out. A stated amount that disagrees is a 422 carrying the arithmetic; a line-level discount is an adjustment, never a different amount. A gift line is 0; only a line without a unit price keeps a stated lump sum.
 - Gift lines: `"is_gift": true, "unit_price": 0` — counted as 0 in totals, never as "unpriced" and never as a 100% discount.
 - `line_no` is the printed document order; `/detail` returns lines sorted by it.
 
@@ -161,13 +160,8 @@ POST /sales-quotations/{id}/save
                  {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
 ```
 
-A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
-(and anything pointing at it), a live line not listed is removed with the
-same audit a DELETE writes, `item_index` names a line of THIS request.
-Stale `expected_revision` → 409: read `/detail` again and restate. The
-header stays with PATCH; the editable-state gate is the same one every
-line write passes. One call replaces N PATCH/DELETE round trips when a
-person reworks a draft.
+The diff rules are the conventions' (*Writes rewritten*); `item_index` names
+a line of THIS request, and the header stays with PATCH.
 
 ## Historical Import (migration only)
 
@@ -216,9 +210,8 @@ adjustments:
 
 ## Lifecycle (machine-guarded; submit/send/close are retry-idempotent)
 
-```json
-POST /sales-quotations/{id}/submit
-{}
+```text
+POST /sales-quotations/{id}/submit          → no body
 ```
 
 `draft/returned → submitted`; sets `submitted_at`. Internal approval runs from here.

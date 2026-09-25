@@ -23,9 +23,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import seeded_tenants
 
 TEST_TENANT = "cccccccc-8888-4888-8888-cccccccccccc"
 TEST_API_KEY = "policy-test-key"
@@ -34,13 +33,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Policy Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Policy Co", TEST_API_KEY))
 
 
 def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
@@ -201,9 +194,6 @@ def test_a_draft_is_still_editable_and_deletable(client: TestClient) -> None:
     assert client.delete(f"/api/v1/policies/{made['id']}", headers=HEADERS).status_code == 204
 
 
-
-
-
 def test_a_restricted_policy_must_name_who_may_read_it(client: TestClient) -> None:
     """One that names nothing is readable by everyone, which is the opposite of
     what it says."""
@@ -218,12 +208,6 @@ def test_a_restricted_policy_must_name_who_may_read_it(client: TestClient) -> No
 def test_the_category_vocabulary_is_gated(client: TestClient) -> None:
     body = draft(client, category="invented_category", expect=422)
     assert "external_standard" in body["detail"]
-
-
-
-
-
-
 
 
 def _audit_policy_checks() -> list[tuple[str, str]]:

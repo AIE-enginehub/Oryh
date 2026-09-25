@@ -26,6 +26,7 @@ knows an email address a denial-of-service button.
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -58,6 +59,9 @@ class _Counter:
 @dataclass
 class LoginThrottle:
     _counters: dict[str, _Counter] = field(default_factory=dict)
+    # endpoints run on the thread pool: two logins at once must not race
+    # the prune against the insert
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def _prune(self, now: float) -> None:
         stale = [key for key, counter in self._counters.items()
@@ -88,25 +92,29 @@ class LoginThrottle:
         attack is protected from every address at once.
         """
         now = time.monotonic() if now is None else now
-        return max((self._delay_for(key, now) for key in keys), default=0.0)
+        with self._lock:
+            return max((self._delay_for(key, now) for key in keys), default=0.0)
 
     def record_failure(self, keys: list[str], *, now: float | None = None) -> None:
         now = time.monotonic() if now is None else now
-        self._prune(now)
-        for key in keys:
-            counter = self._counters.get(key)
-            if counter is None or now - counter.last_seen > WINDOW_SECONDS:
-                counter = _Counter()
-                self._counters[key] = counter
-            counter.failures += 1
-            counter.last_seen = now
+        with self._lock:
+            self._prune(now)
+            for key in keys:
+                counter = self._counters.get(key)
+                if counter is None or now - counter.last_seen > WINDOW_SECONDS:
+                    counter = _Counter()
+                    self._counters[key] = counter
+                counter.failures += 1
+                counter.last_seen = now
 
     def record_success(self, keys: list[str]) -> None:
-        for key in keys:
-            self._counters.pop(key, None)
+        with self._lock:
+            for key in keys:
+                self._counters.pop(key, None)
 
     def clear(self) -> None:
-        self._counters.clear()
+        with self._lock:
+            self._counters.clear()
 
 
 throttle = LoginThrottle()

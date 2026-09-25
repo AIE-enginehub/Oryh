@@ -235,10 +235,6 @@ def test_retired_tenant_write_has_no_side_effect(client: TestClient) -> None:
     assert len(outbox.messages) == email_count
 
 
-def _verify_link(body: str) -> str:
-    return next(line.strip() for line in body.splitlines() if "verify-email" in line)
-
-
 def test_email_link_follows_request_host_when_base_url_unset(client: TestClient) -> None:
     """With no canonical URL configured, a link must point back at the host the
     request actually arrived on — which is what makes a deployment reachable at

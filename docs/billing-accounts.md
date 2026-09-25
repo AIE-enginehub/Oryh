@@ -48,7 +48,7 @@ the codebase:
 | `billing_accounts.balance` | `billing_account_entries` |
 
 Everything follows from it. An opening balance is the account's first *entry*,
-never a field. Every write path — the entries endpoint and the settlement
+never a field. Every write path — a document's posting (`POST /business-objects/{id}/post-entries`) and the settlement
 endpoint alike — funnels through one function, so the floor cannot be reached
 around. The integrity audit asserts `balance = sum(entries)` because it is an
 identity, and it breaks the same silent way the other two do.
@@ -230,7 +230,8 @@ that the server reports the batches and the agent applies the workspace's rule.
 
 The split is not ceremony: granting points is the fraud-prone action in this
 family, and the scope lets membership operations hold `:points` while finance holds
-`:currency` — neither of them able to open an account or change a credit line.
+`:currency` — neither of them able to open an account or change a credit line
+(the hosted flow agent holds `billing_account.post:points`).
 `billing_account.post:*` is in the hosted flow agent's fixed grant set so it can
 run the expiry sweep. Neither capability is in the `member` default.
 

@@ -9,11 +9,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import Actor, get_actor, get_api_key_actor, get_user_key_actor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import ApiKey, Role, Tenant, User, generate_api_key, hash_api_key
+from app.models import ApiKey, Tenant, User, generate_api_key, hash_api_key
 from app.services import interactive_keys
 from app.services.audit import record_audit
 from app.api.roles import get_role_or_404
 from app.schemas import SkillReachEntry, SkillReachEnvelope, SkillReachRead
+from app.services.roles import permissions_of_role, role_grants
 from app.services.bundles import (
     BundleFor,
     SkillReach,
@@ -71,7 +72,13 @@ def my_skills_manifest(
     `meta` carries the same identity block the installed manifest holds, so an
     agent serving two employers knows which directory this answer is about, and
     a company that renamed itself still reaches the copies on people's laptops
-    (the per-skill hashes cover templates only, and would not move)."""
+    (the per-skill hashes cover templates only, and would not move).
+
+    `meta.withheld` names the skills the caller could run but was not
+    named to (`not_in_audience`): the sync says so instead of skipping them
+    silently, and the person knows what to ask their admin for. Skills the
+    caller lacks the capability for are not listed — `/my/skills/reach`
+    explains those."""
     tenant = db.get(Tenant, actor.tenant_id)
     skills = eligible_skills(
         db, actor.tenant_id, actor.permissions, user_id=actor.user_id, role=actor.role
@@ -80,7 +87,18 @@ def my_skills_manifest(
     # directory the agent installed and sync compares cleanly
     name_map = skill_name_map(db, actor.tenant_id, tenant_slug(tenant))
     data = skills_manifest(skills, name_map)
-    return {"data": data, "meta": {"total": len(data), **bundle_identity(tenant)}}
+    # the skills this principal holds the capability for but was not named
+    # to: a targeted flow skill with no audience was skipped without a word,
+    # and the flow agent looked for a skill nobody had told it was withheld
+    withheld = [
+        {"name": item.skill.name, "title": item.skill.title, "reasons": list(item.reasons)}
+        for item in skill_reach(
+            db, actor.tenant_id, actor.permissions,
+            user_id=actor.user_id, role=actor.role, roles=role_permissions(db, actor.tenant_id),
+        )
+        if not item.received and "missing_capability" not in item.reasons
+    ]
+    return {"data": data, "meta": {"total": len(data), "withheld": withheld, **bundle_identity(tenant)}}
 
 
 @router.get("/my/skill-bundle")
@@ -134,6 +152,7 @@ def my_skill_bundle(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
             "Pragma": "no-cache",
+            "Idempotency-Replayable": "false",   # the zip carries the key it was rendered with
         },
     )
 
@@ -176,7 +195,7 @@ def user_reach(db: Session, tenant_id: str, user: User) -> SkillReachRead:
     reaches = skill_reach(
         db,
         tenant_id,
-        roles.get(user.role, frozenset()),
+        role_grants(roles, user.role),
         user_id=user.id,
         role=user.role,
         roles=roles,
@@ -260,7 +279,7 @@ def role_skill_reach(
     reaches = skill_reach(
         db,
         actor.tenant_id,
-        roles.get(role.name, frozenset()),
+        role_grants(roles, role.name),
         role=role.name,
         roles=roles,
     )
@@ -297,8 +316,7 @@ def generate_skill_bundle(
     if user.status != "active":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="user is not active")
 
-    role = db.scalar(select(Role).where(Role.tenant_id == actor.tenant_id, Role.name == user.role))
-    permissions = frozenset(role.permissions_jsonb) if role else frozenset()
+    permissions = permissions_of_role(db, actor.tenant_id, user.role)
 
     # rotation: one live personal key per user
     old_keys = db.scalars(

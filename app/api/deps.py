@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.core.browser_auth import CSRF_COOKIE, SESSION_COOKIE
 from app.core.permissions import (
-    DEFAULT_ROLE_PERMISSIONS,
     HOSTED_FLOW_AGENT_PERMISSIONS,
     PRINCIPAL_HOSTED_FLOW_AGENT,
     PRINCIPAL_TENANT_SERVICE,
@@ -22,6 +21,7 @@ from app.core.security import hash_token
 from app.db.session import bind_tenant_context, get_db
 from app.models import ApiKey, FlowSubscription, Role, Tenant, User, UserSession, hash_api_key
 from app.services.interactive_keys import is_expired
+from app.services.roles import permissions_of_role
 
 
 @dataclass(frozen=True)
@@ -58,9 +58,16 @@ class Actor:
         return self.kind == "service" and self.principal_kind == PRINCIPAL_TENANT_SERVICE
 
 
-def _as_utc(value: datetime) -> datetime:
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def as_utc(value: datetime) -> datetime:
     # SQLite returns naive datetimes for DateTime(timezone=True) columns.
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+
+
+_as_utc = as_utc
 
 
 def _ensure_tenant_active(db: Session, tenant_id: str) -> Tenant:
@@ -83,14 +90,6 @@ def _ensure_flow_runner_allowed(tenant: Tenant) -> None:
         )
 
 
-def _load_role_permissions(db: Session, tenant_id: str, role_name: str) -> frozenset[str]:
-    role = db.scalar(select(Role).where(Role.tenant_id == tenant_id, Role.name == role_name))
-    if role is not None:
-        return frozenset(role.permissions_jsonb)
-    # legacy tenants before role provisioning: shipped defaults
-    return frozenset(DEFAULT_ROLE_PERMISSIONS.get(role_name, ()))
-
-
 def _actor_from_user(db: Session, user: User, credential_id: str) -> Actor:
     return Actor(
         tenant_id=user.tenant_id,
@@ -99,7 +98,7 @@ def _actor_from_user(db: Session, user: User, credential_id: str) -> Actor:
         user_id=user.id,
         employee_id=user.employee_id,
         credential_id=credential_id,
-        permissions=_load_role_permissions(db, user.tenant_id, user.role),
+        permissions=permissions_of_role(db, user.tenant_id, user.role),
     )
 
 
@@ -310,15 +309,6 @@ def require_permission(actor: Actor, verb: str, scope: str | None = None) -> Non
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"requires capability {target}",
-        )
-
-
-def require_roles(actor: Actor, *roles: str) -> None:
-    # legacy shim: admin/service gates now mean the management capability set
-    if actor.role not in roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"requires one of roles: {', '.join(roles)}",
         )
 
 

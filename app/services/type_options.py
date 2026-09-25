@@ -39,23 +39,12 @@ def require_type_option(db: Session, tenant_id: str, family: str, value: str) ->
     allowed = allowed_type_options(db, tenant_id, family)
     if value not in allowed:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"unknown {family} '{value}' — active options: {', '.join(sorted(allowed))}. "
                 "Custom values are defined via POST /type-options."
             ),
         )
-
-
-def type_option_error(db: Session, tenant_id: str, family: str, values: set[str]) -> str | None:
-    """Bulk-friendly variant: one message naming every bad value, or None."""
-    allowed = allowed_type_options(db, tenant_id, family)
-    unknown = sorted(values - allowed)
-    if not unknown:
-        return None
-    return (
-        f"unknown {family} {', '.join(unknown)} — active options: {', '.join(sorted(allowed))}"
-    )
 
 
 def type_option_sign(db: Session, tenant_id: str, family: str, name: str) -> int | None:
@@ -79,6 +68,5 @@ __all__ = [
     "SYSTEM_TYPE_OPTIONS",
     "allowed_type_options",
     "require_type_option",
-    "type_option_error",
     "type_option_sign",
 ]

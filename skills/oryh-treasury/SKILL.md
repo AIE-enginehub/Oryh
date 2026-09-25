@@ -44,8 +44,6 @@ oryh:
 <!-- /only -->
 ```
 
-## Steps
-
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/confirm-before-you-write.md}}
@@ -53,6 +51,8 @@ oryh:
 {{include:_common/archived-is-history.md}}
 
 {{include:_common/read-before-you-decide.md}}
+
+## Steps
 
 1. **Accounts**: one row per place money sits — a bank account, the cash
    box, each third-party payment balance. `account_type` comes from the

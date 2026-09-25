@@ -48,7 +48,7 @@ TYPE_OPTION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
-def _same_value(current: Any, incoming: Any) -> bool:
+def same_value(current: Any, incoming: Any) -> bool:
     """Change detection must compare in the COLUMN's domain, not Python's.
 
     Numeric(12,2) columns come back as Decimal while JSON rows carry floats,
@@ -192,9 +192,9 @@ def _apply_prices(db: Session, tenant_id: str, product_id: str, specs: list[dict
         tax_percentage = spec.get("tax_percentage")
         if (
             current is not None
-            and _same_value(current.price, spec["price"])
+            and same_value(current.price, spec["price"])
             and current.tax_in_price == tax_in_price
-            and _same_value(current.tax_percentage, tax_percentage)
+            and same_value(current.tax_percentage, tax_percentage)
         ):
             continue
         if current is not None:
@@ -264,7 +264,7 @@ def _apply_suppliers(
             changed = True
             continue
         for field in _SUPPLIER_FIELDS:
-            if field in spec and not _same_value(getattr(link, field), spec[field]):
+            if field in spec and not same_value(getattr(link, field), spec[field]):
                 setattr(link, field, spec[field])
                 changed = True
         if link.status != "active":
@@ -419,7 +419,7 @@ def bulk_upsert(
     if on_error == "abort" and any(r["outcome"] == "error" for r in results):
         # Nothing was written — passes so far only read — so the caller's
         # rollback is a formality, but it keeps one exit contract.
-        return _payload(results, dry_run=dry_run, applied=False, total=len(rows))
+        return import_payload(results, dry_run=dry_run, applied=False, total=len(rows))
 
     # Pass 2 — resolve existing rows in ONE query rather than per row, so a
     # 500-row import is two round trips and not five hundred.
@@ -452,7 +452,7 @@ def bulk_upsert(
         changed = []
         for key, value in fields.items():
             column = COLUMN_ALIASES.get(key, key)
-            if not _same_value(getattr(obj, column), value):
+            if not same_value(getattr(obj, column), value):
                 setattr(obj, column, value)
                 changed.append(key)
         if _apply_prices(db, tenant_id, obj.id, prices):
@@ -476,10 +476,10 @@ def bulk_upsert(
     # Everything is flushed but NOT committed. The caller owns the transaction
     # so it can write one audit entry for the import inside the same one — the
     # trail then commits if and only if the rows do.
-    return _payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
+    return import_payload(results, dry_run=dry_run, applied=not dry_run, total=len(rows))
 
 
-def _payload(results: list[dict], *, dry_run: bool, applied: bool, total: int) -> dict:
+def import_payload(results: list[dict], *, dry_run: bool, applied: bool, total: int) -> dict:
     results = sorted(results, key=lambda r: r["index"])
     counts = {"created": 0, "updated": 0, "unchanged": 0, "error": 0}
     for row in results:

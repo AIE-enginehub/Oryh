@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.common import envelope
 from app.api.deps import Actor, attributed, get_actor, require_permission
-from app.core.permissions import SYSTEM_CAPABILITY_NAMES, validate_permission_grammar
+from app.core.permissions import SYSTEM_CAPABILITY_NAMES, capability_collections, validate_permission_grammar
 from app.db.session import get_db
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, User
 from app.schemas import (
@@ -27,13 +28,6 @@ from app.services.audit import record_audit
 router = APIRouter()
 
 
-def envelope(data, total: int | None = None) -> dict:
-    meta: dict[str, int] = {}
-    if total is not None:
-        meta["total"] = total
-    return {"data": data, "meta": meta}
-
-
 def custom_capability_names(db: Session, tenant_id: str) -> frozenset[str]:
     return frozenset(
         db.scalars(
@@ -49,7 +43,7 @@ def validate_permissions(db: Session, tenant_id: str, permissions: list[str]) ->
     for grant in permissions:
         error = validate_permission_grammar(grant, known_custom)
         if error:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=error)
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=error)
 
 
 def get_role_or_404(db: Session, tenant_id: str, role_ref: str) -> Role:
@@ -152,7 +146,7 @@ def update_role(
         validate_permissions(db, actor.tenant_id, permissions)
         if role.is_system and role.name == "admin" and "users.manage" not in permissions:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="the admin role must keep users.manage (lockout guard)",
             )
         if not tenant_has_active_user_manager(
@@ -161,7 +155,7 @@ def update_role(
             role_permission_overrides={role.name: permissions},
         ):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="tenant must keep at least one active user with users.manage (lockout guard)",
             )
         # The delta, not just the result. `permissions` is a full replacement,
@@ -231,7 +225,10 @@ def list_capabilities(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Catalog for the console matrix: system + custom rows, plus the
-    tenant's object types so scopable verbs can be expanded per type."""
+    tenant's object types so scopable verbs can be expanded per type. Each
+    system row names the API collections it governs, so a client building a
+    menu from a credential's permissions reads the mapping instead of keeping
+    one."""
     capabilities = db.scalars(
         select(Capability)
         .where(Capability.tenant_id == actor.tenant_id)
@@ -247,7 +244,13 @@ def list_capabilities(
         )
     )
     data = {
-        "capabilities": [CapabilityRead.model_validate(c).model_dump() for c in capabilities],
+        "capabilities": [
+            {
+                **CapabilityRead.model_validate(c).model_dump(),
+                "collections": list(capability_collections(c.name)),
+            }
+            for c in capabilities
+        ],
         "object_types": sorted(object_types),
     }
     return envelope(data)

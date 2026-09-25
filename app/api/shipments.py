@@ -40,7 +40,6 @@ from app.api.common import (
     allocate_number,
     apply_status_change,
     commit_or_conflict,
-    delete_document,
     ensure_document_editable,
     ensure_document_not_deleted,
     envelope,
@@ -51,11 +50,11 @@ from app.api.common import (
     requested_pagination,
     require_active_row,
     require_machine_state,
-    restore_document,
     rows_revision,
     save_rows,
     soft_remove,
 )
+from app.api.family_routes import Verb, register_document_verbs
 from app.api.deps import Actor, attributed, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -124,7 +123,7 @@ def _require_order_coherence(
 ) -> None:
     if sales_order_id and purchase_order_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a shipment serves one order side — sales_order_id or purchase_order_id, not both",
         )
     if sales_order_id:
@@ -138,7 +137,7 @@ def _require_order_coherence(
     wanted = DIRECTION_BY_ORDER[(side, row.order_kind)]
     if direction != wanted:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"a {side} with order_kind={row.order_kind!r} moves goods {wanted} — "
                 "the matrix: sales order → outbound, sales return → inbound, "
@@ -156,7 +155,7 @@ def _require_line_position(
         sku = get_scoped_or_404(db, ProductSku, tenant_id, sku_id)
         if sku.product_id != product_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"sku {sku_id} belongs to product {sku.product_id}, not {product_id}",
             )
     if inventory_item_id is None:
@@ -164,7 +163,7 @@ def _require_line_position(
     position = get_scoped_or_404(db, InventoryItem, tenant_id, inventory_item_id)
     if position.product_id != product_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"inventory item {inventory_item_id} holds product "
                 f"{position.product_id}, not this line's {product_id}"
@@ -172,7 +171,7 @@ def _require_line_position(
         )
     if position.sku_id is not None and sku_id is not None and position.sku_id != sku_id:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"inventory item {inventory_item_id} is the {position.sku_id} position, not {sku_id}",
         )
 
@@ -195,7 +194,7 @@ def _require_picklist_context(
         and picklist.sales_order_id != sales_order_id
     ):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"picklist {picklist_id} picks for order {picklist.sales_order_id}, "
                 f"not this shipment's {sales_order_id}"
@@ -442,22 +441,7 @@ def update_picklist(
     return envelope(PicklistRead.model_validate(picklist).model_dump(by_alias=True))
 
 
-@router.delete("/picklists/{picklist_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_picklist(
-    picklist_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Picklist, picklist_id)
-
-
-@router.post("/picklists/{picklist_id}/restore")
-def restore_picklist(
-    picklist_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Picklist, picklist_id)
+register_document_verbs(router, Picklist, path="/picklists", id_param="picklist_id", delete=Verb(), restore=Verb())
 
 
 @router.get("/picklist-items", response_model=PicklistItemListEnvelope,
@@ -643,7 +627,7 @@ def create_shipment(
         ]
         if not lines:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"picklist {picklist.id} has no pickable lines to copy — "
                     "record picks (or pass items explicitly)"
@@ -713,6 +697,7 @@ def update_shipment(
     require_permission(actor, "shipment.manage")
     shipment = get_active_document_or_404(db, Shipment, tenant_id, shipment_id)
     updates = payload.model_dump(exclude_unset=True)
+    _require_not_posted(shipment, updates)
     if "sales_order_id" in updates or "purchase_order_id" in updates:
         _require_order_coherence(
             db, tenant_id, shipment.direction,
@@ -739,22 +724,37 @@ def update_shipment(
     return envelope(ShipmentRead.model_validate(shipment).model_dump(by_alias=True))
 
 
-@router.delete("/shipments/{shipment_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_shipment(
-    shipment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return delete_document(db, actor, Shipment, shipment_id)
+register_document_verbs(router, Shipment, path="/shipments", id_param="shipment_id", delete=Verb(), restore=Verb())
 
 
-@router.post("/shipments/{shipment_id}/restore")
-def restore_shipment(
-    shipment_id: str,
-    actor: Annotated[Actor, Depends(get_actor)],
-    db: Annotated[Session, Depends(get_db)],
-):
-    return restore_document(db, actor, Shipment, shipment_id)
+POSTED_FROZEN_FIELDS = ("direction", "sales_order_id", "purchase_order_id", "facility", "picklist_id")
+
+
+def _require_not_posted(shipment: Shipment, updates: dict | None = None) -> None:
+    """Once a shipment has posted stock, the ledger rows cite it as their
+    source: its lines, its direction, its facility and the orders it serves
+    cannot change (deep-test F3, 2026-09-24 — a posted 3-unit leg was
+    rewritten to 8 units against another order while the ledger still said
+    3 against the first). Lines are frozen outright; on the header only the
+    ledger-bearing fields are refused, so tracking numbers, dates, remarks
+    and status still move. A wrong posting is corrected by a return or an
+    adjustment shipment, never by editing what was posted."""
+    if shipment.stock_posted_at is None:
+        return
+    if updates is None:
+        changing = ["its lines"]
+    else:
+        changing = [f for f in POSTED_FROZEN_FIELDS if f in updates and updates[f] != getattr(shipment, f)]
+    if not changing:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            f"shipment {shipment.shipment_no} posted stock at {shipment.stock_posted_at.isoformat()} — "
+            f"{', '.join(changing)} are what the ledger cites and cannot change; "
+            "correct it with a return or an adjustment shipment"
+        ),
+    )
 
 
 def _outstanding_holds(db: Session, shipment: Shipment) -> dict[str, float]:
@@ -950,6 +950,7 @@ def create_shipment_item(
     require_permission(actor, "shipment.manage")
     shipment = get_active_document_or_404(db, Shipment, tenant_id, payload.shipment_id)
     ensure_document_editable(db, shipment)
+    _require_not_posted(shipment)
     item = build_shipment_line(db, tenant_id, shipment, payload)
     db.commit()
     db.refresh(item)
@@ -968,6 +969,7 @@ def update_shipment_item(
     item = get_active_document_or_404(db, ShipmentItem, tenant_id, item_id)
     shipment = get_active_document_or_404(db, Shipment, tenant_id, item.shipment_id)
     ensure_document_editable(db, shipment)
+    _require_not_posted(shipment)
     updates = payload.model_dump(exclude_unset=True)
     _require_line_position(
         db, tenant_id, item.product_id,
@@ -992,6 +994,7 @@ def delete_shipment_item(
     item = get_active_document_or_404(db, ShipmentItem, tenant_id, item_id)
     shipment = get_active_document_or_404(db, Shipment, tenant_id, item.shipment_id)
     ensure_document_editable(db, shipment)
+    _require_not_posted(shipment)
     item.deleted_at = datetime.now(timezone.utc)
     db.commit()
 

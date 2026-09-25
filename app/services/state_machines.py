@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.entity_types import DOCUMENT_ENTITY_TYPES, KIND_SPLIT_MACHINE_TYPES
 from app.models import ObjectTypeDefinition
 
 # Shipped default for the builtin timesheet lifecycle. Every tenant gets a
@@ -417,6 +418,12 @@ BUILTIN_MACHINES: dict[str, dict] = {
     "invoice": DEFAULT_INVOICE_MACHINE,
     "payment": DEFAULT_PAYMENT_MACHINE,
 }
+# one machine per document family and per kind-split type — the family list
+# is app/core/entity_types.py's; a family added there without a machine here
+# fails at import, not at month-end
+assert set(BUILTIN_MACHINES) == set(DOCUMENT_ENTITY_TYPES) | set(KIND_SPLIT_MACHINE_TYPES), (
+    set(BUILTIN_MACHINES) ^ (set(DOCUMENT_ENTITY_TYPES) | set(KIND_SPLIT_MACHINE_TYPES))
+)
 # What the SERVER needs from a machine, named by ROLE rather than by state
 # name. State names are the tenant's vocabulary — a workspace may call the
 # post-approval invoice state `approved` instead of `issued`, start claims at
@@ -481,7 +488,7 @@ def state_for_role(machine: dict, object_type: str, role: str) -> str:
     name = (machine.get("roles") or {}).get(role, role)
     if name not in set(machine.get("states", ())):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"this workspace's {object_type} machine has no state for the "
                 f"{role!r} role: neither a state named {role!r} nor a "
@@ -507,7 +514,7 @@ RESERVED_ACCOUNT_REASONS = frozenset({"deposit", "charge", "refund", "expired", 
 def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: str) -> None:
     def fail(detail: str) -> None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"invalid state_machine: {detail}",
         )
 
@@ -670,14 +677,14 @@ def validate_business_object_status(
     if machine is None:
         if new not in DEFAULT_BUSINESS_OBJECT_STATES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"status must be one of {sorted(DEFAULT_BUSINESS_OBJECT_STATES)} for types without a state machine",
             )
         return
     if current is None:
         if new not in set(machine.get("states", ())):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"status {new!r} is not a state of the '{object_type}' state machine",
             )
         return
@@ -710,7 +717,7 @@ def validate_status_filter(
         states |= set(get_builtin_machine(db, tenant_id, machine_type).get("states", ()))
     if status_filter not in states:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"unknown status {status_filter!r} for {' / '.join(types)}; "
                 f"this workspace uses: {', '.join(sorted(states))}"
@@ -729,7 +736,7 @@ def validate_business_object_status_filter(
     states = set(machine["states"]) if machine else DEFAULT_BUSINESS_OBJECT_STATES
     if status_filter not in states:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"unknown status {status_filter!r} for {object_type}; "
                 f"this workspace uses: {', '.join(sorted(states))}"

@@ -21,14 +21,12 @@ import pathlib
 from collections.abc import Generator
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.models import Tenant
-from app.services.emails import outbox
 from app.services.provisioning import PRODUCT_SKILLS_DIR
 
-from conftest import make_client
+from conftest import invite_member, make_client
 from conftest import provision_tenant as bootstrap_tenant
 
 # The demo seed and its reconcile are operations material: the open-core export
@@ -71,13 +69,6 @@ SEEDED_ROLES: dict[str, list[str]] = {
 }
 
 
-def token_from(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
-
-
 @pytest.fixture()
 def workspace() -> Generator[dict, None, None]:
     """One tenant carrying the seeded role set, one linked person per role."""
@@ -89,25 +80,9 @@ def workspace() -> Generator[dict, None, None]:
         keys: dict[str, dict] = {}
         employees: dict[str, str] = {}
         for role, permissions in SEEDED_ROLES.items():
-            client.post(
-                "/api/v1/roles", json={"name": role, "permissions": permissions}, headers=root
-            )
-            employees[role] = client.post(
-                "/api/v1/employees", json={"name": role}, headers=root
-            ).json()["data"]["id"]
-            user_id = client.post(
-                "/api/v1/auth/invitations",
-                json={"email": f"{role}@xingqiao-co.com", "role": role,
-                      "employee_id": employees[role]},
-                headers=root,
-            ).json()["data"]["id"]
-            client.post(
-                "/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-            )
-            keys[role] = {"X-API-Key": client.post(
-                "/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id}, headers=root
-            ).json()["data"]["plain_text_api_key"]}
+            who = invite_member(client, root, role, permissions, email=f"{role}@xingqiao-co.com", employee=role)
+            employees[role] = who.employee_id
+            keys[role] = dict(who)
         yield {"client": client, "root": root, "keys": keys, "employees": employees}
 
 
@@ -122,7 +97,7 @@ def set_pay(client, hr, employee_id: str, amount: float) -> object:
 
 
 def issue_payslip(client, hr, officer: str, payee: str, amount: float) -> object:
-    return client.post(
+    response = client.post(
         "/api/v1/invoices",
         json={"direction": "payroll", "employee_id": officer, "payee_employee_id": payee,
               "title": "2026年7月工资", "period_start": "2026-07-01", "period_end": "2026-07-31",
@@ -131,6 +106,11 @@ def issue_payslip(client, hr, officer: str, payee: str, amount: float) -> object
                          "notes": f"月薪 {amount:.2f}"}]},
         headers=hr,
     )
+    if response.status_code == 201:
+        # a draft is never settled: the slip is filed asserted
+        submitted = client.post(f"/api/v1/invoices/{response.json()['data']['id']}/submit", headers=hr)
+        assert submitted.status_code == 200, submitted.text
+    return response
 
 
 def file_payout(client, headers, officer: str, payee: str, amount: float) -> object:
@@ -232,20 +212,9 @@ def test_an_approver_reads_what_it_approves_without_reaching_the_salary_record(
     set_pay(client, hr, payee, 15000.0)
     slip_id = issue_payslip(client, hr, employees["hr_admin"], payee, 15000.0).json()["data"]["id"]
 
-    reviewer = {"name": "payroll_reviewer",
-                "permissions": MEMBER_BASE + ["approval.record", "payment.advance", "payroll.read"]}
-    client.post("/api/v1/roles", json=reviewer, headers=workspace["root"])
-    user_id = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "reviewer@xingqiao-co.com", "role": "payroll_reviewer"},
-        headers=workspace["root"],
-    ).json()["data"]["id"]
-    client.post("/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"})
-    key = {"X-API-Key": client.post(
-        "/api/v1/tenant/api-keys", json={"label": "reviewer", "user_id": user_id},
-        headers=workspace["root"],
-    ).json()["data"]["plain_text_api_key"]}
+    key = dict(invite_member(client, workspace["root"], "payroll_reviewer",
+                             MEMBER_BASE + ["approval.record", "payment.advance", "payroll.read"],
+                             email="reviewer@xingqiao-co.com"))
 
     # reads the payslip it is being asked to approve against
     assert client.get(f"/api/v1/invoices/{slip_id}/detail", headers=key).status_code == 200
@@ -411,19 +380,7 @@ def test_an_approver_sees_the_payout_it_must_decide_on_but_not_the_payslip(
 
     # an approver holding advancement and no payroll grant whatsoever
     approver = MEMBER_BASE + ["approval.record", "payment.advance"]
-    client.post("/api/v1/roles", json={"name": "payout_approver", "permissions": approver},
-                headers=workspace["root"])
-    user_id = client.post(
-        "/api/v1/auth/invitations",
-        json={"email": "approver@xingqiao-co.com", "role": "payout_approver"},
-        headers=workspace["root"],
-    ).json()["data"]["id"]
-    client.post("/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"})
-    key = {"X-API-Key": client.post(
-        "/api/v1/tenant/api-keys", json={"label": "approver", "user_id": user_id},
-        headers=workspace["root"],
-    ).json()["data"]["plain_text_api_key"]}
+    key = dict(invite_member(client, workspace["root"], "payout_approver", approver, email="approver@xingqiao-co.com"))
 
     queue = client.get("/api/v1/payments?direction=outbound&status=submitted", headers=key)
     assert payout_id in {row["id"] for row in queue.json()["data"]}
@@ -446,6 +403,11 @@ def test_a_settled_payout_closes_again_even_to_a_money_handler(workspace: dict) 
     set_pay(client, hr, payee, 15000.0)
     slip_id = issue_payslip(client, hr, employees["hr_admin"], payee, 15000.0).json()["data"]["id"]
     payout_id = file_payout(client, hr, employees["hr_admin"], payee, 15000.0).json()["data"]["id"]
+    # settlement follows payment: filed, approved and paid before anything is applied
+    client.post(f"/api/v1/payments/{payout_id}/submit", headers=hr)
+    for state in ("approved", "paid"):
+        moved = client.patch(f"/api/v1/payments/{payout_id}", json={"status": state}, headers=keys["cashier_lead"])
+        assert moved.status_code == 200, (state, moved.text)
 
     # finance holds payment.record + payment.apply and no payroll grant
     assert client.get(f"/api/v1/payments/{payout_id}", headers=finance).status_code == 200

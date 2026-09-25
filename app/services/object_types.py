@@ -157,7 +157,7 @@ def refuse_shadow_of_shipped(object_type: str) -> None:
         return
     path = "/" + collection.replace("_", "-")
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=(
             f"{object_type!r} is what ORYH already ships as {path} — record it there "
             f"(POST {path}, or {path}/bulk for a sheet where the collection has one); "
@@ -174,7 +174,7 @@ def ensure_valid_json_schema(schema: dict) -> None:
         validator_cls.check_schema(schema)
     except Exception as exc:  # jsonschema raises SchemaError (a ValidationError subclass)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"field rules are not valid: {exc}",
         ) from exc
 
@@ -207,7 +207,7 @@ def validate_business_object_payload(
     except ValidationError as exc:
         path = "$" + "".join(f".{p}" if isinstance(p, str) else f"[{p}]" for p in exc.absolute_path)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"payload does not match the '{object_type}' definition "
                 f"(version {definition.version}) at {path}: {exc.message}"

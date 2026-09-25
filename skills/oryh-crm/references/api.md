@@ -59,7 +59,7 @@ answers 409 with the existing row.
 GET    /opportunities/{id}/detail       → opportunity, items, contacts (with names), quotations, orders, campaign
 GET    /opportunity-items?opportunity_id=
 POST   /opportunity-items               → {opportunity_id, product_id | product_name_snapshot, quantity, unit_price?, sku_id?, spec?, unit?, notes?}
-PATCH  /opportunity-items/{id}          → any line field; amount recomputes from quantity × unit_price unless given
+PATCH  /opportunity-items/{id}          → any line field; amount is recomputed from quantity × unit_price (a stated one must equal it)
 DELETE /opportunity-items/{id}
 GET    /opportunity-contacts?opportunity_id=&role=
 POST   /opportunity-contacts            → {opportunity_id, contact_id, role?, is_primary?, remarks?}; contact must be the deal's customer's
@@ -103,7 +103,4 @@ POST /opportunities/{id}/save
 {"expected_revision": "<detail.revision>", "items": [{"id": "<existing line>", "quantity": 5}, {"product_name_snapshot": "Installation training", "quantity": 1, "unit_price": 3000}]}
 ```
 
-A diff, never a delete-and-reinsert: a row naming an `id` keeps its identity
-and changes only in the fields it states; a row without an id is added
-through the create rules; a live line not listed is removed. A stale
-`expected_revision` is a 409 — read again, restate. The deal's owner only; the cast (contacts) keeps its own routes.
+The diff rules are the conventions' (*Writes rewritten*). The deal's owner only; the cast (contacts) keeps its own routes.

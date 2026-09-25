@@ -30,7 +30,7 @@ from app.services.bundles import (
     calibration_section,
     skill_files_hash,
 )
-from conftest import provision_tenant
+from conftest import invite_member, provision_tenant
 
 
 @pytest.fixture()
@@ -228,21 +228,13 @@ def test_a_desk_may_calibrate_one_skill_without_the_registry() -> None:
     rule — a calibration write, not skill management. `skills.calibrate`,
     scoped to the skill, writes calibration and reads that skill; files,
     audience and status, and every other skill, stay behind skills.manage."""
-    from app.services.emails import outbox
-    from conftest import make_client, provision_tenant
+    from conftest import invite_member, make_client, provision_tenant
 
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Cal Co", email="admin@cal.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "desk"}, headers=admin).json()["data"]["id"]
-        client.post("/api/v1/roles", headers=admin,
-                    json={"name": "order_desk", "permissions": ["order.submit_own", "skills.calibrate:oryh-product-matching"]})
-        uid = client.post("/api/v1/auth/invitations", headers=admin,
-                          json={"email": "desk@cal.example", "role": "order_desk", "employee_id": emp}).json()["data"]["id"]
-        token = next(l.rsplit("token=", 1)[1].strip() for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-        client.post("/api/v1/auth/invitations/accept", json={"token": token, "password": "invitee-pass1"})
-        desk = {"X-API-Key": client.post("/api/v1/tenant/api-keys", json={"label": "desk", "user_id": uid},
-                                          headers=admin).json()["data"]["plain_text_api_key"]}
+        desk = dict(invite_member(client, admin, "order_desk", ["order.submit_own", "skills.calibrate:oryh-product-matching"],
+                                  email="desk@cal.example", employee="desk"))
 
         read = client.get("/api/v1/skills/oryh-product-matching", headers=desk)
         assert read.status_code == 200, read.text

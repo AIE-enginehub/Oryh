@@ -14,26 +14,7 @@ from app.core.type_options import system_type_options, system_type_sign
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
 from app.services.delivery import delivery_blocks_error
 from app.services.flow_subscriptions import provision_flow_subscriptions
-from app.services.state_machines import (
-    DEFAULT_EXPENSE_MACHINE,
-    DEFAULT_INVOICE_MACHINE,
-    DEFAULT_LEAVE_MACHINE,
-    DEFAULT_PAYMENT_MACHINE,
-    DEFAULT_PURCHASE_ORDER_MACHINE,
-    DEFAULT_PURCHASE_RETURN_MACHINE,
-    DEFAULT_ORDER_MACHINE,
-    DEFAULT_PURCHASE_MACHINE,
-    DEFAULT_QUOTATION_MACHINE,
-    DEFAULT_SALES_RETURN_MACHINE,
-    DEFAULT_CONTRACT_MACHINE,
-    DEFAULT_CAMPAIGN_MACHINE,
-    DEFAULT_EVENT_MACHINE,
-    DEFAULT_LEAD_MACHINE,
-    DEFAULT_PICKLIST_MACHINE,
-    DEFAULT_OPPORTUNITY_MACHINE,
-    DEFAULT_SHIPMENT_MACHINE,
-    DEFAULT_TIMESHEET_MACHINE,
-)
+from app.services.state_machines import BUILTIN_MACHINES
 
 # skills/ ships in the repo and the container image; every directory in it is
 # a product skill provisioned into each tenant's registry — except `_common/`,
@@ -260,119 +241,124 @@ def retire_withdrawn_product_skills(db: Session, tenant_id: str, shipped: set[st
     return len(withdrawn)
 
 
-# (object_type, title, description, default machine) for every builtin entity
-BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = (
-    (
-        "timesheet_header",
+# (title, description) for every builtin entity, keyed by object type; the
+# machine each ships with is BUILTIN_MACHINES's — one table, not two
+BUILTIN_TITLES: dict[str, tuple[str, str]] = {
+    "timesheet_header": (
         "Timesheet",
         "Lifecycle of timesheet headers; edit to add tenant-specific review steps.",
-        DEFAULT_TIMESHEET_MACHINE,
     ),
-    (
-        "employee_leave",
+    "employee_leave": (
         "Employee Leave",
         "Lifecycle of 请假 requests; edit to add tenant-specific review steps. "
-        "Entitlement rules are NOT here — they live in the tenant's leave policy "
-        "and are applied by an agent, because a balance that was stored would "
-        "outlive the rule it was computed under.",
-        DEFAULT_LEAVE_MACHINE,
+        "Entitlement rules are NOT here — they live in the tenant's leave policy and "
+        "are applied by an agent, because a balance that was stored would outlive the "
+        "rule it was computed under.",
     ),
-    (
-        "expense_claim",
+    "expense_claim": (
         "Expense Claim",
-        "Lifecycle of expense claims; edit to add tenant-specific review or payment steps.",
-        DEFAULT_EXPENSE_MACHINE,
+        "Lifecycle of expense claims; edit to add tenant-specific review or payment "
+        "steps.",
     ),
-    (
-        "purchase_request",
+    "purchase_request": (
         "Purchase Request",
-        "Lifecycle of purchase requests; edit to add tenant-specific review or fulfilment steps.",
-        DEFAULT_PURCHASE_MACHINE,
+        "Lifecycle of purchase requests; edit to add tenant-specific review or "
+        "fulfilment steps.",
     ),
-    (
-        "sales_quotation",
+    "sales_quotation": (
         "Sales Quotation",
-        "Lifecycle of sales quotations; the back half (sent/accepted/declined/expired) tracks the customer outcome and may be edited away.",
-        DEFAULT_QUOTATION_MACHINE,
+        "Lifecycle of sales quotations; the back half (sent/accepted/declined/expired) "
+        "tracks the customer outcome and may be edited away.",
     ),
-    (
-        "purchase_order",
+    "purchase_order": (
         "Purchase Order",
-        "Lifecycle of purchase orders to vendors; edit to add tenant-specific confirmation or receiving steps.",
-        DEFAULT_PURCHASE_ORDER_MACHINE,
+        "Lifecycle of purchase orders to vendors; edit to add tenant-specific "
+        "confirmation or receiving steps.",
     ),
-    (
-        "sales_order",
+    "sales_order": (
         "Sales Order",
-        "Lifecycle of sales orders; the fulfilment half (confirmed/shipped/signed) may be renamed for service delivery (e.g. in_delivery/delivered).",
-        DEFAULT_ORDER_MACHINE,
+        "Lifecycle of sales orders; the fulfilment half (confirmed/shipped/signed) may "
+        "be renamed for service delivery (e.g. in_delivery/delivered).",
     ),
-    (
-        "sales_return",
+    "sales_return": (
         "Sales Return",
-        "Lifecycle of customer returns — rows in the sales-orders table with order_kind='return'. E-commerce-shaped: requested, approved, in transit back, received, inspected into stock, refunded; edit freely — the refund itself is a payment document and the restock an inventory movement, so 'refunded' here is a flow marker.",
-        DEFAULT_SALES_RETURN_MACHINE,
+        "Lifecycle of customer returns — rows in the sales-orders table with "
+        "order_kind='return'. E-commerce-shaped: requested, approved, in transit back, "
+        "received, inspected into stock, refunded; edit freely — the refund itself is a "
+        "payment document and the restock an inventory movement, so 'refunded' here is "
+        "a flow marker.",
     ),
-    (
-        "purchase_return",
+    "purchase_return": (
         "Purchase Return",
-        "Lifecycle of returns to vendors — rows in the purchase-orders table with order_kind='return': approved, shipped back, refunded. The vendor's refund is a payment document; this machine tracks the flow.",
-        DEFAULT_PURCHASE_RETURN_MACHINE,
+        "Lifecycle of returns to vendors — rows in the purchase-orders table with "
+        "order_kind='return': approved, shipped back, refunded. The vendor's refund is "
+        "a payment document; this machine tracks the flow.",
     ),
-    (
-        "picklist",
+    "picklist": (
         "Picklist",
-        "Lifecycle of picking runs — which product to take from which stock position, how many. Whether the workspace picks at all is the admin's one sentence where the fulfilment agents read it; 'picked' is the handoff to the shipment, which posts the stock. Edit freely.",
-        DEFAULT_PICKLIST_MACHINE,
+        "Lifecycle of picking runs — which product to take from which stock position, "
+        "how many. Whether the workspace picks at all is the admin's one sentence where "
+        "the fulfilment agents read it; 'picked' is the handoff to the shipment, which "
+        "posts the stock. Edit freely.",
     ),
-    (
-        "contract",
+    "contract": (
         "Contract",
-        "Lifecycle of contracts — draft, negotiating, signed (signed_at stamps), active, expired/terminated. Review before signing, where wanted, is the workspace's own todos and approval facts against the contract; the server records the signing.",
-        DEFAULT_CONTRACT_MACHINE,
+        "Lifecycle of contracts — draft, negotiating, signed (signed_at stamps), "
+        "active, expired/terminated. Review before signing, where wanted, is the "
+        "workspace's own todos and approval facts against the contract; the server "
+        "records the signing.",
     ),
-    (
-        "shipment",
+    "shipment": (
         "Shipment",
-        "Lifecycle of freight legs, one machine for both directions (outbound to customers/vendors, inbound receipts and return parcels). 'received' means arrived at the destination; rename or extend freely — the stock effect is posted to the inventory ledger via /post-stock, not implied by any state.",
-        DEFAULT_SHIPMENT_MACHINE,
+        "Lifecycle of freight legs, one machine for both directions (outbound to "
+        "customers/vendors, inbound receipts and return parcels). 'received' means "
+        "arrived at the destination; rename or extend freely — the stock effect is "
+        "posted to the inventory ledger via /post-stock, not implied by any state.",
     ),
-    (
-        "campaign",
+    "campaign": (
         "Campaign",
-        "Lifecycle of marketing campaigns — planned, active, completed/cancelled. What a campaign earned is read from the leads and opportunities that carry its campaign_id, never stored on it; members record who was reached.",
-        DEFAULT_CAMPAIGN_MACHINE,
+        "Lifecycle of marketing campaigns — planned, active, completed/cancelled. What "
+        "a campaign earned is read from the leads and opportunities that carry its "
+        "campaign_id, never stored on it; members record who was reached.",
     ),
-    (
-        "event",
+    "event": (
         "Event",
-        "Lifecycle of scheduled events — a visit, a meeting, a demo: planned, then held or cancelled (a cancelled one may be re-planned). What was said is an activity logged from the event, not a state of it.",
-        DEFAULT_EVENT_MACHINE,
+        "Lifecycle of scheduled events — a visit, a meeting, a demo: planned, then held "
+        "or cancelled (a cancelled one may be re-planned). What was said is an activity "
+        "logged from the event, not a state of it.",
     ),
-    (
-        "lead",
+    "lead": (
         "Lead",
-        "Lifecycle of sales leads — a potential customer before qualification. `converted` is written by the conversion bridge (/leads/{id}/convert), which creates or names the Customer; rename it via a roles map if you rename the state. `disqualified` may revive to `contacted`.",
-        DEFAULT_LEAD_MACHINE,
+        "Lifecycle of sales leads — a potential customer before qualification. "
+        "`converted` is written by the conversion bridge (/leads/{id}/convert), which "
+        "creates or names the Customer; rename it via a roles map if you rename the "
+        "state. `disqualified` may revive to `contacted`.",
     ),
-    (
-        "opportunity",
+    "opportunity": (
         "Opportunity",
-        "Lifecycle of sales opportunities — a deal being pursued. `won`/`lost` stamp closed_at when kept as literal names; the actual money lives in the quotations and orders the deal produces, so edit stages freely (e.g. add a poc/tender step).",
-        DEFAULT_OPPORTUNITY_MACHINE,
+        "Lifecycle of sales opportunities — a deal being pursued. `won`/`lost` stamp "
+        "closed_at when kept as literal names; the actual money lives in the quotations "
+        "and orders the deal produces, so edit stages freely (e.g. add a poc/tender "
+        "step).",
     ),
-    (
-        "invoice",
+    "invoice": (
         "Invoice",
-        "Lifecycle of invoices in both directions (销项/进项); 'paid' is a flow marker only — how much is settled comes from the payment applications, so a partly-paid invoice needs no state.",
-        DEFAULT_INVOICE_MACHINE,
+        "Lifecycle of invoices in both directions (销项/进项); 'paid' is a flow marker only "
+        "— how much is settled comes from the payment applications, so a partly-paid "
+        "invoice needs no state.",
     ),
-    (
-        "payment",
+    "payment": (
         "Payment",
-        "Lifecycle of payments; the approval half serves outbound payments (付款审批), while an inbound receipt is created directly in the terminal state.",
-        DEFAULT_PAYMENT_MACHINE,
+        "Lifecycle of payments; the approval half serves outbound payments (付款审批), "
+        "while an inbound receipt is created directly in the terminal state.",
     ),
+}
+assert set(BUILTIN_TITLES) == set(BUILTIN_MACHINES), set(BUILTIN_TITLES) ^ set(BUILTIN_MACHINES)
+
+# (object_type, title, description, default machine) for every builtin entity
+BUILTIN_DEFINITIONS: tuple[tuple[str, str, str, dict], ...] = tuple(
+    (object_type, title, description, BUILTIN_MACHINES[object_type])
+    for object_type, (title, description) in BUILTIN_TITLES.items()
 )
 
 

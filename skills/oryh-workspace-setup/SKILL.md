@@ -34,8 +34,6 @@ oryh:
 <!-- /only -->
 ```
 
-## Steps
-
 {{include:_common/answer-the-question.md}}
 
 {{include:_common/confirm-before-you-write.md}}
@@ -43,6 +41,8 @@ oryh:
 {{include:_common/custom-object-is-never-silent.md}}
 
 {{include:_common/read-before-you-decide.md}}
+
+## Steps
 
 1. **Read before you speak** — three reads, one batch: `GET /workspace/setup-report`
    — every area with its status, facts and next act — plus `GET /tenant`

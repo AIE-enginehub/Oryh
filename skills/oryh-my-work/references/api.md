@@ -7,7 +7,6 @@
 ## Identity
 
 ```text
-GET /auth/me            → user + linked employee_id
 ```
 
 ## My Inbox

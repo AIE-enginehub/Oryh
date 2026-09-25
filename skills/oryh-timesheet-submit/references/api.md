@@ -7,7 +7,6 @@
 ## Identity And Reads
 
 ```text
-GET /auth/me                                              → linked employee_id + permissions
 GET /projects?keyword=&status=active                      → match a real project (read-only)
 GET /timesheet-headers?employee_id={me}&status=draft      → reuse before create
 GET /timesheet-headers/{header_id}/detail                 → header + entries + approval trail
@@ -80,14 +79,34 @@ project_id  must exist in this tenant       → 404 otherwise
 
 ## Submit
 
-```json
-POST /timesheet-headers/{header_id}/submit
-{}
+```text
+POST /timesheet-headers/{header_id}/submit          → no body
 ```
 
 Guarded by the tenant's lifecycle machine (draft/returned → submitted); idempotent on resubmit; sets `submitted_at`.
 
-## Submitted Fact (only if the role has approval.record)
+## Restating The Whole Document
+
+```text
+GET  /timesheet-headers/{id}/detail                     → revision (a hash of header and live entries)
+POST /timesheet-headers/{id}/save?validate_only=true    → the same run, nothing written
+POST /timesheet-headers/{id}/save
+{"expected_revision": "<detail.revision>",
+ "intent_id": "<a token you choose for this rewrite; a retry with the same one is answered, not re-applied>",
+ "period_start": "2026-09-14", "period_end": "2026-09-20",
+ "source_report_text": "<the person's words, verbatim>",
+ "entries": [{"id": "<existing entry>", "hours": 8},                       → updated through the PATCH rules
+             {"work_date": "2026-09-16", "hours": 8, "work_type": "regular", "project_id": null, "task": "…", "notes": "…"}]}   → added
+```
+
+The diff rules are the conventions' (*Writes rewritten*): an entry naming an
+`id` is that entry, changed only in the fields it states; an entry without
+one is added; a live entry not listed is removed. Only while the header is
+editable (draft or returned), and only the person's own.
+
+## Submitted Fact (recorded by `/submit`; shown for reference only)
+
+Do not post it — `/submit` already did. The shape, for reading the trail:
 
 ```json
 POST /approval-records
@@ -101,7 +120,7 @@ POST /approval-records
 }
 ```
 
-403 here is expected in tenants whose member role is fact-free — the workflow admin backfills it. After a return, resubmit with `round_no` incremented.
+After a return, `/submit` records the next round's fact itself.
 
 ## Correcting The Header Before Submitting
 

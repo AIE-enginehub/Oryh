@@ -29,7 +29,7 @@ from app.db.session import Base
 from app.models import Todo
 from app.schemas import TodoStatus
 
-from conftest import provision_tenant
+from conftest import invite_member, provision_tenant
 
 
 def _model_constraint() -> str:
@@ -231,24 +231,8 @@ def _approver_key(client, key, employee_id: str, email: str) -> dict:
     no todo, and completes none, which is the whole reason these tests need a
     different credential than the ones above.
     """
-    invited = client.post("/api/v1/auth/invitations", json={
-        "email": email, "role": "admin", "employee_id": employee_id,
-    }, headers=key)
-    assert invited.status_code == 201, invited.text
-    invitation = invited.json()["data"]
-    # An invited user is not active, and an inactive user cannot hold a key —
-    # `POST /tenant/api-keys` answers 409 "user is not active". The console
-    # email backend hands the one-time token back in the response so a test does
-    # not need an outbox; SMTP omits it, which is why production never sees it.
-    token = invitation["invitation_url"].rsplit("token=", 1)[1]
-    accepted = client.post("/api/v1/auth/invitations/accept",
-                           json={"token": token, "password": "approver-pass1"})
-    assert accepted.status_code == 200, accepted.text
-    issued = client.post("/api/v1/tenant/api-keys", json={
-        "label": "approver", "user_id": invitation["id"],
-    }, headers=key)
-    assert issued.status_code == 201, issued.text
-    return {"X-API-Key": issued.json()["data"]["plain_text_api_key"]}
+    return dict(invite_member(client, key, "approver", role="admin", email=email, employee_id=employee_id,
+                              password="approver-pass1"))
 
 def test_deciding_a_node_completes_the_deciders_own_todo(orphan) -> None:
     """Recording the decision and closing the todo that asked for it were two

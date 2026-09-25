@@ -158,24 +158,10 @@ durability or versioning.
 
 This layer exposes specialized execution capabilities to the agent.
 
-Product skills shipped in this repository (provisioned into every tenant's
-registry, delivered to users as capability-derived personal bundles with
-their credential rendered in):
-
-- `oryh-my-work`
-- `oryh-timesheet-submit`
-- `oryh-approve` (one approval contract for every document type)
-- `oryh-timesheet-approval-flow`
-- `approval-notifier`
-- `oryh-resource-booking`
-- `oryh-business-object`
-- `oryh-business-object-summary`
-- `oryh-skill-sync`
-- `oryh-order-submit` / `oryh-order-approval-flow`
-- `oryh-master-data` (gated on `master_data.manage`: spreadsheet import and
-  upkeep for products, vendors, and customers)
-- `oryh-skill-author` (admin-gated: compiles natural-language process
-  requirements into workflow definitions or customer workflow skills)
+Product skills ship in this repository under `skills/` (42 today), are
+provisioned into every tenant's registry, and reach people as
+capability-derived personal bundles with their credential rendered in. The
+list with one line each is in the root README.
 
 Skill distribution has two deliberately separate paths:
 

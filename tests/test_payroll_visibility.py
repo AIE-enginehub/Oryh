@@ -16,20 +16,11 @@ from __future__ import annotations
 from collections.abc import Generator
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import make_client
+from conftest import invite_member, make_client
 
 from conftest import provision_tenant as bootstrap_tenant
-
-
-def token_from(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
 
 
 @pytest.fixture()
@@ -38,7 +29,7 @@ def workspace() -> Generator[dict, None, None]:
 
     - `hr`      holds payroll.read + invoice.manage:* (the service key)
     - `viewer`  holds payroll.read only
-    - `outsider` holds neither, and IS one of the paid employees
+    - `outsider` is an ordinary member — no payroll grant — and IS one of the paid employees
     """
     with make_client([]) as client:
         data = bootstrap_tenant(client, company_name="Pay Co", email="admin@pay-co.com", password="pay-pass1234")
@@ -50,28 +41,13 @@ def workspace() -> Generator[dict, None, None]:
         alice, bob, officer = make("Alice"), make("Bob"), make("HR专员")
 
         def invite(email: str, role: str, permissions: list[str], employee_id: str | None) -> dict:
-            client.post(
-                "/api/v1/roles", json={"name": role, "permissions": permissions}, headers=hr
-            )
-            body = {"email": email, "role": role}
-            if employee_id:
-                body["employee_id"] = employee_id
-            user_id = client.post("/api/v1/auth/invitations", json=body, headers=hr).json()["data"]["id"]
-            client.post(
-                "/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-            )
-            key = client.post(
-                "/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id}, headers=hr
-            ).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": key}
+            return dict(invite_member(client, hr, role, permissions, email=email, employee_id=employee_id))
 
         viewer = invite("viewer@pay-co.com", "payroll_viewer", ["payroll.read"], None)
-        # Alice is an ordinary member with no payroll grant at all
-        outsider = invite(
-            "alice@pay-co.com", "plain_member",
-            ["timesheet.submit_own", "todos.complete_own"], alice,
-        )
+        # Alice is an ordinary member with no payroll grant at all: `member`
+        # reads the workspace's invoices (invoice.read:*), and the payroll gate
+        # is what keeps Bob's payslip from her
+        outsider = dict(invite_member(client, hr, "alice", role="member", email="alice@pay-co.com", employee_id=alice))
 
         slips = {}
         for person, name, net in ((alice, "Alice", 9000.0), (bob, "Bob", 12000.0)):
@@ -89,6 +65,7 @@ def workspace() -> Generator[dict, None, None]:
                 },
                 headers=hr,
             ).json()["data"]
+            client.post(f"/api/v1/invoices/{slips[name]['id']}/submit", headers=hr)
             payout = client.post(
                 "/api/v1/payments",
                 json={"direction": "outbound", "employee_id": officer, "payee_employee_id": person,
@@ -119,18 +96,7 @@ def workspace() -> Generator[dict, None, None]:
 
 
 def invite_role(client, hr: dict, email: str, role: str, permissions: list[str]) -> dict:
-    client.post("/api/v1/roles", json={"name": role, "permissions": permissions}, headers=hr)
-    user_id = client.post(
-        "/api/v1/auth/invitations", json={"email": email, "role": role}, headers=hr
-    ).json()["data"]["id"]
-    client.post(
-        "/api/v1/auth/invitations/accept",
-        json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-    )
-    key = client.post(
-        "/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id}, headers=hr
-    ).json()["data"]["plain_text_api_key"]
-    return {"X-API-Key": key}
+    return dict(invite_member(client, hr, role, permissions, email=email))
 
 
 def ids(response) -> set[str]:

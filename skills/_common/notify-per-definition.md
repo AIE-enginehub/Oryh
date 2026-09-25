@@ -40,7 +40,7 @@
 > never once invoked — an optional step at the end of a long procedure is a
 > step that does not happen. A tenant eventually wrote their own notification
 > skill to fill the gap, gave it an approver's permission because that was the
-> permission they had, and got one event type of the six this covers.
+> permission they had, and got one event type of the four this covers.
 >
 > When the definition asks for notifications and you send none — no email
 > address on file, the notifier unavailable — say which person went untold.

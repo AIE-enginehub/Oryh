@@ -25,7 +25,7 @@ from typing import Annotated
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import String, cast, select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -73,7 +73,7 @@ def require_entity_uuid(entity_id: str | None) -> None:
         uuid.UUID(entity_id)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"entity_id must be the uuid of a record in this system — "
                 f"{entity_id!r} is not one. An external order "
@@ -102,21 +102,39 @@ def _require_active_account(db: Session, tenant_id: str, fin_account_id: str) ->
     )
 
 
+def _require_same_currency(account: FinAccount, payment: Payment) -> None:
+    """A register line links a payment in the account's own currency. Ten
+    dollars landing on a yuan account is an exchange, and an exchange is its
+    own fact — the rate, the amounts on both sides, the difference — not a
+    link that lets 10 USD read as 10 CNY (deep-test F5, 2026-09-24; the
+    workspace's decision is to refuse rather than model it)."""
+    if payment.currency != account.currency:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"payment {payment.id} is in {payment.currency}; account {account.name} is in "
+                f"{account.currency} — a register line links a payment of its own currency; "
+                "record the exchange as its own line and settle in the account's currency"
+            ),
+        )
+
+
 def _require_link_coherence(
-    db: Session, tenant_id: str, payment_id: str | None, amount: float
+    db: Session, tenant_id: str, account: FinAccount, payment_id: str | None, amount: float
 ) -> None:
     """A register line linked to a payment must move money the way the
     payment says it moves: outbound documents land as negative lines,
     inbound as positive. Amounts may differ (fees, partial legs) — the sign
     may not, because a backwards link is a wrong answer the three-way reader
-    would repeat."""
+    would repeat. The currency may not differ either."""
     if payment_id is None:
         return
     payment = get_scoped_or_404(db, Payment, tenant_id, payment_id)
+    _require_same_currency(account, payment)
     wanted = -1 if payment.direction == "outbound" else 1
     if amount * wanted <= 0:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"payment {payment_id} is {payment.direction} — its cash landing "
                 f"is a {'negative' if wanted < 0 else 'positive'} register line, "
@@ -126,7 +144,7 @@ def _require_link_coherence(
 
 
 def _require_batch_coherence(
-    db: Session, tenant_id: str, reference_no: str, amount: float
+    db: Session, tenant_id: str, account: FinAccount, reference_no: str, amount: float
 ) -> tuple[int, float]:
     """One bank line settling a BATCH: every live payment sharing this
     reference_no must move money the way the line does, and they must sum
@@ -143,13 +161,15 @@ def _require_batch_coherence(
     ).all()
     if not members:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"no payments share reference_no {reference_no!r} — a batch link names the payments' own batch number",
         )
+    for member in members:
+        _require_same_currency(account, member)
     wanted = -1 if members[0].direction == "outbound" else 1
     if any((-1 if m.direction == "outbound" else 1) != wanted for m in members) or amount * wanted <= 0:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"the {len(members)} payments under {reference_no!r} must all move money "
                 f"the way this line does ({'out' if amount < 0 else 'in'})"
@@ -158,7 +178,7 @@ def _require_batch_coherence(
     total = round(sum(float(m.amount) for m in members), 2)
     if abs(total - abs(amount)) > 0.005:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"{len(members)} payments under {reference_no!r} sum to {total}, this line is "
                 f"{abs(amount)} — a difference of {round(abs(amount) - total, 2)}. A batch settles "
@@ -291,6 +311,23 @@ def update_fin_account(
     _require_treasury(actor)
     account = get_scoped_or_404(db, FinAccount, actor.tenant_id, account_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "currency" in updates and updates["currency"] != account.currency:
+        # the balance and every register line are amounts IN a currency;
+        # renaming the unit would restate all of them (deep-test F5)
+        lines = db.scalar(
+            select(func.count()).select_from(FinAccountTrans).where(
+                FinAccountTrans.tenant_id == actor.tenant_id, FinAccountTrans.fin_account_id == account.id,
+            )
+        ) or 0
+        if lines or abs(float(account.current_balance or 0)) > 0.005:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"account {account.name} holds {lines} register line(s) and a balance of "
+                    f"{float(account.current_balance or 0):.2f} {account.currency} — its currency is not "
+                    "restated; open an account in the other currency"
+                ),
+            )
     if updates.get("account_type"):
         require_type_option(db, actor.tenant_id, "fin_account_type", updates["account_type"])
     if "custom_fields" in updates:
@@ -397,18 +434,18 @@ def create_fin_account_trans(
     account = _require_active_account(db, tenant_id, payload.fin_account_id)
     if payload.trans_type == "opening":
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "`opening` is the account-create's first row — a later opening "
                 "would rewrite history; corrections are counter-entries"
             ),
         )
     require_entity_uuid(payload.entity_id)
-    _require_link_coherence(db, tenant_id, payload.payment_id, payload.amount)
+    _require_link_coherence(db, tenant_id, account, payload.payment_id, payload.amount)
     trans_type = _derived_type(payload.amount, payload.trans_type)
     sign_problem = _sign_error(payload.amount, trans_type)
     if sign_problem:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail=sign_problem)
     # The posting is INSIDE the try on purpose. `fin_account_trans_reference_uq`
     # is a partial unique index, so it fires on the flush that
@@ -473,16 +510,16 @@ def link_fin_account_trans(
     if "entity_id" in updates:
         require_entity_uuid(updates["entity_id"])
     if "payment_id" in updates and updates["payment_id"] is not None:
-        _require_link_coherence(db, actor.tenant_id, updates["payment_id"], float(trans.amount))
+        _require_link_coherence(db, actor.tenant_id, trans.account, updates["payment_id"], float(trans.amount))
     settled = None
     if updates.get("payment_reference_no") is not None:
         settled = _require_batch_coherence(
-            db, actor.tenant_id, updates["payment_reference_no"], float(trans.amount)
+            db, actor.tenant_id, trans.account, updates["payment_reference_no"], float(trans.amount)
         )
     if (updates.get("payment_id", trans.payment_id) is not None
             and updates.get("payment_reference_no", trans.payment_reference_no) is not None):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="a line settles one payment or one batch, not both — clear the other link first",
         )
     for field, value in updates.items():

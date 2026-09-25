@@ -21,9 +21,8 @@ import zipfile
 
 import pytest
 
-from app.services.emails import outbox
 
-from conftest import make_client, provision_tenant
+from conftest import invite_member, make_client, provision_tenant
 
 
 @pytest.fixture()
@@ -33,15 +32,8 @@ def shop():
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
         def person(name: str, permissions: list[str]) -> dict:
-            emp = client.post("/api/v1/employees", json={"name": name}, headers=admin).json()["data"]["id"]
-            client.post("/api/v1/roles", json={"name": f"role_{name}", "permissions": permissions}, headers=admin)
-            uid = client.post("/api/v1/auth/invitations", headers=admin,
-                              json={"email": f"{name}@loop.example", "role": f"role_{name}", "employee_id": emp}).json()["data"]["id"]
-            token = next(l.rsplit("token=", 1)[1].strip() for l in outbox.messages[-1].body.splitlines() if "token=" in l)
-            client.post("/api/v1/auth/invitations/accept", json={"token": token, "password": "invitee-pass1"})
-            key = client.post("/api/v1/tenant/api-keys", json={"label": name, "user_id": uid},
-                              headers=admin).json()["data"]["plain_text_api_key"]
-            return {"employee_id": emp, "user_id": uid, "key": {"X-API-Key": key}}
+            who = invite_member(client, admin, f"role_{name}", permissions, employee=name)
+            return {"employee_id": who.employee_id, "user_id": who.user_id, "key": dict(who)}
 
         product = client.post("/api/v1/products", headers=admin,
                               json={"name": "JC-800", "product_code": "JC-800", "list_price": 128000}).json()["data"]

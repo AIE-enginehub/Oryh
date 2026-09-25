@@ -5,9 +5,9 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
+from app.models import Tenant
 
-from conftest import make_client
+from conftest import create, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -18,15 +18,7 @@ OTHER_API_KEY = "other-api-key"
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Test Tenant"),
-            Tenant(id=OTHER_TENANT, name="Other Tenant"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-            ApiKey(tenant_id=OTHER_TENANT, key_hash=hash_api_key(OTHER_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY), (OTHER_TENANT, "Other Tenant", OTHER_API_KEY))
 
 
 def api_key_headers(api_key: str = TEST_API_KEY) -> dict[str, str]:
@@ -40,25 +32,19 @@ def headers_for_tenant(tenant_id: str) -> dict[str, str]:
 def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {"name": "Alice"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/employees", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "employees", **payload)["id"]
 
 
 def create_vendor(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {"name": "戴尔（中国）有限公司", "tax_id": "91110000600000000D"}
     payload.update(overrides)
-    response = test_client.post("/api/v1/vendors", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "vendors", **payload)
 
 
 def create_product(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {"name": "27寸显示器", "spec": "U2723QE 4K", "unit": "台", "list_price": 3199.0}
     payload.update(overrides)
-    response = test_client.post("/api/v1/products", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "products", **payload)
 
 
 def create_request(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> str:
@@ -68,19 +54,13 @@ def create_request(test_client: TestClient, employee_id: str, tenant_id: str = T
         "request_date": "2026-07-11",
     }
     payload.update(overrides)
-    response = test_client.post("/api/v1/purchase-requests", json=payload, headers=headers_for_tenant(tenant_id))
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(test_client, headers_for_tenant(tenant_id), "purchase-requests", **payload)["id"]
 
 
 def create_item(test_client: TestClient, request_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {"request_id": request_id, "product_name_snapshot": "人体工学椅", "quantity": 2}
     payload.update(overrides)
-    response = test_client.post(
-        "/api/v1/purchase-request-items", json=payload, headers=headers_for_tenant(tenant_id)
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "purchase-request-items", **payload)
 
 
 def test_product_master_data_crud_and_filters(client: TestClient) -> None:
@@ -316,11 +296,7 @@ def test_purchase_validation_and_soft_delete(client: TestClient) -> None:
 def create_sku(test_client: TestClient, product_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {"product_id": product_id, "variant_attrs": {"尺码": "M"}}
     payload.update(overrides)
-    response = test_client.post(
-        "/api/v1/product-skus", json=payload, headers=headers_for_tenant(tenant_id)
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(test_client, headers_for_tenant(tenant_id), "product-skus", **payload)
 
 
 def test_product_sku_master_data_and_item_refinement(client: TestClient) -> None:

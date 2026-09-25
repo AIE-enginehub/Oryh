@@ -68,6 +68,21 @@ tenant must keep at least one active user with users.manage (lockout guard)
 The second fires on all three paths: editing role permissions, changing a user's
 role, and disabling a user.
 
+### A role for an outside party
+
+A vendor's or a customer's representative gets a role of its own, holding
+only the writes it needs (`business_object.write:warranty_card`) — never
+`member`. Shared paper is read by grant: each family has one
+(`invoice.read[:direction]`, `payment.read`, `purchase_order.read`,
+`shipment.read`, `inventory.read`, `business_object.read:<type>`,
+`billing_account.read`), `member` holds them all, and a write grant implies
+the read of its scope. A role without a family's read grant sees what it
+handled, what it created and what was routed to it, and nothing else — so an
+outside role lists warranty cards and its own todos, and no invoice of another
+vendor. A workspace-made role that should read a family it does not write
+(sales reading shipments) needs the read grant added; the setup report's
+role-sync block names the reads no ordinary role holds.
+
 ## Custom capabilities
 
 ```json

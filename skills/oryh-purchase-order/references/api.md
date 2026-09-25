@@ -137,13 +137,8 @@ POST /purchase-orders/{id}/save
                  {"adjustment_type": "discount", "amount": -1, "item_index": 1}]}
 ```
 
-A DIFF, never a delete-and-reinsert: a line kept by id keeps its identity
-(and anything pointing at it), a live line not listed is removed with the
-same audit a DELETE writes, `item_index` names a line of THIS request.
-Stale `expected_revision` → 409: read `/detail` again and restate. The
-header stays with PATCH; the editable-state gate is the same one every
-line write passes. One call replaces N PATCH/DELETE round trips when a
-person reworks a draft.
+The diff rules are the conventions' (*Writes rewritten*); `item_index` names
+a line of THIS request, and the header stays with PATCH.
 
 ## Receive — record arrival facts; never moves status
 

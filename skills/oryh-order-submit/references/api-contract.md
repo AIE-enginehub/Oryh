@@ -82,6 +82,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /sales-quotations/{quotation_id}
 
@@ -95,6 +97,8 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `delete_reason` | string (≤2000 chars) | optional |  |
+| `deleted_by` | string (≤100 chars) | optional |  |
 
 ## DELETE /shipments/{shipment_id}
 
@@ -111,10 +115,6 @@ Delete Store
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `store_id` | path | string | yes |  |
-
-## GET /auth/me
-
-Me
 
 ## GET /customer-contacts
 

@@ -11,8 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import ApiKey, Tenant, hash_api_key
-from conftest import make_client
+from app.models import Tenant
+from conftest import seeded_tenants
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
 TEST_API_KEY = "test-api-key"
@@ -20,11 +20,7 @@ TEST_API_KEY = "test-api-key"
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client([
-        Tenant(id=TEST_TENANT, name="Test Tenant"),
-        ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-    ]) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Test Tenant", TEST_API_KEY))
 
 
 def headers() -> dict[str, str]:

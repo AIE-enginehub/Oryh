@@ -23,18 +23,10 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.services.emails import outbox
 
-from conftest import make_client
+from conftest import invite_member, make_client
 
 from conftest import provision_tenant as bootstrap_tenant
-
-
-def token_from(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
 
 
 @pytest.fixture()
@@ -50,19 +42,7 @@ def workspace() -> Generator[dict, None, None]:
         hr = {"X-API-Key": data["plain_text_api_key"]}
 
         def invite(email: str, role: str, permissions: list[str]) -> dict:
-            client.post("/api/v1/roles", json={"name": role, "permissions": permissions},
-                        headers=hr)
-            user_id = client.post(
-                "/api/v1/auth/invitations", json={"email": email, "role": role}, headers=hr
-            ).json()["data"]["id"]
-            client.post(
-                "/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"},
-            )
-            key = client.post(
-                "/api/v1/tenant/api-keys", json={"label": role, "user_id": user_id}, headers=hr
-            ).json()["data"]["plain_text_api_key"]
-            return {"X-API-Key": key}
+            return dict(invite_member(client, hr, role, permissions, email=email))
 
         manager = invite("manager@rule-co.com", "pay_viewer", ["payroll.read"])
         staff = invite("staff@rule-co.com", "plain_member", ["todos.complete_own"])
@@ -286,16 +266,7 @@ def test_rescoping_is_a_publisher_act_and_is_audited(workspace: dict) -> None:
     drafter = {"X-API-Key": client.post(
         "/api/v1/tenant/api-keys", json={"label": "drafter-probe"}, headers=hr
     ).json()["data"]["plain_text_api_key"]}
-    client.post("/api/v1/roles",
-                json={"name": "drafter", "permissions": ["policy.manage"]}, headers=hr)
-    user_id = client.post("/api/v1/auth/invitations",
-                          json={"email": "drafter@rule-co.com", "role": "drafter"},
-                          headers=hr).json()["data"]["id"]
-    client.post("/api/v1/auth/invitations/accept",
-                json={"token": token_from(outbox.messages[-1].body), "password": "invitee-pass1"})
-    drafter = {"X-API-Key": client.post(
-        "/api/v1/tenant/api-keys", json={"label": "drafter", "user_id": user_id}, headers=hr
-    ).json()["data"]["plain_text_api_key"]}
+    drafter = dict(invite_member(client, hr, "drafter", ["policy.manage"], email="drafter@rule-co.com"))
 
     refused = client.post(
         f"/api/v1/policies/{workspace['handbook']['id']}/visibility",

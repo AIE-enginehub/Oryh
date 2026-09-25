@@ -35,7 +35,7 @@ from app.core.entity_types import (
 from app.services.state_machines import BUILTIN_MACHINES
 from app.models import ApiKey, Tenant, hash_api_key
 
-from conftest import make_client
+from conftest import make_client, seeded_tenants
 
 TEST_TENANT = "dddddddd-9999-4999-8999-dddddddddddd"
 TEST_API_KEY = "entity-types-key"
@@ -44,13 +44,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Reference Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
+    yield from seeded_tenants((TEST_TENANT, "Reference Co", TEST_API_KEY))
 
 
 def constraint_values(client: TestClient, table: str) -> set[str]:

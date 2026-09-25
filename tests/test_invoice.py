@@ -16,10 +16,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models import ApiKey, Tenant, hash_api_key
-from app.services.emails import outbox
 
-from conftest import make_client
+from conftest import create, invite_member, make_client, seeded_tenants
 
 from conftest import provision_tenant as bootstrap_tenant
 
@@ -30,20 +28,7 @@ HEADERS = {"X-API-Key": TEST_API_KEY}
 
 @pytest.fixture()
 def client() -> Generator[TestClient, None, None]:
-    with make_client(
-        [
-            Tenant(id=TEST_TENANT, name="Invoice Co"),
-            ApiKey(tenant_id=TEST_TENANT, key_hash=hash_api_key(TEST_API_KEY), label="primary"),
-        ]
-    ) as test_client:
-        yield test_client
-
-
-def extract_token(body: str) -> str:
-    for line in body.splitlines():
-        if "token=" in line:
-            return line.rsplit("token=", 1)[1].strip()
-    raise AssertionError("no token in email")
+    yield from seeded_tenants((TEST_TENANT, "Invoice Co", TEST_API_KEY))
 
 
 def client_post(ctx: dict, path: str, body: dict) -> dict:
@@ -60,51 +45,26 @@ def scoped_client() -> Generator[tuple[dict, dict], None, None]:
         data = bootstrap_tenant(test_client, company_name="AR Co", email="admin@ar-co.com", password="ar-pass1234")
         service = {"client": test_client, "headers": {"X-API-Key": data["plain_text_api_key"]}}
 
-        assert test_client.post(
-            "/api/v1/roles",
-            json={"name": "ar_clerk", "permissions": ["invoice.manage:sales"]},
-            headers=service["headers"],
-        ).status_code == 201
-        user_id = test_client.post(
-            "/api/v1/auth/invitations",
-            json={"email": "ar@ar-co.com", "role": "ar_clerk"},
-            headers=service["headers"],
-        ).json()["data"]["id"]
-        invite_token = extract_token(outbox.messages[-1].body)
-        test_client.post(
-            "/api/v1/auth/invitations/accept",
-            json={"token": invite_token, "password": "invitee-pass1"},
-        )
-        key = test_client.post(
-            "/api/v1/tenant/api-keys",
-            json={"label": "ar-agent", "user_id": user_id},
-            headers=service["headers"],
-        ).json()["data"]["plain_text_api_key"]
-        yield service, {"client": test_client, "headers": {"X-API-Key": key}}
+        clerk = invite_member(test_client, service["headers"], "ar_clerk", ["invoice.manage:sales"], email="ar@ar-co.com")
+        yield service, {"client": test_client, "headers": dict(clerk)}
 
 
 def create_employee(client: TestClient, **overrides) -> str:
     payload = {"name": "财务小陈"}
     payload.update(overrides)
-    response = client.post("/api/v1/employees", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]["id"]
+    return create(client, HEADERS, "employees", **payload)["id"]
 
 
 def create_customer(client: TestClient, **overrides) -> dict:
     payload = {"name": "上海市第一医院", "customer_code": "C-SH1"}
     payload.update(overrides)
-    response = client.post("/api/v1/customers", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "customers", **payload)
 
 
 def create_vendor(client: TestClient, **overrides) -> dict:
     payload = {"name": "戴尔（中国）有限公司", "vendor_code": "V-DELL"}
     payload.update(overrides)
-    response = client.post("/api/v1/vendors", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "vendors", **payload)
 
 
 def create_invoice(client: TestClient, **overrides) -> dict:
@@ -119,9 +79,7 @@ def create_invoice(client: TestClient, **overrides) -> dict:
     # declared total say so themselves, and everything else gets a plain figure
     if payload.get("total_amount") is None and not payload.get("items"):
         payload["total_amount"] = 1000.0
-    response = client.post("/api/v1/invoices", json=payload, headers=HEADERS)
-    assert response.status_code == 201, response.text
-    return response.json()["data"]
+    return create(client, HEADERS, "invoices", **payload)
 
 
 def test_a_sales_invoice_takes_a_customer_and_allocates_its_own_number(client: TestClient) -> None:
@@ -689,12 +647,14 @@ def test_invoice_manage_can_be_scoped_to_one_direction(scoped_client: TestClient
             "total_amount": 1000.0,
         },
     )
+    # a purchase invoice does not exist for the sales desk: `invoice.manage:sales`
+    # reads sales invoices only, so the refusal is the 404 of an unreadable row
     assert ar_only["client"].post(
         f"/api/v1/invoices/{others['id']}/submit", headers=ar_only["headers"]
-    ).status_code == 403
+    ).status_code == 404
     assert ar_only["client"].delete(
         f"/api/v1/invoices/{others['id']}", headers=ar_only["headers"]
-    ).status_code == 403
+    ).status_code == 404
 
 
 def test_the_type_vocabularies_are_gated_and_extensible(client: TestClient) -> None:
