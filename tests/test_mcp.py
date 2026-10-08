@@ -149,3 +149,21 @@ def test_publishing_a_skill_with_an_unpaired_delivery_block_is_refused() -> None
             "files": {"SKILL.md": "---\nname: ac-broken\n---\n<!-- only: bundle -->\nkey\n"},
         })
         assert refused.status_code == 422 and "never closed" in refused.text, refused.text
+
+
+def test_the_prompt_carries_the_workspace_calibration_like_a_bundle_does() -> None:
+    """A workspace's own refinement of a shipped skill rode every bundle and no
+    prompt: an MCP agent read the catalog text and never the admin's sentence
+    ("pay claims directly, no invoice"). The prompt appends the same section,
+    under the same boundary, so the two doors say the same thing."""
+    with make_client([]) as client:
+        t = provision_tenant(client, company_name="Tune Co", email="admin@tune-co.example")
+        admin = {"X-API-Key": t["plain_text_api_key"]}
+        bearer = {"Authorization": f"Bearer {t['plain_text_api_key']}"}
+        before = _rpc(client, bearer, "prompts/get", {"name": "oryh-payables"}).json()["result"]["messages"][0]["content"]["text"]
+        assert "## Workspace calibration" not in before, "nothing to append until the workspace writes one"
+        r = client.patch("/api/v1/skills/oryh-payables", headers=admin, json={"calibration": "Pay claims directly; this workspace never bills an expense claim."})
+        assert r.status_code == 200, r.text
+        after = _rpc(client, bearer, "prompts/get", {"name": "oryh-payables"}).json()["result"]["messages"][0]["content"]["text"]
+        assert after.index("## Workspace calibration") > after.index("# ")
+        assert "never bills an expense claim" in after and "the skill wins" in after

@@ -18,7 +18,7 @@ Two facts shape every step:
 - **One capability drives everything.** `purchase_order.manage` files, edits,
   advances, and receives — procurement is a function, not "my own documents",
   so there is no submit/approve split and no built-in second approval. Tenants
-  wanting PO approval add it via workflow definitions and the flow agent.
+  wanting PO approval add it via an approval-flow rule and the flow agent.
 
 {{include:_common/answer-the-question.md}}
 
@@ -166,7 +166,7 @@ product. What is different is what you bring to the order:
 ## What This Skill Never Does
 
 - Order without a decided vendor, or invent vendors/products to make a line pass.
-- Approve its own purchase — tenants wanting PO approval route it through workflow
+- Approve its own purchase — tenants wanting PO approval route it through approval-flow
   definitions and the flow agent before `submitted → confirmed`.
 - Move `received`/`closed` ahead of the recorded facts, or walk a status
   backwards to "fix" history.

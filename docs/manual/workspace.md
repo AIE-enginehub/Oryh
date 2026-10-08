@@ -5,7 +5,7 @@ what each piece is actually for.
 
 Almost all of it can be done by asking an administrator's agent rather than by
 clicking — `oryh-master-data` loads products, vendors and customers,
-`oryh-access-admin` changes who may do what, `oryh-policy` writes company
+`oryh-access-admin` changes who may do what, `oryh-business-rules` writes company
 rules. The console is where you check the result and handle the exceptions.
 
 If you would rather be walked through it, that is a skill too: ask an
@@ -111,12 +111,16 @@ six months of master-data configuration before it will hold a record.
 
 ## Company rules
 
-`oryh-policy` records the company's own rules — the employee handbook, the
-expense policy, purchase approval authority — as published documents with
-versions. They are not decoration: agents read them at decision time, so
-"reimbursement is capped at 500 per day" written as a policy is a rule an
-agent applies rather than a paragraph nobody opens. See
-[company rules](../policies.md).
+`oryh-business-rules` records the company's own rules — the employee handbook, the
+expense policy, purchase approval authority, who approves what, what a
+document must carry when filed, what happens when it is approved — as
+published rows with versions, one per question. They are not decoration:
+agents read them at decision time, so "reimbursement is capped at 500 per
+day" written as a policy is a rule an agent applies rather than a paragraph
+nobody opens. Every shipped document family starts with a seeded draft of
+its approval flow (and, where it helps, a data rule and a linkage): read it,
+change the sentences that are not yours, publish. Nothing runs on a draft.
+See [business rules](../business-rules.md).
 
 ## Your own object types
 

@@ -39,7 +39,7 @@ belongs to `oryh-master-data`.
 
 | Screen | What it is for |
 |---|---|
-| **Object types & workflows** | Field rules, status flow, workflow versions — for shipped documents and your own types alike. |
+| **Object types & business rules** | Field rules, status flow, and the rules agents read — approval flows, data rules, linkages, policies — every version kept, for shipped documents and your own types alike. |
 | **Business objects** | Every record in the workspace, with a detail view. |
 
 Built-in entities require a state-machine definition; your own types need a
@@ -88,11 +88,11 @@ reporting a flat failure.
 
 The flow agent screen has one state worth knowing by name: **parked**. The
 runner stops a subscription after several runs in a row that found documents
-waiting and moved none of them — almost always because the workflow
-definition for that family does not say where those documents go. A parked
+waiting and moved none of them — almost always because the approval
+flow for that family does not say where those documents go. A parked
 subscription stays enabled and does nothing until a person lifts the stop.
-Two things lift it: publishing the next version of that family's workflow
-definition (the usual fix, and the park clears by itself), or `PATCH
+Two things lift it: publishing the next version of that family's approval
+flow (the usual fix, and the park clears by itself), or `PATCH
 /flow-subscriptions/{id}` with `clear_park: true` when the cause was
 elsewhere — an approver without an employee record, say. The setup report
 lists parked subscriptions with their reason under `flow_driving`. An agent

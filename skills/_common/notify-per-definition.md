@@ -1,7 +1,7 @@
-> **Whether to notify is the definition's call, not yours.** Read it there like
+> **Whether to notify is the approval flow's call, not yours.** Read it there like
 > any other routing rule, and do what it says:
 >
-> | The definition says | You |
+> | The approval flow says | You |
 > |---|---|
 > | notify on assignment (however the tenant phrased it) | at the END of the run, run `$approval-notifier` **once per person**, passing every todo you created for them in `todo_ids` |
 > | notify on return / rejection | run it for that outcome, one document at a time, carrying the approver's comment |
@@ -42,6 +42,6 @@
 > skill to fill the gap, gave it an approver's permission because that was the
 > permission they had, and got one event type of the four this covers.
 >
-> When the definition asks for notifications and you send none — no email
+> When the approval flow asks for notifications and you send none — no email
 > address on file, the notifier unavailable — say which person went untold.
 > A notification nobody knows was skipped is worse than one never promised.

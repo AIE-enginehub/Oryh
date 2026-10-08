@@ -52,7 +52,7 @@ oryh:
 4. **Advance as facts happen**: `PATCH /campaigns/{id} {"status": "active"}`
    when it runs, `completed` when it is over (`actual_cost` when known),
    `cancelled` when it does not happen. The machine is the workspace's; read
-   `GET /workflow-definitions?entity_kind=builtin&object_type=campaign`
+   `GET /object-type-definitions?object_type=campaign`
    when a 409 says your assumption was renamed.
 5. **Who was reached**: `POST /campaign-members {"campaign_id", "lead_id" |
    "customer_id" (+"contact_id"?), "member_status"}` — one party per row,

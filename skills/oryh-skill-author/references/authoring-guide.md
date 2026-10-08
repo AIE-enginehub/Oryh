@@ -93,13 +93,13 @@ Re-explaining core API mechanics inside a customer skill is a defect: it drifts 
 
 The gate is also the **distribution rule**: holding the skill always implies permission to execute it. Check `GET /roles` to see who will actually receive it, and say so at read-back.
 
-## Policy stays out
+## Rules stay out
 
-Any number, threshold, named approver, or routing rule belongs in the workflow definition. The skill's job is to *point* at it:
+Any number, threshold, named approver, or routing rule belongs in the workspace's business rules. The skill's job is to *point* at it:
 
 > **Wrong (in a skill):** "a discount below 80% needs the general manager to countersign"
-> **Right (in a skill):** "before submitting, read `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation` and apply its submission requirements to the conversation"
-> **Right (in the workflow definition):** "for a discount below 80%, the sales manager approves and the general manager countersigns"
+> **Right (in a skill):** "before submitting, read `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&status=published` and apply it to the conversation"
+> **Right (in the quotation `approval_flow`):** "for a discount below 80%, the sales manager approves and the general manager countersigns"
 
 This is why tenants can retune the process without touching any skill.
 
@@ -118,11 +118,11 @@ The unit of a skill is **one role's coherent job**, not a phase and not an objec
 - **Split across roles** (the submit / approve / flow pattern): if the process has an approval loop, model it as up to three skills, mirroring the product families —
   - **submit**: the actor's own facts, own lifecycle endpoints only
   - **approve**: one approval fact + complete own todo, never status
-  - **flow**: the service-credential loop — queue → trail → workflow definition → next todo or final status
+  - **flow**: the service-credential loop — queue → trail → approval flow → next todo or final status
 
   Small processes may only need submit (the flow agent's generic loop covers the rest).
 - **Merge within a role**: the same person's consecutive phases (parsing an enquiry → quoting → winning → tracking logistics) belong in ONE skill. Keep SKILL.md a trigger + phase-router (a "which reference do I load" table), and put each phase's detail in `references/<phase>.md` — agents hold one bundle line and load only the phase the conversation is in.
-- **Never one-skill-per-object-type**: `$oryh-business-object` already handles any custom type by reading the tenant's object-type definition and workflow definition at use time. Ten new object types should add zero new skills. A dedicated customer skill is earned only by process that exceeds those definitions — correction-confirm gates, fixed customer-facing wording, cross-object rituals.
+- **Never one-skill-per-object-type**: `$oryh-business-object` already handles any custom type by reading the tenant's object-type definition and business rules at use time. Ten new object types should add zero new skills. A dedicated customer skill is earned only by process that exceeds those definitions — correction-confirm gates, fixed customer-facing wording, cross-object rituals.
 
 Bundle-size sanity check before publishing: an ordinary member should end up holding **well under ten** skills. If your draft pushes past that, you are splitting by phase or by object — merge.
 

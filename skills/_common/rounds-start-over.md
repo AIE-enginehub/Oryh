@@ -1,7 +1,7 @@
 > **A round is the whole chain, from the top.** `round_no` increments when a
 > returned document is resubmitted, and the new round is a fresh run at the
 > definition's node list — not a resumption of where the last one stopped. The
-> submitter changed the document; every node the definition names has to see
+> submitter changed the document; every node the approval flow names has to see
 > the version it will be approving.
 >
 > Two rules follow, and both are about reading the trail:

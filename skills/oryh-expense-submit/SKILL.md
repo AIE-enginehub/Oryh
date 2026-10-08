@@ -49,7 +49,7 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (how old a receipt may be, whose name must be on it, per-category limits, and the like) and let it shape the conversation from the first receipt — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a claim → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=expense_claim&status=published` — what a claim must carry to be filed here, in the workspace's own words, current as of this moment. Read what it requires of a submission (how old a receipt may be, whose name must be on it, per-category limits, and the like) and let it shape the conversation from the first receipt — see the "Tenant requirements" layer below. No data rule published → only the universal checks apply; never invent requirements. (A workspace that published before the kinds existed carries its requirements as a "submission requirements" section inside its `approval_flow` rule, its heading possibly in the workspace's own language — read that section and nothing else of it.)
 3. **Reuse before create**: `GET /expense-claims?employee_id={me}&status=draft` — reuse an open draft for the same trip/purpose; retries must not duplicate. A `returned` claim is also reused: fix it, don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. A successful resubmit completes the rework todo itself — there is nothing to close by hand.
 
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
@@ -86,7 +86,7 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
      `PATCH`/`DELETE` per item to fix. Items are editable only while the
      claim is in the tenant's editable states (default `draft`/`returned`) —
      a 409 means the claim has moved on.
-   - Project: one lookup, `GET /projects?keyword=` with the words the person used. One hit → `project_id`; none → if the definition requires a project, the claim cannot be submitted, say so; otherwise ask once whether to keep the name as free text in `project_name_snapshot`. Never invent projects, never try other spellings.
+   - Project: one lookup, `GET /projects?keyword=` with the words the person used. One hit → `project_id`; none → if the data rule requires a project, the claim cannot be submitted, say so; otherwise ask once whether to keep the name as free text in `project_name_snapshot`. Never invent projects, never try other spellings.
    - Vendor: one lookup — `GET /vendors?tax_id={seller_tax_id}` (exact key, best) or `GET /vendors?keyword={seller_name}`. Send `vendor_id` on one hit; `merchant` always keeps the seller name exactly as printed. No match is normal — leave `vendor_id` null and move on. Never create vendors.
    - Unsure whether the whole claim is legal? The same POST with `?validate_only=true` runs every server check (duplicate invoices included) and writes nothing — one call, the same errors the real write would give.
 8. **Submit**: `POST /expense-claims/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent — resubmitting a submitted claim is a no-op. The response's `status`/`submitted_at` is the confirmation; tell the principal it is submitted, with the total you already hold from step 7.
@@ -106,8 +106,10 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 **Tenant requirements (the workflow admin returns violations; catch them in conversation first):**
 
-- Whatever the step-2 definition requires of a claim, applied receipt by receipt. Typical shapes: the invoice may not be more than 90 days old; it must be made out to the company's full legal name; meals have a per-item limit; travel must be linked to a project. The definition's own wording always wins over these examples.
-- Several reasonableness questions below (how old a receipt may be, whose name is on it, large meal amounts) are exactly what tenants write into their definition — when the definition answers one, apply its answer instead of guessing or asking.
+{{include:_common/business-rules.md}}
+
+- Whatever the step-2 data rule requires of a claim, applied receipt by receipt. Typical shapes: the invoice may not be more than 90 days old; it must be made out to the company's full legal name; meals have a per-item limit; travel must be linked to a project. The definition's own wording always wins over these examples.
+- Several reasonableness questions below (how old a receipt may be, whose name is on it, large meal amounts) are exactly what tenants write into their data rule — when the rule answers one, apply its answer instead of guessing or asking.
 - These are the exact requirements the workflow admin's agent checks before assigning any approver, and its return note cites the ones violated — so a requirement skipped here is a guaranteed rework round.
 - Fixing a returned claim? Re-run step 2 first — the requirements may have changed since the original submission, and the current version is what the next calibration uses.
 
@@ -134,7 +136,7 @@ Echoing it from memory is what this step exists to prevent, and doing so has alr
 
 ## What Happens Next (so you can answer the principal)
 
-The claim now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant claim comes back as a rework todo without reaching any approver — then approvers are assigned per the tenant's workflow definition. Progress is visible any time via the approval trail (`GET /approval-records?entity_type=expense_claim&entity_id={id}`) — the status stays `submitted` until the flow finishes, then moves to `approved` and, once finance pays out, `paid` (tenant machines may differ). If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`); fix the items and submit again.
+The claim now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant claim comes back as a rework todo without reaching any approver — then approvers are assigned per the workspace's approval flow. Progress is visible any time via the approval trail (`GET /approval-records?entity_type=expense_claim&entity_id={id}`) — the status stays `submitted` until the flow finishes, then moves to `approved` and, once finance pays out, `paid` (tenant machines may differ). If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`); fix the items and submit again.
 
 ## What This Skill Never Does
 

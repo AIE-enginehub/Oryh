@@ -45,7 +45,7 @@ FILES_THE_RECORD = {
     "sales_order_items": "order.submit_own",
     "invoices": "invoice.manage",
     "payments": "payment.record",
-    "policies": "policy.manage",
+    "business_rules": "policy.manage",
     "product_images": "master_data.manage",
     "contract_documents": "contract.manage",
 }

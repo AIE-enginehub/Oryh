@@ -13,7 +13,7 @@ section in SKILL.md. The three reads below are what a balance is computed from.
 
 | Call | Gives |
 |---|---|
-| `GET /policies?category=hr&status=published&in_force_on=2026-06-15` | the rules that applied on that date — `body` in prose, `rules_json` if the workspace put the tiers in structure |
+| `GET /business-rules?kind=policy&category=hr&in_force_on=2026-06-15` | the rules that applied on that date — `body` in prose, `rules_json` if the workspace put the tiers in structure |
 | `GET /employees/{employee_id}` | `hire_date`, which length of service is measured from. Null means nobody recorded it — ask, do not assume |
 | `GET /employee-leaves?employee_id={id}&leave_type=annual&overlapping_from=2026-01-01&overlapping_thru=2026-12-31` | every request touching the period, whatever its status |
 
@@ -68,7 +68,7 @@ anywhere before completion and `taken` after `approved`.
 | `taken` | the absence actually happened, where the workspace records it |
 
 The tenant may edit this machine
-(`GET /workflow-definitions?entity_kind=builtin&object_type=employee_leave`);
+(`GET /object-type-definitions?object_type=employee_leave`);
 read it rather than assuming these names.
 
 ## What the filer may not do

@@ -70,8 +70,8 @@ function outcomeOf(run: FlowRun, text: Text): { tone: string; label: string; not
       tone: "stuck",
       label: text("没有推进", "Moved nothing"),
       note: text(
-        `发现 ${run.queue_size ?? 0} 单，但一单也没有推进——通常是流程定义指向了不存在的节点，或审批人没有员工记录。`,
-        `Found ${run.queue_size ?? 0} record(s) and moved none — usually a workflow definition routing nowhere, or an approver with no employee record.`,
+        `发现 ${run.queue_size ?? 0} 单，但一单也没有推进——通常是审批流程指向了不存在的节点，或审批人没有员工记录。`,
+        `Found ${run.queue_size ?? 0} record(s) and moved none — usually an approval flow routing nowhere, or an approver with no employee record.`,
       ),
     };
   }
@@ -161,8 +161,8 @@ export function FlowAgentPage() {
           <h1>{text("流程代理", "Flow agent")}</h1>
           <p>
             {text(
-              "由 ORYH 代为运行的审批推进。它读你们自己的流程定义决定下一步，写入一律署名「ORYH 托管流程代理」，随时可以关掉。",
-              "Approval driving operated by ORYH on your behalf. It reads your own workflow definitions to decide the next step, signs every write as “ORYH 托管流程代理”, and can be switched off at any time.",
+              "由 ORYH 代为运行的审批推进。它读你们自己发布的审批流程规则决定下一步，写入一律署名「ORYH 托管流程代理」，随时可以关掉。",
+              "Approval driving operated by ORYH on your behalf. It reads the approval-flow rules you publish to decide the next step, signs every write as “ORYH 托管流程代理”, and can be switched off at any time.",
             )}
           </p>
         </div>
@@ -195,8 +195,8 @@ export function FlowAgentPage() {
                 <span>{row.parked_reason}</span>
                 <small>
                   {text(
-                    "通常是该单据的流程定义没写清往哪走：发布下一版定义后会自动恢复。原因在别处的，处理完后点「重试」。",
-                    "Usually the workflow definition for this family does not say where these go: publishing its next version resumes driving by itself. If the cause was elsewhere, fix it and press Try again.",
+                    "通常是该单据的审批流程规则没写清往哪走：发布下一版规则后会自动恢复。原因在别处的，处理完后点「重试」。",
+                    "Usually the approval flow for this family does not say where these go: publishing its next version resumes driving by itself. If the cause was elsewhere, fix it and press Try again.",
                   )}
                 </small>
                 {row.enabled && (

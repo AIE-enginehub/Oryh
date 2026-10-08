@@ -99,16 +99,23 @@ oryh:
       customers: `contract.manage` is granted to NO shipped role and is
       scoped by side (`:purchase` / `:sales`) — name the desk, then
       $oryh-contracts files the originals and locates the clauses.
-   6. *Workflow definitions*: for each family the company will run, publish
-      the tenant's own rules in their own words —
-      `POST /workflow-definitions` with plain natural-language
-      `definition_text` ("expenses: direct manager approves; above 5000 add finance"). This is the map
-      every flow agent reads; a family without one stalls at "todo for the
-      admin". A family whose map routes nowhere stalls differently: the
+   6. *Business rules*: for each family the company will run, publish the
+      tenant's own rules in their own words — `POST /business-rules/publish`
+      with `kind`, `entity_kind`, `object_type` and a plain natural-language
+      `body`: an `approval_flow` ("expenses: direct manager approves; above
+      5000 add finance"), a `data_rule` where filing has conditions ("every
+      line names a project"), a `linkage` where a state has consequences
+      ("approved claims get finance a payment todo"). Provisioning seeded a
+      DRAFT of each for every shipped family (`GET
+      /business-rules?status=draft&origin=catalog`): read it back, change the
+      sentences that are not theirs, and publish — never draft from a blank
+      page while a seeded draft exists, and never publish one unread. The
+      approval flow is the map every flow agent reads; a family without one
+      stalls at "todo for the admin". A family whose map routes nowhere stalls differently: the
       runner **parks** its subscription after a few runs that found work
       and moved nothing, and the report lists it under
       `flow_driving.facts.parked` with the reason. Publishing the next
-      version of that family's definition lifts the park by itself; when
+      version of that family's approval flow lifts the park by itself; when
       the cause was elsewhere (an approver with no employee record, say),
       `PATCH /flow-subscriptions/{id}` with `{"clear_park": true}` says
       "fixed, try again" — needs `keys.manage`, which the admin has. Never
@@ -122,9 +129,9 @@ oryh:
       they exist: reimbursement mode (invoice or direct settle), where
       returned goods land, whether the warehouse picks before packing and
       holds stock when an order confirms (one sentence in the sales_order
-      definition — $oryh-inventory reads it), calibration lines on any
-      skill. Each is a sentence in a definition or a calibration — never
-      a config screen. Families with no approval half (shipments,
+      `linkage` rule — $oryh-inventory reads it), calibration lines on any
+      skill. Each is a sentence in a rule or a calibration — never a
+      config screen. Families with no approval half (shipments,
       picklists, leads, opportunities, purchase orders) read `ready` on
       staffing alone; they need no definition to run.
 4. **Verify by re-reading the report** — once after each handoff the person
@@ -144,8 +151,9 @@ oryh:
 
 - Store setup progress, module decisions, or "done" marks anywhere in oryh —
   the report derives, your context remembers, and that is the whole design.
-- Invent master data, guess vocabulary, or publish a workflow definition the
-  admin did not phrase — the definitions are THEIR words.
+- Invent master data, guess vocabulary, or publish a business rule the
+  admin did not phrase — the rules are THEIR words; a seeded draft is a
+  starting text they read and change, never one you publish for them.
 - Grant a capability without naming who gets it and why, or touch role
   grants itself — that is $oryh-access-admin's work with its own guardrails.
 - Mark an area complete by assertion. The report says, or it is not so.
@@ -153,6 +161,6 @@ oryh:
 ## Reference
 
 - [references/api.md](references/api.md): the report's shape, the reads
-  this skill makes, and its two writes — `POST /workflow-definitions` and
+  this skill makes, and its two writes — `POST /business-rules/publish` and
   `PATCH /object-type-definitions/{id}` for state renames. Every other
   write is a handoff.

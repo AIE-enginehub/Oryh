@@ -8,11 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.api.workflows import lock_workflow_publish_scope, workflow_publish_lock_key
+from app.api.business_rules import lock_rule_version_scope, rule_scope_code, rule_version_lock_key
 from app.models import Tenant
 from app.services.state_machines import DEFAULT_TIMESHEET_MACHINE
 
-from conftest import create, make_client, seeded_tenants
+from conftest import create, make_client, provision_tenant, seeded_tenants
 
 
 TEST_TENANT = "11111111-1111-1111-1111-111111111111"
@@ -432,30 +432,15 @@ def test_workflow_publish_lock_uses_stable_postgres_transaction_lock() -> None:
         dialect=SimpleNamespace(name="postgresql")
     )
 
-    lock_workflow_publish_scope(
-        postgres_db,
-        TEST_TENANT,
-        "builtin",
-        "timesheet_header",
-        "default",
-    )
+    code = rule_scope_code("approval_flow", "builtin", "timesheet_header", "default")
+    lock_rule_version_scope(postgres_db, TEST_TENANT, code)
 
     postgres_db.execute.assert_called_once()
     statement, params = postgres_db.execute.call_args.args
     assert "pg_advisory_xact_lock" in str(statement)
-    assert params == {
-        "lock_key": workflow_publish_lock_key(
-            TEST_TENANT,
-            "builtin",
-            "timesheet_header",
-            "default",
-        )
-    }
-    assert params["lock_key"] != workflow_publish_lock_key(
-        TEST_TENANT,
-        "builtin",
-        "timesheet_header",
-        "alternate",
+    assert params == {"lock_key": rule_version_lock_key(TEST_TENANT, code)}
+    assert params["lock_key"] != rule_version_lock_key(
+        TEST_TENANT, rule_scope_code("approval_flow", "builtin", "timesheet_header", "alternate"),
     )
 
 
@@ -465,12 +450,8 @@ def test_workflow_publish_lock_is_sqlite_compatible() -> None:
         dialect=SimpleNamespace(name="sqlite")
     )
 
-    lock_workflow_publish_scope(
-        sqlite_db,
-        TEST_TENANT,
-        "builtin",
-        "timesheet_header",
-        "default",
+    lock_rule_version_scope(
+        sqlite_db, TEST_TENANT, rule_scope_code("approval_flow", "builtin", "timesheet_header", "default"),
     )
 
     sqlite_db.execute.assert_not_called()
@@ -490,47 +471,48 @@ def test_workflow_definition_versioning(client: TestClient) -> None:
     assert definition.status_code == 201, definition.text
     v1_text = "工时提交后由直属经理审批，通过即 approved。"
     response = client.post(
-        "/api/v1/workflow-definitions",
-        json={"entity_kind": "builtin", "object_type": "timesheet_header", "definition_text": v1_text},
+        "/api/v1/business-rules/publish",
+        json={"kind": "approval_flow", "entity_kind": "builtin", "object_type": "timesheet_header", "body": v1_text},
         headers=HEADERS,
     )
     assert response.status_code == 201, response.text
-    v1 = response.json()["data"]
-    assert v1["version"] == 1 and v1["status"] == "active"
+    v1 = response.json()["data"]["current"]
+    assert v1["version"] == 1 and v1["status"] == "published"
 
     v2_text = "工时提交后由直属经理审批；超过40小时需财务复核；财务复核可能在改判后再次进行。"
     response = client.post(
-        "/api/v1/workflow-definitions",
-        json={"entity_kind": "builtin", "object_type": "timesheet_header", "definition_text": v2_text},
+        "/api/v1/business-rules/publish",
+        json={"kind": "approval_flow", "entity_kind": "builtin", "object_type": "timesheet_header", "body": v2_text},
         headers=HEADERS,
     )
-    v2 = response.json()["data"]
-    assert v2["version"] == 2 and v2["status"] == "active"
+    v2 = response.json()["data"]["current"]
+    assert v2["version"] == 2 and v2["status"] == "published"
+    assert response.json()["data"]["superseded"]["id"] == v1["id"]
 
-    # default listing returns only the active version
+    # the published filter returns only the version in force
     listing = client.get(
-        "/api/v1/workflow-definitions?entity_kind=builtin&object_type=timesheet_header",
+        "/api/v1/business-rules?kind=approval_flow&entity_kind=builtin&object_type=timesheet_header&status=published",
         headers=HEADERS,
     ).json()
     assert listing["meta"]["total"] == 1
     assert listing["data"][0]["version"] == 2
-    assert listing["data"][0]["definition_text"] == v2_text
+    assert listing["data"][0]["body"] == v2_text
 
-    # history keeps every version; superseded v1 is still fetchable by id
+    # every version stays; superseded v1 is still fetchable by id
     history = client.get(
-        "/api/v1/workflow-definitions?object_type=timesheet_header&history=true",
+        "/api/v1/business-rules?kind=approval_flow&object_type=timesheet_header",
         headers=HEADERS,
     ).json()
     assert history["meta"]["total"] == 2
-    old = client.get(f"/api/v1/workflow-definitions/{v1['id']}", headers=HEADERS).json()["data"]
+    old = client.get(f"/api/v1/business-rules/{v1['id']}", headers=HEADERS).json()["data"]
     assert old["status"] == "superseded"
-    assert old["definition_text"] == v1_text
+    assert old["body"] == v1_text
 
     paged = client.get(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules",
         params={
-            "history": True,
-            "status": "active",
+            "kind": "approval_flow",
+            "status": "published",
             "keyword": "40小时",
             "page": 1,
             "size": 1,
@@ -541,14 +523,14 @@ def test_workflow_definition_versioning(client: TestClient) -> None:
     assert paged["data"][0]["id"] == v2["id"]
 
     # publishing left an audit entry
-    audit = client.get("/api/v1/audit-logs?action=workflow.published", headers=HEADERS).json()
+    audit = client.get("/api/v1/audit-logs?action=approval_flow.published", headers=HEADERS).json()
     assert audit["meta"]["total"] == 2
 
     # tenant isolation
-    other = client.get("/api/v1/workflow-definitions", headers=OTHER_HEADERS).json()
+    other = client.get("/api/v1/business-rules?kind=approval_flow&status=published", headers=OTHER_HEADERS).json()
     assert other["meta"]["total"] == 0
     assert client.get(
-        f"/api/v1/workflow-definitions/{v1['id']}", headers=OTHER_HEADERS
+        f"/api/v1/business-rules/{v1['id']}", headers=OTHER_HEADERS
     ).status_code == 404
 
 
@@ -556,11 +538,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
     client: TestClient,
 ) -> None:
     unknown_builtin = client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "builtin",
             "object_type": "timeshet_header",
-            "definition_text": "typo",
+            "body": "typo",
         },
         headers=HEADERS,
     )
@@ -570,11 +553,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
     # a browsable collection with no lifecycle is not a workflow subject at
     # all: there is no state machine for a definition to route
     machineless = client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "builtin",
             "object_type": "resource_booking",
-            "definition_text": "not configured",
+            "body": "not configured",
         },
         headers=HEADERS,
     )
@@ -584,11 +568,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
     # ...while a real workflow subject this tenant has not had provisioned yet
     # is refused for the other reason
     missing_builtin_definition = client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "builtin",
             "object_type": "invoice",
-            "definition_text": "not configured",
+            "body": "not configured",
         },
         headers=HEADERS,
     )
@@ -596,11 +581,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
     assert "no active definition" in missing_builtin_definition.json()["detail"]
 
     typo_custom = client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "business_object",
             "object_type": "waranty_card",
-            "definition_text": "typo",
+            "body": "typo",
         },
         headers=HEADERS,
     )
@@ -614,11 +600,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
     )
     assert definition.status_code == 201
     assert client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "business_object",
             "object_type": "defined_type",
-            "definition_text": "definition-backed",
+            "body": "definition-backed",
         },
         headers=HEADERS,
     ).status_code == 201
@@ -629,11 +616,12 @@ def test_workflow_publish_rejects_typos_and_accepts_known_custom_types(
         headers=HEADERS,
     ).status_code == 201
     assert client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "business_object",
             "object_type": "data_only_type",
-            "definition_text": "data-backed",
+            "body": "data-backed",
         },
         headers=HEADERS,
     ).status_code == 201
@@ -821,3 +809,31 @@ def test_a_line_change_shows_up_on_the_document_it_belongs_to(client: TestClient
         headers=HEADERS,
     ).json()["data"]
     assert "timesheet.line_removed" in [row["action"] for row in trail]
+
+
+def test_a_machine_change_leaves_both_snapshots_in_the_trail() -> None:
+    """The machine is the one rule the server enforces, and the only one that
+    had no trail: a renamed state that broke a route could not be traced to
+    the afternoon it was renamed. The PATCH now records before and after."""
+    with make_client([]) as client:
+        t = provision_tenant(client, company_name="Trail Co", email="admin@trail-co.example")
+        admin = {"X-API-Key": t["plain_text_api_key"]}
+        definition = next(d for d in client.get("/api/v1/object-type-definitions?entity_kind=builtin&object_type=expense_claim",
+                                                headers=admin).json()["data"])
+        machine = dict(definition["state_machine"])
+        renamed = {**machine, "states": ["已提交" if s == "submitted" else s for s in machine["states"]],
+                   "roles": {**(machine.get("roles") or {}), "submitted": "已提交"},
+                   "transitions": {("已提交" if k == "submitted" else k): ["已提交" if v == "submitted" else v for v in vs]
+                                   for k, vs in machine["transitions"].items()},
+                   "editable_states": ["已提交" if s == "submitted" else s for s in machine.get("editable_states") or []]}
+        r = client.patch(f"/api/v1/object-type-definitions/{definition['id']}", headers=admin, json={"state_machine": renamed})
+        assert r.status_code == 200, r.text
+        trail = client.get("/api/v1/audit-logs?entity_type=object_type_definition&action=rule.machine_changed", headers=admin).json()["data"]
+        assert len(trail) == 1
+        detail = trail[0]["detail"]
+        assert detail["object_type"] == "expense_claim" and detail["version"] == definition["version"] + 1
+        assert "submitted" in detail["before"]["states"] and "已提交" in detail["after"]["states"]
+        # a PATCH that does not touch the machine writes no such line
+        client.patch(f"/api/v1/object-type-definitions/{definition['id']}", headers=admin, json={"title": "报销"})
+        assert len(client.get("/api/v1/audit-logs?entity_type=object_type_definition&action=rule.machine_changed",
+                              headers=admin).json()["data"]) == 1

@@ -90,8 +90,8 @@ def world() -> Generator[dict, None, None]:
 
         # a DRAFT policy — visible only to policy.manage, and so is its file
         policy_pdf = upload(admin, b"%PDF draft handbook", "handbook.pdf")
-        policy = client.post("/api/v1/policies", json={
-            "code": "HR-001", "title": "员工手册", "category": "hr", "body": "draft text",
+        policy = client.post("/api/v1/business-rules", json={
+            "kind": "policy", "code": "HR-001", "title": "员工手册", "category": "hr", "body": "draft text",
             "attachment_id": policy_pdf}, headers=admin)
         assert policy.status_code == 201, policy.text
 
@@ -302,14 +302,14 @@ def test_a_draft_policys_file_follows_the_draft(world) -> None:
     attached handbook is the draft."""
     member = world["key_holding"]("expense.submit_own")
     got = world["client"].get(
-        f"/api/v1/policies/{world['policy_id']}/attachments/{world['policy_pdf']}/content",
+        f"/api/v1/business-rules/{world['policy_id']}/attachments/{world['policy_pdf']}/content",
         headers=member,
     )
     assert got.status_code == 404, got.text
 
     owner = world["key_holding"]("policy.manage")
     assert world["client"].get(
-        f"/api/v1/policies/{world['policy_id']}/attachments/{world['policy_pdf']}/content",
+        f"/api/v1/business-rules/{world['policy_id']}/attachments/{world['policy_pdf']}/content",
         headers=owner,
     ).status_code == 200
 

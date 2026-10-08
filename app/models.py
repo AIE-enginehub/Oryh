@@ -2474,34 +2474,36 @@ class TenantSkillAssignment(IdMixin, TenantMixin, CreatedAtMixin, Base):
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
-class WorkflowDefinition(IdMixin, TenantMixin, CreatedAtMixin, Base):
-    """Tenant-authored workflow definition in natural language — the map the
-    admin/flow agent reads to decide the next node after each submission or
-    approval. Versions are append-only and immutable: publishing a new
-    version supersedes the previous one; history stays queryable so any past
-    routing decision can be traced to the definition it was based on."""
+class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, Base):
+    """A rule the workspace wrote down, of one of four kinds, published with a
+    version and a name (docs/plans/business-rules-refactor-2026-10-06.zh.md):
 
-    __tablename__ = "workflow_definitions"
-    __table_args__ = (
-        UniqueConstraint(
-            "tenant_id", "entity_kind", "object_type", "name", "version",
-            name="workflow_definitions_version_uk",
-        ),
-    )
+      * `policy`        — 员工手册, 报销制度, 薪酬管理办法, external standards;
+                          keyed to nothing (`object_type` may be null)
+      * `approval_flow` — how documents of one type route after submission:
+                          who decides, on what branches, when it ends, whether
+                          people are told. What `workflow_definitions` held.
+      * `data_rule`     — what a document of one type must satisfy when it is
+                          filed; the submit skill's check and the flow skill's
+                          calibration gate read the same row
+      * `linkage`       — what happens elsewhere when a document of one type
+                          reaches a state: pick before shipping, a payout todo
+                          after approval. Executed by the family's flow skill
+                          through the existing endpoints; the server never
+                          creates a document on a status change
 
-    entity_kind: Mapped[str] = mapped_column(String(20), default="business_object")
-    object_type: Mapped[str] = mapped_column(String(100))
-    name: Mapped[str] = mapped_column(String(100), default="default")
-    version: Mapped[int] = mapped_column(Integer, default=1)
-    definition_text: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(20), default="active")
-    created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    Three of them are scoped to an object type and get their `code` generated
+    (`approval_flow:builtin:sales_order:default`); a policy's code is the
+    workspace's own 制度编号. The lifecycle is the policy's and is shared:
+    draft, publish with the previous version closed the day before, effective
+    dates that answer "what applied in March", repeal, a visibility and a
+    capability gate, every act audited. `kind` answers which question the row
+    answers, `object_type` what it is keyed to, `visibility` who reads it —
+    which is why these were four tables' worth of concept and are one table.
 
-
-class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, Base):
-    """A published rule of the house — 员工手册, 报销制度, 薪酬管理办法, and the
-    external standards a workspace has to record because somebody's pay depends
-    on them.
+    `origin`/`catalog_hash` mark a row seeded from the shipped `rules/`
+    catalog (as a draft) so the catalog sync can tell an untouched seed, which
+    it refreshes, from one the workspace adopted, which it never touches.
 
     OFBiz models this as `Content` + `DataResource` + `ContentRevision` +
     `ContentApproval`: a general CMS where reading one paragraph costs four
@@ -2510,12 +2512,6 @@ class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, B
     an effective range and a visibility (`DataResource.isPublic` is exactly the
     "是否公开" field, only boolean where an HR policy needs three values).
 
-    This is NOT `workflow_definitions`. That says how a KIND OF DOCUMENT routes
-    and is keyed to an object type; this says what the company's rules ARE and
-    is keyed to nothing. Both are versioned tenant text read by agents; merging
-    them would put "谁审批报销" and "报销标准是多少" in one table on the strength
-    of both being prose.
-
     **Status is a marker; the dates are the truth.** `published` means "this is
     the current version of this code", and the partial unique index holds that.
     What actually applied in March is answered by `effective_from`/`_thru`
@@ -2523,9 +2519,24 @@ class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, B
     `paid` is a flow marker and `outstanding_amount` is the fact.
     """
 
-    __tablename__ = "policies"
+    __tablename__ = "business_rules"
     __table_args__ = (
         UniqueConstraint("tenant_id", "code", "version", name="policies_version_uk"),
+        CheckConstraint(
+            "kind in ('policy', 'approval_flow', 'data_rule', 'linkage')",
+            name="business_rules_kind_ck",
+        ),
+        # a scoped kind names what it is keyed to; a policy may be keyed to nothing
+        CheckConstraint(
+            "kind = 'policy' or (entity_kind is not null and object_type is not null and name is not null)",
+            name="business_rules_scope_ck",
+        ),
+        # a policy carries its 分类; the other kinds are classified by `kind`
+        CheckConstraint(
+            "kind <> 'policy' or category is not null",
+            name="business_rules_category_ck",
+        ),
+        Index("business_rules_scope_idx", "tenant_id", "kind", "entity_kind", "object_type", "status"),
         CheckConstraint(
             "visibility in ('internal', 'restricted', 'public')",
             name="policies_visibility_ck",
@@ -2563,13 +2574,23 @@ class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, B
         ),
     )
 
-    code: Mapped[str] = mapped_column(String(50))
+    # a policy's own code is ≤ 50; a scoped kind's is generated from its scope
+    code: Mapped[str] = mapped_column(String(255))
     version: Mapped[int] = mapped_column(Integer, default=1)
-    category: Mapped[str] = mapped_column(String(30))
+    kind: Mapped[str] = mapped_column(String(20), default="policy")
+    # the scope of a scoped kind: which object type's documents it is about
+    entity_kind: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    object_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # one scope may carry several named sequences (`default`, the usual one)
+    name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # `tenant` (written here) or `catalog` (seeded from the shipped rules/ tree)
+    origin: Mapped[str] = mapped_column(String(20), default="tenant")
+    catalog_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # a policy's 分类 (hr, payroll, external_standard …); null on the other kinds
+    category: Mapped[str | None] = mapped_column(String(30), nullable=True)
     title: Mapped[str] = mapped_column(String(200))
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Markdown, and the server never parses it — the same standing a workflow
-    # definition has
+    # Markdown, and the server never parses it
     body: Mapped[str] = mapped_column(Text)
     # The same rules again in whatever structure the workspace finds useful, for
     # an agent that would rather read a figure than a paragraph. Optional, free
@@ -2591,7 +2612,7 @@ class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, B
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     published_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     supersedes_id: Mapped[str | None] = mapped_column(
-        ForeignKey("policies.id"), nullable=True, index=True
+        ForeignKey("business_rules.id"), nullable=True, index=True
     )
     attachment_id: Mapped[str | None] = mapped_column(
         ForeignKey("attachments.id"), nullable=True, index=True
@@ -2600,6 +2621,11 @@ class Policy(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, B
         ForeignKey("employees.id"), nullable=True, index=True
     )
     created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
+# The name the policy family had before it became one kind of business rule.
+# Scripts outside the repository still say it; nothing new should.
+Policy = BusinessRule
 
 
 class BusinessObject(TenantRecord, SoftDeleteAttributionMixin, Base):
@@ -2675,7 +2701,7 @@ class EmployeeLeave(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbM
     a company that revises 年假 mid-year, or backdates a 调休 ratio, would have
     a ledger full of entries that were true under the old text. Computed, the
     same revision simply produces different answers, including for the past —
-    `GET /policies?in_force_on=…` answers what the rule WAS. This is the same
+    `GET /business-rules?in_force_on=…` answers what the rule WAS. This is the same
     stance payroll takes on tax and quotations take on drift: the server keeps
     the facts, the agent applies the rules and shows its working.
 

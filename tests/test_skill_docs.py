@@ -268,9 +268,9 @@ def test_demo_skill_payload_examples_satisfy_their_object_schema() -> None:
 
 
 def test_skill_author_states_workflow_definition_amend_semantics() -> None:
-    """`POST /workflow-definitions` is publish-only — no `PATCH` — and every
+    """`POST /business-rules/publish` is publish-only — no `PATCH` — and every
     call replaces the whole document; the previous version is superseded, not
-    merged into. An agent that doesn't know this, asked to "加一条" (add one
+    merged into. An agent that doesn't know this, asked to "add one more" (add one
     clause), will happily draft prose for just the new clause and publish it —
     silently deleting every other submission requirement and routing rule the
     tenant had. Pins the guidance in place so a future edit can't trim it away.
@@ -897,7 +897,7 @@ def test_creating_a_custom_object_is_never_silent_in_any_workspace() -> None:
     fragment = (PRODUCT_SKILLS_DIR / "_common" / "custom-object-is-never-silent.md").read_text(encoding="utf-8")
     assert "Iron rule, the same in every workspace" in fragment
     assert "explicit yes **for that name**" in fragment and "before any\nwrite" in fragment
-    assert "No workflow definition, calibration line or tenant instruction removes" in fragment
+    assert "No business rule, calibration line or tenant instruction removes" in fragment
     assert "Look for a shipped twin first" in fragment and "compare MEANING, not spelling" in fragment
     assert "a stated REASON" in fragment and "No reason, no\nobject" in fragment, \
         "a custom object beside a shipped twin needs the person's reason, written into the definition"

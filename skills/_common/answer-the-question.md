@@ -31,12 +31,12 @@ or one action carried out — not a summary.
   in one read — counting what YOU may read, the same rule the lists apply —
   and an admin's `GET /workspace/setup-report` counts the master data.
 - **A question is not a filing.** The numbered Steps in a skill are the path
-  for DOING something — they read the workflow definition, dedup, check
+  for DOING something — they read the workspace's rules, dedup, check
   requirements because a write is coming. A question about a fact ("did that
   payment land", "how many are in stock", "what is the payment schedule on
   this contract", "what is the status of my claim") takes the ONE read that
   holds the fact — the record, its `/detail`, or one filtered list — and
-  skips the rest. Read a workflow definition, an approval trail or a policy
+  skips the rest. Read a business rule, an approval trail or a policy
   only when the question is about them, or when a write follows.
 - **The reasoning here is for you, not for repeating.** This skill explains why the system works
   the way it does so that you act correctly. The person gets the conclusion.

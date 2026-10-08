@@ -14,6 +14,8 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 COPY scripts ./scripts
 COPY skills ./skills
+# the shipped rule catalog provisioning seeds as drafts (app/services/provisioning.py)
+COPY rules ./rules
 
 # The Yunxiao release pipeline injects an ACR-hosted dependency image which
 # already contains /app/.venv. Keep the official Python image as a portable

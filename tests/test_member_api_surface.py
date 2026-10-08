@@ -49,7 +49,7 @@ MEMBER_READS: dict[tuple[str, str], str] = {
            "invoices", "invoice-items", "payments", "payment-applications",
            "billing-accounts", "billing-account-entries",
            "business-objects", "business-object-links",
-           "approval-records", "approval-targets", "policies",
+           "approval-records", "approval-targets",
            "projects", "resources", "resource-bookings",
            "inventory-items", "inventory-item-details",
            "shipments", "shipment-items", "picklists", "picklist-items",
@@ -72,7 +72,7 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/builtin-object-types"): "vocabulary, not data",
     ("GET", "/api/v1/capabilities"): "the capability catalog is documentation",
     ("GET", "/api/v1/object-type-definitions"): "agents read machines to know the states",
-    ("GET", "/api/v1/workflow-definitions"): "every submit skill reads the tenant's rules",
+    ("GET", "/api/v1/business-rules"): "the handbook and the data rules of what a member files; drafts and restricted rows are gated inside",
     # --- the member's own surface --------------------------------------------
     ("GET", "/api/v1/my/skill-bundle"): "your bundle is yours",
     ("GET", "/api/v1/my/skills/manifest"): "your bundle is yours",

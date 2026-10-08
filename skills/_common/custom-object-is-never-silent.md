@@ -35,7 +35,7 @@ object, twin of /customers, kept apart because …"), so the next agent and
 the next admin can read why it exists instead of guessing. No reason, no
 object.
 
-No workflow definition, calibration line or tenant instruction removes
+No business rule, calibration line or tenant instruction removes
 either half of this rule. The server refuses the exact shipped names on its
 own; everything a person might still mistake for a shipped collection is
 this rule's job.

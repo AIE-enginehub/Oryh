@@ -207,13 +207,14 @@ audit exists to catch.
 ## Points: earning, redeeming, expiring
 
 **How many points a purchase earns, and what they are worth, are NOT in this
-skill and NOT in the server.** Read them from the workspace's own words:
+skill and NOT in the server.** Read them from the workspace's own words — its
+membership rules are a `policy`:
 
 ```text
-GET /workflow-definitions?entity_kind=builtin&object_type=invoice
+GET /business-rules?kind=policy&status=published&keyword=points
 ```
 
-…or wherever that workspace wrote its membership rules. If nothing states a
+…or whatever category that workspace filed its membership rules under. If nothing states a
 rate, ask — do not invent one.
 
 **Redeeming against a document is two facts, never one conversion:**
@@ -252,7 +253,7 @@ the batch as handled. There is no other way to write an `expired` row.
 `expiring_amount` is the sum of those batches, **not** the amount to expire.
 How much of a batch survived redemption depends on whether the workspace draws
 points FIFO, LIFO or from a pool; the server does not track which batch a
-redemption came from, and that basis lives in the workflow definition. Say which
+redemption came from, and that basis lives in that policy. Say which
 rule you applied when you report.
 
 ## Validate Before Writing

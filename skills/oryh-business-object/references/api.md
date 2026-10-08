@@ -112,19 +112,19 @@ If the tenant's type definition carries a `state_machine`, status changes are va
 
 States are the **coarse lifecycle** (open/approved/paid …), never workflow nodes. While an approval flow runs, the object's status does not move; the flow's position is derived from approval records (nodes passed) and open todos (current holder).
 
-## Workflow Definitions (natural language, versioned)
+## Business Rules (natural language, versioned)
 
-The flow agent's map lives in `/workflow-definitions` — plain natural language per tenant per type:
+The workspace's rules for a type live in `/business-rules` — plain natural language per tenant per type, four `kind`s (`approval_flow` is the flow agent's map, `data_rule` what a record must carry, `linkage` what happens elsewhere on a state change, `policy` the standing company rule):
 
 ```text
-GET  /workflow-definitions?entity_kind=&object_type=&name=      → active version
-GET  /workflow-definitions?...&history=true                     → every version
-GET  /workflow-definitions/{id}                                  → any version, incl. superseded
-POST /workflow-definitions                                       → publish (admin/service): appends
-                                                                   version N+1, supersedes N
+GET  /business-rules?kind=&entity_kind=&object_type=&status=published   → the version in force
+GET  /business-rules?kind=&entity_kind=&object_type=                    → every version, newest first
+GET  /business-rules?kind=&entity_kind=&object_type=&in_force_on=       → the one that governed a date
+GET  /business-rules/{rule_id}                                          → any version, incl. superseded
+POST /business-rules/publish                                            → publish (workflows.publish): version N+1 in force, N closed
 ```
 
-When making a routing decision, record the version you followed in the todo's `metadata.workflow_version` so the trail stays traceable.
+When making a routing decision, record the rule you followed in the todo's `metadata.rule_code` / `metadata.rule_version` so the trail stays traceable.
 
 ## Agent Coordination: Todos And State Queries, Not Streams
 

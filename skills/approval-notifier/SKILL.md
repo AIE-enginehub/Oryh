@@ -150,7 +150,7 @@ opened is already there, and it carries the same text.
 ## Pairing With The Flow Skills
 
 The flow skills (`oryh-*-approval-flow`) run this skill at the end of a run
-when the workflow definition asks for notifications, once per person, with
+when the approval flow asks for notifications, once per person, with
 every todo the run assigned to them — and once per returned, rejected or
 approved document, carrying the approver's comment. Whether to notify at all
-is the definition's call, read there like any other routing rule.
+is the approval flow's call, read there like any other routing rule.

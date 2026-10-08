@@ -174,7 +174,7 @@ describe("object detail", () => {
       timesheetEntries: [], expenseItems: [], purchaseItems: [], salesQuotationItems: [], salesOrderItems: [], attachments: [],
       expenseTotals: null, purchaseTotals: null, salesQuotationTotals: null, salesOrderTotals: null, revisions: [], quotationLink: null,
       links: [{ id: "link-1", source_object_id: "object-1", target_object_id: "object-2", link_type: "amends", metadata: {}, created_at: "2026-07-03T08:00:00Z" }],
-      workflows: [{ id: "workflow-1", tenant_id: "tenant-1", entity_kind: "business_object", object_type: "contract", name: "approval", version: 2, definition_text: "steps: []", status: "active", created_by: "user:user-1", created_at: "2026-07-03T08:00:00Z" }],
+      rules: [{ id: "rule-1", kind: "approval_flow", code: "approval_flow:business_object:contract:approval", version: 2, entity_kind: "business_object", object_type: "contract", name: "approval", origin: "tenant", category: null, title: "contract 流程定义", summary: null, body: "steps: []", rules_json: null, visibility: "internal", required_capability: null, status: "published", effective_from: "2026-07-03", effective_thru: null, published_at: "2026-07-03T08:00:00Z", published_by: "user:user-1", supersedes_id: null, attachment_id: null, owner_employee_id: null, created_by: "user:user-1", custom_fields: {}, created_at: "2026-07-03T08:00:00Z", updated_at: "2026-07-03T08:00:00Z" }],
       approvals: [{ id: "approval-1", entity_type: "business_object", entity_id: "object-1", round_no: 1, sequence_no: 1, action: "approved", approver_id: "user:user-1", approver_role: "admin", comment: "同意", source: "web", metadata: {}, acted_at: "2026-07-04T08:00:00Z", created_at: "2026-07-04T08:00:00Z" }],
       todos: [{ id: "todo-1", employee_id: "employee-1", entity_type: "business_object", entity_id: "object-1", title: "复核合同条款", description: null, todo_type: "review", status: "open", due_at: null, created_by: "user:user-1", metadata: {}, created_at: "2026-07-04T08:00:00Z", updated_at: null, completed_at: null, completed_by: null }],
       audits: [],
@@ -215,7 +215,7 @@ describe("object detail", () => {
         custom_fields: {}, created_at: "2026-07-10T08:00:00Z", updated_at: null,
       }],
       expenseTotals: { totalAmount: 186.5, totalTaxAmount: 11.06 }, purchaseTotals: null, salesQuotationTotals: null, salesOrderTotals: null, revisions: [], quotationLink: null,
-      links: [], workflows: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
+      links: [], rules: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
     };
     api.getObjectDetail.mockResolvedValue(detail);
     renderRoute("/objects/expense_claim/claim-1", <ObjectDetailPage />, "/objects/:entityType/:recordId");
@@ -250,7 +250,7 @@ describe("object detail", () => {
         sku_pending: true,
       }],
       expenseTotals: null, purchaseTotals: { estimatedTotal: 2850, unpricedItemCount: 1, pendingSkuCount: 1 }, salesQuotationTotals: null, salesOrderTotals: null, revisions: [], quotationLink: null,
-      links: [], workflows: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
+      links: [], rules: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
     };
     api.getObjectDetail.mockResolvedValue(detail);
     renderRoute("/objects/purchase_request/request-1", <ObjectDetailPage />, "/objects/:entityType/:recordId");
@@ -303,7 +303,7 @@ describe("object detail", () => {
           total_amount: 18000, valid_until: "2026-08-10", quote_date: "2026-07-18",
         },
       ],
-      links: [], workflows: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
+      links: [], rules: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
     };
     api.getObjectDetail.mockResolvedValue(detail);
     renderRoute("/objects/sales_quotation/quotation-2", <ObjectDetailPage />, "/objects/:entityType/:recordId");
@@ -366,7 +366,7 @@ describe("object detail", () => {
       expenseTotals: null, purchaseTotals: null, salesQuotationTotals: null,
       salesOrderTotals: { computedTotal: 17000, unpricedItemCount: 0, pendingSkuCount: 0 },
       revisions: [], quotationLink: quotation,
-      links: [], workflows: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
+      links: [], rules: [], approvals: [], todos: [], audits: [], employees: directory.employees, actors: directory.actors, issues: [],
     };
     api.getObjectDetail.mockResolvedValue(detail);
     renderRoute("/objects/sales_order/order-2", <ObjectDetailPage />, "/objects/:entityType/:recordId");

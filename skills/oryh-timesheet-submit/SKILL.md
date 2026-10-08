@@ -47,7 +47,7 @@ Everything else comes from conversation: the period, the hours, the original des
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=timesheet_header` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (task granularity, weekly totals, and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No definition, or nothing in it about filling in a timesheet → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=timesheet_header&status=published` — what a timesheet must carry to be filed here, in the workspace's own words, current as of this moment. Read what it requires of a submission (task granularity, weekly totals, and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No data rule published → only the universal checks apply; never invent requirements. (A workspace that published before the kinds existed carries its requirements as a "submission requirements" section inside its `approval_flow` rule, its heading possibly in the workspace's own language — read that section and nothing else of it.)
 3. **Reuse before create**: `GET /timesheet-headers?employee_id={me}&status=draft` — one header per period; retries must not duplicate. A `returned` header is also reused: fix it, don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. A successful resubmit completes the rework todo itself — there is nothing to close by hand.
 
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
@@ -63,7 +63,7 @@ Everything else comes from conversation: the period, the hours, the original des
      not a write. The batch is not a reason to lower the bar per line.
    - Project: one lookup, `GET /projects?keyword=` with the words the person
      used (several words narrow it; the match is case-insensitive). One hit →
-     `project_id`. None → if the step-2 definition requires entries to name a
+     `project_id`. None → if the step-2 data rule requires entries to name a
      project, the timesheet cannot be submitted: say so and stop. If it does
      not, ask whether to keep the name as free text in `project_name_snapshot`.
      Never invent projects, never try other spellings.
@@ -105,11 +105,13 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 - A full week totalling under 20h or over 60h → something missing, duplicated, or misread?
 - Vague task text ("work", "dealt with things") → ask what was actually done; approvers return vague lines, so one question now saves a rework round.
 - A near-duplicate line already on the header (same date, same task) → add on top, or replace the old line?
-- A project name that matches nothing in `/projects` → unsubmittable when the definition requires a project; otherwise ask once whether to keep it as free text.
+- A project name that matches nothing in `/projects` → unsubmittable when the data rule requires a project; otherwise ask once whether to keep it as free text.
 
 **Tenant requirements (the workflow admin returns violations; catch them in conversation first):**
 
-- Whatever the step-2 definition requires of a submission, applied line by line. Typical shapes: every entry must be linked to a specific project or task; a week is five working days of eight hours, totalling exactly 40; overtime must state its reason in `notes`. The definition's own wording always wins over these examples.
+{{include:_common/business-rules.md}}
+
+- Whatever the step-2 data rule requires of a submission, applied line by line. Typical shapes: every entry must be linked to a specific project or task; a week is five working days of eight hours, totalling exactly 40; overtime must state its reason in `notes`. The definition's own wording always wins over these examples.
 - These are the exact requirements the workflow admin's agent checks before assigning any approver, and its return note cites the ones violated — so a requirement skipped here is a guaranteed rework round. Ask for what is missing while the user is still talking, not after the return.
 - Fixing a returned header? Re-run step 2 first — the requirements may have changed since the original submission, and the current version is what the next calibration uses.
 
@@ -122,7 +124,7 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 ## What Happens Next (so you can answer the user)
 
-The timesheet now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant timesheet comes back as a rework todo without reaching any approver — then approvers are assigned per the tenant's workflow definition. Progress is visible any time via the approval trail (`GET /approval-records?entity_type=timesheet_header&entity_id={id}`) — the status stays `submitted` until the flow finishes. If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`); fix the entries and submit again.
+The timesheet now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant timesheet comes back as a rework todo without reaching any approver — then approvers are assigned per the workspace's approval flow. Progress is visible any time via the approval trail (`GET /approval-records?entity_type=timesheet_header&entity_id={id}`) — the status stays `submitted` until the flow finishes. If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`); fix the entries and submit again.
 
 ## What This Skill Never Does
 

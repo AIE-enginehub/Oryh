@@ -52,9 +52,12 @@ from app.api.visibility import entity_visible
 from app.core.entity_types import KIND_SPLIT_MACHINE_TYPES
 from app.core.permissions import permissions_cover_any_scope
 from app.services.bundles import audience_by_skill
+from app.schemas import _hosted_runner_holds
 from app.services.provisioning import unheld_shipped_capabilities
 from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
+from app.api.business_rules import flow_text_carries_requirements, published_rule_index
 from app.api.deps import (
+    hosted_agent_permissions,
     Actor,
     attributed,
     get_actor,
@@ -64,6 +67,7 @@ from app.api.deps import (
 )
 from app.core.config import settings
 from app.core.permissions import (
+    HOSTED_FLOW_AGENT_ROLE,
     HOSTED_FLOW_AGENT_DISPLAY_NAME,
     PRINCIPAL_HOSTED_FLOW_AGENT,
     PRINCIPAL_TENANT_SERVICE,
@@ -100,7 +104,6 @@ from app.models import (
     TypeOption,
     User,
     Vendor,
-    WorkflowDefinition,
 )
 from app.schemas import (
     ApiKeyEnvelope,
@@ -234,7 +237,9 @@ def list_api_keys(
     def render(api_keys):
         users = api_key_users(db, actor.tenant_id, api_keys)
         return [
-            enriched_api_key(api_key, users.get(api_key.user_id)).model_dump()
+            enriched_api_key(api_key, users.get(api_key.user_id), hosted_permissions=(
+                hosted_agent_permissions(db, actor.tenant_id) if api_key.principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT else None
+            )).model_dump()
             for api_key in api_keys
         ]
 
@@ -273,7 +278,9 @@ def ensure_label_is_not_impersonation(label: str | None) -> None:
         )
 
 
-def enriched_api_key(api_key: ApiKey, user: User | None = None) -> ApiKeyRead:
+def enriched_api_key(
+    api_key: ApiKey, user: User | None = None, hosted_permissions: frozenset[str] | None = None
+) -> ApiKeyRead:
     owner_is_active = user is not None and user.status == "active"
     effective_active = api_key.is_active and (
         api_key.user_id is None or owner_is_active
@@ -288,6 +295,9 @@ def enriched_api_key(api_key: ApiKey, user: User | None = None) -> ApiKeyRead:
             "user_status": user.status if user is not None else None,
             "effective_active": effective_active,
             "effective_role": effective_role,
+            # the hosted principal's grants are its role's, read here so the
+            # console shows what the permission layer enforces
+            **({"permissions": sorted(hosted_permissions)} if hosted_permissions is not None else {}),
         }
     )
 
@@ -412,7 +422,9 @@ def update_api_key(
     db.commit()
     db.refresh(api_key)
     user = db.get(User, api_key.user_id) if api_key.user_id is not None else None
-    return envelope(enriched_api_key(api_key, user).model_dump())
+    return envelope(enriched_api_key(api_key, user, hosted_permissions=(
+        hosted_agent_permissions(db, actor.tenant_id) if api_key.principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT else None
+    )).model_dump())
 
 
 # --- projects: the cost centre a timesheet or an expense books against ------
@@ -774,7 +786,7 @@ ATTACHMENT_FILING_CAPABILITIES = (
     "order.submit_own",        # SalesOrderItem
     "invoice.manage",          # Invoice
     "payment.record",          # Payment
-    "policy.manage",           # Policy
+    "policy.manage",           # BusinessRule — the policy kind carries the document
     "master_data.manage",      # ProductImage — the catalog's pictures
     "contract.manage",         # ContractDocument — the contract's originals
 )
@@ -981,7 +993,8 @@ def workspace_setup_report(
         ).all()
     )
     person_roles = [
-        r for r in roles if not (r.name == "admin" and r.is_system)
+        r for r in roles
+        if not (r.is_system and r.name in ("admin", HOSTED_FLOW_AGENT_ROLE))
     ]
 
     def staffing(capability: str) -> dict:
@@ -992,17 +1005,25 @@ def workspace_setup_report(
         holder_users = sum(users_by_role.get(name, 0) for name in holder_roles)
         return {"roles": sorted(holder_roles), "active_users": holder_users}
 
-    definitions_by_type: dict[str, int] = dict(
-        db.execute(
-            select(WorkflowDefinition.object_type, func.count())
-            .where(
-                WorkflowDefinition.tenant_id == tenant_id,
-                WorkflowDefinition.entity_kind == "builtin",
-                WorkflowDefinition.status == "active",
-            )
-            .group_by(WorkflowDefinition.object_type)
-        ).all()
-    )
+    rule_index = published_rule_index(db, tenant_id, entity_kind="builtin")
+    definitions_by_type: dict[str, int] = {
+        object_type: 1 for (object_type, kind) in rule_index if kind == "approval_flow"
+    }
+
+    def rules_of(object_type: str) -> dict:
+        """Which kinds this family has in force, and whether its flow still
+        carries the filing conditions a data rule should hold."""
+        kinds = {}
+        for kind in ("approval_flow", "data_rule", "linkage"):
+            rule = rule_index.get((object_type, kind))
+            kinds[kind] = {"published": rule is not None, "version": rule.version if rule else None}
+        flow = rule_index.get((object_type, "approval_flow"))
+        kinds["data_rule_missing_but_flow_has_requirements"] = bool(
+            flow is not None
+            and rule_index.get((object_type, "data_rule")) is None
+            and flow_text_carries_requirements(flow.body)
+        )
+        return kinds
 
     areas: dict[str, dict] = {}
 
@@ -1079,6 +1100,7 @@ def workspace_setup_report(
             "filing_capability": family.permission,
             "staffed_by": staffed,
             "workflow_definitions": defined,
+            "rules": {machine_type: rules_of(machine_type) for machine_type in machine_types},
             "documents": count(model),
         }
         if family.object_type in split_by_family:
@@ -1100,8 +1122,10 @@ def workspace_setup_report(
             "next": (
                 f"grant {family.permission} to a role with people in it"
                 if not is_staffed
-                else f"publish a workflow definition for {family.object_type}"
+                else f"publish the approval_flow for {family.object_type} — read the seeded draft, change what is not yours, publish"
                 if needs_definition and not defined[family.object_type]
+                else f"the {family.object_type} approval_flow still carries its filing conditions — publish them as a data_rule, then republish the flow without them"
+                if facts["rules"][family.object_type]["data_rule_missing_but_flow_has_requirements"]
                 else "in use — nothing missing"
             ),
         }
@@ -1129,6 +1153,10 @@ def workspace_setup_report(
             )
         )
         if not any(audience.get(skill.id, {}).values())
+        # a skill the hosted runner holds the gate for is the runner's: it
+        # ships targeted with nobody named because no person is meant to
+        # receive it, and the console says so ("hosted agent only")
+        and not _hosted_runner_holds(skill.required_capability)
     )
     areas["flow_driving"] = {
         "status": (
@@ -1143,8 +1171,9 @@ def workspace_setup_report(
             "targeted_skills_without_audience": unaudienced,
         },
         "next": (
-            "parked: " + ", ".join(sorted(parked)) + " — fix the cause (usually the "
-            "workflow definition), then PATCH the subscription with clear_park"
+            "parked: " + ", ".join(sorted(parked)) + " — publish the next version of that "
+            "family's approval_flow (the park lifts by itself), or PATCH the subscription "
+            "with clear_park when the cause was elsewhere"
             if parked
             else "targeted skills reach nobody yet: " + ", ".join(unaudienced)
             + " — name the roles or people they are for (POST /skills/{id}/assignments)"

@@ -22,6 +22,7 @@ from app.services.flow_subscriptions import provision_flow_subscriptions
 from app.services.provisioning import (
     provision_builtin_definitions,
     provision_product_skills,
+    provision_rule_catalog,
     provision_system_capabilities,
     provision_system_roles,
     provision_system_type_options,
@@ -34,6 +35,7 @@ def main() -> None:
         tenant_ids = db.scalars(select(Tenant.id)).all()
         skills_changed = 0
         definitions_added = 0
+        rules_changed = 0
         capabilities_changed = 0
         type_options_changed = 0
         roles_created = 0
@@ -43,6 +45,7 @@ def main() -> None:
         for tenant_id in tenant_ids:
             skills_changed += provision_product_skills(db, tenant_id)
             definitions_added += provision_builtin_definitions(db, tenant_id)
+            rules_changed += provision_rule_catalog(db, tenant_id)
             capabilities_changed += provision_system_capabilities(db, tenant_id)
             type_options_changed += provision_system_type_options(db, tenant_id)
             created, widened = provision_system_roles(db, tenant_id)
@@ -61,6 +64,7 @@ def main() -> None:
     print(
         f"tenant defaults synced: {len(tenant_ids)} tenants, "
         f"{skills_changed} product skills upserted, {definitions_added} builtin definitions added, "
+        f"{rules_changed} catalog rule drafts seeded or refreshed, "
         f"{capabilities_changed} system capabilities refreshed, "
         f"{type_options_changed} type options refreshed, {roles_created} system roles created, "
         f"{admins_widened} admin roles given newly shipped capabilities, "

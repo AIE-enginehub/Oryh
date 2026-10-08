@@ -3488,9 +3488,10 @@ class ApiKeyRead(APIModel):
 
     @model_validator(mode="after")
     def describe_hosted_principal(self):
-        # Derived, never stored: the grant set is fixed in code, so a key row
-        # cannot drift from what the permission layer will actually enforce.
-        if self.principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT:
+        # Derived, never stored. The default when the caller supplied nothing;
+        # the key routes fill in the tenant's `hosted_flow_agent` role, which
+        # is what the permission layer enforces.
+        if self.principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT and not self.permissions:
             self.permissions = sorted(HOSTED_FLOW_AGENT_PERMISSIONS)
         return self
     user_name: str | None = None
@@ -4265,33 +4266,6 @@ class BuiltinObjectTypeRead(APIModel):
 
 
 BuiltinObjectTypeEnvelope = ListEnvelope[BuiltinObjectTypeRead]
-
-
-class CreateWorkflowDefinitionRequest(RequestModel):
-    entity_kind: EntityKind = "business_object"
-    object_type: str = Field(max_length=100)
-    name: str = Field(default="default", max_length=100)
-    definition_text: str = Field(min_length=1, max_length=20000)
-    created_by: str | None = Field(default=None, max_length=100)
-
-
-class WorkflowDefinitionRead(APIModel):
-    id: str
-    tenant_id: str
-    entity_kind: EntityKind
-    object_type: str
-    name: str
-    version: int
-    definition_text: str
-    status: Literal["active", "superseded"]
-    created_by: str | None = None
-    created_at: datetime
-
-
-WorkflowDefinitionListEnvelope = ListEnvelope[WorkflowDefinitionRead]
-
-
-WorkflowDefinitionEnvelope = Envelope[WorkflowDefinitionRead]
 
 
 FlowRunTrigger = Literal["cadence", "signal", "manual"]
@@ -5597,7 +5571,8 @@ class BusinessObjectDetailRead(BaseModel):
     todos: list[TodoRead]
     audit_logs: list[AuditLogRead]
     object_type_definition: ObjectTypeDefinitionRead | None = None
-    workflow_definitions: list[WorkflowDefinitionRead]
+    # every published or superseded rule scoped to this object's type, all kinds
+    rules: list[BusinessRuleRead] = Field(default_factory=list)
 
 
 BusinessObjectDetailEnvelope = Envelope[BusinessObjectDetailRead]
@@ -6511,53 +6486,7 @@ PayHistoryChangeEnvelope = Envelope[PayHistoryChangeRead]
 PolicyCategory = TypeOptionName
 
 
-class CreatePolicyRequest(RequestModel):
-    """Drafting a policy. Publishing it is a separate call and a separate
-    capability, because publishing is an authority act rather than an edit.
-
-    Reusing a `code` opens the NEXT version of that policy; the version number
-    is the server's to allocate, so two drafts of v2 cannot exist."""
-
-    code: str = Field(min_length=1, max_length=50)
-    category: PolicyCategory
-    title: str = Field(min_length=1, max_length=200)
-    body: str = Field(min_length=1)
-    summary: str | None = Field(default=None, max_length=2000)
-    # the same rules in whatever structure suits, for an agent that would rather
-    # read a figure than a paragraph. Never interpreted by the server.
-    rules_json: dict[str, Any] | None = None
-    # internal = anyone in the workspace; restricted = whoever holds
-    # `required_capability`; public = intended for people outside it too
-    visibility: Literal["internal", "restricted", "public"] = "internal"
-    required_capability: str | None = Field(default=None, max_length=100)
-    # when it APPLIES, which is not when it was published
-    effective_from: date | None = None
-    effective_thru: date | None = None
-    attachment_id: str | None = None
-    owner_employee_id: str | None = None
-    custom_fields: dict[str, Any] = Field(default_factory=dict)
-
-
-class UpdatePolicyRequest(RequestModel):
-    """Drafts only. A published policy is corrected by publishing a new
-    version — editing one in place would change what people were told without
-    leaving a trace that they were told something else."""
-
-    category: PolicyCategory | None = None
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    body: str | None = Field(default=None, min_length=1)
-    summary: str | None = Field(default=None, max_length=2000)
-    rules_json: dict[str, Any] | None = None
-    visibility: Literal["internal", "restricted", "public"] | None = None
-    required_capability: str | None = Field(default=None, max_length=100)
-    effective_from: date | None = None
-    effective_thru: date | None = None
-    attachment_id: str | None = None
-    owner_employee_id: str | None = None
-    custom_fields: dict[str, Any] | None = None
-
-
-class PublishPolicyRequest(RequestModel):
+class PublishBusinessRuleRequest(RequestModel):
     """`effective_from` may be moved at publication — a policy approved today
     and applying next month is the ordinary case, not an exception."""
 
@@ -6565,7 +6494,7 @@ class PublishPolicyRequest(RequestModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
-class RescopePolicyRequest(RequestModel):
+class RescopeBusinessRuleRequest(RequestModel):
     """Who may read a policy, changed after it was published.
 
     What the rule SAYS is frozen once published — that is what makes the
@@ -6585,7 +6514,7 @@ class RescopePolicyRequest(RequestModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
-class RepealPolicyRequest(RequestModel):
+class RepealBusinessRuleRequest(RequestModel):
     """废止. `effective_thru` is when it STOPS applying, which is usually today
     but need not be — a policy can be repealed retroactively to the day a law
     changed."""
@@ -6594,11 +6523,77 @@ class RepealPolicyRequest(RequestModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
-class PolicyRead(APIModel):
+RuleKind = Literal["policy", "approval_flow", "data_rule", "linkage"]
+SCOPED_RULE_KINDS: tuple[str, ...] = ("approval_flow", "data_rule", "linkage")
+
+
+class CreateBusinessRuleRequest(RequestModel):
+    """Drafting a rule. Publishing is a separate call and, for a policy, a
+    separate capability.
+
+    A `policy` needs its own `code` and `category`. A scoped kind needs
+    `object_type` (and `entity_kind`, default builtin); its `code` is generated
+    from the scope unless given, and `name` separates several sequences on one
+    scope (`default` is the one every reader follows)."""
+
+    kind: RuleKind = "policy"
+    code: str | None = Field(default=None, min_length=1, max_length=50)
+    entity_kind: EntityKind | None = None
+    object_type: str | None = Field(default=None, max_length=100)
+    name: str | None = Field(default=None, max_length=100)
+    category: PolicyCategory | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    body: str = Field(min_length=1)
+    summary: str | None = Field(default=None, max_length=2000)
+    # the same rule in whatever structure suits an agent that would rather read
+    # a figure than a paragraph. Never interpreted by the server.
+    rules_json: dict[str, Any] | None = None
+    visibility: Literal["internal", "restricted", "public"] = "internal"
+    required_capability: str | None = Field(default=None, max_length=100)
+    effective_from: date | None = None
+    effective_thru: date | None = None
+    attachment_id: str | None = None
+    owner_employee_id: str | None = None
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class PublishNowBusinessRuleRequest(CreateBusinessRuleRequest):
+    """Draft and publish in one transaction — what publishing a workflow
+    definition always was. `effective_from` defaults to today."""
+
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class UpdateBusinessRuleRequest(RequestModel):
+    """Drafts only; kind and scope are the row's identity and do not move."""
+
+    category: PolicyCategory | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    body: str | None = Field(default=None, min_length=1)
+    summary: str | None = Field(default=None, max_length=2000)
+    rules_json: dict[str, Any] | None = None
+    visibility: Literal["internal", "restricted", "public"] | None = None
+    required_capability: str | None = Field(default=None, max_length=100)
+    effective_from: date | None = None
+    effective_thru: date | None = None
+    attachment_id: str | None = None
+    owner_employee_id: str | None = None
+    custom_fields: dict[str, Any] | None = None
+
+
+
+
+class BusinessRuleRead(APIModel):
     id: str
+    kind: str
     code: str
     version: int
-    category: str
+    entity_kind: str | None = None
+    object_type: str | None = None
+    name: str | None = None
+    origin: str
+    catalog_hash: str | None = None
+    category: str | None = None
     title: str
     summary: str | None = None
     body: str
@@ -6622,20 +6617,20 @@ class PolicyRead(APIModel):
     updated_at: datetime
 
 
-PolicyListEnvelope = ListEnvelope[PolicyRead]
+BusinessRuleListEnvelope = ListEnvelope[BusinessRuleRead]
 
 
-PolicyEnvelope = Envelope[PolicyRead]
+BusinessRuleEnvelope = Envelope[BusinessRuleRead]
 
 
-class PolicyPublishRead(BaseModel):
+class BusinessRulePublishRead(BaseModel):
     """What publishing did: the version now in force, and the one it closed."""
 
-    current: PolicyRead
-    superseded: PolicyRead | None = None
+    current: BusinessRuleRead
+    superseded: BusinessRuleRead | None = None
 
 
-PolicyPublishEnvelope = Envelope[PolicyPublishRead]
+BusinessRulePublishEnvelope = Envelope[BusinessRulePublishRead]
 
 
 class BillingAccountBase(RequestModel):

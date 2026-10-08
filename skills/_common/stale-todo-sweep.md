@@ -7,12 +7,12 @@ GET /todos?status=open&entity_type={this family}&include=target
 ```
 
 `include=target` returns each todo's document inline, so the whole sweep is one
-call plus the workflow definition you already read.
+call plus the approval flow you already read.
 
 Close a todo — `PATCH /todos/{id}` with `{"status": "cancelled"}` — when its
 target has stopped being actionable:
 
-- the document sits in a state the tenant's definition treats as **dead**
+- the document sits in a state the tenant's approval flow treats as **dead**
   (voided, cancelled, abandoned — whatever this workspace calls it). Only you can judge
   this: the state names are the tenant's and the server has no opinion about
   what they mean.

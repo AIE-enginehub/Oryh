@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20260915_0095
+-- Alembic revision: 20261007_0098
 --
 
 --
@@ -323,6 +323,56 @@ CREATE TABLE oryh.business_objects (
     deleted_at timestamp with time zone,
     deleted_by text,
     delete_reason text
+);
+
+
+--
+-- Name: business_rules; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.business_rules (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    code character varying(255) NOT NULL,
+    version integer DEFAULT 1 NOT NULL,
+    category character varying(30),
+    title character varying(200) NOT NULL,
+    summary text,
+    body text NOT NULL,
+    rules_json jsonb,
+    visibility character varying(20) DEFAULT 'internal'::character varying NOT NULL,
+    required_capability character varying(100),
+    status character varying(20) DEFAULT 'draft'::character varying NOT NULL,
+    effective_from date,
+    effective_thru date,
+    published_at timestamp with time zone,
+    published_by character varying(100),
+    supersedes_id uuid,
+    attachment_id uuid,
+    owner_employee_id uuid,
+    created_by character varying(100),
+    deleted_at timestamp with time zone,
+    deleted_by character varying(100),
+    delete_reason text,
+    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    kind character varying(20) DEFAULT 'policy'::character varying NOT NULL,
+    entity_kind character varying(20),
+    object_type character varying(100),
+    name character varying(100),
+    origin character varying(20) DEFAULT 'tenant'::character varying NOT NULL,
+    catalog_hash character varying(64),
+    CONSTRAINT business_rules_category_ck CHECK ((((kind)::text <> 'policy'::text) OR (category IS NOT NULL))),
+    CONSTRAINT business_rules_entity_kind_chk CHECK (((entity_kind)::text = ANY ((ARRAY['builtin'::character varying, 'business_object'::character varying])::text[]))),
+    CONSTRAINT business_rules_kind_ck CHECK (((kind)::text = ANY ((ARRAY['policy'::character varying, 'approval_flow'::character varying, 'data_rule'::character varying, 'linkage'::character varying])::text[]))),
+    CONSTRAINT business_rules_origin_chk CHECK (((origin)::text = ANY ((ARRAY['catalog'::character varying, 'tenant'::character varying])::text[]))),
+    CONSTRAINT business_rules_scope_ck CHECK ((((kind)::text = 'policy'::text) OR ((entity_kind IS NOT NULL) AND (object_type IS NOT NULL) AND (name IS NOT NULL)))),
+    CONSTRAINT policies_effective_period_ck CHECK (((effective_thru IS NULL) OR (effective_from IS NULL) OR (effective_thru >= effective_from))),
+    CONSTRAINT policies_published_attribution_ck CHECK ((((status)::text <> 'published'::text) OR ((published_at IS NOT NULL) AND (published_by IS NOT NULL)))),
+    CONSTRAINT policies_restricted_needs_capability_ck CHECK ((((visibility)::text <> 'restricted'::text) OR (required_capability IS NOT NULL))),
+    CONSTRAINT policies_status_ck CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'superseded'::character varying, 'repealed'::character varying])::text[]))),
+    CONSTRAINT policies_visibility_ck CHECK (((visibility)::text = ANY ((ARRAY['internal'::character varying, 'restricted'::character varying, 'public'::character varying])::text[])))
 );
 
 
@@ -1512,45 +1562,6 @@ CREATE TABLE oryh.platform_settings (
 
 
 --
--- Name: policies; Type: TABLE; Schema: oryh; Owner: -
---
-
-CREATE TABLE oryh.policies (
-    id uuid NOT NULL,
-    tenant_id uuid NOT NULL,
-    code character varying(50) NOT NULL,
-    version integer DEFAULT 1 NOT NULL,
-    category character varying(30) NOT NULL,
-    title character varying(200) NOT NULL,
-    summary text,
-    body text NOT NULL,
-    rules_json jsonb,
-    visibility character varying(20) DEFAULT 'internal'::character varying NOT NULL,
-    required_capability character varying(100),
-    status character varying(20) DEFAULT 'draft'::character varying NOT NULL,
-    effective_from date,
-    effective_thru date,
-    published_at timestamp with time zone,
-    published_by character varying(100),
-    supersedes_id uuid,
-    attachment_id uuid,
-    owner_employee_id uuid,
-    created_by character varying(100),
-    deleted_at timestamp with time zone,
-    deleted_by character varying(100),
-    delete_reason text,
-    custom_fields_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT policies_effective_period_ck CHECK (((effective_thru IS NULL) OR (effective_from IS NULL) OR (effective_thru >= effective_from))),
-    CONSTRAINT policies_published_attribution_ck CHECK ((((status)::text <> 'published'::text) OR ((published_at IS NOT NULL) AND (published_by IS NOT NULL)))),
-    CONSTRAINT policies_restricted_needs_capability_ck CHECK ((((visibility)::text <> 'restricted'::text) OR (required_capability IS NOT NULL))),
-    CONSTRAINT policies_status_ck CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying, 'superseded'::character varying, 'repealed'::character varying])::text[]))),
-    CONSTRAINT policies_visibility_ck CHECK (((visibility)::text = ANY ((ARRAY['internal'::character varying, 'restricted'::character varying, 'public'::character varying])::text[])))
-);
-
-
---
 -- Name: product_categories; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -2496,27 +2507,6 @@ CREATE TABLE oryh.vendors (
 
 
 --
--- Name: workflow_definitions; Type: TABLE; Schema: oryh; Owner: -
---
-
-CREATE TABLE oryh.workflow_definitions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    tenant_id uuid NOT NULL,
-    entity_kind text DEFAULT 'business_object'::text NOT NULL,
-    object_type text NOT NULL,
-    name text DEFAULT 'default'::text NOT NULL,
-    version integer DEFAULT 1 NOT NULL,
-    definition_text text NOT NULL,
-    status text DEFAULT 'active'::text NOT NULL,
-    created_by text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT workflow_definitions_entity_kind_chk CHECK ((entity_kind = ANY (ARRAY['business_object'::text, 'builtin'::text]))),
-    CONSTRAINT workflow_definitions_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'superseded'::text]))),
-    CONSTRAINT workflow_definitions_version_chk CHECK ((version >= 1))
-);
-
-
---
 -- Name: audit_logs id; Type: DEFAULT; Schema: oryh; Owner: -
 --
 
@@ -3212,18 +3202,18 @@ ALTER TABLE ONLY oryh.platform_settings
 
 
 --
--- Name: policies policies_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+-- Name: business_rules policies_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
-ALTER TABLE ONLY oryh.policies
+ALTER TABLE ONLY oryh.business_rules
     ADD CONSTRAINT policies_pkey PRIMARY KEY (id);
 
 
 --
--- Name: policies policies_version_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+-- Name: business_rules policies_version_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
-ALTER TABLE ONLY oryh.policies
+ALTER TABLE ONLY oryh.business_rules
     ADD CONSTRAINT policies_version_uk UNIQUE (tenant_id, code, version);
 
 
@@ -3708,22 +3698,6 @@ ALTER TABLE ONLY oryh.vendors
 
 
 --
--- Name: workflow_definitions workflow_definitions_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
---
-
-ALTER TABLE ONLY oryh.workflow_definitions
-    ADD CONSTRAINT workflow_definitions_pkey PRIMARY KEY (id);
-
-
---
--- Name: workflow_definitions workflow_definitions_version_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
---
-
-ALTER TABLE ONLY oryh.workflow_definitions
-    ADD CONSTRAINT workflow_definitions_version_uk UNIQUE (tenant_id, entity_kind, object_type, name, version);
-
-
---
 -- Name: activities_communication_event_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4001,6 +3975,13 @@ CREATE INDEX business_objects_payload_gin_idx ON oryh.business_objects USING gin
 --
 
 CREATE INDEX business_objects_tenant_status_idx ON oryh.business_objects USING btree (tenant_id, status, created_at DESC) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: business_rules_scope_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX business_rules_scope_idx ON oryh.business_rules USING btree (tenant_id, kind, entity_kind, object_type, status);
 
 
 --
@@ -4858,6 +4839,13 @@ CREATE INDEX invoices_tax_invoice_number_idx ON oryh.invoices USING btree (tenan
 
 
 --
+-- Name: invoices_tenant_direction_status_created_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoices_tenant_direction_status_created_idx ON oryh.invoices USING btree (tenant_id, direction, status, created_at DESC);
+
+
+--
 -- Name: invoices_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4956,6 +4944,13 @@ CREATE INDEX leads_tenant_id_idx ON oryh.leads USING btree (tenant_id);
 
 
 --
+-- Name: leads_tenant_status_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX leads_tenant_status_idx ON oryh.leads USING btree (tenant_id, status, created_at DESC);
+
+
+--
 -- Name: object_type_definitions_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4995,6 +4990,13 @@ CREATE INDEX opportunities_lead_id_idx ON oryh.opportunities USING btree (lead_i
 --
 
 CREATE INDEX opportunities_tenant_id_idx ON oryh.opportunities USING btree (tenant_id);
+
+
+--
+-- Name: opportunities_tenant_status_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX opportunities_tenant_status_idx ON oryh.opportunities USING btree (tenant_id, status, created_at DESC);
 
 
 --
@@ -5180,6 +5182,13 @@ CREATE INDEX payments_reference_no_idx ON oryh.payments USING btree (tenant_id, 
 
 
 --
+-- Name: payments_tenant_direction_status_created_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX payments_tenant_direction_status_created_idx ON oryh.payments USING btree (tenant_id, direction, status, created_at DESC);
+
+
+--
 -- Name: payments_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5281,49 +5290,49 @@ CREATE INDEX platform_sessions_admin_idx ON oryh.platform_sessions USING btree (
 -- Name: policies_attachment_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_attachment_idx ON oryh.policies USING btree (attachment_id);
+CREATE INDEX policies_attachment_idx ON oryh.business_rules USING btree (attachment_id);
 
 
 --
 -- Name: policies_category_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_category_idx ON oryh.policies USING btree (tenant_id, category, status);
+CREATE INDEX policies_category_idx ON oryh.business_rules USING btree (tenant_id, category, status);
 
 
 --
 -- Name: policies_code_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_code_idx ON oryh.policies USING btree (tenant_id, code, version);
+CREATE INDEX policies_code_idx ON oryh.business_rules USING btree (tenant_id, code, version);
 
 
 --
 -- Name: policies_current_version_uk; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE UNIQUE INDEX policies_current_version_uk ON oryh.policies USING btree (tenant_id, code) WHERE (((status)::text = 'published'::text) AND (deleted_at IS NULL));
+CREATE UNIQUE INDEX policies_current_version_uk ON oryh.business_rules USING btree (tenant_id, code) WHERE (((status)::text = 'published'::text) AND (deleted_at IS NULL));
 
 
 --
 -- Name: policies_owner_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_owner_idx ON oryh.policies USING btree (owner_employee_id);
+CREATE INDEX policies_owner_idx ON oryh.business_rules USING btree (owner_employee_id);
 
 
 --
 -- Name: policies_supersedes_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_supersedes_idx ON oryh.policies USING btree (supersedes_id);
+CREATE INDEX policies_supersedes_idx ON oryh.business_rules USING btree (supersedes_id);
 
 
 --
 -- Name: policies_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
-CREATE INDEX policies_tenant_idx ON oryh.policies USING btree (tenant_id);
+CREATE INDEX policies_tenant_idx ON oryh.business_rules USING btree (tenant_id);
 
 
 --
@@ -5439,6 +5448,13 @@ CREATE INDEX product_skus_tenant_idx ON oryh.product_skus USING btree (tenant_id
 
 
 --
+-- Name: product_skus_tenant_sku_code_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX product_skus_tenant_sku_code_idx ON oryh.product_skus USING btree (tenant_id, sku_code);
+
+
+--
 -- Name: products_category_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5527,6 +5543,13 @@ CREATE INDEX purchase_orders_original_order_idx ON oryh.purchase_orders USING bt
 --
 
 CREATE INDEX purchase_orders_tenant_idx ON oryh.purchase_orders USING btree (tenant_id);
+
+
+--
+-- Name: purchase_orders_tenant_status_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX purchase_orders_tenant_status_idx ON oryh.purchase_orders USING btree (tenant_id, status, created_at DESC);
 
 
 --
@@ -5817,6 +5840,13 @@ CREATE INDEX shipments_tenant_idx ON oryh.shipments USING btree (tenant_id);
 
 
 --
+-- Name: shipments_tenant_status_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX shipments_tenant_status_idx ON oryh.shipments USING btree (tenant_id, status, created_at DESC);
+
+
+--
 -- Name: store_facilities_facility_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -6073,13 +6103,6 @@ CREATE INDEX vendors_tenant_idx ON oryh.vendors USING btree (tenant_id, status, 
 --
 
 CREATE INDEX vendors_tenant_tax_id_idx ON oryh.vendors USING btree (tenant_id, tax_id) WHERE (tax_id IS NOT NULL);
-
-
---
--- Name: workflow_definitions_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
---
-
-CREATE INDEX workflow_definitions_tenant_idx ON oryh.workflow_definitions USING btree (tenant_id, entity_kind, object_type, name, status);
 
 
 --
@@ -7107,27 +7130,27 @@ ALTER TABLE ONLY oryh.platform_settings
 
 
 --
--- Name: policies policies_attachment_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+-- Name: business_rules policies_attachment_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
-ALTER TABLE ONLY oryh.policies
+ALTER TABLE ONLY oryh.business_rules
     ADD CONSTRAINT policies_attachment_id_fkey FOREIGN KEY (attachment_id) REFERENCES oryh.attachments(id);
 
 
 --
--- Name: policies policies_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+-- Name: business_rules policies_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
-ALTER TABLE ONLY oryh.policies
+ALTER TABLE ONLY oryh.business_rules
     ADD CONSTRAINT policies_owner_employee_id_fkey FOREIGN KEY (owner_employee_id) REFERENCES oryh.employees(id);
 
 
 --
--- Name: policies policies_supersedes_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+-- Name: business_rules policies_supersedes_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
-ALTER TABLE ONLY oryh.policies
-    ADD CONSTRAINT policies_supersedes_id_fkey FOREIGN KEY (supersedes_id) REFERENCES oryh.policies(id);
+ALTER TABLE ONLY oryh.business_rules
+    ADD CONSTRAINT policies_supersedes_id_fkey FOREIGN KEY (supersedes_id) REFERENCES oryh.business_rules(id);
 
 
 --
@@ -7867,6 +7890,12 @@ ALTER TABLE oryh.business_object_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.business_objects ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: business_rules; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.business_rules ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: campaign_members; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -8129,12 +8158,6 @@ CREATE POLICY platform_write ON oryh.flow_subscriptions FOR INSERT WITH CHECK ((
 
 
 --
--- Name: policies; Type: ROW SECURITY; Schema: oryh; Owner: -
---
-
-ALTER TABLE oryh.policies ENABLE ROW LEVEL SECURITY;
-
---
 -- Name: product_categories; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -8372,6 +8395,13 @@ CREATE POLICY tenant_isolation ON oryh.business_object_links USING ((((tenant_id
 --
 
 CREATE POLICY tenant_isolation ON oryh.business_objects USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: business_rules tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.business_rules USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -8634,13 +8664,6 @@ CREATE POLICY tenant_isolation ON oryh.picklists USING ((((tenant_id)::text = cu
 
 
 --
--- Name: policies tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
---
-
-CREATE POLICY tenant_isolation ON oryh.policies USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
-
-
---
 -- Name: product_categories tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -8893,13 +8916,6 @@ CREATE POLICY tenant_isolation ON oryh.vendors USING ((((tenant_id)::text = curr
 
 
 --
--- Name: workflow_definitions tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
---
-
-CREATE POLICY tenant_isolation ON oryh.workflow_definitions USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
-
-
---
 -- Name: flow_runs tenant_read; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -8992,12 +9008,6 @@ ALTER TABLE oryh.users ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE oryh.vendors ENABLE ROW LEVEL SECURITY;
-
---
--- Name: workflow_definitions; Type: ROW SECURITY; Schema: oryh; Owner: -
---
-
-ALTER TABLE oryh.workflow_definitions ENABLE ROW LEVEL SECURITY;
 
 --
 -- PostgreSQL database dump complete

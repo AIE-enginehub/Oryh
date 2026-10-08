@@ -6,6 +6,56 @@ Every endpoint this skill names, with the parameters the server actually
 accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
+## GET /business-rules
+
+List Business Rules
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `kind` | query | string | no |  |
+| `entity_kind` | query | string | no |  |
+| `object_type` | query | string | no |  |
+| `name` | query | string | no |  |
+| `code` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `visibility` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+| `keyword` | query | string | no |  |
+| `include_deleted` | query | boolean | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_thru_from` | query | date | no | rows whose effective_thru is on or after this |
+| `effective_thru_thru` | query | date | no | rows whose effective_thru is on or before this |
+| `published_at_from` | query | date-time | no | rows whose published_at is at or after this |
+| `published_at_thru` | query | date-time | no | rows whose published_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `supersedes_id` | query | string | no |  |
+| `origin` | query | string | no |  |
+
+## GET /business-rules/{rule_id}
+
+Get Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+## GET /business-rules/{rule_id}/attachments/{attachment_id}/content
+
+Get Business Rule Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
+
 ## GET /connect-skill
 
 Download Connect Skill
@@ -123,27 +173,3 @@ List Type Options
 |---|---|---|---|---|
 | `family` | query | string | no |  |
 | `status` | query | string | no |  |
-
-## GET /workflow-definitions
-
-List Workflow Definitions
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `entity_kind` | query | string | no |  |
-| `object_type` | query | string | no |  |
-| `name` | query | string | no |  |
-| `history` | query | boolean | no |  |
-| `status` | query | `active` | `superseded` | `all` | no |  |
-| `keyword` | query | string | no |  |
-| `page` | query | integer (≥1) | no |  |
-| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
-| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
-
-## GET /workflow-definitions/{definition_id}
-
-Get Workflow Definition
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `definition_id` | path | string | yes |  |

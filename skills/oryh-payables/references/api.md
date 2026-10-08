@@ -212,7 +212,7 @@ with a negative `amount_applied`.
 | deleting a bill you have already paid against | 409 — reverse them first |
 
 Not guarded on purpose: the status of either document — which states mean
-"payable" is the workspace's wording, read from the workflow definition.
+"payable" is the workspace's wording, read from its business rules.
 
 ## Related
 

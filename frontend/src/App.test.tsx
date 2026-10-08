@@ -411,7 +411,7 @@ describe("tenant console shell", () => {
     renderApp("/object-types");
 
     expect(await screen.findByTestId("object-types-page")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "发布流程" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "发布规则" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "定义类型" })).not.toBeInTheDocument();
   });
 

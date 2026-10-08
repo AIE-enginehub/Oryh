@@ -7,6 +7,7 @@ import {
   type ObjectDetail,
 } from "../../api/objects";
 import { useI18n } from "../../i18n";
+import { ruleKindLabel } from "../rules";
 import { formatDate, formatDateTime, formatMoney, ObjectStatus } from "./ObjectRecordTable";
 
 type LocalText = (chinese: string, english: string) => string;
@@ -377,18 +378,22 @@ function BusinessObjectLinks({ detail }: { detail: ObjectDetail }) {
   </Section>;
 }
 
-function WorkflowHistory({ detail }: { detail: ObjectDetail }) {
+function RuleHistory({ detail }: { detail: ObjectDetail }) {
   const { language, text } = useI18n();
-  return <Section title={text(`${detail.objectType} 流程版本`, `${detail.objectType} workflow versions`)} count={detail.workflows.length} description={text("启用版本供当前流程使用；被替代版本继续保留，便于追溯历史决策。", "The active version is used by the current workflow; superseded versions remain available for historical traceability.")}>
-    {detail.workflows.length === 0 ? <EmptySection>{text("该类型还没有发布流程定义。", "No workflow definition has been published for this type.")}</EmptySection> :
+  return <Section title={text(`${detail.objectType} 业务规则`, `${detail.objectType} business rules`)} count={detail.rules.length} description={text("agent 读取生效中的版本；被替代的版本继续保留，便于追溯当时的决定。", "Agents read the version in force; superseded versions remain so past decisions stay traceable.")}>
+    {detail.rules.length === 0 ? <EmptySection>{text("该类型还没有发布业务规则。", "No business rule has been published for this type.")}</EmptySection> :
       <div className="table-scroll"><table className="data-table object-detail-table">
-        <thead><tr><th>{text("名称", "Name")}</th><th>{text("版本", "Version")}</th><th>{text("状态", "Status")}</th><th>{text("定义", "Definition")}</th><th>{text("发布者", "Published by")}</th><th>{text("发布时间", "Published")}</th></tr></thead>
-        <tbody>{detail.workflows.map((workflow) => <tr key={workflow.id}>
-          <td><strong>{workflow.name}</strong></td><td><span className="object-version">v{workflow.version}</span></td>
-          <td><ObjectStatus status={workflow.status} /></td>
-          <td><details><summary>{text("查看定义", "View definition")}</summary><pre className="object-definition">{workflow.definition_text}</pre></details></td>
-          <td>{workflow.created_by ? detail.actors[workflow.created_by] || workflow.created_by : "—"}</td><td>{formatDateTime(workflow.created_at, language)}</td>
-        </tr>)}</tbody>
+        <thead><tr><th>{text("种类", "Kind")}</th><th>{text("名称", "Name")}</th><th>{text("版本", "Version")}</th><th>{text("状态", "Status")}</th><th>{text("生效", "In force")}</th><th>{text("规则", "Rule")}</th><th>{text("发布者", "Published by")}</th><th>{text("发布时间", "Published")}</th></tr></thead>
+        <tbody>{detail.rules.map((rule) => {
+          const publisher = rule.published_by ?? rule.created_by;
+          return <tr key={rule.id}>
+            <td><strong>{ruleKindLabel(rule.kind, text)}</strong></td><td>{rule.name ?? rule.code}</td><td><span className="object-version">v{rule.version}</span></td>
+            <td><ObjectStatus status={rule.status} /></td>
+            <td>{rule.effective_from ? formatDate(rule.effective_from, language) : "—"}{rule.effective_thru ? ` ${text("至", "to")} ${formatDate(rule.effective_thru, language)}` : ""}</td>
+            <td><details><summary>{text("查看规则", "View rule")}</summary><pre className="object-definition">{rule.body}</pre></details></td>
+            <td>{publisher ? detail.actors[publisher] || publisher : "—"}</td><td>{formatDateTime(rule.published_at ?? rule.created_at, language)}</td>
+          </tr>;
+        })}</tbody>
       </table></div>}
   </Section>;
 }
@@ -449,7 +454,7 @@ export function ObjectDetailSections({ detail }: { detail: ObjectDetail }) {
     <SalesOrderLines detail={detail} />
     <SalesOrderQuotationLink detail={detail} />
     <BusinessObjectLinks detail={detail} />
-    <WorkflowHistory detail={detail} />
+    <RuleHistory detail={detail} />
     <ApprovalHistory detail={detail} />
     <TodoHistory detail={detail} />
     <AuditHistory detail={detail} />

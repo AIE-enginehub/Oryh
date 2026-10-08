@@ -28,7 +28,12 @@ Report shape, per area:
                       "facts": {"filing_capability": "expense.submit_own",   // derived from the registry
                                 "staffed_by": {"roles": ["clerk", "member"], "active_users": 1},
                                 "workflow_definitions": {"expense_claim": false},
-                                "documents": 0}, "next": "publish a workflow definition ..."},
+                                "rules": {"expense_claim": {           // which kinds are in force, by version
+                                    "approval_flow": {"published": false, "version": null},
+                                    "data_rule": {"published": false, "version": null},
+                                    "linkage": {"published": false, "version": null},
+                                    "data_rule_missing_but_flow_has_requirements": false}},  // a pre-kinds flow still carrying submission requirements owes a data_rule
+                                "documents": 0}, "next": "publish the approval_flow for expense_claim — read the seeded draft, change what is not yours, publish"},
     "sales_order":   {"facts": {"documents": 12, "returns": 2,   // kind-split families count both
                                 "workflow_definitions": {"sales_order": true, "sales_return": false}}},
     "picklist":      {"status": "ready",                       // approval-free families (shipment,
@@ -50,7 +55,7 @@ Report shape, per area:
 - `status` is shorthand; the FACTS are the answer. A family is `ready` when
   a person-holdable role with at least one active person carries its filing
   capability (the system admin role never counts) and, where the family has
-  a flow, an active workflow definition exists.
+  a flow, a published approval flow exists.
 - `untouched` states data, never intent. Whether the company USES an area is
   the administrator's judgment — keep it in your own context; the server
   stores no such decision, by design.
@@ -59,14 +64,16 @@ Report shape, per area:
 
 ## Writes This Skill Makes Directly
 
-Exactly two, both in the admin's own words. The workflow definitions:
+Exactly two, both in the admin's own words. The business rules — one call
+drafts and publishes the next version, closing the previous one:
 
 ```json
-POST /workflow-definitions
+POST /business-rules/publish
 {
+  "kind": "approval_flow",
   "entity_kind": "builtin",
   "object_type": "expense_claim",
-  "definition_text": "Expenses: the direct manager approves; above 5,000 add finance review."
+  "body": "Expenses: the direct manager approves; above 5,000 add finance review."
 }
 ```
 

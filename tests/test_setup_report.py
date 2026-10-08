@@ -86,15 +86,35 @@ def test_staffing_then_defining_walks_a_family_to_ready(office) -> None:
     assert "clerk" in area["facts"]["staffed_by"]["roles"]
     assert area["facts"]["staffed_by"]["active_users"] == 1
     assert area["status"] == "partial", "staffed but no workflow definition yet"
-    assert "workflow definition" in area["next"]
+    assert "approval_flow" in area["next"] and "seeded draft" in area["next"]
 
-    published = client.post("/api/v1/workflow-definitions", headers=admin, json={
-        "entity_kind": "builtin", "object_type": "expense_claim",
-        "definition_text": "报销直接主管审批,超5000加财务。"})
+    published = client.post("/api/v1/business-rules/publish", headers=admin, json={
+        "kind": "approval_flow", "entity_kind": "builtin", "object_type": "expense_claim",
+        "body": "报销直接主管审批,超5000加财务。"})
     assert published.status_code in (200, 201), published.text
     area = office["report"]()["expense_claim"]
     assert area["status"] == "ready"
     assert area["facts"]["workflow_definitions"]["expense_claim"] is True
+    # the report says which kinds the family has, by version
+    rules = area["facts"]["rules"]["expense_claim"]
+    assert rules["approval_flow"] == {"published": True, "version": 1}
+    assert rules["data_rule"]["published"] is False and rules["linkage"]["published"] is False
+    assert rules["data_rule_missing_but_flow_has_requirements"] is False
+    assert area["next"] == "in use — nothing missing"
+
+    # a pre-kinds definition that still carries its filing conditions owes a data rule
+    client.post("/api/v1/business-rules/publish", headers=admin, json={
+        "kind": "approval_flow", "entity_kind": "builtin", "object_type": "expense_claim",
+        "body": "## 提交要求\n票据抬头必须是公司全称。\n\n## 流转规则\n直接主管审批。"})
+    area = office["report"]()["expense_claim"]
+    assert area["facts"]["rules"]["expense_claim"]["approval_flow"]["version"] == 2
+    assert area["facts"]["rules"]["expense_claim"]["data_rule_missing_but_flow_has_requirements"] is True
+    assert "data_rule" in area["next"]
+    client.post("/api/v1/business-rules/publish", headers=admin, json={
+        "kind": "data_rule", "entity_kind": "builtin", "object_type": "expense_claim", "body": "票据抬头必须是公司全称。"})
+    area = office["report"]()["expense_claim"]
+    assert area["facts"]["rules"]["expense_claim"]["data_rule_missing_but_flow_has_requirements"] is False
+    assert area["next"] == "in use — nothing missing"
 
     org = office["report"]()["organization"]
     assert org["facts"]["active_non_admin_users"] == 1

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.browser_auth import CSRF_COOKIE, SESSION_COOKIE
 from app.core.permissions import (
     HOSTED_FLOW_AGENT_PERMISSIONS,
+    HOSTED_FLOW_AGENT_ROLE,
     PRINCIPAL_HOSTED_FLOW_AGENT,
     PRINCIPAL_TENANT_SERVICE,
     permissions_cover,
@@ -177,11 +178,13 @@ def _resolve_api_key_actor(db: Session, api_key_value: str) -> Actor:
             role=api_key.role or "service",
             credential_id=api_key.id,
             principal_kind=principal_kind,
-            # A hosted principal's grants are fixed by the platform, not read
-            # from a tenant Role row: it is the contract between ORYH and the
-            # customer, not one of the tenant's own tuning knobs.
+            # A hosted principal's grants are the tenant's `hosted_flow_agent`
+            # role — seeded with the platform default, edited by the tenant's
+            # administrator like any other role (2026-10-07). A tenant that
+            # runs its own unattended agent decides its grants; the hosted
+            # one is the same decision.
             permissions=(
-                frozenset(HOSTED_FLOW_AGENT_PERMISSIONS)
+                hosted_agent_permissions(db, api_key.tenant_id)
                 if principal_kind == PRINCIPAL_HOSTED_FLOW_AGENT
                 else frozenset()
             ),
@@ -191,6 +194,17 @@ def _resolve_api_key_actor(db: Session, api_key_value: str) -> Actor:
     if user is None or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key owner is not active")
     return _actor_from_user(db, user, api_key.id)
+
+
+def hosted_agent_permissions(db: Session, tenant_id: str) -> frozenset[str]:
+    """What the hosted flow agent may do here: the tenant's `hosted_flow_agent`
+    role, or the shipped default until provisioning has created that role."""
+    role = db.scalar(
+        select(Role).where(Role.tenant_id == tenant_id, Role.name == HOSTED_FLOW_AGENT_ROLE, Role.is_system.is_(True))
+    )
+    if role is None:
+        return frozenset(HOSTED_FLOW_AGENT_PERMISSIONS)
+    return frozenset(role.permissions_jsonb or [])
 
 
 def get_actor(

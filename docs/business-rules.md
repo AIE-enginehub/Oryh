@@ -1,7 +1,23 @@
-# Company rules: a published rule of the house
+# Business rules: a published rule of the house
 
-One table. `policies` is the document — versioned, published by a named person,
-visible to whoever it says, and carrying its own figures.
+One table. `business_rules` is the document — versioned, published by a named
+person, in force between two dates, visible to whoever it says, and carrying
+its own figures — and `kind` says which question it answers:
+
+| `kind` | answers | keyed to | read by |
+|---|---|---|---|
+| `policy` | what are the company's rules | its own `code` | everyone, and every agent |
+| `approval_flow` | how does THIS KIND OF DOCUMENT route | an `object_type` | the flow agent |
+| `data_rule` | what must such a document satisfy when filed | an `object_type` | the submitter's agent, and the flow agent before routing |
+| `linkage` | what happens elsewhere when it reaches a state | an `object_type` | the flow agent, and whichever agent acts on the other document |
+
+The first is what `policies` always was. The second is what
+`workflow_definitions` was until 2026-10-06, and the last two are the halves of
+a workflow definition that were never written down separately — the
+"submission requirements" a submit skill had to read past the routing to find,
+and the "then create the picklist" that had no home at all. The table was
+`policies`; migration `20261006_0097` renamed it and gave it the four kinds, and
+the essay below reads for all four unless it says `policy`.
 
 ## What was copied from OFBiz, and what was refused
 
@@ -14,8 +30,8 @@ policy with a version, a publisher and a visibility."
 
 What was left behind is the CMS around it: `decoratorContentId`,
 `instanceOfContentId`, `childLeafCount`, `localeString`, and a `DataResource`
-indirection that costs four joins to read one paragraph. `policies` keeps the
-shape and puts the body in a column.
+indirection that costs four joins to read one paragraph. `business_rules` keeps
+the shape and puts the body in a column.
 
 `isPublic` became three-valued. An employee handbook (everyone here), a
 compensation policy (management only) and a service commitment (customers too)
@@ -58,28 +74,95 @@ version of the policy that contains it, rather than closing a single row. That
 is how policy documents actually work, and it is what keeps the version history
 from lying about what changed.
 
-## This is not `workflow_definitions`
+## Four kinds, one lifecycle
 
-Both are versioned tenant prose read by agents, and merging them would be the
-easy mistake. They are different axes:
+`workflow_definitions` was its own table: append-only text per object type,
+`active` or `superseded`, no draft, no dates, no gate, published by whoever held
+`workflows.publish`. `policies` had everything it lacked. Keeping both meant two
+lifecycles for the same kind of thing — tenant-authored prose an agent reads —
+told apart by what they are keyed to and who reads them. Those are properties
+of a row, so they became columns (2026-10-06).
 
-| | `workflow_definitions` | `policies` |
-|---|---|---|
-| answers | how does THIS KIND OF DOCUMENT route | what are the company's rules |
-| keyed to | an `object_type` | nothing |
-| read by | the flow agent | everyone, and every agent |
-| gated | no | visibility + capability |
+"Who approves an expense over 50,000" is an `approval_flow`. "What is the
+expense standard" is a `policy`. They travel together, they are not the same
+question, and they are now the same table.
 
-"Who approves an expense over 50,000" is a workflow definition. "What is the
-expense standard" is a policy.
-They travel together and they are not the same thing.
+What a scoped kind gets from the shared lifecycle, with no second mechanism:
+
+- **a draft**, readable only by the kind's authors, so a routing change can be
+  written on Monday and published on Friday;
+- **effective dates**, so "which flow routed this expense in March" is answered
+  by `GET /business-rules?kind=approval_flow&object_type=expense_claim&in_force_on=2026-03-15`
+  rather than by reading the version pinned in a todo's metadata;
+- **the read gate** — an `approval_flow` may be `restricted`, which a routing
+  rule naming individual approvers sometimes should be;
+- **repeal**, which a workflow definition could only fake by publishing an
+  empty one;
+- **an audit event per act** — `approval_flow.drafted` / `.published` /
+  `.visibility_changed` / `.repealed`, alongside `policy.*`, all on
+  `entity_type = business_rule`.
+
+What a scoped kind does NOT bring is its own `code`. It is generated from the
+scope — `approval_flow:builtin:expense_claim:default` — so the version chain,
+the one-published-per-code index and `supersedes_id` work unchanged, and a
+caller never invents a name for a flow. `name` defaults to `default`; a type
+with two flows (a fast lane for small amounts) names the second. A `category`
+is refused on a scoped kind: it is classified by its kind.
+
+The gates follow the kind. `policy.manage` drafts policies and `policy.publish`
+publishes them; `workflows.publish` does both for the three scoped kinds, as it
+always did for a workflow definition, because publishing a routing rule is the
+same act as writing one.
+
+Publishing an `approval_flow` is the one thing the server does with a rule's
+existence: it lifts a parked hosted-driving subscription for that family
+(hosted-flow-agent.md). It still does not read the
+text.
+
+`/workflow-definitions` and `/policies` stayed one release as views over this
+table — `definition_text` was `body`, `active` was `published` — for the
+skills already on people's machines, and went with migration `0098`, which
+also dropped the untouched `workflow_definitions` table once the release
+that carried it had run.
+Migration `20261006_0097` copied every workflow definition in whole; it did not
+split routing from requirements, because that is an editor's judgement, and the
+setup report asks for it.
+
+## Seeded drafts: the catalog ships a starting text
+
+A new workspace used to meet `/workflow-definitions` empty, and the first
+thing its administrator's agent did was draft a routing map from nothing —
+or, more often, from the agent's own idea of what a company does. Since
+2026-10 the shipped tree carries `rules/<kind>/<object_type>.md`, one file
+per scoped rule for every hosted family, and `provision_rule_catalog` seeds
+each as a **draft** row (`origin: catalog`, `catalog_hash` the body's hash)
+when a tenant is created and on every deploy, beside the product skills.
+
+Drafts, not published rules, and that is the whole design: the hosted runner
+drives a family only when an `approval_flow` is published, and a default
+routing the workspace never wrote must not decide who approves. What the
+seed buys is a text to read and change — the console opens the publish
+drawer on it, `oryh-business-rules` reads it back sorted into its three
+questions — and publishing it is the same act as publishing anything.
+
+The sync is the product skills' rule in a different table: a seed the
+workspace has not touched follows the catalog on the next deploy; one it
+edited, or a scope it ever published or drafted itself, is the workspace's
+and is never touched again; a file withdrawn from the catalog soft-deletes
+the untouched drafts it seeded. Drafting or publishing into a scope that
+holds an untouched seed adopts that row rather than opening a second draft
+beside it, so a seed is never an orphan sitting at v1. The locale picks the
+half of each file the deployment is written in, as the type options do.
+
+A policy ships no seed. Its `code` and `category` are the company's own, and
+a handbook nobody here wrote is not a handbook.
 
 ## Status is a marker; the dates are the truth
 
 `status = 'published'` means "the current version of this code", and a partial
 unique index holds one per code. What actually applied in March is answered by
 `effective_from` / `effective_thru` across every non-draft version —
-`GET /policies?in_force_on=2026-03-15`.
+`GET /business-rules?in_force_on=2026-03-15`.
 
 This is the same stance settlement takes, where `paid` is a flow marker and
 `outstanding_amount` is the fact. A v1 that reads `superseded` today is still
@@ -116,11 +199,16 @@ directions at once:
 - a **repealed** policy likewise leaves the handbook. Leaving it visible is how
   somebody follows a rule that no longer applies.
 
-| | draft | published `internal` | published `restricted` | repealed |
+| | draft | published `internal` | published `restricted` | superseded / repealed |
 |---|---|---|---|---|
-| `policy.manage` / `policy.publish` | ✓ | ✓ | ✓ | ✓ |
-| the row's `required_capability` | — | ✓ | ✓ | — |
-| any other credential | — | ✓ | — | — |
+| the kind's authors — `policy.manage` / `policy.publish`, `workflows.publish` for the scoped kinds | ✓ | ✓ | ✓ | ✓ |
+| the row's `required_capability` | — | ✓ | ✓ | ✓ by id or `in_force_on` |
+| any other credential | — | ✓ | — | ✓ by id or `in_force_on` |
+
+A repealed or superseded version leaves the default list — nobody follows a
+rule that no longer applies — but stays readable by id and by date, to whoever
+could read it when it governed. "What were the rules in March" is an
+employee's question as much as HR's (2026-10-06).
 
 Single fetches return **404, not 403**: that a compensation policy exists at all is part
 of what it hides.
@@ -139,7 +227,7 @@ the only way to stop people reading it was to stop applying it. That is not a
 choice a workspace should have to make about its own handbook.
 
 ```text
-POST /policies/{policy_id}/visibility
+POST /business-rules/{rule_id}/visibility
 {"visibility": "restricted", "required_capability": "payroll.read", "note": "published company-wide by mistake"}
 ```
 
@@ -181,7 +269,7 @@ separate rule table would have offered as a side door.
 ```
 
 Optional, free in shape, and **never interpreted by the server** — it has no
-more standing than `body` does, and no more than a workflow definition or a
+more standing than `body` does, and no more than an approval flow or a
 `pay_histories.formula`. Nothing validates it, nothing computes from it, and no
 endpoint looks a key up inside it.
 
@@ -199,7 +287,7 @@ Three properties come free from living on the policy row rather than in a table:
 | gated with the document | no way to read a restricted compensation policy one number at a time |
 
 Reading a figure is an ordinary policy read:
-`GET /policies?code=FIN-2026-03&in_force_on=2026-07-15`. `in_force_on` reads
+`GET /business-rules?code=FIN-2026-03&in_force_on=2026-07-15`. `in_force_on` reads
 across superseded versions, so a date in March returns the document that
 governed March — figures included.
 
@@ -218,7 +306,7 @@ Now HR records the year's standard once, as an `external_standard` policy, and
 the agent calls:
 
 ```text
-GET /policies?category=external_standard&in_force_on=2026-07-15
+GET /business-rules?kind=policy&category=external_standard&in_force_on=2026-07-15
 ```
 
 which returns the document, its version, its publisher and its figures. The
@@ -235,10 +323,10 @@ That is the whole point of routing the figure through a published document.
 
 ## What the integrity audit asserts
 
-- one published version per policy code
-- a published policy names who published it and when
-- a restricted policy names the capability that may read it
-- no policy stops applying before it starts
+- one published version per rule code — a scoped kind's code being its scope
+- a published rule names who published it and when
+- a restricted rule names the capability that may read it
+- no rule stops applying before it starts
 - a version chain points backwards, at the same code, in the same tenant
 - **only the newest version of a code is ever repealed** — repealing a
   superseded one would move an `effective_thru` the handover already set, and
@@ -248,7 +336,7 @@ That is the whole point of routing the figure through a published document.
   instead of the symptom
 
 There is nothing to assert about `rules_json`. The server does not parse it, so
-it cannot meaningfully audit it — which is the same reason it cannot audit a
-workflow definition or a `formula`, and the same trade the whole system makes.
+it cannot meaningfully audit it — which is the same reason it cannot audit an
+approval flow or a `formula`, and the same trade the whole system makes.
 
-Advisory, not a violation: policies drafted long ago and never published.
+Advisory, not a violation: rules drafted long ago and never published.

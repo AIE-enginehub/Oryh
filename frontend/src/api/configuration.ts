@@ -37,24 +37,62 @@ export type ObjectTypeInput = {
   state_machine?: Record<string, unknown> | null;
 };
 
-export type WorkflowDefinition = {
+/** A business rule is tenant-authored prose an agent reads. `policy` is keyed
+ *  by its own code; the three scoped kinds are keyed by what they apply to
+ *  and get their code generated (`approval_flow:builtin:expense_claim:default`). */
+export type RuleKind = "policy" | "approval_flow" | "data_rule" | "linkage";
+export type BusinessRuleStatus = "draft" | "published" | "superseded" | "repealed";
+
+export type BusinessRule = {
   id: string;
-  tenant_id: string;
-  entity_kind: EntityKind;
-  object_type: string;
-  name: string;
+  kind: RuleKind;
+  code: string;
   version: number;
-  definition_text: string;
-  status: "active" | "superseded";
+  entity_kind: EntityKind | null;
+  object_type: string | null;
+  name: string | null;
+  origin: "catalog" | "tenant";
+  category: string | null;
+  title: string;
+  summary: string | null;
+  body: string;
+  rules_json: Record<string, unknown> | null;
+  visibility: string;
+  required_capability: string | null;
+  status: BusinessRuleStatus;
+  effective_from: string | null;
+  effective_thru: string | null;
+  published_at: string | null;
+  published_by: string | null;
+  supersedes_id: string | null;
+  attachment_id: string | null;
+  owner_employee_id: string | null;
   created_by: string | null;
+  custom_fields: Record<string, unknown>;
   created_at: string;
+  updated_at: string;
 };
 
-export type WorkflowInput = {
-  entity_kind: EntityKind;
-  object_type: string;
-  name: string;
-  definition_text: string;
+/** Draft and publish the next version of a rule in one call: a scoped kind
+ *  names its scope, a policy its own code, category and title. */
+export type BusinessRuleInput = {
+  kind: RuleKind;
+  entity_kind?: EntityKind;
+  object_type?: string;
+  name?: string;
+  code?: string;
+  category?: string;
+  title?: string;
+  body: string;
+  effective_from?: string;
+  note?: string;
+};
+
+export type PolicyCategoryOption = { id: string; name: string; title: string | null; is_active?: boolean };
+
+export type BusinessRulePublishResult = {
+  current: BusinessRule;
+  superseded: BusinessRule | null;
 };
 
 export type SkillStatus = "active" | "archived";
@@ -284,18 +322,50 @@ export function updateObjectType(
   return jsonRequest(`/api/v1/object-type-definitions/${encodeURIComponent(id)}`, "PATCH", input);
 }
 
-export function listWorkflows(
-  filters: PageFilters & { entity_kind?: EntityKind; object_type?: string; history?: boolean } = {},
-): Promise<PaginatedEnvelope<WorkflowDefinition>> {
+export function listBusinessRules(
+  filters: PageFilters & {
+    kind?: RuleKind;
+    entity_kind?: EntityKind;
+    object_type?: string;
+    name?: string;
+    code?: string;
+    status?: BusinessRuleStatus;
+  } = {},
+): Promise<PaginatedEnvelope<BusinessRule>> {
   const keyword = filters.keyword?.trim().toLocaleLowerCase() ?? "";
-  return listPage<WorkflowDefinition>("/api/v1/workflow-definitions", filters, (item) =>
+  return listPage<BusinessRule>("/api/v1/business-rules", filters, (item) =>
+    (!filters.kind || item.kind === filters.kind) &&
     (!filters.entity_kind || item.entity_kind === filters.entity_kind) &&
     (!filters.object_type || item.object_type === filters.object_type) &&
-    (!keyword || `${item.object_type} ${item.name} ${item.definition_text}`.toLocaleLowerCase().includes(keyword)));
+    (!filters.name || item.name === filters.name) &&
+    (!filters.code || item.code === filters.code) &&
+    (!filters.status || item.status === filters.status) &&
+    (!keyword || `${item.object_type ?? item.code} ${item.name ?? item.title} ${item.body}`.toLocaleLowerCase().includes(keyword)));
 }
 
-export function publishWorkflow(input: WorkflowInput): Promise<WorkflowDefinition> {
-  return jsonRequest("/api/v1/workflow-definitions", "POST", input);
+export function publishBusinessRule(input: BusinessRuleInput): Promise<BusinessRulePublishResult> {
+  return jsonRequest("/api/v1/business-rules/publish", "POST", input);
+}
+
+/** Release a draft as it stands — the catalog's seed, or a colleague's. */
+export function publishRuleDraft(id: string, input: { effective_from?: string; note?: string } = {}): Promise<BusinessRulePublishResult> {
+  return jsonRequest(`/api/v1/business-rules/${encodeURIComponent(id)}/publish`, "POST", input);
+}
+
+/** It stops applying from a date and leaves the default list; it is never deleted. */
+export function repealBusinessRule(id: string, input: { effective_thru?: string; note?: string } = {}): Promise<BusinessRule> {
+  return jsonRequest(`/api/v1/business-rules/${encodeURIComponent(id)}/repeal`, "POST", input);
+}
+
+/** Who may read it, at any status — the one thing publication does not freeze. */
+export function rescopeBusinessRule(
+  id: string, input: { visibility: "internal" | "restricted" | "public"; required_capability?: string | null; note?: string },
+): Promise<BusinessRule> {
+  return jsonRequest(`/api/v1/business-rules/${encodeURIComponent(id)}/visibility`, "POST", input);
+}
+
+export function listPolicyCategories(): Promise<PolicyCategoryOption[]> {
+  return apiRequest<PolicyCategoryOption[]>("/api/v1/type-options?family=policy_category");
 }
 
 export function listSkills(

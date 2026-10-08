@@ -457,6 +457,11 @@ STATE_ROLES["invoice"] = ("submitted", "issued")
 # the server writes both states
 STATE_ROLES["sales_quotation"] = ("submitted", "superseded", "sent")
 STATE_ROLES["payment"] = ("submitted", "paid")
+# the server writes `confirmed` when no human node stands between submit and
+# fulfilment, and `cancelled` when a replacement order supersedes one — both
+# were resolved by role at runtime without being listed here, so a rename
+# passed validation and then 422ed in the middle of a confirmation
+STATE_ROLES["sales_order"] = ("submitted", "confirmed", "cancelled")
 # a shipment is never submitted-for-approval: the warehouse records it and
 # moves it; the server writes none of its states by role
 STATE_ROLES["shipment"] = ()
@@ -471,7 +476,9 @@ STATE_ROLES["contract"] = ()
 # stamps on the literal names (the shipment convention: renamed states move
 # without stamping, and the fact is PATCHed by whoever knows it)
 STATE_ROLES["lead"] = ("converted",)
-STATE_ROLES["opportunity"] = ()
+# the quotation bridge moves a deal to `quoting` — the one state the server
+# writes on an opportunity, and the one a rename must map
+STATE_ROLES["opportunity"] = ("quoting",)
 # a campaign has no server anchor: nothing is written to it by a bridge
 STATE_ROLES["campaign"] = ()
 # the log bridge (/events/{id}/log) lands the event in `held`

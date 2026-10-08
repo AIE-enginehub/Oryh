@@ -1483,6 +1483,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/business-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Business Rules
+         * @description `kind` and the scope pick the question; `in_force_on` is the one worth
+         *     asking — what applied in March, not what is on the intranet today. A
+         *     reader with no grant sees published and superseded rules; the authors of
+         *     a kind see its drafts too.
+         */
+        get: operations["list_business_rules_api_v1_business_rules_get"];
+        put?: never;
+        /**
+         * Create Business Rule
+         * @description Always a draft; publishing is a separate call. Reusing a code — or the
+         *     scope a code is generated from — opens the next version.
+         */
+        post: operations["create_business_rule_api_v1_business_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-rules/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish Business Rule Now
+         * @description Draft and publish in one transaction: the next version of a rule, in
+         *     force from `effective_from` (today by default), the previous one closed
+         *     the day before — the handover a workflow definition always had.
+         */
+        post: operations["publish_business_rule_now_api_v1_business_rules_publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Business Rule
+         * @description Any version by id, superseded ones included, so a past decision stays
+         *     traceable to the rule it followed.
+         */
+        get: operations["get_business_rule_api_v1_business_rules__rule_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Business Rule */
+        delete: operations["delete_business_rule_api_v1_business_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Business Rule */
+        patch: operations["update_business_rule_api_v1_business_rules__rule_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/business-rules/{rule_id}/attachments/{attachment_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Business Rule Attachment
+         * @description The rule's own document. Drafts are visible only to the kind's authors,
+         *     and so are their files.
+         */
+        get: operations["get_business_rule_attachment_api_v1_business_rules__rule_id__attachments__attachment_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-rules/{rule_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Business Rule */
+        post: operations["publish_business_rule_api_v1_business_rules__rule_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-rules/{rule_id}/repeal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repeal Business Rule */
+        post: operations["repeal_business_rule_api_v1_business_rules__rule_id__repeal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/business-rules/{rule_id}/visibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rescope Business Rule */
+        post: operations["rescope_business_rule_api_v1_business_rules__rule_id__visibility_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/campaign-members": {
         parameters: {
             query?: never;
@@ -4261,170 +4406,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/policies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Policies
-         * @description `in_force_on` is the question worth asking — what applied in March, not
-         *     what is on the intranet today.
-         */
-        get: operations["list_policies_api_v1_policies_get"];
-        put?: never;
-        /**
-         * Create Policy
-         * @description Always a draft. Reusing a `code` opens the next version of that policy —
-         *     the version number is the server's to allocate, so two people cannot both
-         *     be drafting v2.
-         */
-        post: operations["create_policy_api_v1_policies_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/policies/{policy_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Policy */
-        get: operations["get_policy_api_v1_policies__policy_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Delete Policy
-         * @description Drafts only. A published policy is repealed, not deleted — people acted
-         *     on it, and the record of what they were told has to survive.
-         */
-        delete: operations["delete_policy_api_v1_policies__policy_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Policy */
-        patch: operations["update_policy_api_v1_policies__policy_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/policies/{policy_id}/attachments/{attachment_id}/content": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Policy Attachment
-         * @description The policy document itself. Drafts and repealed policies are
-         *     visible only to `policy.manage`, and so are their files.
-         */
-        get: operations["get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/policies/{policy_id}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish Policy
-         * @description Publishing closes the previous version and opens this one, in one
-         *     transaction — the same handover `POST /pay-histories` performs, and for the
-         *     same reason: as two calls they eventually drift, and a policy history with
-         *     a gap in it cannot answer what applied in March.
-         *
-         *     The previous version's `effective_thru` lands the day before this one
-         *     starts, so the pair reads as a continuous record rather than two documents
-         *     that happen to be numbered.
-         */
-        post: operations["publish_policy_api_v1_policies__policy_id__publish_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/policies/{policy_id}/repeal": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Repeal Policy
-         * @description 废止 — it stops applying, and it stops being visible to people who are
-         *     not its authors, because a repealed rule left in the handbook is how
-         *     somebody follows a rule that no longer exists. It is not deleted: what
-         *     people were told, and until when, stays answerable.
-         */
-        post: operations["repeal_policy_api_v1_policies__policy_id__repeal_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/policies/{policy_id}/visibility": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rescope Policy
-         * @description Change who may read a policy, at any status, without touching a word of
-         *     it.
-         *
-         *     Publication freezes what the rule SAYS — that is what lets the handbook
-         *     answer "what were people told in March". It never should have frozen who
-         *     may read it. Those are different kinds of fact: one is a statement made on
-         *     a date, the other is a standing decision that outlives the statement and
-         *     changes when the company does.
-         *
-         *     Conflating them left the worst case with no remedy. A policy published to
-         *     a wider audience than intended could not be edited (409), could not be
-         *     deleted (published policies never are), and repealing it would retire a
-         *     rule that is still in force — so the only way to close the reading was to
-         *     stop applying the rule. That is not a choice a workspace should have to
-         *     make about its own handbook.
-         *
-         *     Superseded and repealed versions are re-scopable for the same reason, and
-         *     it matters more there: they stay readable to whoever could read them, so a
-         *     version that should never have been broadly visible has to be closable
-         *     after the fact.
-         *
-         *     `policy.publish` rather than `policy.manage`, because this is the authority
-         *     act on a published document that drafting is deliberately kept apart from —
-         *     the same line publish and repeal already draw.
-         */
-        post: operations["rescope_policy_api_v1_policies__policy_id__visibility_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/product-categories": {
         parameters: {
             query?: never;
@@ -6900,54 +6881,6 @@ export interface paths {
         patch: operations["update_vendor_api_v1_vendors__vendor_id__patch"];
         trace?: never;
     };
-    "/api/v1/workflow-definitions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Workflow Definitions
-         * @description Active versions by default (what the flow agent should follow now);
-         *     history=true returns every published version, newest first.
-         */
-        get: operations["list_workflow_definitions_api_v1_workflow_definitions_get"];
-        put?: never;
-        /**
-         * Publish Workflow Definition
-         * @description Publishing is append-only: the new text becomes version N+1 and the
-         *     previous active version is marked superseded. Existing versions are never
-         *     modified or deleted.
-         */
-        post: operations["publish_workflow_definition_api_v1_workflow_definitions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/workflow-definitions/{definition_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Workflow Definition
-         * @description Fetch any published version by id — including superseded ones, so past
-         *     routing decisions stay traceable to the definition they were based on.
-         */
-        get: operations["get_workflow_definition_api_v1_workflow_definitions__definition_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/workspace/setup-report": {
         parameters: {
             query?: never;
@@ -8605,10 +8538,10 @@ export interface components {
             /** Links */
             links: components["schemas"]["BusinessObjectLinkRead"][];
             object_type_definition?: components["schemas"]["ObjectTypeDefinitionRead"] | null;
+            /** Rules */
+            rules?: components["schemas"]["BusinessRuleRead"][];
             /** Todos */
             todos: components["schemas"]["TodoRead"][];
-            /** Workflow Definitions */
-            workflow_definitions: components["schemas"]["WorkflowDefinitionRead"][];
         };
         /** BusinessObjectLinkRead */
         BusinessObjectLinkRead: {
@@ -8663,6 +8596,83 @@ export interface components {
             title: string;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /**
+         * BusinessRulePublishRead
+         * @description What publishing did: the version now in force, and the one it closed.
+         */
+        BusinessRulePublishRead: {
+            current: components["schemas"]["BusinessRuleRead"];
+            superseded?: components["schemas"]["BusinessRuleRead"] | null;
+        };
+        /** BusinessRuleRead */
+        BusinessRuleRead: {
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Body */
+            body: string;
+            /** Catalog Hash */
+            catalog_hash?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Thru */
+            effective_thru?: string | null;
+            /** Entity Kind */
+            entity_kind?: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name?: string | null;
+            /** Object Type */
+            object_type?: string | null;
+            /** Origin */
+            origin: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Published At */
+            published_at?: string | null;
+            /** Published By */
+            published_by?: string | null;
+            /** Required Capability */
+            required_capability?: string | null;
+            /** Rules Json */
+            rules_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary?: string | null;
+            /** Supersedes Id */
+            supersedes_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visibility */
+            visibility: string;
         };
         /**
          * CampaignDetailRead
@@ -9520,6 +9530,64 @@ export interface components {
             summary?: string | null;
             /** Title */
             title: string;
+        };
+        /**
+         * CreateBusinessRuleRequest
+         * @description Drafting a rule. Publishing is a separate call and, for a policy, a
+         *     separate capability.
+         *
+         *     A `policy` needs its own `code` and `category`. A scoped kind needs
+         *     `object_type` (and `entity_kind`, default builtin); its `code` is generated
+         *     from the scope unless given, and `name` separates several sequences on one
+         *     scope (`default` is the one every reader follows).
+         */
+        CreateBusinessRuleRequest: {
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Body */
+            body: string;
+            /** Category */
+            category?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Thru */
+            effective_thru?: string | null;
+            /** Entity Kind */
+            entity_kind?: ("business_object" | "builtin") | null;
+            /**
+             * Kind
+             * @default policy
+             * @enum {string}
+             */
+            kind: "policy" | "approval_flow" | "data_rule" | "linkage";
+            /** Name */
+            name?: string | null;
+            /** Object Type */
+            object_type?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Required Capability */
+            required_capability?: string | null;
+            /** Rules Json */
+            rules_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /**
+             * Visibility
+             * @default internal
+             * @enum {string}
+             */
+            visibility: "internal" | "restricted" | "public";
         };
         /** CreateCampaignMemberRequest */
         CreateCampaignMemberRequest: {
@@ -10768,50 +10836,6 @@ export interface components {
             /** Password */
             password: string;
         };
-        /**
-         * CreatePolicyRequest
-         * @description Drafting a policy. Publishing it is a separate call and a separate
-         *     capability, because publishing is an authority act rather than an edit.
-         *
-         *     Reusing a `code` opens the NEXT version of that policy; the version number
-         *     is the server's to allocate, so two drafts of v2 cannot exist.
-         */
-        CreatePolicyRequest: {
-            /** Attachment Id */
-            attachment_id?: string | null;
-            /** Body */
-            body: string;
-            /** Category */
-            category: string;
-            /** Code */
-            code: string;
-            /** Custom Fields */
-            custom_fields?: {
-                [key: string]: unknown;
-            };
-            /** Effective From */
-            effective_from?: string | null;
-            /** Effective Thru */
-            effective_thru?: string | null;
-            /** Owner Employee Id */
-            owner_employee_id?: string | null;
-            /** Required Capability */
-            required_capability?: string | null;
-            /** Rules Json */
-            rules_json?: {
-                [key: string]: unknown;
-            } | null;
-            /** Summary */
-            summary?: string | null;
-            /** Title */
-            title: string;
-            /**
-             * Visibility
-             * @default internal
-             * @enum {string}
-             */
-            visibility: "internal" | "restricted" | "public";
-        };
         /** CreateProductCategoryRequest */
         CreateProductCategoryRequest: {
             /** Category Code */
@@ -11883,26 +11907,6 @@ export interface components {
             /** Vendor Code */
             vendor_code?: string | null;
         };
-        /** CreateWorkflowDefinitionRequest */
-        CreateWorkflowDefinitionRequest: {
-            /** Created By */
-            created_by?: string | null;
-            /** Definition Text */
-            definition_text: string;
-            /**
-             * Entity Kind
-             * @default business_object
-             * @enum {string}
-             */
-            entity_kind: "business_object" | "builtin";
-            /**
-             * Name
-             * @default default
-             */
-            name: string;
-            /** Object Type */
-            object_type: string;
-        };
         /** CustomerContactRead */
         CustomerContactRead: {
             /**
@@ -12416,6 +12420,16 @@ export interface components {
             data: components["schemas"]["BusinessObjectRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[BusinessRulePublishRead] */
+        Envelope_BusinessRulePublishRead_: {
+            data: components["schemas"]["BusinessRulePublishRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[BusinessRuleRead] */
+        Envelope_BusinessRuleRead_: {
+            data: components["schemas"]["BusinessRuleRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[CampaignDetailRead] */
         Envelope_CampaignDetailRead_: {
             data: components["schemas"]["CampaignDetailRead"];
@@ -12676,16 +12690,6 @@ export interface components {
             data: components["schemas"]["PicklistRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
-        /** Envelope[PolicyPublishRead] */
-        Envelope_PolicyPublishRead_: {
-            data: components["schemas"]["PolicyPublishRead"];
-            meta?: components["schemas"]["EnvelopeMeta"];
-        };
-        /** Envelope[PolicyRead] */
-        Envelope_PolicyRead_: {
-            data: components["schemas"]["PolicyRead"];
-            meta?: components["schemas"]["EnvelopeMeta"];
-        };
         /** Envelope[PostBillingAccountEntriesResult] */
         Envelope_PostBillingAccountEntriesResult_: {
             data: components["schemas"]["PostBillingAccountEntriesResult"];
@@ -12929,11 +12933,6 @@ export interface components {
         /** Envelope[VerifyEmailResponse] */
         Envelope_VerifyEmailResponse_: {
             data: components["schemas"]["VerifyEmailResponse"];
-            meta?: components["schemas"]["EnvelopeMeta"];
-        };
-        /** Envelope[WorkflowDefinitionRead] */
-        Envelope_WorkflowDefinitionRead_: {
-            data: components["schemas"]["WorkflowDefinitionRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** EventParticipantRead */
@@ -14387,6 +14386,12 @@ export interface components {
             data: components["schemas"]["BusinessObjectRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[BusinessRuleRead] */
+        ListEnvelope_BusinessRuleRead_: {
+            /** Data */
+            data: components["schemas"]["BusinessRuleRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[CampaignMemberRead] */
         ListEnvelope_CampaignMemberRead_: {
             /** Data */
@@ -14633,12 +14638,6 @@ export interface components {
             data: components["schemas"]["PicklistRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
-        /** ListEnvelope[PolicyRead] */
-        ListEnvelope_PolicyRead_: {
-            /** Data */
-            data: components["schemas"]["PolicyRead"][];
-            meta?: components["schemas"]["EnvelopeMeta"];
-        };
         /** ListEnvelope[ProductCategoryRead] */
         ListEnvelope_ProductCategoryRead_: {
             /** Data */
@@ -14841,12 +14840,6 @@ export interface components {
         ListEnvelope_VendorRead_: {
             /** Data */
             data: components["schemas"]["VendorRead"][];
-            meta?: components["schemas"]["EnvelopeMeta"];
-        };
-        /** ListEnvelope[WorkflowDefinitionRead] */
-        ListEnvelope_WorkflowDefinitionRead_: {
-            /** Data */
-            data: components["schemas"]["WorkflowDefinitionRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /**
@@ -15485,71 +15478,6 @@ export interface components {
              */
             updated_at: string;
         };
-        /**
-         * PolicyPublishRead
-         * @description What publishing did: the version now in force, and the one it closed.
-         */
-        PolicyPublishRead: {
-            current: components["schemas"]["PolicyRead"];
-            superseded?: components["schemas"]["PolicyRead"] | null;
-        };
-        /** PolicyRead */
-        PolicyRead: {
-            /** Attachment Id */
-            attachment_id?: string | null;
-            /** Body */
-            body: string;
-            /** Category */
-            category: string;
-            /** Code */
-            code: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By */
-            created_by?: string | null;
-            /** Custom Fields */
-            custom_fields: {
-                [key: string]: unknown;
-            };
-            /** Effective From */
-            effective_from?: string | null;
-            /** Effective Thru */
-            effective_thru?: string | null;
-            /** Id */
-            id: string;
-            /** Owner Employee Id */
-            owner_employee_id?: string | null;
-            /** Published At */
-            published_at?: string | null;
-            /** Published By */
-            published_by?: string | null;
-            /** Required Capability */
-            required_capability?: string | null;
-            /** Rules Json */
-            rules_json?: {
-                [key: string]: unknown;
-            } | null;
-            /** Status */
-            status: string;
-            /** Summary */
-            summary?: string | null;
-            /** Supersedes Id */
-            supersedes_id?: string | null;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Version */
-            version: number;
-            /** Visibility */
-            visibility: string;
-        };
         /** PostBillingAccountEntriesResult */
         PostBillingAccountEntriesResult: {
             /** Available Amount */
@@ -15863,15 +15791,70 @@ export interface components {
             updated_at?: string | null;
         };
         /**
-         * PublishPolicyRequest
+         * PublishBusinessRuleRequest
          * @description `effective_from` may be moved at publication — a policy approved today
          *     and applying next month is the ordinary case, not an exception.
          */
-        PublishPolicyRequest: {
+        PublishBusinessRuleRequest: {
             /** Effective From */
             effective_from?: string | null;
             /** Note */
             note?: string | null;
+        };
+        /**
+         * PublishNowBusinessRuleRequest
+         * @description Draft and publish in one transaction — what publishing a workflow
+         *     definition always was. `effective_from` defaults to today.
+         */
+        PublishNowBusinessRuleRequest: {
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Body */
+            body: string;
+            /** Category */
+            category?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Thru */
+            effective_thru?: string | null;
+            /** Entity Kind */
+            entity_kind?: ("business_object" | "builtin") | null;
+            /**
+             * Kind
+             * @default policy
+             * @enum {string}
+             */
+            kind: "policy" | "approval_flow" | "data_rule" | "linkage";
+            /** Name */
+            name?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Object Type */
+            object_type?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Required Capability */
+            required_capability?: string | null;
+            /** Rules Json */
+            rules_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /**
+             * Visibility
+             * @default internal
+             * @enum {string}
+             */
+            visibility: "internal" | "restricted" | "public";
         };
         /** PurchaseOrderAdjustmentRead */
         PurchaseOrderAdjustmentRead: {
@@ -16558,12 +16541,12 @@ export interface components {
             lines?: components["schemas"]["ReserveStockLine"][] | null;
         };
         /**
-         * RepealPolicyRequest
+         * RepealBusinessRuleRequest
          * @description 废止. `effective_thru` is when it STOPS applying, which is usually today
          *     but need not be — a policy can be repealed retroactively to the day a law
          *     changed.
          */
-        RepealPolicyRequest: {
+        RepealBusinessRuleRequest: {
             /** Effective Thru */
             effective_thru?: string | null;
             /** Note */
@@ -16589,7 +16572,7 @@ export interface components {
             unmoved_runs: number;
         };
         /**
-         * RescopePolicyRequest
+         * RescopeBusinessRuleRequest
          * @description Who may read a policy, changed after it was published.
          *
          *     What the rule SAYS is frozen once published — that is what makes the
@@ -16603,7 +16586,7 @@ export interface components {
          *     published policy cannot be deleted, and repealing it retires a rule that is
          *     still in force. The only way to close it was to stop applying it.
          */
-        RescopePolicyRequest: {
+        RescopeBusinessRuleRequest: {
             /** Note */
             note?: string | null;
             /** Required Capability */
@@ -19101,6 +19084,40 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /**
+         * UpdateBusinessRuleRequest
+         * @description Drafts only; kind and scope are the row's identity and do not move.
+         */
+        UpdateBusinessRuleRequest: {
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Body */
+            body?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective Thru */
+            effective_thru?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Required Capability */
+            required_capability?: string | null;
+            /** Rules Json */
+            rules_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Visibility */
+            visibility?: ("internal" | "restricted" | "public") | null;
+        };
         /** UpdateCampaignMemberRequest */
         UpdateCampaignMemberRequest: {
             /** Contact Id */
@@ -19927,42 +19944,6 @@ export interface components {
             sales_order_id?: string | null;
             /** Status */
             status?: string | null;
-        };
-        /**
-         * UpdatePolicyRequest
-         * @description Drafts only. A published policy is corrected by publishing a new
-         *     version — editing one in place would change what people were told without
-         *     leaving a trace that they were told something else.
-         */
-        UpdatePolicyRequest: {
-            /** Attachment Id */
-            attachment_id?: string | null;
-            /** Body */
-            body?: string | null;
-            /** Category */
-            category?: string | null;
-            /** Custom Fields */
-            custom_fields?: {
-                [key: string]: unknown;
-            } | null;
-            /** Effective From */
-            effective_from?: string | null;
-            /** Effective Thru */
-            effective_thru?: string | null;
-            /** Owner Employee Id */
-            owner_employee_id?: string | null;
-            /** Required Capability */
-            required_capability?: string | null;
-            /** Rules Json */
-            rules_json?: {
-                [key: string]: unknown;
-            } | null;
-            /** Summary */
-            summary?: string | null;
-            /** Title */
-            title?: string | null;
-            /** Visibility */
-            visibility?: ("internal" | "restricted" | "public") | null;
         };
         /** UpdateProductCategoryRequest */
         UpdateProductCategoryRequest: {
@@ -20863,38 +20844,6 @@ export interface components {
             session_token: string;
             tenant: components["schemas"]["TenantRead"];
             user: components["schemas"]["UserRead"];
-        };
-        /** WorkflowDefinitionRead */
-        WorkflowDefinitionRead: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By */
-            created_by?: string | null;
-            /** Definition Text */
-            definition_text: string;
-            /**
-             * Entity Kind
-             * @enum {string}
-             */
-            entity_kind: "business_object" | "builtin";
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /** Object Type */
-            object_type: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "active" | "superseded";
-            /** Tenant Id */
-            tenant_id: string;
-            /** Version */
-            version: number;
         };
     };
     responses: never;
@@ -24807,6 +24756,456 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PostObjectStockRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_business_rules_api_v1_business_rules_get: {
+        parameters: {
+            query?: {
+                kind?: string | null;
+                entity_kind?: string | null;
+                object_type?: string | null;
+                name?: string | null;
+                code?: string | null;
+                category?: string | null;
+                status?: string | null;
+                visibility?: string | null;
+                in_force_on?: string | null;
+                keyword?: string | null;
+                include_deleted?: boolean;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_thru is on or after this */
+                effective_thru_from?: string | null;
+                /** @description rows whose effective_thru is on or before this */
+                effective_thru_thru?: string | null;
+                /** @description rows whose published_at is at or after this */
+                published_at_from?: string | null;
+                /** @description rows whose published_at is at or before this */
+                published_at_thru?: string | null;
+                attachment_id?: string | null;
+                owner_employee_id?: string | null;
+                supersedes_id?: string | null;
+                origin?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BusinessRuleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_business_rule_api_v1_business_rules_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRuleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_business_rule_now_api_v1_business_rules_publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishNowBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRulePublishRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_business_rule_api_v1_business_rules__rule_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRuleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_business_rule_api_v1_business_rules__rule_id__delete: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_business_rule_api_v1_business_rules__rule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRuleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_business_rule_attachment_api_v1_business_rules__rule_id__attachments__attachment_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                rule_id: string;
+                attachment_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_business_rule_api_v1_business_rules__rule_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PublishBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRulePublishRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repeal_business_rule_api_v1_business_rules__rule_id__repeal_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RepealBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRuleRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rescope_business_rule_api_v1_business_rules__rule_id__visibility_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescopeBusinessRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BusinessRuleRead_"];
                 };
             };
             /** @description Validation Error */
@@ -34669,409 +35068,6 @@ export interface operations {
             };
         };
     };
-    list_policies_api_v1_policies_get: {
-        parameters: {
-            query?: {
-                code?: string | null;
-                category?: string | null;
-                status?: string | null;
-                visibility?: string | null;
-                in_force_on?: string | null;
-                keyword?: string | null;
-                include_deleted?: boolean;
-                page?: number | null;
-                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
-                size?: number | null;
-                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
-                order_by?: string | null;
-                /** @description rows whose created_at is at or after this */
-                created_at_from?: string | null;
-                /** @description rows whose created_at is at or before this */
-                created_at_thru?: string | null;
-                /** @description rows whose effective_from is on or after this */
-                effective_from_from?: string | null;
-                /** @description rows whose effective_from is on or before this */
-                effective_from_thru?: string | null;
-                /** @description rows whose effective_thru is on or after this */
-                effective_thru_from?: string | null;
-                /** @description rows whose effective_thru is on or before this */
-                effective_thru_thru?: string | null;
-                /** @description rows whose published_at is at or after this */
-                published_at_from?: string | null;
-                /** @description rows whose published_at is at or before this */
-                published_at_thru?: string | null;
-                attachment_id?: string | null;
-                owner_employee_id?: string | null;
-                supersedes_id?: string | null;
-            };
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListEnvelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_policy_api_v1_policies_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path?: never;
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreatePolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_policy_api_v1_policies__policy_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_policy_api_v1_policies__policy_id__delete: {
-        parameters: {
-            query?: {
-                reason?: string | null;
-            };
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_policy_api_v1_policies__policy_id__patch: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdatePolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                policy_id: string;
-                attachment_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    publish_policy_api_v1_policies__policy_id__publish_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PublishPolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyPublishRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    repeal_policy_api_v1_policies__policy_id__repeal_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["RepealPolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rescope_policy_api_v1_policies__policy_id__visibility_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                policy_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RescopePolicyRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PolicyRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_product_categories_api_v1_product_categories_get: {
         parameters: {
             query?: {
@@ -44714,134 +44710,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_VendorRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_workflow_definitions_api_v1_workflow_definitions_get: {
-        parameters: {
-            query?: {
-                entity_kind?: string | null;
-                object_type?: string | null;
-                name?: string | null;
-                history?: boolean;
-                status?: ("active" | "superseded" | "all") | null;
-                keyword?: string | null;
-                page?: number | null;
-                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
-                size?: number | null;
-                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
-                order_by?: string | null;
-            };
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path?: never;
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListEnvelope_WorkflowDefinitionRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    publish_workflow_definition_api_v1_workflow_definitions_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
-                "Idempotency-Key"?: string;
-            };
-            path?: never;
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateWorkflowDefinitionRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_WorkflowDefinitionRead_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_workflow_definition_api_v1_workflow_definitions__definition_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-API-Key"?: string | null;
-                authorization?: string | null;
-                "X-CSRF-Token"?: string | null;
-            };
-            path: {
-                definition_id: string;
-            };
-            cookie?: {
-                oryh_session?: string | null;
-                oryh_csrf?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_WorkflowDefinitionRead_"];
                 };
             };
             /** @description Validation Error */

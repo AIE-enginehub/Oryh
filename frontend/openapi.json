@@ -5164,18 +5164,18 @@
               }
             ]
           },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessRuleRead"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
           "todos": {
             "items": {
               "$ref": "#/components/schemas/TodoRead"
             },
             "title": "Todos",
-            "type": "array"
-          },
-          "workflow_definitions": {
-            "items": {
-              "$ref": "#/components/schemas/WorkflowDefinitionRead"
-            },
-            "title": "Workflow Definitions",
             "type": "array"
           }
         },
@@ -5184,8 +5184,7 @@
           "links",
           "approval_records",
           "todos",
-          "audit_logs",
-          "workflow_definitions"
+          "audit_logs"
         ],
         "title": "BusinessObjectDetailRead",
         "type": "object"
@@ -5347,6 +5346,280 @@
           "created_at"
         ],
         "title": "BusinessObjectRead",
+        "type": "object"
+      },
+      "BusinessRulePublishRead": {
+        "description": "What publishing did: the version now in force, and the one it closed.",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/BusinessRuleRead"
+          },
+          "superseded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BusinessRuleRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "current"
+        ],
+        "title": "BusinessRulePublishRead",
+        "type": "object"
+      },
+      "BusinessRuleRead": {
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Id"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "catalog_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalog Hash"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "custom_fields": {
+            "additionalProperties": true,
+            "title": "Custom Fields",
+            "type": "object"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_thru": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Thru"
+          },
+          "entity_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Kind"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Type"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By"
+          },
+          "required_capability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Capability"
+          },
+          "rules_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Json"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visibility": {
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "code",
+          "version",
+          "origin",
+          "title",
+          "body",
+          "visibility",
+          "status",
+          "custom_fields",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BusinessRuleRead",
         "type": "object"
       },
       "CampaignDetailRead": {
@@ -8131,6 +8404,207 @@
           "title"
         ],
         "title": "CreateBusinessObjectRequest",
+        "type": "object"
+      },
+      "CreateBusinessRuleRequest": {
+        "additionalProperties": false,
+        "description": "Drafting a rule. Publishing is a separate call and, for a policy, a\nseparate capability.\n\nA `policy` needs its own `code` and `category`. A scoped kind needs\n`object_type` (and `entity_kind`, default builtin); its `code` is generated\nfrom the scope unless given, and `name` separates several sequences on one\nscope (`default` is the one every reader follows).",
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Id"
+          },
+          "body": {
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,49}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "custom_fields": {
+            "additionalProperties": true,
+            "title": "Custom Fields",
+            "type": "object"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_thru": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Thru"
+          },
+          "entity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "business_object",
+                  "builtin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Kind"
+          },
+          "kind": {
+            "default": "policy",
+            "enum": [
+              "policy",
+              "approval_flow",
+              "data_rule",
+              "linkage"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Type"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
+          },
+          "required_capability": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Capability"
+          },
+          "rules_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Json"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "visibility": {
+            "default": "internal",
+            "enum": [
+              "internal",
+              "restricted",
+              "public"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "CreateBusinessRuleRequest",
         "type": "object"
       },
       "CreateCampaignMemberRequest": {
@@ -12743,139 +13217,6 @@
         "title": "CreatePlatformAdminRequest",
         "type": "object"
       },
-      "CreatePolicyRequest": {
-        "additionalProperties": false,
-        "description": "Drafting a policy. Publishing it is a separate call and a separate\ncapability, because publishing is an authority act rather than an edit.\n\nReusing a `code` opens the NEXT version of that policy; the version number\nis the server's to allocate, so two drafts of v2 cannot exist.",
-        "properties": {
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attachment Id"
-          },
-          "body": {
-            "minLength": 1,
-            "title": "Body",
-            "type": "string"
-          },
-          "category": {
-            "pattern": "^[a-z][a-z0-9_]{0,49}$",
-            "title": "Category",
-            "type": "string"
-          },
-          "code": {
-            "maxLength": 50,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
-          },
-          "custom_fields": {
-            "additionalProperties": true,
-            "title": "Custom Fields",
-            "type": "object"
-          },
-          "effective_from": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective From"
-          },
-          "effective_thru": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective Thru"
-          },
-          "owner_employee_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Employee Id"
-          },
-          "required_capability": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Required Capability"
-          },
-          "rules_json": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rules Json"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "title": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Title",
-            "type": "string"
-          },
-          "visibility": {
-            "default": "internal",
-            "enum": [
-              "internal",
-              "restricted",
-              "public"
-            ],
-            "title": "Visibility",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "category",
-          "title",
-          "body"
-        ],
-        "title": "CreatePolicyRequest",
-        "type": "object"
-      },
       "CreateProductCategoryRequest": {
         "additionalProperties": false,
         "properties": {
@@ -16729,55 +17070,6 @@
         "title": "CreateVendorRequest",
         "type": "object"
       },
-      "CreateWorkflowDefinitionRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "created_by": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          },
-          "definition_text": {
-            "maxLength": 20000,
-            "minLength": 1,
-            "title": "Definition Text",
-            "type": "string"
-          },
-          "entity_kind": {
-            "default": "business_object",
-            "enum": [
-              "business_object",
-              "builtin"
-            ],
-            "title": "Entity Kind",
-            "type": "string"
-          },
-          "name": {
-            "default": "default",
-            "maxLength": 100,
-            "title": "Name",
-            "type": "string"
-          },
-          "object_type": {
-            "maxLength": 100,
-            "title": "Object Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "object_type",
-          "definition_text"
-        ],
-        "title": "CreateWorkflowDefinitionRequest",
-        "type": "object"
-      },
       "CustomerContactRead": {
         "properties": {
           "created_at": {
@@ -18526,6 +18818,36 @@
         "title": "Envelope[BusinessObjectRead]",
         "type": "object"
       },
+      "Envelope_BusinessRulePublishRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BusinessRulePublishRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[BusinessRulePublishRead]",
+        "type": "object"
+      },
+      "Envelope_BusinessRuleRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BusinessRuleRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[BusinessRuleRead]",
+        "type": "object"
+      },
       "Envelope_CampaignDetailRead_": {
         "properties": {
           "data": {
@@ -19306,36 +19628,6 @@
         "title": "Envelope[PicklistRead]",
         "type": "object"
       },
-      "Envelope_PolicyPublishRead_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/PolicyPublishRead"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/EnvelopeMeta"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[PolicyPublishRead]",
-        "type": "object"
-      },
-      "Envelope_PolicyRead_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/PolicyRead"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/EnvelopeMeta"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[PolicyRead]",
-        "type": "object"
-      },
       "Envelope_PostBillingAccountEntriesResult_": {
         "properties": {
           "data": {
@@ -20069,21 +20361,6 @@
           "data"
         ],
         "title": "Envelope[VerifyEmailResponse]",
-        "type": "object"
-      },
-      "Envelope_WorkflowDefinitionRead_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/WorkflowDefinitionRead"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/EnvelopeMeta"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[WorkflowDefinitionRead]",
         "type": "object"
       },
       "EventParticipantRead": {
@@ -24908,6 +25185,25 @@
         "title": "ListEnvelope[BusinessObjectRead]",
         "type": "object"
       },
+      "ListEnvelope_BusinessRuleRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessRuleRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[BusinessRuleRead]",
+        "type": "object"
+      },
       "ListEnvelope_CampaignMemberRead_": {
         "properties": {
           "data": {
@@ -25687,25 +25983,6 @@
         "title": "ListEnvelope[PicklistRead]",
         "type": "object"
       },
-      "ListEnvelope_PolicyRead_": {
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/PolicyRead"
-            },
-            "title": "Data",
-            "type": "array"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/EnvelopeMeta"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "ListEnvelope[PolicyRead]",
-        "type": "object"
-      },
       "ListEnvelope_ProductCategoryRead_": {
         "properties": {
           "data": {
@@ -26350,25 +26627,6 @@
           "data"
         ],
         "title": "ListEnvelope[VendorRead]",
-        "type": "object"
-      },
-      "ListEnvelope_WorkflowDefinitionRead_": {
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/WorkflowDefinitionRead"
-            },
-            "title": "Data",
-            "type": "array"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/EnvelopeMeta"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "ListEnvelope[WorkflowDefinitionRead]",
         "type": "object"
       },
       "LogEventRequest": {
@@ -28358,220 +28616,6 @@
         "title": "PicklistRead",
         "type": "object"
       },
-      "PolicyPublishRead": {
-        "description": "What publishing did: the version now in force, and the one it closed.",
-        "properties": {
-          "current": {
-            "$ref": "#/components/schemas/PolicyRead"
-          },
-          "superseded": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PolicyRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "current"
-        ],
-        "title": "PolicyPublishRead",
-        "type": "object"
-      },
-      "PolicyRead": {
-        "properties": {
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attachment Id"
-          },
-          "body": {
-            "title": "Body",
-            "type": "string"
-          },
-          "category": {
-            "title": "Category",
-            "type": "string"
-          },
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "created_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          },
-          "custom_fields": {
-            "additionalProperties": true,
-            "title": "Custom Fields",
-            "type": "object"
-          },
-          "effective_from": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective From"
-          },
-          "effective_thru": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective Thru"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "owner_employee_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Employee Id"
-          },
-          "published_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Published At"
-          },
-          "published_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Published By"
-          },
-          "required_capability": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Required Capability"
-          },
-          "rules_json": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rules Json"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "supersedes_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Supersedes Id"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          },
-          "visibility": {
-            "title": "Visibility",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "version",
-          "category",
-          "title",
-          "body",
-          "visibility",
-          "status",
-          "custom_fields",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "PolicyRead",
-        "type": "object"
-      },
       "PostBillingAccountEntriesResult": {
         "properties": {
           "available_amount": {
@@ -29413,7 +29457,7 @@
         "title": "ProjectRead",
         "type": "object"
       },
-      "PublishPolicyRequest": {
+      "PublishBusinessRuleRequest": {
         "additionalProperties": false,
         "description": "`effective_from` may be moved at publication — a policy approved today\nand applying next month is the ordinary case, not an exception.",
         "properties": {
@@ -29442,7 +29486,220 @@
             "title": "Note"
           }
         },
-        "title": "PublishPolicyRequest",
+        "title": "PublishBusinessRuleRequest",
+        "type": "object"
+      },
+      "PublishNowBusinessRuleRequest": {
+        "additionalProperties": false,
+        "description": "Draft and publish in one transaction — what publishing a workflow\ndefinition always was. `effective_from` defaults to today.",
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Id"
+          },
+          "body": {
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,49}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "custom_fields": {
+            "additionalProperties": true,
+            "title": "Custom Fields",
+            "type": "object"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_thru": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Thru"
+          },
+          "entity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "business_object",
+                  "builtin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Kind"
+          },
+          "kind": {
+            "default": "policy",
+            "enum": [
+              "policy",
+              "approval_flow",
+              "data_rule",
+              "linkage"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Type"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
+          },
+          "required_capability": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Capability"
+          },
+          "rules_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Json"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "visibility": {
+            "default": "internal",
+            "enum": [
+              "internal",
+              "restricted",
+              "public"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "PublishNowBusinessRuleRequest",
         "type": "object"
       },
       "PurchaseOrderAdjustmentRead": {
@@ -31871,7 +32128,7 @@
         "title": "ReleaseStockRequest",
         "type": "object"
       },
-      "RepealPolicyRequest": {
+      "RepealBusinessRuleRequest": {
         "additionalProperties": false,
         "description": "废止. `effective_thru` is when it STOPS applying, which is usually today\nbut need not be — a policy can be repealed retroactively to the day a law\nchanged.",
         "properties": {
@@ -31900,7 +32157,7 @@
             "title": "Note"
           }
         },
-        "title": "RepealPolicyRequest",
+        "title": "RepealBusinessRuleRequest",
         "type": "object"
       },
       "ReportDriverStateRequest": {
@@ -31936,7 +32193,7 @@
         "title": "ReportDriverStateRequest",
         "type": "object"
       },
-      "RescopePolicyRequest": {
+      "RescopeBusinessRuleRequest": {
         "additionalProperties": false,
         "description": "Who may read a policy, changed after it was published.\n\nWhat the rule SAYS is frozen once published — that is what makes the\nhandbook answerable about what people were told. Who may read it is not the\nsame kind of fact: it is a standing administrative decision that outlives\nthe publication and legitimately changes when a department reorganizes, or\nwhen a rule announced to管理层 becomes company-wide.\n\nTreating the two as one thing left a workspace with no remedy at all for a\npolicy published to a wider audience than intended: the edit is refused, a\npublished policy cannot be deleted, and repealing it retires a rule that is\nstill in force. The only way to close it was to stop applying it.",
         "properties": {
@@ -31977,7 +32234,7 @@
         "required": [
           "visibility"
         ],
-        "title": "RescopePolicyRequest",
+        "title": "RescopeBusinessRuleRequest",
         "type": "object"
       },
       "ReserveStockLine": {
@@ -41002,6 +41259,161 @@
         "title": "UpdateBusinessObjectRequest",
         "type": "object"
       },
+      "UpdateBusinessRuleRequest": {
+        "additionalProperties": false,
+        "description": "Drafts only; kind and scope are the row's identity and do not move.",
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Id"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z][a-z0-9_]{0,49}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "custom_fields": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Fields"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_thru": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Thru"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
+          },
+          "required_capability": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Capability"
+          },
+          "rules_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules Json"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "internal",
+                  "restricted",
+                  "public"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          }
+        },
+        "title": "UpdateBusinessRuleRequest",
+        "type": "object"
+      },
       "UpdateCampaignMemberRequest": {
         "additionalProperties": false,
         "properties": {
@@ -45077,161 +45489,6 @@
           }
         },
         "title": "UpdatePicklistRequest",
-        "type": "object"
-      },
-      "UpdatePolicyRequest": {
-        "additionalProperties": false,
-        "description": "Drafts only. A published policy is corrected by publishing a new\nversion — editing one in place would change what people were told without\nleaving a trace that they were told something else.",
-        "properties": {
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attachment Id"
-          },
-          "body": {
-            "anyOf": [
-              {
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "pattern": "^[a-z][a-z0-9_]{0,49}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
-          },
-          "custom_fields": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Custom Fields"
-          },
-          "effective_from": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective From"
-          },
-          "effective_thru": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective Thru"
-          },
-          "owner_employee_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Employee Id"
-          },
-          "required_capability": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Required Capability"
-          },
-          "rules_json": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rules Json"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "maxLength": 200,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "visibility": {
-            "anyOf": [
-              {
-                "enum": [
-                  "internal",
-                  "restricted",
-                  "public"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Visibility"
-          }
-        },
-        "title": "UpdatePolicyRequest",
         "type": "object"
       },
       "UpdateProductCategoryRequest": {
@@ -49420,79 +49677,6 @@
           "session_token"
         ],
         "title": "VerifyEmailResponse",
-        "type": "object"
-      },
-      "WorkflowDefinitionRead": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "created_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          },
-          "definition_text": {
-            "title": "Definition Text",
-            "type": "string"
-          },
-          "entity_kind": {
-            "enum": [
-              "business_object",
-              "builtin"
-            ],
-            "title": "Entity Kind",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "object_type": {
-            "title": "Object Type",
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "active",
-              "superseded"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "tenant_id": {
-            "title": "Tenant Id",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "tenant_id",
-          "entity_kind",
-          "object_type",
-          "name",
-          "version",
-          "definition_text",
-          "status",
-          "created_at"
-        ],
-        "title": "WorkflowDefinitionRead",
         "type": "object"
       }
     }
@@ -61784,6 +61968,1761 @@
           }
         },
         "summary": "Post Business Object Stock"
+      }
+    },
+    "/api/v1/business-rules": {
+      "get": {
+        "description": "`kind` and the scope pick the question; `in_force_on` is the one worth\nasking — what applied in March, not what is on the intranet today. A\nreader with no grant sees published and superseded rules; the authors of\na kind see its drafts too.",
+        "operationId": "list_business_rules_api_v1_business_rules_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Object Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "visibility",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Visibility"
+            }
+          },
+          {
+            "in": "query",
+            "name": "in_force_on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "In Force On"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Keyword"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_deleted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Deleted",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "description": "rows whose effective_from is on or after this",
+            "in": "query",
+            "name": "effective_from_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_from is on or after this",
+              "title": "Effective From From"
+            }
+          },
+          {
+            "description": "rows whose effective_from is on or before this",
+            "in": "query",
+            "name": "effective_from_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_from is on or before this",
+              "title": "Effective From Thru"
+            }
+          },
+          {
+            "description": "rows whose effective_thru is on or after this",
+            "in": "query",
+            "name": "effective_thru_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_thru is on or after this",
+              "title": "Effective Thru From"
+            }
+          },
+          {
+            "description": "rows whose effective_thru is on or before this",
+            "in": "query",
+            "name": "effective_thru_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_thru is on or before this",
+              "title": "Effective Thru Thru"
+            }
+          },
+          {
+            "description": "rows whose published_at is at or after this",
+            "in": "query",
+            "name": "published_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose published_at is at or after this",
+              "title": "Published At From"
+            }
+          },
+          {
+            "description": "rows whose published_at is at or before this",
+            "in": "query",
+            "name": "published_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose published_at is at or before this",
+              "title": "Published At Thru"
+            }
+          },
+          {
+            "in": "query",
+            "name": "attachment_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Attachment Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_employee_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner Employee Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "supersedes_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Supersedes Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Business Rules"
+      },
+      "post": {
+        "description": "Always a draft; publishing is a separate call. Reusing a code — or the\nscope a code is generated from — opens the next version.",
+        "operationId": "create_business_rule_api_v1_business_rules_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBusinessRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Business Rule"
+      }
+    },
+    "/api/v1/business-rules/publish": {
+      "post": {
+        "description": "Draft and publish in one transaction: the next version of a rule, in\nforce from `effective_from` (today by default), the previous one closed\nthe day before — the handover a workflow definition always had.",
+        "operationId": "publish_business_rule_now_api_v1_business_rules_publish_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishNowBusinessRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRulePublishRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Business Rule Now"
+      }
+    },
+    "/api/v1/business-rules/{rule_id}": {
+      "delete": {
+        "operationId": "delete_business_rule_api_v1_business_rules__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Business Rule"
+      },
+      "get": {
+        "description": "Any version by id, superseded ones included, so a past decision stays\ntraceable to the rule it followed.",
+        "operationId": "get_business_rule_api_v1_business_rules__rule_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Business Rule"
+      },
+      "patch": {
+        "operationId": "update_business_rule_api_v1_business_rules__rule_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Business Rule"
+      }
+    },
+    "/api/v1/business-rules/{rule_id}/attachments/{attachment_id}/content": {
+      "get": {
+        "description": "The rule's own document. Drafts are visible only to the kind's authors,\nand so are their files.",
+        "operationId": "get_business_rule_attachment_api_v1_business_rules__rule_id__attachments__attachment_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Business Rule Attachment"
+      }
+    },
+    "/api/v1/business-rules/{rule_id}/publish": {
+      "post": {
+        "operationId": "publish_business_rule_api_v1_business_rules__rule_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishBusinessRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRulePublishRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish Business Rule"
+      }
+    },
+    "/api/v1/business-rules/{rule_id}/repeal": {
+      "post": {
+        "operationId": "repeal_business_rule_api_v1_business_rules__rule_id__repeal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepealBusinessRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Repeal Business Rule"
+      }
+    },
+    "/api/v1/business-rules/{rule_id}/visibility": {
+      "post": {
+        "operationId": "rescope_business_rule_api_v1_business_rules__rule_id__visibility_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescopeBusinessRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_BusinessRuleRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rescope Business Rule"
       }
     },
     "/api/v1/campaign-members": {
@@ -98728,1552 +100667,6 @@
         "summary": "Save Picklist Lines"
       }
     },
-    "/api/v1/policies": {
-      "get": {
-        "description": "`in_force_on` is the question worth asking — what applied in March, not\nwhat is on the intranet today.",
-        "operationId": "list_policies_api_v1_policies_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "code",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Code"
-            }
-          },
-          {
-            "in": "query",
-            "name": "category",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Category"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "visibility",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Visibility"
-            }
-          },
-          {
-            "in": "query",
-            "name": "in_force_on",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "In Force On"
-            }
-          },
-          {
-            "in": "query",
-            "name": "keyword",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Keyword"
-            }
-          },
-          {
-            "in": "query",
-            "name": "include_deleted",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Include Deleted",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Page"
-            }
-          },
-          {
-            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
-            "in": "query",
-            "name": "size",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
-              "title": "Size"
-            }
-          },
-          {
-            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
-            "in": "query",
-            "name": "order_by",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
-              "title": "Order By"
-            }
-          },
-          {
-            "description": "rows whose created_at is at or after this",
-            "in": "query",
-            "name": "created_at_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose created_at is at or after this",
-              "title": "Created At From"
-            }
-          },
-          {
-            "description": "rows whose created_at is at or before this",
-            "in": "query",
-            "name": "created_at_thru",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose created_at is at or before this",
-              "title": "Created At Thru"
-            }
-          },
-          {
-            "description": "rows whose effective_from is on or after this",
-            "in": "query",
-            "name": "effective_from_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose effective_from is on or after this",
-              "title": "Effective From From"
-            }
-          },
-          {
-            "description": "rows whose effective_from is on or before this",
-            "in": "query",
-            "name": "effective_from_thru",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose effective_from is on or before this",
-              "title": "Effective From Thru"
-            }
-          },
-          {
-            "description": "rows whose effective_thru is on or after this",
-            "in": "query",
-            "name": "effective_thru_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose effective_thru is on or after this",
-              "title": "Effective Thru From"
-            }
-          },
-          {
-            "description": "rows whose effective_thru is on or before this",
-            "in": "query",
-            "name": "effective_thru_thru",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose effective_thru is on or before this",
-              "title": "Effective Thru Thru"
-            }
-          },
-          {
-            "description": "rows whose published_at is at or after this",
-            "in": "query",
-            "name": "published_at_from",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose published_at is at or after this",
-              "title": "Published At From"
-            }
-          },
-          {
-            "description": "rows whose published_at is at or before this",
-            "in": "query",
-            "name": "published_at_thru",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "rows whose published_at is at or before this",
-              "title": "Published At Thru"
-            }
-          },
-          {
-            "in": "query",
-            "name": "attachment_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Attachment Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "owner_employee_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Owner Employee Id"
-            }
-          },
-          {
-            "in": "query",
-            "name": "supersedes_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Supersedes Id"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListEnvelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Policies"
-      },
-      "post": {
-        "description": "Always a draft. Reusing a `code` opens the next version of that policy —\nthe version number is the server's to allocate, so two people cannot both\nbe drafting v2.",
-        "operationId": "create_policy_api_v1_policies_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreatePolicyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Policy"
-      }
-    },
-    "/api/v1/policies/{policy_id}": {
-      "delete": {
-        "description": "Drafts only. A published policy is repealed, not deleted — people acted\non it, and the record of what they were told has to survive.",
-        "operationId": "delete_policy_api_v1_policies__policy_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "reason",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 500,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Reason"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Policy"
-      },
-      "get": {
-        "operationId": "get_policy_api_v1_policies__policy_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Policy"
-      },
-      "patch": {
-        "operationId": "update_policy_api_v1_policies__policy_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePolicyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Policy"
-      }
-    },
-    "/api/v1/policies/{policy_id}/attachments/{attachment_id}/content": {
-      "get": {
-        "description": "The policy document itself. Drafts and repealed policies are\nvisible only to `policy.manage`, and so are their files.",
-        "operationId": "get_policy_attachment_api_v1_policies__policy_id__attachments__attachment_id__content_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "title": "Attachment Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Policy Attachment"
-      }
-    },
-    "/api/v1/policies/{policy_id}/publish": {
-      "post": {
-        "description": "Publishing closes the previous version and opens this one, in one\ntransaction — the same handover `POST /pay-histories` performs, and for the\nsame reason: as two calls they eventually drift, and a policy history with\na gap in it cannot answer what applied in March.\n\nThe previous version's `effective_thru` lands the day before this one\nstarts, so the pair reads as a continuous record rather than two documents\nthat happen to be numbered.",
-        "operationId": "publish_policy_api_v1_policies__policy_id__publish_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PublishPolicyRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyPublishRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Publish Policy"
-      }
-    },
-    "/api/v1/policies/{policy_id}/repeal": {
-      "post": {
-        "description": "废止 — it stops applying, and it stops being visible to people who are\nnot its authors, because a repealed rule left in the handbook is how\nsomebody follows a rule that no longer exists. It is not deleted: what\npeople were told, and until when, stays answerable.",
-        "operationId": "repeal_policy_api_v1_policies__policy_id__repeal_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RepealPolicyRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Repeal Policy"
-      }
-    },
-    "/api/v1/policies/{policy_id}/visibility": {
-      "post": {
-        "description": "Change who may read a policy, at any status, without touching a word of\nit.\n\nPublication freezes what the rule SAYS — that is what lets the handbook\nanswer \"what were people told in March\". It never should have frozen who\nmay read it. Those are different kinds of fact: one is a statement made on\na date, the other is a standing decision that outlives the statement and\nchanges when the company does.\n\nConflating them left the worst case with no remedy. A policy published to\na wider audience than intended could not be edited (409), could not be\ndeleted (published policies never are), and repealing it would retire a\nrule that is still in force — so the only way to close the reading was to\nstop applying the rule. That is not a choice a workspace should have to\nmake about its own handbook.\n\nSuperseded and repealed versions are re-scopable for the same reason, and\nit matters more there: they stay readable to whoever could read them, so a\nversion that should never have been broadly visible has to be closable\nafter the fact.\n\n`policy.publish` rather than `policy.manage`, because this is the authority\nact on a published document that drafting is deliberately kept apart from —\nthe same line publish and repeal already draw.",
-        "operationId": "rescope_policy_api_v1_policies__policy_id__visibility_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "policy_id",
-            "required": true,
-            "schema": {
-              "title": "Policy Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RescopePolicyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_PolicyRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Rescope Policy"
-      }
-    },
     "/api/v1/product-categories": {
       "get": {
         "operationId": "list_product_categories_api_v1_product_categories_get",
@@ -135373,516 +135766,6 @@
           }
         },
         "summary": "Update Vendor"
-      }
-    },
-    "/api/v1/workflow-definitions": {
-      "get": {
-        "description": "Active versions by default (what the flow agent should follow now);\nhistory=true returns every published version, newest first.",
-        "operationId": "list_workflow_definitions_api_v1_workflow_definitions_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "entity_kind",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Entity Kind"
-            }
-          },
-          {
-            "in": "query",
-            "name": "object_type",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Object Type"
-            }
-          },
-          {
-            "in": "query",
-            "name": "name",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Name"
-            }
-          },
-          {
-            "in": "query",
-            "name": "history",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "History",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "active",
-                    "superseded",
-                    "all"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "keyword",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Keyword"
-            }
-          },
-          {
-            "in": "query",
-            "name": "page",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Page"
-            }
-          },
-          {
-            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
-            "in": "query",
-            "name": "size",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
-              "title": "Size"
-            }
-          },
-          {
-            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
-            "in": "query",
-            "name": "order_by",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
-              "title": "Order By"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListEnvelope_WorkflowDefinitionRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Workflow Definitions"
-      },
-      "post": {
-        "description": "Publishing is append-only: the new text becomes version N+1 and the\nprevious active version is marked superseded. Existing versions are never\nmodified or deleted.",
-        "operationId": "publish_workflow_definition_api_v1_workflow_definitions_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          },
-          {
-            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 200,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateWorkflowDefinitionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_WorkflowDefinitionRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Publish Workflow Definition"
-      }
-    },
-    "/api/v1/workflow-definitions/{definition_id}": {
-      "get": {
-        "description": "Fetch any published version by id — including superseded ones, so past\nrouting decisions stay traceable to the definition they were based on.",
-        "operationId": "get_workflow_definition_api_v1_workflow_definitions__definition_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "definition_id",
-            "required": true,
-            "schema": {
-              "title": "Definition Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-API-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-CSRF-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Csrf-Token"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Session"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "oryh_csrf",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Oryh Csrf"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_WorkflowDefinitionRead_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Workflow Definition"
       }
     },
     "/api/v1/workspace/setup-report": {

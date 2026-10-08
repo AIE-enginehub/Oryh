@@ -56,10 +56,15 @@ a header, a script or a bundle to re-sync.
 
 ## The flow fragments
 
-`rounds-start-over.md`, `one-call-round-transition.md`, `stale-todo-sweep.md`,
-`page-to-the-end.md` and `service-key-bundle.md` are included by the eight
-approval-flow skills (`oryh-*-approval-flow`), `money-flow-model.md` by the
-invoice and payment flows. Each is a rule bought with a production incident —
+`rounds-start-over.md`, `one-call-round-transition.md`, `stale-todo-sweep.md`
+and `business-rules.md` are included by the eight approval-flow skills
+(`oryh-*-approval-flow`); `page-to-the-end.md` by the six whose queue reads
+page (the timesheet and order flows carry their own paging prose);
+`service-key-bundle.md` by the four flows that ship a bundle script
+(timesheet, expense, purchase, quotation); `money-flow-model.md` by the
+invoice and payment flows. `business-rules.md` is also read by every submit
+skill and every desk skill that applies a workspace rule — it is the one
+place that says which `kind` answers which question. Each is a rule bought with a production incident —
 a return that landed one write of three and left a document nobody was
 assigned to; a new round that resumed mid-chain and would have approved a
 document its first approver never re-read; todos left open on work that had

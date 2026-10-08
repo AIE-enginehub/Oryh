@@ -229,9 +229,19 @@ def test_a_targeted_skill_with_no_audience_is_reported_not_skipped() -> None:
         assert withheld["acme-flow"]["reasons"] == ["not_in_audience"], manifest["meta"]
         assert "acme-gated" not in withheld, "a skill the caller lacks the capability for is the reach endpoint's story"
 
+        # the report does not call a runner-gated skill "without audience": the
+        # hosted agent holds `timesheet.advance`, so nobody named is its normal
+        # state (the console says "hosted agent only"). A targeted skill a PERSON
+        # is meant to hold, with nobody named, is the one worth a line.
+        r = client.post("/api/v1/skills", headers=admin, json={
+            "name": "acme-desk", "title": "Acme desk", "description": "Use when acme desks.",
+            "required_capability": "payroll.manage", "distribution_mode": "targeted",
+            "files": {"SKILL.md": "---\nname: acme-desk\n---\n\n# acme\n\nsteps\n"}})
+        assert r.status_code == 201, r.text
         report = client.get("/api/v1/workspace/setup-report", headers=admin).json()["data"]["areas"]["flow_driving"]
-        assert "acme-flow" in report["facts"]["targeted_skills_without_audience"]
-        assert "acme-flow" in report["next"]
+        assert "acme-flow" not in report["facts"]["targeted_skills_without_audience"]
+        assert "acme-desk" in report["facts"]["targeted_skills_without_audience"]
+        assert "acme-desk" in report["next"] and "acme-flow" not in report["next"]
         driver_id = client.get("/api/v1/auth/me", headers=driver).json()["data"]["id"]
         assert client.post("/api/v1/skills/acme-flow/assignments", headers=admin,
                            json={"subject_type": "user", "subject_id": driver_id}).status_code in (200, 201)
@@ -240,6 +250,7 @@ def test_a_targeted_skill_with_no_audience_is_reported_not_skipped() -> None:
         assert not [w for w in manifest["meta"]["withheld"] if w["name"] == "acme-flow"]
         report = client.get("/api/v1/workspace/setup-report", headers=admin).json()["data"]["areas"]["flow_driving"]
         assert "acme-flow" not in report["facts"]["targeted_skills_without_audience"]
+        assert "acme-desk" in report["facts"]["targeted_skills_without_audience"], "still nobody's"
 
 
 def test_the_gateways_answer_json_when_the_api_is_away() -> None:

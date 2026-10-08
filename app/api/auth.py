@@ -18,7 +18,7 @@ from app.core.browser_auth import (
     set_session_cookie,
 )
 from app.core.config import settings
-from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, permissions_fingerprint
+from app.core.permissions import HOSTED_FLOW_AGENT_ROLE, DEFAULT_ROLE_PERMISSIONS, permissions_fingerprint
 from app.core.request_context import resolved_base_url
 from app.core.login_throttle import login_keys, throttle
 from app.core.security import generate_token, hash_password, hash_token, verify_password
@@ -152,6 +152,13 @@ def authenticate_user(db: Session, payload: LoginRequest, request: Request | Non
 
 
 def ensure_role_exists(db: Session, tenant_id: str, role_name: str) -> None:
+    if role_name == HOSTED_FLOW_AGENT_ROLE:
+        # held by the platform-issued key, never by a person: a user in it
+        # would sign writes as a human with the agent's grants
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"role {role_name!r} is the hosted flow agent's; a person cannot hold it",
+        )
     role = db.scalar(select(Role).where(Role.tenant_id == tenant_id, Role.name == role_name))
     if role is None and role_name not in DEFAULT_ROLE_PERMISSIONS:
         raise HTTPException(

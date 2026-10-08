@@ -84,7 +84,7 @@ function validateForm(form: UserForm, text: Localize): UserFieldErrors {
 
 function roleLabel(role: Role, text: Localize): string {
   const systemTitle = role.is_system
-    ? ({ admin: text("管理员", "Administrator"), member: text("成员", "Member") } as Record<string, string>)[role.name]
+    ? ({ admin: text("管理员", "Administrator"), member: text("成员", "Member"), hosted_flow_agent: text("托管流程代理", "Hosted flow agent") } as Record<string, string>)[role.name]
     : undefined;
   const title = systemTitle ?? role.title;
   return title ? text(`${title}（${role.name}）`, `${title} (${role.name})`) : role.name;
@@ -181,7 +181,8 @@ export function UsersPage() {
     staleTime: 60_000,
   });
 
-  const roleOptions = roles.data ?? [];
+  // the hosted flow agent's role is held by its key, never by a person — the server refuses it (422)
+  const roleOptions = (roles.data ?? []).filter((item) => !(item.is_system && item.name === "hosted_flow_agent"));
   const employeeOptions = useMemo(() => {
     const options = [...(employees.data?.data ?? [])];
     if (linkedEmployee.data && !options.some((employee) => employee.id === linkedEmployee.data.id)) {

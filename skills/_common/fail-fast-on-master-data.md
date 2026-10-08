@@ -12,14 +12,14 @@
 >   near-misses, list two or three; do not go looking for more.
 >
 > What you do NOT do after a miss: try other spellings, page through the
-> whole list, read other lists hoping to infer it, re-read the definition
+> whole list, read other lists hoping to infer it, re-read the data rule
 > for an exception, create the record, or quietly substitute the nearest one.
 > Every one of those is minutes the person spends waiting for a question you
 > could have asked at once. The record's absence is theirs or their admin's
 > to fix, and only they know whether the name was wrong or the record is
 > missing.
 >
-> **When the definition requires the link, free text is not a fallback.** A
+> **When the data rule requires the link, free text is not a fallback.** A
 > rule like "every entry must name a project" means a project that does not
 > exist makes the document unsubmittable — say that, do not file it as free
 > text to be returned later.
@@ -31,6 +31,6 @@
 > message while the person waits.
 >
 > **Budget.** Before your first reply about a document, spend at most four
-> requests — the definition, your own open drafts, one lookup per named
+> requests — the data rule, your own open drafts, one lookup per named
 > record, batched. Anything still unresolved after that is a question for the
 > person, not another query.

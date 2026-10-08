@@ -16,7 +16,7 @@ correctable only by reconciling entries against a document.
 
 Computed, the same revision needs nothing. Publish the new policy and every
 answer is right, including about the past: `policies` is versioned, so
-`GET /policies?in_force_on=2026-03-15` returns the rule that applied **in
+`GET /business-rules?kind=policy&in_force_on=2026-03-15` returns the rule that applied **in
 March** and the March answer stays reproducible. A ledger cannot do that
 without rewriting itself.
 
@@ -70,7 +70,7 @@ available = entitled(policy, length of service, period) − approved − in flig
 Three reads, none of them a balance endpoint:
 
 ```text
-GET /policies?category=hr&status=published&in_force_on={date}
+GET /business-rules?kind=policy&category=hr&in_force_on={date}
 GET /employees/{id}                       → hire_date
 GET /employee-leaves?employee_id={id}&overlapping_from=…&overlapping_thru=…
 ```

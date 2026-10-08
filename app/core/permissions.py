@@ -248,7 +248,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用工作空间与个人访问凭证"),
     ("object_types.manage", False, "对象类型管理", "定义对象字段与状态流程"),
-    ("workflows.publish", False, "发布流程定义", "发布新的工作流定义版本"),
+    ("workflows.publish", False, "发布流程规则", "起草、发布与废止审批流程、数据要求、单据联动三类业务规则（business_rules）"),
     ("skills.manage", False, "Skill 管理", "创建、修订、归档工作空间 skills"),
     # The narrow write: a workspace's own refinement of one shipped skill —
     # the product-matching rules, the report style — without the registry.
@@ -327,7 +327,7 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities"),
     "keys.manage": ("Manage access credentials", "Issue, view and disable workspace and personal credentials"),
     "object_types.manage": ("Manage object types", "Define object fields and lifecycles"),
-    "workflows.publish": ("Publish workflow definitions", "Publish a new version of a workflow definition"),
+    "workflows.publish": ("Publish flow rules", "Draft, publish and repeal the three scoped kinds of business rule: approval flows, data rules and linkages"),
     "skills.manage": ("Manage skills", "Create, revise and archive the workspace's skills"),
     "skills.calibrate": ("Calibrate a skill", "Write one shipped skill's calibration — the workspace's own rules for it, such as product-matching rules — and read that skill; scopable by skill name (skills.calibrate:oryh-product-matching); never its files, audience or status"),
     "purchase_order.manage": ("Place and receive purchase orders", "Create and maintain purchase orders and record receipts; a procurement function, not 'own documents'"),
@@ -380,8 +380,8 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
     "payment.apply": ("payments", "payment-applications"),
     "payroll.read": ("pay-histories",),
     "payroll.manage": ("pay-histories",),
-    "policy.manage": ("policies",),
-    "policy.publish": ("policies",),
+    "policy.manage": ("business-rules",),
+    "policy.publish": ("business-rules",),
     "billing_account.manage": ("billing-accounts", "billing-account-entries"),
     "billing_account.post": ("billing-account-entries",),
     "business_object.write": (),
@@ -417,7 +417,7 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
     "users.manage": ("auth/users", "roles", "capabilities"),
     "keys.manage": ("tenant/api-keys",),
     "object_types.manage": ("object-type-definitions", "type-options"),
-    "workflows.publish": ("workflow-definitions",),
+    "workflows.publish": ("business-rules",),
     "skills.manage": ("skills",),
     "skills.calibrate": ("skills",),
     "purchase_order.manage": ("purchase-orders", "purchase-order-items", "purchase-order-adjustments"),
@@ -532,6 +532,17 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
     "business_object.advance:*",
     "approval.record",
     "todos.assign",
+    # The writes a `linkage` rule may ask for once a document reaches a
+    # state: a shipment draft raised 1:1 from a confirmed order's lines, and
+    # the hold on its stock — derived documents the warehouse completes and
+    # posts. Not `invoice.manage`: that verb edits an invoice's words, and the
+    # agent moving documents without editing them is a boundary a test holds
+    # (an invoicing todo for finance is what sign-off gets). These are the
+    # shipped DEFAULT of the tenant's `hosted_flow_agent` role (2026-10-07):
+    # the administrator widens or narrows that role like any other, and the
+    # key follows it.
+    "shipment.manage",
+    "inventory.manage",
     # The flow agent is the side that assigns work, so it is the side that
     # tells people work arrived. Its own runtime has no mail transport — the
     # pi child's environment is a six-variable whitelist on purpose — so the
@@ -541,6 +552,14 @@ HOSTED_FLOW_AGENT_PERMISSIONS: tuple[str, ...] = (
 )
 # the agent's advance verbs are the hosted families' — one table, checked here
 assert {v for v in HOSTED_FLOW_AGENT_PERMISSIONS if v.endswith(".advance")} == set(HOSTED_ADVANCE_VERBS.values())
+
+# The hosted agent's grants are a system role the tenant administrator edits,
+# seeded with the default above. The role is held by the platform-issued key
+# and never by a person; a tenant that runs its own unattended agent instead
+# gives it whatever role it likes, and this one is the same decision for the
+# hosted one.
+HOSTED_FLOW_AGENT_ROLE = "hosted_flow_agent"
+DEFAULT_ROLE_PERMISSIONS[HOSTED_FLOW_AGENT_ROLE] = HOSTED_FLOW_AGENT_PERMISSIONS
 
 
 # A verb the holder of another verb also has. Not an alias: the wider grant

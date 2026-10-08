@@ -50,7 +50,8 @@ oryh:
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_order&status=published` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
+
 3. **From the won quotation** (the normal path) — **after step 4's reuse check, which goes out in the same wave as step 2**: `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array rides `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when a delivery date was promised). `POST /sales-order-items` remains for adding a line to an existing draft. An order with no quotation behind it is also legal — snapshots stand alone.
    - **The storefront**: a channel order names the front it came through —
      `GET /stores?source=tmall` (the channel's code, lowercase) lists the
@@ -74,7 +75,7 @@ oryh:
      an item code on their paperwork resolves through
      `customer_product_code` there.
 4. **Reuse before create** (send with step 2, before any create): `GET /sales-orders?quotation_id={id}` and `?employee_id={me}&status=draft` — one won quote, one order; retries must not duplicate. An existing order for the quotation means update it, never a second create. A `returned` order is also reused: fix what the rework todo's `description` and the latest `returned` record's `comment` name, resubmit, then complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`) — while it stays open, the order is invisible to the flow admin's work queue.
-5. **Say the gap out loud before submitting**: `GET /sales-orders/{id}/detail` returns `quote_drift` whenever a quotation is linked — `{quote_total, order_total, amount, percent, quote_basis, order_basis}`, computed by the server against a quotation that can no longer change. **Do not compute it yourself and do not skip it**: if `amount` is not 0, read it to the person in the read-back — "quoted 108,800, this order 120,000, higher by 11,200 (+10.29%)" — and say why, in their words, before `/submit`. The tenant's workflow definition (step 2) is what says whether that gap needs an approval node; the server does not refuse it, so an undisclosed overcharge reaches the customer with nobody having decided it should.
+5. **Say the gap out loud before submitting**: `GET /sales-orders/{id}/detail` returns `quote_drift` whenever a quotation is linked — `{quote_total, order_total, amount, percent, quote_basis, order_basis}`, computed by the server against a quotation that can no longer change. **Do not compute it yourself and do not skip it**: if `amount` is not 0, read it to the person in the read-back — "quoted 108,800, this order 120,000, higher by 11,200 (+10.29%)" — and say why, in their words, before `/submit`. The workspace's approval flow is what says whether that gap needs an approval node; the server does not refuse it, so an undisclosed overcharge reaches the customer with nobody having decided it should.
 6. **Submit**: `POST /sales-orders/{id}/submit` after an explicit read-back (lines, the drift above, ship-to, promised dates). The flow agent calibrates and confirms — tenants without order ceremony get `confirmed` immediately per their definition.
 7. **Fulfilment facts, as they happen** (PATCH fields on your own order — never `status`):
    - Shipping: **one place for a tracking number.** When the warehouse files
@@ -86,6 +87,8 @@ oryh:
    - Sign-off and delivery: the flow agent stamps the transition; you report the fact in conversation and keep `remarks` honest. When the business moment differs from the PATCH's own — goods left on the 21st, signed on the 23rd — write `shipped_at` / `signed_at` explicitly; the stamp only fills them when they are empty
    - A change of delivery date: `promised_date` on the header, or on the line
 8. **Read back**: `GET /sales-orders/{id}/detail` — items, adjustments, `adjusted_total` vs declared `total_amount`, the linked quotation, Tax, freight, whole-document discounts and rounding record as adjustments (`POST /sales-order-adjustments`, same contract as the quotation side: signed amount, typed, optional `order_item_id`, editable only while the order is) — so the declared total is explained, not asserted.
+
+{{include:_common/business-rules.md}}
 
 ## Charging the order to a billing account
 
@@ -230,7 +233,7 @@ POST /sales-orders/{order_id}/revise
   the credit it occupied released for the draft to occupy.
 - **Edit the draft, then submit it** exactly as a new order: change the
   lines, the address, the promised date; read back; `/submit`. The flow
-  agent confirms it under the tenant's definition like any other order.
+  agent confirms it under the workspace's approval flow like any other order.
 - **Decide by the state, not by habit.** An order still in an editable
   state is edited in place — `/revise` refuses it (409) and says so. A
   return is reversed, never revised (422). An order a shipment already
@@ -299,7 +302,7 @@ POST /sales-orders
   an e-commerce tenant tells the admin agent once — "rename the order
   states to unpaid / paid / shipped / signed" — to rename or extend it.
   Never hard-code state
-  names; read `GET /workflow-definitions` and the machine, as step 2 says.
+  names; read the data rule and the machine, as step 2 says.
 
 ## What This Skill Never Does
 

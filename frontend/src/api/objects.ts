@@ -36,18 +36,9 @@ export type ObjectTypeDefinition = {
   updated_at: string | null;
 };
 
-export type WorkflowDefinition = {
-  id: string;
-  tenant_id: string;
-  entity_kind: ObjectEntityKind;
-  object_type: string;
-  name: string;
-  version: number;
-  definition_text: string;
-  status: "active" | "superseded";
-  created_by: string | null;
-  created_at: string;
-};
+import type { BusinessRule } from "./configuration";
+
+export type { BusinessRule };
 
 export type ObjectTypeSummary = {
   entityKind: ObjectEntityKind;
@@ -616,7 +607,7 @@ type BusinessObjectDetailResponse = {
   todos: Todo[];
   audit_logs: AuditLog[];
   object_type_definition: ObjectTypeDefinition | null;
-  workflow_definitions: WorkflowDefinition[];
+  rules: BusinessRule[];
 };
 
 export type ObjectDetailIssue = {
@@ -643,7 +634,7 @@ export type ObjectDetail = ObjectDisplayNames & {
   revisions: SalesQuotation[];
   quotationLink: SalesQuotation | null;
   links: BusinessObjectLink[];
-  workflows: WorkflowDefinition[];
+  rules: BusinessRule[];
   approvals: ApprovalRecord[];
   todos: Todo[];
   audits: AuditLog[];
@@ -719,12 +710,13 @@ function statesFromDefinition(definition: ObjectTypeDefinition | undefined): str
 }
 
 export async function getObjectDirectory(locale: ObjectLocale = "zh-CN"): Promise<ObjectDirectory> {
-  const [definitions, workflows, entries] = await Promise.all([
+  const [definitions, routing, entries] = await Promise.all([
     apiRequest<ObjectTypeDefinition[]>(apiUrl("/object-type-definitions")),
-    apiRequest<WorkflowDefinition[]>(apiUrl("/workflow-definitions")),
+    // a family is routed when an approval flow is in force for it
+    apiRequest<BusinessRule[]>(apiUrl("/business-rules", { kind: "approval_flow", status: "published" })),
     apiRequest<ObjectDirectoryEntry[]>(apiUrl("/object-directory")),
   ]);
-  const workflowKeys = new Set(workflows.map((workflow) => `${workflow.entity_kind}:${workflow.object_type}`));
+  const workflowKeys = new Set(routing.map((rule) => `${rule.entity_kind}:${rule.object_type}`));
   const byKey = new Map(definitions.map((definition) => [
     `${definition.entity_kind}:${definition.object_type}`,
     definition,
@@ -1023,7 +1015,7 @@ type PrimaryDetail = {
   quotationLink: SalesQuotation | null;
   related?: {
     links: BusinessObjectLink[];
-    workflows: WorkflowDefinition[];
+    rules: BusinessRule[];
     todos: Todo[];
     audits: AuditLog[];
   };
@@ -1046,7 +1038,7 @@ async function getPrimaryDetail(entityType: ObjectEntityType, recordId: string, 
       expenseTotals: null, purchaseTotals: null, salesQuotationTotals: null, salesOrderTotals: null, revisions: [], quotationLink: null,
       related: {
         links: detail.links,
-        workflows: detail.workflow_definitions,
+        rules: detail.rules,
         todos: detail.todos,
         audits: detail.audit_logs,
       },
@@ -1162,12 +1154,12 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
   const issues: ObjectDetailIssue[] = [];
   const aliases = ENTITY_ALIASES[entityType];
   const entityKind: ObjectEntityKind = entityType === "business_object" ? "business_object" : "builtin";
-  const workflowPromise = primary.related
-    ? Promise.resolve(primary.related.workflows)
-    : apiRequest<WorkflowDefinition[]>(apiUrl("/workflow-definitions", {
+  // every version of every rule for the type, so a past decision stays traceable
+  const rulePromise = primary.related
+    ? Promise.resolve(primary.related.rules)
+    : apiRequest<BusinessRule[]>(apiUrl("/business-rules", {
       entity_kind: entityKind,
       object_type: primary.objectType,
-      history: true,
     }));
   const approvalPromise = primary.related
     ? Promise.resolve(primary.approvals)
@@ -1183,8 +1175,8 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
     ]).then(([outgoing, incoming]) => uniqueBy([...outgoing, ...incoming], (link) => link.id))
     : Promise.resolve([] as BusinessObjectLink[]);
 
-  const [workflows, approvals, todos, audits, links] = await Promise.all([
-    optional(localText(locale, "流程版本", "Workflow versions"), workflowPromise, [], issues, locale),
+  const [rules, approvals, todos, audits, links] = await Promise.all([
+    optional(localText(locale, "业务规则", "Business rules"), rulePromise, [], issues, locale),
     optional(localText(locale, "审批记录", "Approval history"), approvalPromise, primary.approvals, issues, locale),
     optional(localText(locale, "待办", "Todos"), primary.related ? Promise.resolve(primary.related.todos) : listForAliases<Todo>("/todos", aliases, recordId), [], issues, locale),
     optional(localText(locale, "审计轨迹", "Audit trail"), primary.related ? Promise.resolve(primary.related.audits) : listForAliases<AuditLog>("/audit-logs", aliases, recordId, { limit: 200 }), [], issues, locale),
@@ -1199,7 +1191,7 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
     ...approvals.map((approval) => approval.approver_id),
     ...todos.flatMap((todo) => [todo.created_by, todo.completed_by]),
     ...audits.map((audit) => audit.actor),
-    ...workflows.map((workflow) => workflow.created_by),
+    ...rules.flatMap((rule) => [rule.published_by, rule.created_by]),
     ...primary.attachments.map((attachment) => attachment.uploaded_by),
   ].filter((value): value is string => Boolean(value));
   if (primary.subject.entityType === "business_object") {
@@ -1241,7 +1233,7 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
     revisions: primary.revisions,
     quotationLink: primary.quotationLink,
     links,
-    workflows: workflows.sort((left, right) => right.version - left.version),
+    rules: rules.sort((left, right) => left.kind.localeCompare(right.kind) || right.version - left.version),
     approvals: uniqueBy(approvals, (approval) => approval.id).sort((left, right) =>
       left.round_no - right.round_no || left.sequence_no - right.sequence_no || left.acted_at.localeCompare(right.acted_at)),
     todos: uniqueBy(todos, (todo) => todo.id),

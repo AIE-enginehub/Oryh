@@ -72,6 +72,7 @@ function roleForm(role: Role): RoleForm {
 function roleLabel(role: Role, text: Localize): string {
   if (role.is_system && role.name === "admin") return text("管理员", "Administrator");
   if (role.is_system && role.name === "member") return text("成员", "Member");
+  if (role.is_system && role.name === "hosted_flow_agent") return text("托管流程代理", "Hosted flow agent");
   return role.title && role.title !== role.name ? role.title : role.name;
 }
 
@@ -324,7 +325,7 @@ export function RolesPage() {
                   </div>
                 </header>
                 <div className="role-detail-body">
-                  <p className="role-description">{selectedRole.is_system && selectedRole.name === "admin" ? text("工作空间管理员", "Workspace administrator") : selectedRole.is_system && selectedRole.name === "member" ? text("工作空间成员", "Workspace member") : selectedRole.description || text("暂无角色说明。", "No role description.")}</p>
+                  <p className="role-description">{selectedRole.is_system && selectedRole.name === "admin" ? text("工作空间管理员", "Workspace administrator") : selectedRole.is_system && selectedRole.name === "member" ? text("工作空间成员", "Workspace member") : selectedRole.is_system && selectedRole.name === "hosted_flow_agent" ? text("ORYH 托管流程代理持有的权限：出厂含推进各族单据、记审批事实、派待办、按联动规则生成出货单草稿与占货；可在此放宽或收窄，人不能加入该角色。", "What the ORYH hosted flow agent may do here: advance every family, record approval facts, assign todos, and raise shipment drafts and stock holds a linkage asks for. Widen or narrow it here; no person can hold it.") : selectedRole.description || text("暂无角色说明。", "No role description.")}</p>
                   <div className="detail-stat-row">
                     <div><span>{text("角色类型", "Role type")}</span><strong>{selectedRole.is_system ? text("系统角色", "System role") : text("自定义角色", "Custom role")}</strong></div>
                     <div><span>{text("权限数量", "Permissions")}</span><strong>{selectedRole.permissions.length}</strong></div>

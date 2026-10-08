@@ -36,6 +36,7 @@ export function ObjectStatus({ status, translate = true }: { status: string; tra
     confirmed: ["已确认", "Confirmed"],
     cancelled: ["已取消", "Cancelled"],
     draft: ["草稿", "Draft"],
+    repealed: ["已废止", "Repealed"],
     submitted: ["已提交", "Submitted"],
     approved: ["已通过", "Approved"],
     rejected: ["已拒绝", "Rejected"],

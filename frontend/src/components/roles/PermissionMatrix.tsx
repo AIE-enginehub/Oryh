@@ -28,7 +28,7 @@ const systemCapabilityEnglish: Record<string, { title: string; description: stri
   "users.manage": { title: "Manage users and roles", description: "Invite users, assign roles, and manage roles and custom capabilities" },
   "keys.manage": { title: "Manage access credentials", description: "Issue, view, and disable workspace and personal access credentials" },
   "object_types.manage": { title: "Manage object types", description: "Define object fields and status flows" },
-  "workflows.publish": { title: "Publish workflows", description: "Publish new workflow definition versions" },
+  "workflows.publish": { title: "Publish flow rules", description: "Draft, publish and repeal approval flows, data rules and linkages" },
   "skills.manage": { title: "Manage Skills", description: "Create, revise, and archive workspace Skills" },
   "tenant.act_for_any_employee": { title: "Act for any employee", description: "Override self-only restrictions to operate records on behalf of any employee" },
 };

@@ -191,7 +191,7 @@ export function ObjectsPage() {
         <div>
           <span className="eyebrow">Object registry</span>
           <h2>{text("业务对象", "Business objects")}</h2>
-          <p>{text("统一查看工作空间内建单据与自定义对象，并下钻流程版本、审批、待办和审计轨迹。", "Browse built-in records and custom objects in one place, then inspect workflow versions, approvals, to-dos, and audit history.")}</p>
+          <p>{text("统一查看工作空间内建单据与自定义对象，并下钻业务规则、审批、待办和审计轨迹。", "Browse built-in records and custom objects in one place, then inspect business rules, approvals, to-dos, and audit history.")}</p>
         </div>
       </header>
 
@@ -204,7 +204,7 @@ export function ObjectsPage() {
             </label>
             <div className="object-type-filters" aria-label={text("类型筛选", "Type filters")}>
               {(["all", "builtin", "business_object", "workflow"] as TypeFilter[]).map((filter) => {
-                const labels: Record<TypeFilter, string> = { all: text("全部", "All"), builtin: text("内建", "Built-in"), business_object: text("自定义", "Custom"), workflow: text("有流程", "With workflow") };
+                const labels: Record<TypeFilter, string> = { all: text("全部", "All"), builtin: text("内建", "Built-in"), business_object: text("自定义", "Custom"), workflow: text("有审批流程", "With approval flow") };
                 return <button className={filter === typeFilter ? "active" : ""} type="button" aria-pressed={filter === typeFilter} onClick={() => setTypeFilter(filter)} key={filter}>{labels[filter]}</button>;
               })}
             </div>

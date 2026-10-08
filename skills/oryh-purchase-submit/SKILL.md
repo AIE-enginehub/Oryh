@@ -52,14 +52,14 @@ Everything else comes from conversation: what to buy, how many, for when, from w
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Do not create employees; that is an HR/admin capability. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=purchase_request` — the tenant's natural-language rules for this object, current as of this moment. Read what it requires of a submission (a quote attachment, a statement of purpose, `needed_by` and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No definition, or nothing in it about filing a request → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=purchase_request&status=published` — what a request must carry to be filed here, in the workspace's own words, current as of this moment. Read what it requires of a submission (a quote attachment, a statement of purpose, `needed_by` and the like) and let it shape the conversation from the first question — see the "Tenant requirements" layer below. No data rule published → only the universal checks apply; never invent requirements. (A workspace that published before the kinds existed carries its requirements as a "submission requirements" section inside its `approval_flow` rule, its heading possibly in the workspace's own language — read that section and nothing else of it.)
 3. **Reuse before create**: `GET /purchase-requests?employee_id={me}&status=draft` — reuse an open draft for the same purpose; retries must not duplicate. A `returned` request is also reused: fix it (typically add prices or quotes), don't recreate — and read why it came back first: the rework todo's `description` and the latest `returned` approval record's `comment` list exactly what to fix, usually citing the step-2 requirements. A successful resubmit completes the rework todo itself — there is nothing to close by hand.
 
    **Steps 2 and 3 do not feed each other — send them as one batch.** The tenant's rules and your own open documents are independent lookups; waiting for the first before asking the second doubles the wait for no reason.
 
 4. **In-flight duplicate check**: `GET /purchase-requests?employee_id={me}&status=submitted` — if an open request already covers the same items, tell the principal instead of filing twice. This is a conversation, not a hard stop.
 
-   **Steps 2, 3, 4 and the step-5 lookups are ONE wave.** The definition, the draft query, the in-flight query, the vendor lookup and every line's product lookup depend on nothing but the person's words — send them together the moment the names are known. Only the SKU lookups wait, because they need a product id.
+   **Steps 2, 3, 4 and the step-5 lookups are ONE wave.** The data rule, the draft query, the in-flight query, the vendor lookup and every line's product lookup depend on nothing but the person's words — send them together the moment the names are known. Only the SKU lookups wait, because they need a product id.
 
 5. **Match master data** (read-only, both optional, in the wave above):
    - Vendor: `GET /vendors?keyword={name}` or `?tax_id=` when the principal names a supplier. Confident match → header `vendor_id`; otherwise put their words in `vendor_name_snapshot`.
@@ -93,7 +93,9 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 **Tenant requirements (the workflow admin returns violations; catch them in conversation first):**
 
-- Whatever the step-2 definition requires of a submission, applied line by line. Typical shapes: a quote must be attached above a certain amount; the purpose and the needed-by date must be stated; named categories may only be bought from approved suppliers. The definition's own wording always wins over these examples.
+{{include:_common/business-rules.md}}
+
+- Whatever the step-2 data rule requires of a submission, applied line by line. Typical shapes: a quote must be attached above a certain amount; the purpose and the needed-by date must be stated; named categories may only be bought from approved suppliers. The definition's own wording always wins over these examples.
 - These are the exact requirements the workflow admin's agent checks before assigning any approver, and its return note cites the ones violated — so a requirement skipped here is a guaranteed rework round. Ask for the missing quote or purpose while the principal is still talking, not after the return.
 - Fixing a returned request? Re-run step 2 first — the requirements may have changed since the original submission, and the current version is what the next calibration uses.
 
@@ -116,7 +118,7 @@ Three layers. Hard rules the server enforces — check them yourself first so th
 
 ## What Happens Next (so you can answer the principal)
 
-The request now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant request comes back as a rework todo without reaching any approver — then approvers are assigned per the tenant's workflow definition: amount tiers key on the estimated total, and definitions commonly send unpriced requests for sourcing first (a `returned` + rework round to fill in prices). Progress is visible any time via `GET /approval-records?entity_type=purchase_request&entity_id={id}` — the status stays `submitted` until the flow finishes, then `approved` and, once procurement places the order, `ordered` (tenant machines may differ). If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`).
+The request now sits in the workflow admin's queue. It is first calibrated against the same submission requirements you applied in step 2 — a non-compliant request comes back as a rework todo without reaching any approver — then approvers are assigned per the workspace's approval flow: amount tiers key on the estimated total, and flows commonly send unpriced requests for sourcing first (a `returned` + rework round to fill in prices). Progress is visible any time via `GET /approval-records?entity_type=purchase_request&entity_id={id}` — the status stays `submitted` until the flow finishes, then `approved` and, once procurement places the order, `ordered` (tenant machines may differ). If it is returned, a rework todo appears in the principal's inbox (see `$oryh-my-work`).
 
 ## Charging the purchase order to a vendor account
 

@@ -12,7 +12,7 @@ follows any more.
 So you compute it, every time, from two things the server does keep:
 
 ```text
-GET /policies?category=hr&status=published&in_force_on=2026-06-15   ← the rules
+GET /business-rules?kind=policy&category=hr&in_force_on=2026-06-15   ← the rules
 GET /employee-leaves?employee_id={id}&overlapping_from=…&overlapping_thru=…  ← the facts
 GET /employees/{id}                                                 ← hire_date, for length of service
 ```

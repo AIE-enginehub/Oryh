@@ -55,7 +55,7 @@ const TARGETS: Record<string, string> = {
   activity_id: "activities",
   communication_event_id: "communication-events",
   opportunity_id: "opportunities",
-  policy_id: "policies",
+  policy_id: "business-rules",
   todo_id: "todos",
 };
 

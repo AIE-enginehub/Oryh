@@ -34,7 +34,7 @@ def shop():
 
 def test_every_paged_list_documents_a_created_at_range() -> None:
     spec = json.loads((ROOT / "frontend/openapi.json").read_text(encoding="utf-8"))
-    exempt = {"/auth/users", "/skills", "/workflow-definitions", "/tenant/api-key-owners"}
+    exempt = {"/auth/users", "/skills", "/tenant/api-key-owners"}
     missing = []
     for path, item in spec["paths"].items():
         get = item.get("get")

@@ -119,23 +119,23 @@ Skills carry the **mechanism**: which endpoint to call, what to ask before
 writing, what to check. The tenant's **rules** — who approves, at what
 threshold, what a submission must contain — are NOT in these files. Every
 skill that needs them fetches them at the moment it runs
-(`GET /workflow-definitions?entity_kind=builtin&object_type=…`), so a rule
+(`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&status=published`), so a rule
 change is live immediately, for everyone, with nothing to install.
 
 | The admin changed… | Does sync report a change? | When does it take effect? |
 |---|---|---|
-| a **workflow definition** (approvers, thresholds, submission requirements) | **No** — no skill file moved | already in effect; the next run reads it |
+| a **business rule** (approval flow, data rule, linkage, policy) | **No** — no skill file moved | already in effect; the next run reads it |
 | an **object type definition** (fields, state machine) | **No** — same reason | already in effect |
 | a **tenant skill** in `/skills` (new, revised, archived) | Yes | after this sync |
 | **who a skill is aimed at** (audience / distribution mode) | Yes | after this sync |
 | the **shipped product catalog** (a deploy) | Yes | after this sync |
 | **your role** (skills gained or lost) | Yes | after this sync |
 
-So "everything is current" is the expected answer after a workflow-definition
+So "everything is current" is the expected answer after a business-rule
 edit — and it is not the same as "your change did nothing". **When someone
 asks you to sync right after editing a rule, say both**: the installed skills
 are unchanged *because rules do not live in them*, and their edit is already
-live. Offer to read the definition back so they can see it landed.
+live. Offer to read the rule back so they can see it landed.
 
 ## "Why Don't You Have The X Skill?"
 

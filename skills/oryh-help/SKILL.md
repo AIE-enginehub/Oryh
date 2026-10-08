@@ -40,9 +40,9 @@ this skill, so they cannot disagree with the product.
 
 A live fact is different: *which* roles this workspace has, *who* holds
 `master_data.manage` today, *whether* a picklist practice is written into
-the sales-order definition. For those, one read each — `GET /roles`,
+the sales-order linkage rule. For those, one read each — `GET /roles`,
 `GET /capabilities`, `GET /workspace/setup-report`, `GET /builtin-object-types`,
-`GET /workflow-definitions?entity_kind=builtin&object_type=…` — and say
+`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&status=published` — and say
 which read the answer came from.
 
 When the answer ends in an action ("so add `master_data.manage` to her
@@ -52,7 +52,7 @@ role"), name the skill and the desk that does it; do not do it from here.
 
 | The question is about | Read |
 |---|---|
-| A word people keep hearing — capability, role, desk, flow agent, workflow definition | `references/manual-index.md` |
+| A word people keep hearing — capability, role, desk, flow agent, business rule | `references/manual-index.md` |
 | What a permission means, which capability a task needs, whether a role is needed | `references/capabilities-skills-api.md`, then `faq.md` → Permissions |
 | Scoped grants (`business_object.write:daily_report`) and self-authored skills | `references/scoped-skill-capabilities.md` |
 | Setting up a workspace: people, roles, master data, rules, custom objects | `references/manual-workspace.md` |
@@ -69,7 +69,7 @@ role"), name the skill and the desk that does it; do not do it from here.
 - Guess a permission answer from route names or status codes — the map is
   the source, and a 403's detail names the capability.
 - Invent a configuration switch. When the person asks "can it be set to…",
-  the honest answer is usually a sentence in a workflow definition or a
+  the honest answer is usually a sentence in a business rule or a
   skill calibration, and the FAQ says so.
 - Read payroll or anyone's private records to illustrate an answer.
 

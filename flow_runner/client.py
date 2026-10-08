@@ -115,8 +115,10 @@ class OryhClient:
         """
         response = self.call(
             "GET",
-            "/workflow-definitions",
+            "/business-rules",
             params={
+                "kind": "approval_flow",
+                "status": "published",
                 "entity_kind": entity_kind,
                 "object_type": entity_type,
                 "page": 1,

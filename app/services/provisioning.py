@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
@@ -11,7 +13,8 @@ from app.services.audit_trail import catalogue_write
 
 from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, system_capabilities
 from app.core.type_options import system_type_options, system_type_sign
-from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
+from app.core.config import settings
+from app.models import BusinessRule, Capability, ObjectTypeDefinition, Role, TenantSkill, TypeOption
 from app.services.delivery import delivery_blocks_error
 from app.services.flow_subscriptions import provision_flow_subscriptions
 from app.services.state_machines import BUILTIN_MACHINES
@@ -21,6 +24,8 @@ from app.services.state_machines import BUILTIN_MACHINES
 # which holds shared fragments (no SKILL.md, so seeding skips it) that skills
 # pull in with an include marker.
 PRODUCT_SKILLS_DIR = Path(__file__).resolve().parent.parent.parent / "skills"
+RULES_DIR = Path(__file__).resolve().parent.parent.parent / "rules"
+SCOPED_RULE_KINDS = ("approval_flow", "data_rule", "linkage")
 
 # `{{include:_common/<file>}}` alone on its line. Expanded here, at read time,
 # so the registry only ever stores finished text: one edit to a fragment bumps
@@ -206,6 +211,160 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
         # tenant-authored skill shadowing a product name: leave it alone
     changed += retire_withdrawn_product_skills(db, tenant_id, shipped)
     return changed
+
+
+def load_rule_catalog(locale: str | None = None) -> list[dict[str, str]]:
+    """The shipped rule catalog, `rules/<kind>/<object_type>.md`, in one locale.
+
+    Each file is a frontmatter and a body in English, then `<!-- zh -->` and the
+    same body in Chinese; the half the deployment's locale asks for is the
+    body. Unlike the skills, the catalog has no include markers and no
+    delivery blocks: a rule is one paragraph an administrator reads and edits,
+    not a contract an agent executes.
+    """
+    locale = locale or settings.resolved_locale
+    entries: list[dict[str, str]] = []
+    if not RULES_DIR.is_dir():
+        return entries
+    for path in sorted(RULES_DIR.glob("*/*.md")):
+        text = path.read_text(encoding="utf-8")
+        meta = parse_frontmatter(text)
+        kind = meta.get("kind")
+        if kind not in SCOPED_RULE_KINDS:
+            raise ValueError(f"{path}: kind must be one of {SCOPED_RULE_KINDS}")
+        for key in ("entity_kind", "object_type", "title"):
+            if not meta.get(key):
+                raise ValueError(f"{path}: frontmatter lacks {key}")
+        if not text.startswith("---\n"):
+            raise ValueError(f"{path}: a rule file starts with a frontmatter")
+        _, _, after = text[4:].partition("\n---\n")
+        body_en, _, body_zh = after.partition("<!-- zh -->")
+        body_en, body_zh = body_en.strip(), body_zh.strip()
+        if not body_en or not body_zh:
+            raise ValueError(f"{path}: both language halves are required")
+        chinese = locale != "en"
+        entries.append({
+            "kind": kind,
+            "entity_kind": meta["entity_kind"],
+            "object_type": meta["object_type"],
+            "name": meta.get("name") or "default",
+            "title": (meta.get("title_zh") or meta["title"]) if chinese else meta["title"],
+            "visibility": meta.get("visibility") or "internal",
+            "body": body_zh if chinese else body_en,
+        })
+    return entries
+
+
+def _body_hash(body: str) -> str:
+    return hashlib.sha256(body.strip().encode("utf-8")).hexdigest()
+
+
+@catalogue_write
+def provision_rule_catalog(db: Session, tenant_id: str) -> int:
+    """Seed the shipped rule catalog into a tenant as DRAFT business rules.
+
+    The same shape as `provision_product_skills`, with one difference that is
+    the point: a rule is seeded as a draft, never published. The hosted runner
+    drives a family only when an `approval_flow` is published, and a default
+    routing the workspace never wrote must not decide who approves. The seed
+    buys a starting text — the administrator reads it, changes what is not
+    theirs, publishes.
+
+    Sync rules, per scope: a seeded draft the tenant has not touched (its body
+    still hashes to `catalog_hash`) follows the catalog; a draft they edited,
+    or a scope that was ever published or drafted by them, is theirs and is
+    never touched; an untouched seeded draft whose file left the catalog is
+    soft-deleted. Returns the changed count.
+    """
+    entries = load_rule_catalog()
+    if not entries:
+        return 0
+    changed = 0
+    shipped: set[str] = set()
+    for entry in entries:
+        code = f"{entry['kind']}:{entry['entity_kind']}:{entry['object_type']}:{entry['name']}"
+        shipped.add(code)
+        body_hash = _body_hash(entry["body"])
+        rows = db.scalars(
+            select(BusinessRule).where(
+                BusinessRule.tenant_id == tenant_id,
+                BusinessRule.code == code,
+                BusinessRule.deleted_at.is_(None),
+            )
+        ).all()
+        if rows:
+            draft = next((r for r in rows if r.status == "draft" and r.origin == "catalog"), None)
+            # the scope is the tenant's once anything of theirs exists in it, and
+            # an edited seed is theirs too: only an untouched seed follows the file
+            if draft is None or len(rows) > 1 or draft.catalog_hash == body_hash:
+                continue
+            if _body_hash(draft.body) != draft.catalog_hash:
+                continue
+            draft.body = entry["body"]
+            draft.title = entry["title"]
+            draft.catalog_hash = body_hash
+            changed += 1
+            continue
+        changed += insert_unless_raced(
+            db,
+            BusinessRule(
+                tenant_id=tenant_id,
+                kind=entry["kind"],
+                entity_kind=entry["entity_kind"],
+                object_type=entry["object_type"],
+                name=entry["name"],
+                code=code,
+                version=1,
+                title=entry["title"],
+                body=entry["body"],
+                visibility=entry["visibility"],
+                status="draft",
+                origin="catalog",
+                catalog_hash=body_hash,
+                created_by="product-catalog",
+            ),
+            select(BusinessRule).where(BusinessRule.tenant_id == tenant_id, BusinessRule.code == code),
+        )
+    withdrawn = db.scalars(
+        select(BusinessRule).where(
+            BusinessRule.tenant_id == tenant_id,
+            BusinessRule.origin == "catalog",
+            BusinessRule.status == "draft",
+            BusinessRule.deleted_at.is_(None),
+            BusinessRule.code.not_in(sorted(shipped)),
+        )
+    ).all()
+    for row in withdrawn:
+        if _body_hash(row.body) != row.catalog_hash:
+            continue  # edited: the tenant's text now, whatever the catalog did
+        row.deleted_at = datetime.now(timezone.utc)
+        row.deleted_by = "product-catalog"
+        row.delete_reason = "withdrawn from the shipped rule catalog"
+        changed += 1
+    return changed
+
+
+def discard_seeded_draft(db: Session, tenant_id: str, code: str) -> int:
+    """Drop the catalog's untouched draft for a scope a seed script is about
+    to publish directly — a demo tenant's routing, an E2E fixture's map. The
+    published text is the workspace's own; a seed left beside it would sit at
+    v1 as a draft forever and collide with the version the script writes.
+    Hard-deleted, not soft: nothing has read it, and it is the catalog's text,
+    not anybody's work. Returns the number removed."""
+    db.flush()
+    rows = db.scalars(
+        select(BusinessRule).where(
+            BusinessRule.tenant_id == tenant_id,
+            BusinessRule.code == code,
+            BusinessRule.status == "draft",
+            BusinessRule.origin == "catalog",
+        )
+    ).all()
+    for row in rows:
+        db.delete(row)
+    if rows:
+        db.flush()
+    return len(rows)
 
 
 def retire_withdrawn_product_skills(db: Session, tenant_id: str, shipped: set[str]) -> int:
@@ -547,6 +706,9 @@ def provision_system_roles(db: Session, tenant_id: str) -> tuple[int, int]:
 def provision_tenant_defaults(db: Session, tenant_id: str) -> None:
     provision_product_skills(db, tenant_id)
     provision_builtin_definitions(db, tenant_id)
+    # after the definitions, which name the families a rule may scope to; as
+    # drafts, so nothing below starts driving on a text nobody here wrote
+    provision_rule_catalog(db, tenant_id)
     provision_system_capabilities(db, tenant_id)
     provision_system_type_options(db, tenant_id)
     provision_system_roles(db, tenant_id)

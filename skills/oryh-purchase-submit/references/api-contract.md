@@ -21,6 +21,15 @@ Body:
 | `delete_reason` | string (≤2000 chars) | optional |  |
 | `deleted_by` | string (≤100 chars) | optional |  |
 
+## DELETE /business-rules/{rule_id}
+
+Delete Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `reason` | query | string (≤500 chars) | no |  |
+
 ## DELETE /product-skus/{sku_id}
 
 Delete Product Sku
@@ -180,6 +189,56 @@ Get Expiring Billing Account Entries
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
 | `before` | query | date-time | no |  |
+
+## GET /business-rules
+
+List Business Rules
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `kind` | query | string | no |  |
+| `entity_kind` | query | string | no |  |
+| `object_type` | query | string | no |  |
+| `name` | query | string | no |  |
+| `code` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `visibility` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+| `keyword` | query | string | no |  |
+| `include_deleted` | query | boolean | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_thru_from` | query | date | no | rows whose effective_thru is on or after this |
+| `effective_thru_thru` | query | date | no | rows whose effective_thru is on or before this |
+| `published_at_from` | query | date-time | no | rows whose published_at is at or after this |
+| `published_at_thru` | query | date-time | no | rows whose published_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `supersedes_id` | query | string | no |  |
+| `origin` | query | string | no |  |
+
+## GET /business-rules/{rule_id}
+
+Get Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+## GET /business-rules/{rule_id}/attachments/{attachment_id}/content
+
+Get Business Rule Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
 
 ## GET /employees
 
@@ -462,30 +521,6 @@ Get Vendor
 |---|---|---|---|---|
 | `vendor_id` | path | string | yes |  |
 
-## GET /workflow-definitions
-
-List Workflow Definitions
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `entity_kind` | query | string | no |  |
-| `object_type` | query | string | no |  |
-| `name` | query | string | no |  |
-| `history` | query | boolean | no |  |
-| `status` | query | `active` | `superseded` | `all` | no |  |
-| `keyword` | query | string | no |  |
-| `page` | query | integer (≥1) | no |  |
-| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
-| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
-
-## GET /workflow-definitions/{definition_id}
-
-Get Workflow Definition
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `definition_id` | path | string | yes |  |
-
 ## PATCH /billing-accounts/{account_id}
 
 Update Billing Account
@@ -508,6 +543,31 @@ Body:
 | `status` | `active` | `frozen` | `closed` | optional |  |
 | `valid_from` | date | optional |  |
 | `valid_until` | date | optional |  |
+
+## PATCH /business-rules/{rule_id}
+
+Update Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `attachment_id` | string | optional |  |
+| `body` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
 
 ## PATCH /product-skus/{sku_id}
 
@@ -763,6 +823,105 @@ Restore Billing Account
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
+
+## POST /business-rules
+
+Create Business Rule
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /business-rules/publish
+
+Publish Business Rule Now
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /business-rules/{rule_id}/publish
+
+Publish Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_from` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /business-rules/{rule_id}/repeal
+
+Repeal Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_thru` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /business-rules/{rule_id}/visibility
+
+Rescope Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `visibility` | `internal` | `restricted` | `public` | required |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
 
 ## POST /product-skus
 
@@ -1267,17 +1426,3 @@ Body:
   | `tax_id` | string (≤64 chars) | optional |  |
 | `dry_run` | boolean | optional |  |
 | `on_error` | `abort` | `skip` | optional |  |
-
-## POST /workflow-definitions
-
-Publish Workflow Definition
-
-Body:
-
-| field | type | | notes |
-|---|---|---|---|
-| `definition_text` | string (≤20000 chars) | required |  |
-| `object_type` | string (≤100 chars) | required |  |
-| `created_by` | string (≤100 chars) | optional |  |
-| `entity_kind` | `business_object` | `builtin` | optional |  |
-| `name` | string (≤100 chars) | optional |  |

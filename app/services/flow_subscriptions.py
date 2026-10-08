@@ -157,7 +157,7 @@ def provision_flow_subscriptions(db: Session, tenant_id: str) -> int:
 
     Nothing starts running as a side effect of this: a subscription whose
     workflow definition is unpublished spends no agent turn and says
-    `workflow_definition_missing`. Publishing the map is what starts the work,
+    `approval_flow_missing`. Publishing the map is what starts the work,
     which is the point — the map IS the statement that this is how the document
     should route.
     """
@@ -251,7 +251,8 @@ def clear_park(subscription: FlowSubscription) -> None:
 
 
 def unpark_on_new_definition(
-    db: Session, tenant_id: str, entity_type: str, *, version: int, actor: str
+    db: Session, tenant_id: str, entity_type: str, *, version: int, actor: str,
+    cause: str = "approval_flow.published",
 ) -> int:
     """A parked queue whose workflow definition just changed gets its retry.
 
@@ -282,7 +283,7 @@ def unpark_on_new_definition(
         detail={
             "entity_type": entity_type,
             "cleared_park": reason,
-            "cause": "workflow.published",
+            "cause": cause,
             "version": version,
         },
     )

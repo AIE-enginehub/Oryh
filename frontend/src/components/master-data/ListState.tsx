@@ -28,7 +28,10 @@ export function ListState({ loading, error, empty, emptyTitle, emptyDescription,
 
 export function StatusBadge({ status }: { status: string }) {
   const { text } = useI18n();
-  const labels: Record<string, string> = { active: text("启用", "Active"), inactive: text("停用", "Inactive"), archived: text("已归档", "Archived") };
+  const labels: Record<string, string> = {
+    active: text("启用", "Active"), inactive: text("停用", "Inactive"), archived: text("已归档", "Archived"),
+    draft: text("草稿", "Draft"), published: text("已发布", "Published"), superseded: text("已替代", "Superseded"), repealed: text("已废止", "Repealed"),
+  };
   return <span className={`status-badge ${status}`}>{labels[status] ?? status}</span>;
 }
 

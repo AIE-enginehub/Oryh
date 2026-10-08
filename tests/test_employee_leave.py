@@ -146,14 +146,15 @@ def test_the_facts_a_balance_is_computed_from_are_all_reachable(workspace: dict)
     assert employee["hire_date"] == "2019-03-01"
 
     # 2. the rules, as they stood on a chosen date
-    policy = post(client, root, "/policies", {
+    policy = post(client, root, "/business-rules", {
+        "kind": "policy",
         "code": "HR-002", "category": "hr", "title": "员工请假管理制度",
         "body": "# 年假\n满 5 年 10 天。", "rules_json": {"annual": {"tier_5y": 10}},
     })
-    client.post(f"/api/v1/policies/{policy['id']}/publish",
+    client.post(f"/api/v1/business-rules/{policy['id']}/publish",
                 json={"effective_from": "2026-01-01"}, headers=root)
     in_force = client.get(
-        "/api/v1/policies?category=hr&status=published&in_force_on=2026-06-15",
+        "/api/v1/business-rules?kind=policy&category=hr&in_force_on=2026-06-15",
         headers=root).json()["data"]
     assert in_force[0]["rules_json"] == {"annual": {"tier_5y": 10}}
 

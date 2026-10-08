@@ -93,7 +93,7 @@ export function ObjectDetailPage() {
             <p>{text("主记录仍可查看；以下区块显示为空不代表业务数据不存在。", "The primary record is still available. Empty sections below do not necessarily mean the business data is missing.")}</p>
             <ul>{detail.data.issues.map((issue) => {
               const labels: Record<string, string> = {
-                "流程版本": text("流程版本", "Workflow versions"),
+                "业务规则": text("业务规则", "Business rules"),
                 "审批记录": text("审批记录", "Approval history"),
                 "待办": text("待办", "Todos"),
                 "审计轨迹": text("审计轨迹", "Audit trail"),

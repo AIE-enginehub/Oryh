@@ -548,31 +548,31 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
     # ---- 规章制度 ---------------------------------------------------------
     # A figure an agent applies has to be traceable to a document, a version and
     # a person. These check that the trace has no broken link in it. There is no
-    # separate rule table to check — the figures ride `policies.rules_json`,
+    # separate rule table to check — the figures ride `business_rules.rules_json`,
     # which the server never parses and therefore cannot meaningfully audit
     # beyond the document carrying it.
     (
-        "one published version per 制度编号",
+        "one published version per rule code",
         """select count(*) from (
-             select tenant_id, code from policies
+             select tenant_id, code from business_rules
               where status = 'published' and deleted_at is null
               group by 1, 2 having count(*) > 1
            ) as duplicated""",
     ),
     (
-        "a published policy names who published it and when",
-        """select count(*) from policies
+        "a published rule names who published it and when",
+        """select count(*) from business_rules
             where status = 'published'
               and (published_at is null or published_by is null)""",
     ),
     (
-        "a restricted policy names the capability that may read it",
-        """select count(*) from policies
+        "a restricted rule names the capability that may read it",
+        """select count(*) from business_rules
             where visibility = 'restricted' and coalesce(trim(required_capability), '') = ''""",
     ),
     (
-        "no policy stops applying before it starts",
-        "select count(*) from policies where effective_thru < effective_from",
+        "no rule stops applying before it starts",
+        "select count(*) from business_rules where effective_thru < effective_from",
     ),
     # Only the newest version of a code may be repealed, and this checks the
     # cause rather than the symptom.
@@ -583,19 +583,21 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
     # governed by neither. The gap itself cannot be checked portably — it needs
     # date arithmetic, and SQLite reads `'2026-06-30' + 1` as numeric addition —
     # so this asserts the rule the write path enforces instead, which is both
-    # exact and dialect-free.
+    # exact and dialect-free. A DRAFT of the next version is not a newer
+    # version yet — publish v1, draft v2, repeal v1 is an ordinary sequence.
     (
-        "only the newest version of a policy is ever repealed",
-        """select count(*) from policies a
-             join policies b
+        "only the newest version of a rule is ever repealed",
+        """select count(*) from business_rules a
+             join business_rules b
                on b.tenant_id = a.tenant_id and b.code = a.code
               and b.version > a.version and b.deleted_at is null
+              and b.status <> 'draft'
             where a.status = 'repealed' and a.deleted_at is null""",
     ),
     (
         "a version chain points backwards, never at itself",
-        """select count(*) from policies p
-            left join policies prior on prior.id = p.supersedes_id
+        """select count(*) from business_rules p
+            left join business_rules prior on prior.id = p.supersedes_id
            where p.supersedes_id is not null
              and (p.supersedes_id = p.id
                   or prior.id is null
@@ -677,8 +679,8 @@ ADVISORY_CHECKS: tuple[tuple[str, str], ...] = (
     # Not a violation — a policy nobody ever published is somebody's abandoned
     # draft, which is ordinary. Worth a look once it is an old one.
     (
-        "policies drafted over 90 days ago and never published",
-        """select count(*) from policies
+        "rules drafted over 90 days ago and never published",
+        """select count(*) from business_rules
             where status = 'draft' and deleted_at is null
               and created_at < current_date - 90""",
     ),

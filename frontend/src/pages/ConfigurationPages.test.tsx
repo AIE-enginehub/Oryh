@@ -18,8 +18,12 @@ const configuration = vi.hoisted(() => ({
   listObjectDirectory: vi.fn(),
   createObjectType: vi.fn(),
   updateObjectType: vi.fn(),
-  listWorkflows: vi.fn(),
-  publishWorkflow: vi.fn(),
+  listBusinessRules: vi.fn(),
+  publishBusinessRule: vi.fn(),
+  publishRuleDraft: vi.fn(),
+  repealBusinessRule: vi.fn(),
+  rescopeBusinessRule: vi.fn(),
+  listPolicyCategories: vi.fn(),
   listSkills: vi.fn(),
   getSkill: vi.fn(),
   createSkill: vi.fn(),
@@ -45,10 +49,13 @@ const objectType = {
   title: "合同", description: "合同记录", json_schema: { type: "object" }, state_machine: null,
   version: 2, status: "active", created_by: "user:1", created_at: "2026-07-01T00:00:00Z", updated_at: null,
 };
-const workflow = {
-  id: "workflow-1", tenant_id: "tenant-1", entity_kind: "business_object", object_type: "contract",
-  name: "default", version: 3, definition_text: "提交后由法务审批", status: "active",
-  created_by: "user:1", created_at: "2026-07-01T00:00:00Z",
+const rule = {
+  id: "rule-1", kind: "approval_flow", code: "approval_flow:business_object:contract:default", version: 3,
+  entity_kind: "business_object", object_type: "contract", name: "default", origin: "tenant", category: null,
+  title: "contract 流程定义", summary: null, body: "提交后由法务审批", rules_json: null, visibility: "internal",
+  required_capability: null, status: "published", effective_from: "2026-07-01", effective_thru: null,
+  published_at: "2026-07-01T00:00:00Z", published_by: "user:1", supersedes_id: null, attachment_id: null,
+  owner_employee_id: null, created_by: "user:1", custom_fields: {}, created_at: "2026-07-01T00:00:00Z", updated_at: "2026-07-01T00:00:00Z",
 };
 const skill = {
   id: "skill-1", tenant_id: "tenant-1", name: "contract-review", kind: "custom", title: "合同复核",
@@ -88,10 +95,14 @@ beforeEach(() => {
     { entity_kind: "builtin", object_type: "timesheet_header", count: 3, title: "工时单", definition_status: "active" },
     { entity_kind: "business_object", object_type: "contract", count: 8, title: "合同", definition_status: "active" },
   ]);
-  configuration.listWorkflows.mockResolvedValue({ data: [workflow], meta });
+  configuration.listBusinessRules.mockResolvedValue({ data: [rule], meta });
   configuration.createObjectType.mockResolvedValue(objectType);
   configuration.updateObjectType.mockResolvedValue(objectType);
-  configuration.publishWorkflow.mockResolvedValue(workflow);
+  configuration.publishBusinessRule.mockResolvedValue({ current: { ...rule, version: 4 }, superseded: rule });
+  configuration.publishRuleDraft.mockResolvedValue({ current: rule, superseded: null });
+  configuration.repealBusinessRule.mockResolvedValue({ ...rule, status: "repealed" });
+  configuration.rescopeBusinessRule.mockResolvedValue(rule);
+  configuration.listPolicyCategories.mockResolvedValue([{ id: "cat-1", name: "hr", title: "人事", is_active: true }]);
   configuration.listSkills.mockResolvedValue({ data: [skill], meta });
   configuration.getSkill.mockResolvedValue(skill);
   configuration.createSkill.mockResolvedValue(skill);
@@ -131,11 +142,18 @@ required_capability: business_object.write:contract
 });
 
 describe("remaining configuration workspaces", () => {
-  it("renders object types and workflows and validates field rules before creating", async () => {
+  it("renders object types and business rules by kind and validates field rules before creating", async () => {
     const user = userEvent.setup();
     renderPage(<ObjectTypesPage />);
     expect(await screen.findByText("合同")).toBeInTheDocument();
     expect(screen.getByText("提交后由法务审批")).toBeInTheDocument();
+    expect(configuration.listBusinessRules).toHaveBeenCalledWith(expect.objectContaining({ kind: "approval_flow", status: "published" }));
+
+    // the kind picker is the question; history widens it to every version
+    await user.selectOptions(screen.getByLabelText("规则种类"), "data_rule");
+    await waitFor(() => expect(configuration.listBusinessRules).toHaveBeenCalledWith(expect.objectContaining({ kind: "data_rule", status: "published" })));
+    await user.click(screen.getByLabelText("显示历史版本"));
+    await waitFor(() => expect(configuration.listBusinessRules).toHaveBeenCalledWith(expect.objectContaining({ kind: "data_rule", status: undefined })));
 
     await user.click(screen.getByRole("button", { name: "定义类型" }));
     const dialog = screen.getByRole("dialog");
@@ -152,27 +170,105 @@ describe("remaining configuration workspaces", () => {
     await waitFor(() => expect(configuration.createObjectType).toHaveBeenCalledWith(expect.objectContaining({ object_type: "warranty_card" })));
   });
 
-  it("keeps object-type editing and workflow publishing independently capability-gated", async () => {
+  it("keeps object-type editing and rule publishing independently capability-gated", async () => {
     const user = userEvent.setup();
     const first = renderPage(<ObjectTypesPage />, { role: "schema_editor", permissions: ["object_types.manage"] });
     expect(await screen.findByRole("button", { name: "定义类型" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "发布流程" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "发布规则" })).not.toBeInTheDocument();
     first.unmount();
 
     renderPage(<ObjectTypesPage />, { role: "flow_publisher", permissions: ["workflows.publish"] });
-    const publishButton = await screen.findByRole("button", { name: "发布流程" });
+    const publishButton = await screen.findByRole("button", { name: "发布规则" });
     expect(screen.queryByRole("button", { name: "定义类型" })).not.toBeInTheDocument();
     await user.click(publishButton);
     const dialog = screen.getByRole("dialog");
     await user.selectOptions(within(dialog).getByLabelText(/对象类型/), "business_object:contract");
-    const definition = within(dialog).getByLabelText(/自然语言流程/);
-    expect(definition).toHaveAttribute("placeholder", expect.stringContaining("提交要求"));
-    expect(within(dialog).getByText(/「提交要求」由员工侧 agent 填写时核对/)).toBeInTheDocument();
-    await user.type(definition, "提交后由法务审批");
+    // the editor opens on the version in force, and says which kind of reader it is for
+    const body = within(dialog).getByLabelText(/规则正文/);
+    await waitFor(() => expect(body).toHaveValue("提交后由法务审批"));
+    expect(within(dialog).getByText(/已载入当前生效的 v3/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/仅工作流 agent 读取/)).toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText(/规则种类/), "data_rule");
+    expect(within(dialog).getByText(/员工侧 agent 填写时核对/)).toBeInTheDocument();
+    expect(body).toHaveAttribute("placeholder", expect.stringContaining("40 小时"));
+    await user.clear(body);
+    await user.type(body, "每行必须写项目。");
+    // the drawer shows what the draft drops from the version in force, and says so when it is everything
+    expect(within(dialog).getByText(/删去 1 行，新增 1 行/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/这会整篇替换当前版本/)).toBeInTheDocument();
+    expect(within(dialog).getByText("- 提交后由法务审批")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "发布新版本" }));
-    await waitFor(() => expect(configuration.publishWorkflow).toHaveBeenCalledWith(expect.objectContaining({
-      entity_kind: "business_object", object_type: "contract",
-    })));
+    await waitFor(() => expect(configuration.publishBusinessRule).toHaveBeenCalledWith({
+      kind: "data_rule", entity_kind: "business_object", object_type: "contract", name: "default", body: "每行必须写项目。",
+    }));
+  });
+
+  it("opens the publish drawer on the seeded draft when nothing is in force", async () => {
+    const user = userEvent.setup();
+    const seed = { ...rule, id: "seed-1", version: 1, status: "draft", origin: "catalog", published_at: null, published_by: null, effective_from: null, body: "直属经理审批每一张报销单。" };
+    configuration.listBusinessRules.mockResolvedValue({ data: [seed], meta });
+    renderPage(<ObjectTypesPage />, { role: "flow_publisher", permissions: ["workflows.publish"] });
+    await user.click(await screen.findByRole("button", { name: "发布规则" }));
+    const dialog = screen.getByRole("dialog");
+    await user.selectOptions(within(dialog).getByLabelText(/对象类型/), "business_object:contract");
+    const body = within(dialog).getByLabelText(/规则正文/);
+    await waitFor(() => expect(body).toHaveValue("直属经理审批每一张报销单。"));
+    expect(within(dialog).getByText(/已载入出厂草稿 v1（尚未生效）/)).toBeInTheDocument();
+  });
+
+  it("publishes a policy from the drawer under policy.publish, with its own code, category and title", async () => {
+    const user = userEvent.setup();
+    configuration.listBusinessRules.mockResolvedValue({ data: [], meta: { ...meta, total: 0 } });
+    renderPage(<ObjectTypesPage />, { role: "policy_publisher", permissions: ["policy.publish"] });
+    await user.click(await screen.findByRole("button", { name: "发布规则" }));
+    const dialog = screen.getByRole("dialog");
+    // without workflows.publish the only kind on offer is the policy
+    const kinds = within(dialog).getByLabelText(/规则种类/) as HTMLSelectElement;
+    expect(Array.from(kinds.options).map((o) => o.value)).toEqual(["policy"]);
+    expect(within(dialog).queryByLabelText(/对象类型/)).not.toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText(/制度编号/), "HR-001");
+    await waitFor(() => expect(configuration.listBusinessRules).toHaveBeenCalledWith(expect.objectContaining({ kind: "policy", code: "HR-001" })));
+    await user.selectOptions(within(dialog).getByLabelText(/分类/), "hr");
+    await user.type(within(dialog).getByLabelText(/标题/), "考勤制度");
+    await user.type(within(dialog).getByLabelText(/规则正文/), "每月 3 日前提交上月考勤。");
+    await user.click(within(dialog).getByRole("button", { name: "发布新版本" }));
+    await waitFor(() => expect(configuration.publishBusinessRule).toHaveBeenCalledWith({
+      kind: "policy", code: "HR-001", category: "hr", title: "考勤制度", body: "每月 3 日前提交上月考勤。",
+    }));
+  });
+
+  it("releases a draft, repeals the version in force and rescopes it from the row", async () => {
+    const user = userEvent.setup();
+    const seed = { ...rule, id: "seed-1", version: 1, status: "draft", origin: "catalog", published_at: null, published_by: null, effective_from: null };
+    configuration.listBusinessRules.mockResolvedValue({ data: [seed, rule], meta: { ...meta, total: 2 } });
+    renderPage(<ObjectTypesPage />, { role: "flow_publisher", permissions: ["workflows.publish"] });
+    const draftRow = (await screen.findByText("v1")).closest("tr") as HTMLElement;
+    const liveRow = screen.getByText("v3").closest("tr") as HTMLElement;
+    // a draft can only be released; a version in force can be closed or re-scoped
+    expect(within(draftRow).queryByRole("button", { name: "废止" })).not.toBeInTheDocument();
+    expect(within(liveRow).queryByRole("button", { name: "发布" })).not.toBeInTheDocument();
+
+    await user.click(within(draftRow).getByRole("button", { name: "发布" }));
+    let dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("发布草稿")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "发布" }));
+    await waitFor(() => expect(configuration.publishRuleDraft).toHaveBeenCalledWith("seed-1", {}));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(within(liveRow).getByRole("button", { name: "废止" }));
+    dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/停止适用日/), { target: { value: "2026-12-31" } });
+    await user.type(within(dialog).getByLabelText(/备注/), "并入新制度");
+    await user.click(within(dialog).getByRole("button", { name: "废止" }));
+    await waitFor(() => expect(configuration.repealBusinessRule).toHaveBeenCalledWith("rule-1", { effective_thru: "2026-12-31", note: "并入新制度" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(within(liveRow).getByRole("button", { name: "可见性" }));
+    dialog = screen.getByRole("dialog");
+    await user.selectOptions(within(dialog).getByLabelText(/^可见性/), "restricted");
+    await user.type(within(dialog).getByLabelText(/所需能力/), "payroll.read");
+    await user.click(within(dialog).getByRole("button", { name: "保存可见性" }));
+    await waitFor(() => expect(configuration.rescopeBusinessRule).toHaveBeenCalledWith("rule-1", { visibility: "restricted", required_capability: "payroll.read" }));
   });
 
   it("creates a skill with SKILL.md and a scoped capability", async () => {

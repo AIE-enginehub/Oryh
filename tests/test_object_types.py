@@ -249,12 +249,13 @@ def test_business_object_detail_contract(client: TestClient) -> None:
     )
     assert approval.status_code == 201
     workflow = client.post(
-        "/api/v1/workflow-definitions",
+        "/api/v1/business-rules/publish",
         json={
+            "kind": "approval_flow",
             "entity_kind": "business_object",
             "object_type": "warranty_card",
             "name": "default",
-            "definition_text": "steps: [review]",
+            "body": "steps: [review]",
         },
         headers=HEADERS,
     )
@@ -268,7 +269,7 @@ def test_business_object_detail_contract(client: TestClient) -> None:
     assert [item["id"] for item in detail["todos"]] == [todo.json()["data"]["id"]]
     assert [item["id"] for item in detail["approval_records"]] == [approval.json()["data"]["id"]]
     assert detail["object_type_definition"]["id"] == definition["id"]
-    assert [item["id"] for item in detail["workflow_definitions"]] == [workflow.json()["data"]["id"]]
+    assert [item["id"] for item in detail["rules"] if item["kind"] == "approval_flow"] == [workflow.json()["data"]["current"]["id"]]
 
 
 def test_object_directory_includes_defined_and_data_only_custom_types(
@@ -457,7 +458,7 @@ def test_the_vocabulary_is_derived_from_the_rest_surface(client: TestClient) -> 
     listed = {entry["object_type"] for entry in entries}
     assert len(listed) > 40, "too few to have come from anywhere but a list"
     for expected in ("products", "customers", "vendors", "employees", "invoices",
-                     "policies", "projects"):
+                     "business_rules", "projects"):
         assert expected in listed
 
 

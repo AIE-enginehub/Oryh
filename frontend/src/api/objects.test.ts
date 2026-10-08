@@ -83,7 +83,7 @@ describe("object API", () => {
         todos: [],
         audit_logs: [],
         object_type_definition: null,
-        workflow_definitions: [{ id: "workflow-1", tenant_id: "tenant-1", entity_kind: "business_object", object_type: "contract", name: "approval", version: 2, definition_text: "steps: []", status: "active", created_by: "user:user-1", created_at: "2026-07-03T08:00:00Z" }],
+        rules: [{ id: "rule-1", kind: "approval_flow", code: "approval_flow:business_object:contract:approval", version: 2, entity_kind: "business_object", object_type: "contract", name: "approval", origin: "tenant", category: null, title: "contract 流程定义", summary: null, body: "steps: []", rules_json: null, visibility: "internal", required_capability: null, status: "published", effective_from: "2026-07-03", effective_thru: null, published_at: "2026-07-03T08:00:00Z", published_by: "user:user-1", supersedes_id: null, attachment_id: null, owner_employee_id: null, created_by: "user:user-1", custom_fields: {}, created_at: "2026-07-03T08:00:00Z", updated_at: "2026-07-03T08:00:00Z" }],
       }));
       if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "租户管理员" } }));
       throw new Error(`Unexpected URL ${input}`);
@@ -94,7 +94,7 @@ describe("object API", () => {
     expect(detail.objectType).toBe("contract");
     expect(detail.links).toHaveLength(1);
     expect(detail.approvals).toHaveLength(1);
-    expect(detail.workflows[0]).toMatchObject({ version: 2, status: "active" });
+    expect(detail.rules[0]).toMatchObject({ kind: "approval_flow", version: 2, status: "published" });
     expect(detail.actors["user:user-1"]).toBe("租户管理员");
     expect(detail.issues).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -131,7 +131,7 @@ describe("object API", () => {
         pending_sku_count: 0,
         revisions: [quotation, { ...quotation, id: "quotation-1", revision_no: 1, revision_of_id: null, status: "superseded" }],
       }));
-      if (url.pathname === "/api/v1/workflow-definitions") return Promise.resolve(jsonResponse([]));
+      if (url.pathname === "/api/v1/business-rules") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/todos") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/audit-logs") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "销售经理" } }));
@@ -193,7 +193,7 @@ describe("object API", () => {
         pending_sku_count: 0,
         quotation,
       }));
-      if (url.pathname === "/api/v1/workflow-definitions") return Promise.resolve(jsonResponse([]));
+      if (url.pathname === "/api/v1/business-rules") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/todos") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/audit-logs") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "销售经理" } }));
@@ -220,7 +220,7 @@ describe("object API", () => {
     const fetchMock = vi.fn().mockImplementation((input: string) => {
       const url = new URL(input, "https://console.example");
       if (url.pathname === "/api/v1/object-type-definitions") return Promise.resolve(jsonResponse([]));
-      if (url.pathname === "/api/v1/workflow-definitions") return Promise.resolve(jsonResponse([]));
+      if (url.pathname === "/api/v1/business-rules") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/object-directory") return Promise.resolve(jsonResponse([
         { entity_kind: "business_object", object_type: "legacy_contract", count: 17, title: null, definition_status: null },
       ]));

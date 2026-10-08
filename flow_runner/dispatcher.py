@@ -48,7 +48,7 @@ class SubscriptionState:
     # builtin is now subscribed by default, so most workspaces carry several
     # subscriptions waiting on a workflow definition nobody has written yet.
     # Those are a configuration state, not a heartbeat: saying
-    # `workflow_definition_missing` once an hour forever buries the runs that
+    # `approval_flow_missing` once an hour forever buries the runs that
     # mean something under rows that say the same thing all year.
     last_idle_reason: str | None = None
 
@@ -159,7 +159,7 @@ class Dispatcher:
                 subscription,
                 state,
                 trigger=trigger,
-                detail={"reason": "workflow_definition_missing"},
+                detail={"reason": "approval_flow_missing"},
             ), False
 
         path, query = queue_location(subscription)

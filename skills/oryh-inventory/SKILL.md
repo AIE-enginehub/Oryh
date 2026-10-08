@@ -116,7 +116,7 @@ A stock document is a business object whose type definition carries a
 
 ```text
 GET /object-type-definitions?entity_kind=business_object   → which types post stock, under which reason, from which state
-GET /workflow-definitions?entity_kind=business_object&object_type=damage_report  → the tenant's words on when one is filed and who approves
+GET /business-rules?kind=data_rule&entity_kind=business_object&object_type=damage_report&status=published  → the tenant's words on when one is filed; `kind=approval_flow` on who approves
 ```
 
 Filing and posting one, in that order:
@@ -137,7 +137,7 @@ Filing and posting one, in that order:
    wrong posting is a counter-document, never an edit.
 
 Defining a new one is a sentence the admin (or you, holding
-`workflows.publish`) writes in the object-type definition's state machine:
+`object_types.manage`) writes in the object-type definition's state machine:
 
 ```json
 {"initial": "draft", "states": ["draft", "approved", "rejected"],
@@ -194,8 +194,8 @@ workspace reserves at all is the same admin sentence that governs picking
 **Whether to pick at all is the admin's call, stated in prose you read —
 never a stored switch.** A three-person shop ships straight from the shelf;
 a real warehouse walks a list. Before fulfilling a confirmed order, read
-the tenant's sales_order workflow definition
-(`GET /workflow-definitions?entity_kind=builtin&object_type=sales_order` —
+the tenant's sales_order `linkage` rule
+(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_order&status=published` —
 once per session, sent with the order's own reads, not before them):
 if it says picking is required ("pick before shipping" — one sentence is enough),
 create a picklist; if it says nothing about picking, ship directly. The
@@ -238,14 +238,14 @@ whether returned goods sit apart until someone inspects them. That choice
 belongs to the tenant, stated in words, not in a parameter:
 
 1. **Read the tenant's rule** — once per session, in the same wave as the
-   return's own reads: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_return`.
-   If the definition states a receiving policy — "returns land in the
+   return's own reads: `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&status=published`.
+   If the rule states a receiving policy — "returns land in the
    quarantine area, transfer to main after inspection", "returns go
    straight back to the original position",
    a quarantine bin, a `RET-` lot — follow its words exactly. Creating the
    stated position on first use is normal (`POST /inventory-items`,
    facility/bin/lot are free text; a 409 means it exists — reuse it).
-2. **Definition silent → the original position.** The SME default: goods
+2. **Rule silent → the original position.** The SME default: goods
    return to where they left from. Find it from the original order's own
    issue: `GET /inventory-item-details?sales_order_id={original_order_id}&reason=issued`
    → that movement's `inventory_item_id`. No issue movement on record (the
@@ -258,12 +258,14 @@ belongs to the tenant, stated in words, not in a parameter:
    plus line, posted once. The return document's `inspected` state is the
    flow marker; the transfer is the goods fact.
 
-The tenant admin changes this rule by SAYING it — their agent publishes a
-new `sales_return` workflow definition version carrying the sentence
-(`workflows.publish`), and every later receipt follows the new words. Never
-invent a policy the definition does not state, and never park the decision
-in this skill's own text: the definition is where the tenant's words live,
-versioned, so past receipts stay traceable to the rule they followed.
+The tenant admin changes this rule by SAYING it — their agent publishes the
+next version of the `sales_return` linkage rule carrying the sentence
+(`workflows.publish`, `$oryh-business-rules`), and every later receipt follows
+the new words. Never invent a policy the rule does not state, and never park
+the decision in this skill's own text: the rule is where the tenant's words
+live, versioned, so past receipts stay traceable to the rule they followed.
+
+{{include:_common/business-rules.md}}
 
 ## Stock-Take Import
 

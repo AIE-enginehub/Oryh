@@ -92,22 +92,22 @@ the flow's marker.
 
 ## Process
 
-**"Where do the approval rules live?"** In the workflow definition for that
+**"Where do the approval rules live?"** In the `approval_flow` business rule for that
 document family, in the company's own words. The hosted flow agent reads it;
 the server never interprets it.
 
 **"Documents are sitting in submitted and the flow agent is not moving
 them."** Read `GET /workspace/setup-report` → `flow_driving.facts.parked`.
 If the family is listed, the runner parked its subscription after several
-runs that found work and moved nothing — nearly always a workflow definition
+runs that found work and moved nothing — nearly always an approval flow
 that does not say where those documents go. Publishing the next version of
 that family's definition lifts the park by itself; if the definition was
 already right and the cause was elsewhere, `PATCH /flow-subscriptions/{id}`
 with `{"clear_park": true}` (needs `keys.manage`). If nothing is parked,
-check the definition exists (`GET /workflow-definitions?entity_kind=builtin&object_type=…`)
+check the flow is published (`GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=…&status=published`)
 and read the latest `GET /flow-runs` row for that family.
 
 **"Can the system be configured to skip a step?"** There are no switches.
 Whether a workspace picks before shipping, needs a second approver, or bills
-expense claims before paying them is a sentence in a workflow definition or
+expense claims before paying them is a sentence in a `linkage` rule or
 a calibration line in a skill — read by agents, never stored as a flag.

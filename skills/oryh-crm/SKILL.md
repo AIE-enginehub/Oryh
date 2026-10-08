@@ -75,8 +75,8 @@ oryh:
 
 ## Working the pipeline
 
-1. **Requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=lead`
-   (and `=opportunity`) — once per session, in the same wave as the dedup
+1. **Requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=lead&status=published`
+   (and `object_type=opportunity`) — once per session, in the same wave as the dedup
    lookups, never as a separate wait; the defaults below hold unless it says
    otherwise, and a 409 on a status you assumed is the cheap way to learn the
    tenant renamed one. Default lead life:
@@ -172,7 +172,7 @@ An opportunity is more than a title and an estimate once it is real:
   rolodex ($oryh-master-data / the lead's conversion put them there). The
   cast may change after the lines freeze.
 - **Close details on the deal itself**: `probability` (0–100, your read
-  by the workflow definition's stage guidance, never computed by the
+  by the opportunity data rule's stage guidance, never computed by the
   server), `lost_reason` from the `opportunity_lost_reason` options and
   `competitor` when it is lost, `source` for a deal that came without a
   lead. Say the reason out loud before writing `lost`.

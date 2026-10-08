@@ -7,7 +7,7 @@
 ## Reads
 
 ```text
-GET /workflow-definitions?entity_kind=builtin&object_type=sales_order → tenant rules
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_order&status=published  → the data rule; apply it (step 2)
 GET /sales-quotations/{id}/detail                       → the won quotation's lines to mirror
 GET /sales-orders?quotation_id={id}                     → dedupe: one won quote, one order
 GET /sales-orders?employee_id={me}&status=draft         → reuse before create

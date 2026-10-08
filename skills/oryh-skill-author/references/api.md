@@ -12,9 +12,9 @@ Use with:
 ## Read The Tenant's Reality (step 3)
 
 ```text
-GET /auth/me                                   → permissions (need skills.manage; workflows.publish for policy)
+GET /auth/me                                   → permissions (need skills.manage; workflows.publish for a scoped rule)
 GET /object-type-definitions                   → builtin + custom objects, schemas, state machines
-GET /workflow-definitions?entity_kind=&object_type=  → current policy text (active version)
+GET /business-rules?entity_kind=&object_type=&status=published  → the rules in force, every kind
 GET /skills?status=all                         → existing registry (product + custom)
 GET /skills/{name}                             → full files of one skill (house style / revision base)
 GET /capabilities                              → system + custom gates
@@ -113,17 +113,19 @@ narrows rather than falling back to everyone.
 ## Adjacent (only when the requirement lands there)
 
 ```json
-POST /workflow-definitions        // policy — needs workflows.publish; publish-only, no PATCH
+POST /business-rules/publish        // a rule — needs workflows.publish; publish-only, no PATCH
 {
+  "kind": "approval_flow",
   "entity_kind": "builtin",
   "object_type": "sales_quotation",
-  "definition_text": "## Submission requirements\nA quotation must state its validity period……\n[every existing clause from the step-3 GET, carried over verbatim]\n## Routing rules\n……\n[+ the admin's new/changed clause, woven in where it belongs]"
+  "body": "[every existing clause from the step-3 GET of this kind, carried over verbatim]
+[+ the admin's new/changed clause, woven in where it belongs]"
 }
 ```
 
-`definition_text` is the tenant's ENTIRE policy for this object after this
-call, not the delta — see "Amending A Workflow Definition" in SKILL.md. A
-`definition_text` shorter than what step 3's `GET` just returned is almost
+`body` is the tenant's ENTIRE rule of that kind for this object after this
+call, not the delta — see "Amending A Business Rule" in SKILL.md. A
+`body` shorter than what step 3's `GET` just returned is almost
 always a bug, not an intentional simplification; confirm with the admin
 before publishing one.
 

@@ -17,7 +17,7 @@ What makes this side different from receivables:
   an employee *and* paid again to the supplier.
 - **Three-way match is facts, not a verdict.** The server reports ordered vs
   received vs billed per line. Whether a gap is acceptable is read from the
-  workspace's workflow definition — never decided here, and never waved through.
+  workspace's business rules — never decided here, and never waved through.
 - **Paying needs approval; recording does not.** An outbound payment walks
   `draft → submitted → approved → paid`. You file and submit it; someone else
   approves it.
@@ -105,11 +105,12 @@ Plus `ordered_total` / `billed_total` / `unbilled_total` for the document and
 **Read the workspace's rule before judging a gap**:
 
 ```text
-GET /workflow-definitions?entity_kind=builtin&object_type=invoice
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=invoice&status=published
 ```
 
-Tolerances, who signs off on an over-bill, whether freight may exceed the order —
-all of that is the workspace's text, not yours. When the definition is silent
+Tolerances and whether freight may exceed the order are the invoice `data_rule`;
+who signs off on an over-bill is its `approval_flow` — the workspace's text, not
+yours. When the rule is silent
 and the numbers disagree, state the three figures plainly to the principal and
 ask; do not average them into a decision.
 
@@ -134,9 +135,11 @@ them.** Two places, in order:
   admin's own sentence, appended when your bundle was built, so it is
   already here, nothing to fetch ("pay claims directly, no invoice" /
   "always bill first").
-- the claim's workflow definition:
-  `GET /workflow-definitions?entity_kind=builtin&object_type=expense_claim`
-  — what happens after approval is that document's subject.
+- the claim's `linkage` rule:
+  `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=expense_claim&status=published`
+  — what happens after approval is exactly that row's subject.
+
+{{include:_common/business-rules.md}}
 
 When neither says, ask the principal once and say which you used. When they
 disagree, say so and ask — do not pick.
@@ -266,7 +269,7 @@ because the invoice arrived.
 ## What This Skill Never Does
 
 - Decide that a three-way-match gap is acceptable. It reports the facts and
-  applies the workspace's stated rule; silence in the definition means ask.
+  applies the workspace's stated rule; silence in the rule means ask.
 - Approve its own payment, or move a payment past `submitted`.
 - Blank or alter a supplier's invoice number to get past the duplicate check.
 - Touch the purchase order's status or its receiving facts (that is

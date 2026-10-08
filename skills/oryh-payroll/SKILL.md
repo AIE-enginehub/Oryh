@@ -14,7 +14,7 @@ individual income tax, itemised additional deductions, the tax treatment of an
 annual bonus — none of it is stored here and none of it is calculated here. Those are national and local
 policy, they change, and a records layer that quietly applied a rate would be
 inventing policy while looking like arithmetic. **You do the calculation** from
-what you know and from the workspace's own workflow definition, and you record
+what you know and from the workspace's own business rules, and you record
 the result together with how you reached it.
 
 The three facts that follow from that:
@@ -75,7 +75,7 @@ step someone else must take.
 
 Disbursing needs `payment.record`, which is what lets you **create and submit** the
 payout — and deliberately not approve it: moving it past submitted needs
-`payment.advance`, which belongs to whoever the workflow definition names. A
+`payment.advance`, which belongs to whoever the payment approval flow names. A
 403 on `POST /payments` means this key files pay but does not disburse it; hand
 the batch over rather than looking for another credential.
 
@@ -103,7 +103,7 @@ what fits neither (tiered commission, a performance multiplier). At least one
 is required; a `rate`
 without a `basis` is refused, because a proportion with nothing to apply it to
 is half a rule. **The server never parses `formula`** — it is there for you to
-read, exactly like a workflow definition.
+read, exactly like a business rule.
 
 ```json
 POST /pay-histories
@@ -135,7 +135,7 @@ POST /pay-histories
   commission rate, their bonus arrangement, and their social-insurance and
   housing-fund contribution bases (in `custom_fields`, where they inherit the
   same effective dating). What does not:
-  company-wide rules (a workflow definition), and national policy (nowhere —
+  company-wide rules (a policy), and national policy (nowhere —
   you already know it).
 
 Reading: `GET /employees/{employee_id}/pay-history` is one person's whole
@@ -274,7 +274,7 @@ without one applies twice. A repeat with the same key returns `replayed: true`
 and writes nothing.
 
 Whether the batch needs approval before the bank sees it is the workspace's
-decision, in its workflow definition — `the hosted workflow admin agent` runs it,
+decision, in its payment approval flow — `the hosted workflow admin agent` runs it,
 and whoever holds `payment.advance` marks it `paid` once the bank run is done.
 
 ## After it comes back returned
@@ -309,11 +309,11 @@ other.
   had a table.** You compute; you
   record what you computed and how. If you are unsure of a current rate or
   ceiling, **look it up before guessing**:
-  `GET /policies?category=external_standard&in_force_on=2026-07-15` returns the
+  `GET /business-rules?kind=policy&category=external_standard&in_force_on=2026-07-15` returns the
   standard the workspace has recorded for that date, with its `code`, `version`
   and publisher — so the line's working can read
   `contribution base 36921 × 8% (per FIN-2026-03 v1)`. Nothing in force means ask: a
-  confidently wrong deduction is worse than a question, and `$oryh-policy` is
+  confidently wrong deduction is worse than a question, and `$oryh-business-rules` is
   where the answer gets recorded so next month is cheaper.
 - **Put the employer's half on the payslip.** The shipped types are all `_ee`:
   a payslip carries only what is withheld from the person. The employer's own

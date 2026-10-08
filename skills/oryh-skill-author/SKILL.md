@@ -1,6 +1,6 @@
 ---
 name: oryh-skill-author
-description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds ("报销超过5000财务也要审"、"采购先经主管再到采购部") — by publishing or amending the workflow definition, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage.
+description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds ("报销超过5000财务也要审"、"采购先经主管再到采购部") — by publishing or amending the approval flow, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage.
 required_capability: skills.manage
 ---
 
@@ -8,17 +8,20 @@ required_capability: skills.manage
 
 Turn the admin's plain-language process requirement into the right kind of tenant data. This skill is the compiler between "our quotes must first resolve the short and long codes the customer sends, and anything we corrected needs a human to confirm" and a versioned, capability-gated customer workflow skill that every eligible employee's agent receives automatically.
 
-The single most important thing you do is **classify before you write**. Tenant customization lives in three places, and putting content in the wrong one is the main failure mode:
+The single most important thing you do is **classify before you write**. Tenant customization lives in a few places, and putting content in the wrong one is the main failure mode:
 
 | Layer | What belongs there | Where it lives | Changing it |
 |---|---|---|---|
-| **Policy** | Thresholds, routing, submission requirements, approval tiers — *rules agents interpret at use time* | Workflow definition (natural language, versioned) | Publish a new version; zero skill edits; effective immediately |
+| **Approval flow** (`business_rules`, `kind: approval_flow`) | Who approves what, thresholds, approval tiers, when a document is final — *read by the flow agent at use time* | `/business-rules`, natural language, versioned | Publish the next version (`$oryh-business-rules`); zero skill edits; effective immediately |
+| **Data rule** (`kind: data_rule`) | What a document must carry when filed — *read by the submitter's agent while filling, and by the flow agent before the first assignment* | same | same |
+| **Linkage** (`kind: linkage`) | What happens elsewhere when a document reaches a state — a picklist after `confirmed`, a payment todo after `approved` | same | same |
+| **Policy** (`kind: policy`) | The company's standing rules and figures — handbook, expense standard, social-insurance base — keyed by their own code | same | same |
 | **Process contract** | Which API calls, in what order, iron rules, reply formats, hand-offs between roles — *how an agent executes* | Customer workflow skill in the `/skills` registry | Revise the skill; agents pick it up on next sync |
 | **Deterministic capability** | Pricing engines, code/OCR parsers, document templates, anything needing exactness or regression tests | A local tool the agent calls — **code, not prose** | Engineering work; a skill may *reference* the tool, never *be* it |
 | **Calibration** | How a SHIPPED skill should behave here — how much detail to report, which shortcuts to prefer, what this workspace always wants mentioned | `calibration` on the product skill itself | `PATCH /skills/{ref}` with `calibration`; **does not fork it**, so catalog updates keep arriving |
 | **State vocabulary** | What lifecycle states are CALLED here — the initial state's name, the in-flight names, what "approval finished" is called | The builtin `state_machine` on the object-type definition | Edit the machine; rename freely, point the server's `roles` at your names; effective immediately |
 
-A requirement usually decomposes across several of these. "a discount over 10% needs the sales director" is pure policy — it belongs in the workflow definition and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
+A requirement usually decomposes across several of these. "a discount over 10% needs the sales director" is pure rule — the quotation `approval_flow` — and needs **no skill at all**. "after a win, raise the order, allocate an SO number and track logistics through to sign-off" is a process contract — that is a skill. "take the price from the matrix by customer tier, never below cost" is deterministic — tell the admin honestly that this part needs a tool built once by engineering; the skill you write will *call* it, and writing it as prose would turn exact math into LLM guesswork.
 
 {{include:_common/answer-the-question.md}}
 
@@ -68,11 +71,11 @@ Everything else comes from the conversation and from the tenant's own records.
        `sales_order`, and so on), which is where your draft should be composing
        from anyway. Do not infer fields from one sample record; optional ones
        will be missing.
-   - `GET /workflow-definitions?entity_kind=...&object_type=...` — current policy for the objects involved. Never duplicate policy into the skill.
+   - `GET /business-rules?entity_kind=...&object_type=...&status=published` — the rules in force for the objects involved, every kind. Never duplicate a rule into the skill.
    - `GET /skills?status=all` — the existing registry. A near-miss skill means **revise, don't fork**; the product skills (kind=product) show the house style to follow.
    - `GET /capabilities` and `GET /roles` — what gates are available and who holds them today.
-4. **Classify** each part of the requirement per the three-layer table above:
-   - Pure policy → **amend the workflow definition** (see "Amending A Workflow Definition" below), then stop here for that part.
+4. **Classify** each part of the requirement per the table above:
+   - A rule — who approves, what a filing must carry, what follows a state, a company figure → **publish the next version of that rule** (see "Amending A Business Rule" below), then stop here for that part.
    - Process contract → continue to step 5.
    - Deterministic capability → name it explicitly as a tool the company needs built, and design the skill to call it. Never inline it as prose.
 5. **Draft the SKILL.md** following [references/authoring-guide.md](references/authoring-guide.md) exactly: frontmatter contract, naming, section order, iron-rule style, and the base-skill rule — a customer workflow skill *composes* the product skills (`$oryh-quotation-submit`, `$oryh-business-object`, …) and the tenant's objects; it never re-documents core API mechanics the product skills already own.
@@ -141,10 +144,10 @@ Everything else comes from the conversation and from the tenant's own records.
 
    Everything downstream follows with no further edits: documents are created
    in your initial, /submit lands on your word, timestamps stamp on your
-   word, and flow agents finalize in whatever your workflow definition says.
-   Do NOT write state renamings into the workflow definition text alone — the
-   definition is read by agents, but the machine is what the server enforces,
-   and the two must agree.
+   word, and flow agents finalize in whatever your approval flow says.
+   Do NOT write state renamings into a rule's text alone — rules are read by
+   agents, but the machine is what the server enforces, and the two must
+   agree.
 
 6. **Choose `required_capability`** — this is the **floor**: what someone must
    be allowed to do before this skill is safe to hand them. Decide it deliberately:
@@ -182,44 +185,48 @@ Everything else comes from the conversation and from the tenant's own records.
     `blocked_members` names them — they need **both** fixes, and saying only
     one sends the admin back a second time.
 
-## Amending A Workflow Definition (Policy)
+## Amending A Business Rule
 
-`POST /workflow-definitions` is **publish-only** — there is no `PATCH`. Every
-call writes an entirely new version and marks the previous active one
-`superseded`; the server never reads what you send against what was there and
-merges anything for you. **`definition_text` is the complete effective
-document, not a diff.** Whatever you don't include is gone from the tenant's
-rules the moment this version goes active — even if the admin only asked for
-one small change.
+A rule is published, never patched. `POST /business-rules/publish` is
+**publish-only** — there is no `PATCH` on a published row. Every call writes
+an entirely new version and marks the previous published one `superseded`;
+the server never reads what you send against what was there and merges
+anything for you. **`body` is the complete effective text of that rule, not a
+diff.** Whatever you don't include is gone from the tenant's rules the moment
+this version goes active — even if the admin only asked for one small change.
 
 That gap between "the admin said add one line" and "you must supply the whole
-document" is the single most common way this skill causes silent data loss:
-asked to add one clause, it is tempting to draft prose for just that clause
-and publish it — which deletes every other submission requirement and
-routing rule the tenant had, with nothing in the response to say so.
-**Never do that.**
+text" is the single most common way this skill causes silent data loss:
+asked to add one clause, it is tempted to draft prose for just that clause
+and publish it — which deletes every other routing rule the tenant had, with
+nothing in the response to say so. **Never do that.**
 
 **Default behavior is amend, not rewrite:**
 
-1. You already have the current active text from step 3's read. Start from
-   it verbatim.
+1. You already have the version in force from step 3's read. Start from it
+   verbatim — the one row of the right `kind`: a threshold change is the
+   `approval_flow`, a new filing condition the `data_rule`, a new consequence
+   the `linkage`.
 2. Weave the admin's requested change into it — add the new clause, adjust
    the one threshold that changed, whatever was actually asked for.
 3. Carry every other clause forward **unedited**. Do not paraphrase, do not
    "clean up" wording, do not drop a rule because it looks superseded by the
    new one unless the admin said so.
-4. Publish that complete document as the new version.
+4. Publish that complete text as the new version of that one rule.
 
 **Full rewrite is the exception**, only when the admin explicitly asks for
 one — "rewrite this", "drop the old ones", "replace the whole thing" and the like. Even then,
-read the current text back to them before erasing someone else's policy.
+read the current text back to them before erasing someone else's rule.
 
-**The step-7 read-back must be a diff for policy edits, not just a preview.**
+**The step-7 read-back must be a diff for rule edits, not just a preview.**
 Show three things side by side: what's new, what changed (old value → new
 value), and — the one that catches this bug — **what would be removed**. If
 that third list is non-empty and the admin never asked to remove anything,
-stop and ask before publishing. A policy document that got shorter is the
-symptom, not the goal.
+stop and ask before publishing. A rule that got shorter is the
+symptom, not the goal. The console's publish drawer shows the same removal
+list; `$oryh-business-rules` carries the full procedure, including how to
+split a pre-2026-10 definition that still answers all three questions in one
+text.
 
 ## Who The Skill Is For (Audience)
 
@@ -260,7 +267,7 @@ a skill they quietly stopped receiving. Never flip `distribution_mode` to
 `targeted` without telling the admin how many people that removes it from.
 
 **Add and remove one subject at a time.** There is no whole-list replace, on
-purpose — the same reason a workflow definition must be amended rather than
+purpose — the same reason a business rule must be amended rather than
 redrafted: a replace lets "add one person" turn into "keep only that person".
 
 **`targeted` with an empty audience reaches nobody.** That is a real state,
@@ -269,7 +276,7 @@ not a fallback to everyone — emptying an audience narrows.
 ## Iron Rules
 
 - **Never invent an endpoint, object type, field, or capability.** Everything the skill references must exist in step 3's reads, or be created first through its own proper path.
-- **Never inline policy.** Thresholds and routing live in the workflow definition; the skill says "read the definition and apply it", never "the limit is 5000".
+- **Never inline a rule.** Thresholds and routing live in the workspace's business rules; the skill says "read the rule and apply it", never "the limit is 5000".
 - **Never use the audience to work around a missing capability.** Audience narrows what the capability already permits; it cannot grant. Someone named but unpermitted simply never receives the skill.
 - **Never inline determinism.** If a step needs exact computation or exact parsing, the skill names the tool and its contract; prose that "explains the algorithm" to an LLM is a bug, not a feature.
 - **Never publish without the step-7 read-back.**

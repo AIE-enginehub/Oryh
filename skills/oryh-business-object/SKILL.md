@@ -1,14 +1,14 @@
 ---
 name: oryh-business-object
-description: Use to record, update, query or relate ANY tenant-defined object in oryh (warranty cards, daily reports, service requests…) by reading its object-type and workflow definitions at use time. One skill for every custom type. Facts only; routing and approval belong to the flow and approve skills.
+description: Use to record, update, query or relate ANY tenant-defined object in oryh (warranty cards, daily reports, service requests…) by reading its object-type definition and business rules at use time. One skill for every custom type. Facts only; routing and approval belong to the flow and approve skills.
 required_capability: business_object.write
 ---
 
 # Oryh Business Object
 
-Store tenant-specific business facts when the object is not a built-in module (timesheets, bookings). oryh records objects, links, and facts; workflow definitions and the flow admin own the process around them.
+Store tenant-specific business facts when the object is not a built-in module (timesheets, bookings). oryh records objects, links, and facts; the workspace's business rules and the flow admin own the process around them.
 
-**One skill, every custom type.** What makes a `daily_report` different from a `warranty_card` is tenant data — the object-type definition (fields + lifecycle) and the workflow definition (what a valid submission contains) — both read fresh at use time (rules 1 and 2). A tenant writes a dedicated customer skill for an object type only when the *process* exceeds what reading those definitions can express (e.g. a correction-confirm gate over dirty input, fixed customer-facing wording); the mere existence of a new object type never justifies a new skill.
+**One skill, every custom type.** What makes a `daily_report` different from a `warranty_card` is tenant data — the object-type definition (fields + lifecycle) and the business rules (what a valid submission contains) — both read fresh at use time (rules 1 and 2). A tenant writes a dedicated customer skill for an object type only when the *process* exceeds what reading those definitions can express (e.g. a correction-confirm gate over dirty input, fixed customer-facing wording); the mere existence of a new object type never justifies a new skill.
 
 {{include:_common/answer-the-question.md}}
 
@@ -66,12 +66,16 @@ The rest is business context from the conversation or the calling customer skill
    rows nothing merges them back. If they confirm it genuinely means something
    else in this company, name it after what makes it different.
 1. **Check the type definition first** — in ONE wave with rule 2; and for a plain field edit on an existing object, rule 1 alone (the schema) is all a write needs: `GET /object-type-definitions?object_type=<type>` — if it exists, the payload must conform to its JSON Schema (422 with the failing path otherwise) and status changes obey its state machine. Types without a definition are free-form with the default status set.
-2. **Read the tenant's submission requirements**: `GET /workflow-definitions?entity_kind=business_object&object_type=<type>` — the active definition's submission requirements (required evidence, numbering conventions, who reviews) shapes the conversation before you write; the flow admin calibrates against the same text, so a requirement skipped here is a guaranteed rework round. No definition → only the schema applies; never invent requirements.
+2. **Read the tenant's data rule**: `GET /business-rules?kind=data_rule&entity_kind=business_object&object_type=<type>&status=published` — what a record of this type must carry (required evidence, numbering conventions) shapes the conversation before you write; the flow admin calibrates against the same text, so a requirement skipped here is a guaranteed rework round. No data rule → only the schema applies; never invent requirements. (A workspace that published before the kinds existed carries its requirements as a "submission requirements" section inside its `approval_flow` rule, its heading possibly in the workspace's own language — read that section and nothing else of it.)
+
+
 3. **Payload is a full replacement on PATCH**: read the object, merge changes in the agent, send the complete payload. Sending only changed keys deletes the rest.
 4. **Statuses are the coarse lifecycle, not workflow position.** Do not advance `status` from this skill — that requires `business_object.advance` (flow admin / admin credential). While an approval flow runs, the object's status does not move; progress lives in approval records and todos.
 5. **Scoped permissions**: the credential may be limited to specific object types (`business_object.write:<type>`); a 403 names the missing capability — do not retry with another type to "work around" it.
 6. **Dedupe on retries**: list candidates by `object_type` + `payload_match` before creating again.
 7. **Preserve raw language** in `source_text`; attribution (`created_by`) is filled server-side for user credentials.
+
+{{include:_common/business-rules.md}}
 
 ## Core Operations
 
@@ -85,7 +89,7 @@ The rest is business context from the conversation or the calling customer skill
 
 This skill only creates the record. Then:
 
-- the **flow admin** discovers it (work queue: `status=in_review&without_open_todo=true`), reads the tenant's workflow definition for this `object_type`, and assigns approver todos
+- the **flow admin** discovers it (work queue: `status=in_review&without_open_todo=true`), reads the tenant's `approval_flow` rule for this `object_type`, and assigns approver todos
 - an **approver's agent** records one fact (`POST /approval-records`, needs `approval.record`) and completes its own todo
 - the **flow admin** finalizes the status
 
@@ -93,4 +97,4 @@ If your credential happens to hold `approval.record` and the calling skill instr
 
 ## Reference
 
-- [references/api.md](references/api.md): endpoints, templates, definitions/state-machine/workflow contracts, coordination queries.
+- [references/api.md](references/api.md): endpoints, templates, definitions/state-machine/business-rule contracts, coordination queries.

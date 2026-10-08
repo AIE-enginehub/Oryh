@@ -138,7 +138,7 @@ someone the workspace deliberately named. See payroll.
 |---|---|
 | "We just deployed — where do I start?" | `oryh-workspace-setup` |
 | "Let Xie Ting place purchase orders" | `oryh-access-admin` |
-| Write, publish, amend or repeal a company rule | `oryh-policy` |
+| Write, publish, amend or repeal a company rule — a policy, an approval flow, a data rule, a linkage | `oryh-business-rules` |
 | Load or maintain master data | `oryh-master-data` |
 | Turn a process requirement into workspace configuration | `oryh-skill-author` |
 | Bulk-import history from an old system | `oryh-data-migration` |
@@ -158,8 +158,8 @@ usually a sentence to an agent rather than a project:
 
 > "Call the post-approval invoice state `approved`, not `issued`."
 
-Those land on three different knobs — a skill's calibration, the workflow
-definition, the lifecycle machine — and an administrator's agent knows which.
+Those land on three different knobs — a skill's calibration, the approval
+flow, the lifecycle machine — and an administrator's agent knows which.
 All three take effect immediately, for everyone, with no fork and no deploy.
 Agents pick the change up on their next session and are told what changed.
 

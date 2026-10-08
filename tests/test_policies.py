@@ -50,11 +50,11 @@ def draft(client: TestClient, expect: int = 201, **overrides) -> dict:
         "body": "# 员工手册\n\n第一条 ……",
     }
     body.update(overrides)
-    return post(client, "/api/v1/policies", body, expect=expect)
+    return post(client, "/api/v1/business-rules", {"kind": "policy", **body}, expect=expect)
 
 
 def publish(client: TestClient, policy_id: str, expect: int = 200, **body) -> dict:
-    response = client.post(f"/api/v1/policies/{policy_id}/publish", json=body, headers=HEADERS)
+    response = client.post(f"/api/v1/business-rules/{policy_id}/publish", json=body, headers=HEADERS)
     assert response.status_code == expect, response.text
     return response.json()["data"] if expect < 400 else response.json()
 
@@ -98,7 +98,7 @@ def test_what_applied_in_march_is_answerable(client: TestClient) -> None:
     publish(client, second["id"], effective_from="2026-07-01")
 
     def in_force(on: str) -> list[int]:
-        rows = client.get(f"/api/v1/policies?in_force_on={on}", headers=HEADERS).json()["data"]
+        rows = client.get(f"/api/v1/business-rules?in_force_on={on}", headers=HEADERS).json()["data"]
         return [row["version"] for row in rows]
 
     assert in_force("2026-03-15") == [1]
@@ -141,17 +141,17 @@ def test_a_published_policy_is_not_edited_in_place(client: TestClient) -> None:
     publish(client, made["id"])
 
     response = client.patch(
-        f"/api/v1/policies/{made['id']}", json={"body": "偷偷改一句"}, headers=HEADERS
+        f"/api/v1/business-rules/{made['id']}", json={"body": "偷偷改一句"}, headers=HEADERS
     )
     assert response.status_code == 409
     assert "new version" in response.json()["detail"]
 
     # ...and it is repealed rather than deleted, because people acted on it
-    deleted = client.delete(f"/api/v1/policies/{made['id']}", headers=HEADERS)
+    deleted = client.delete(f"/api/v1/business-rules/{made['id']}", headers=HEADERS)
     assert deleted.status_code == 409
     assert "repeal" in deleted.json()["detail"]
 
-    repealed = post(client, f"/api/v1/policies/{made['id']}/repeal",
+    repealed = post(client, f"/api/v1/business-rules/{made['id']}/repeal",
                     {"effective_thru": "2026-12-31"}, expect=200)
     assert repealed["status"] == "repealed"
     assert repealed["effective_thru"] == "2026-12-31"
@@ -169,17 +169,17 @@ def test_repealing_a_superseded_version_would_punch_a_hole(client: TestClient) -
     second = draft(client, title="v2", body="v2")
     publish(client, second["id"], effective_from="2026-07-01")
 
-    refused = post(client, f"/api/v1/policies/{first['id']}/repeal",
+    refused = post(client, f"/api/v1/business-rules/{first['id']}/repeal",
                    {"effective_thru": "2026-03-31"}, expect=409)
     assert "gap in the history" in refused["detail"]
 
     # the handover date is untouched, so every month still has a governing version
     for on, version in (("2026-03-15", 1), ("2026-06-30", 1), ("2026-07-01", 2)):
-        rows = client.get(f"/api/v1/policies?in_force_on={on}", headers=HEADERS).json()["data"]
+        rows = client.get(f"/api/v1/business-rules?in_force_on={on}", headers=HEADERS).json()["data"]
         assert [row["version"] for row in rows] == [version], on
 
     # ...and repealing the CURRENT version is still the ordinary case
-    repealed = post(client, f"/api/v1/policies/{second['id']}/repeal",
+    repealed = post(client, f"/api/v1/business-rules/{second['id']}/repeal",
                     {"effective_thru": "2026-12-31"}, expect=200)
     assert repealed["status"] == "repealed"
 
@@ -187,11 +187,11 @@ def test_repealing_a_superseded_version_would_punch_a_hole(client: TestClient) -
 def test_a_draft_is_still_editable_and_deletable(client: TestClient) -> None:
     made = draft(client)
     edited = client.patch(
-        f"/api/v1/policies/{made['id']}", json={"title": "员工手册（草案）"}, headers=HEADERS
+        f"/api/v1/business-rules/{made['id']}", json={"title": "员工手册（草案）"}, headers=HEADERS
     )
     assert edited.status_code == 200
     assert edited.json()["data"]["title"] == "员工手册（草案）"
-    assert client.delete(f"/api/v1/policies/{made['id']}", headers=HEADERS).status_code == 204
+    assert client.delete(f"/api/v1/business-rules/{made['id']}", headers=HEADERS).status_code == 204
 
 
 def test_a_restricted_policy_must_name_who_may_read_it(client: TestClient) -> None:
@@ -221,7 +221,29 @@ def _audit_policy_checks() -> list[tuple[str, str]]:
     # along with it — slicing at STRUCTURAL_CHECKS would leave them undefined
     namespace: dict = {"__file__": str(source)}
     exec(text[: text.index("def main()")], namespace)
-    return [(name, sql) for name, sql in namespace["STRUCTURAL_CHECKS"] if "policies" in sql]
+    return [(name, sql) for name, sql in namespace["STRUCTURAL_CHECKS"] if "business_rules" in sql]
+
+
+def test_repealing_the_current_version_while_the_next_is_a_draft_is_ordinary(client: TestClient) -> None:
+    """The audit's "only the newest version is repealed" once counted a DRAFT
+    as a newer version, so this legal sequence read as a hole in the history."""
+    from sqlalchemy import text as sql_text
+
+    from app.db.session import get_db
+    from app.main import app
+
+    first = draft(client)
+    publish(client, first["id"], effective_from="2026-01-01")
+    draft(client, title="v2 in the making", body="v2")
+    repealed = post(client, f"/api/v1/business-rules/{first['id']}/repeal",
+                    {"effective_thru": "2026-09-30"}, expect=200)
+    assert repealed["status"] == "repealed"
+    newest = next(sql for name, sql in _audit_policy_checks() if "newest version" in name)
+    db = next(app.dependency_overrides[get_db]())
+    try:
+        assert db.execute(sql_text(newest)).scalar() == 0
+    finally:
+        db.close()
 
 
 def test_the_integrity_audits_policy_invariants_hold_on_real_policies(client: TestClient) -> None:
@@ -250,7 +272,7 @@ def test_the_integrity_audits_policy_invariants_hold_on_real_policies(client: Te
 
     old = draft(client, code="FIN-OLD", category="expense", title="旧差旅标准")
     publish(client, old["id"], effective_from="2025-01-01")
-    post(client, f"/api/v1/policies/{old['id']}/repeal", {"effective_thru": "2025-12-31"},
+    post(client, f"/api/v1/business-rules/{old['id']}/repeal", {"effective_thru": "2025-12-31"},
          expect=200)
 
     checks = _audit_policy_checks()
@@ -259,7 +281,7 @@ def test_the_integrity_audits_policy_invariants_hold_on_real_policies(client: Te
 
     db = next(app.dependency_overrides[get_db]())
     try:
-        assert db.execute(sql_text("select count(*) from policies")).scalar() == 5
+        assert db.execute(sql_text("select count(*) from business_rules")).scalar() == 5
         for name, sql in checks:
             offending = db.execute(sql_text(sql)).scalar()
             assert offending == 0, f"{name}: {offending} offending rows"
@@ -271,7 +293,7 @@ def test_the_integrity_audits_policy_invariants_hold_on_real_policies(client: Te
         newest = next(sql for name, sql in checks if "newest version" in name)
         assert db.execute(sql_text(newest)).scalar() == 0
         db.execute(sql_text(
-            "update policies set status = 'repealed' where code = :c and version = 1"),
+            "update business_rules set status = 'repealed' where code = :c and version = 1"),
             {"c": "HR-001"})
         assert db.execute(sql_text(newest)).scalar() == 1, (
             "a repealed superseded version went unnoticed"
@@ -299,7 +321,7 @@ def test_rules_json_rides_the_policy_it_restates(client: TestClient) -> None:
 
     # frozen with the body, by the same guard — no separate freeze to forget
     refused = client.patch(
-        f"/api/v1/policies/{made['id']}",
+        f"/api/v1/business-rules/{made['id']}",
         json={"rules_json": {"social_insurance": {"base": {"cap": 1}}}}, headers=HEADERS,
     )
     assert refused.status_code == 409
@@ -314,7 +336,7 @@ def test_rules_json_rides_the_policy_it_restates(client: TestClient) -> None:
 
     def cap_on(on: str) -> int:
         rows = client.get(
-            f"/api/v1/policies?code=FIN-2026-03&in_force_on={on}", headers=HEADERS
+            f"/api/v1/business-rules?code=FIN-2026-03&in_force_on={on}", headers=HEADERS
         ).json()["data"]
         assert len(rows) == 1, on
         return rows[0]["rules_json"]["social_insurance"]["base"]["cap"]

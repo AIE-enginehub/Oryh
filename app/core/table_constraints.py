@@ -79,8 +79,11 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
         "approved", "pending_email", "pending_review", "rejected",
     ),
     ("platform_admins", "status"): ("active", "disabled"),
-    ("policies", "status"): ("draft", "published", "repealed", "superseded"),
-    ("policies", "visibility"): ("internal", "public", "restricted"),
+    ("business_rules", "entity_kind"): ("builtin", "business_object"),
+    ("business_rules", "kind"): ("approval_flow", "data_rule", "linkage", "policy"),
+    ("business_rules", "origin"): ("catalog", "tenant"),
+    ("business_rules", "status"): ("draft", "published", "repealed", "superseded"),
+    ("business_rules", "visibility"): ("internal", "public", "restricted"),
     ("product_categories", "status"): ("active", "archived"),
     ("product_skus", "status"): ("active", "archived"),
     ("products", "product_type"): (
@@ -117,8 +120,6 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("todos", "status"): ("cancelled", "completed", "open"),
     ("users", "status"): ("active", "disabled", "invited"),
     ("vendors", "status"): ("active", "archived"),
-    ("workflow_definitions", "entity_kind"): ("builtin", "business_object"),
-    ("workflow_definitions", "status"): ("active", "superseded"),
 }
 
 # Three constraints predate the `_chk` convention and are named `_ck` in the
@@ -127,8 +128,10 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
 # migration on every environment.
 CONSTRAINT_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("billing_accounts", "unit_type"): "billing_accounts_unit_type_ck",
-    ("policies", "status"): "policies_status_ck",
-    ("policies", "visibility"): "policies_visibility_ck",
+    # `policies` became `business_rules` (20261006_0097); the rename kept the
+    # constraint names, which is what an error message prints
+    ("business_rules", "status"): "policies_status_ck",
+    ("business_rules", "visibility"): "policies_visibility_ck",
 }
 
 
@@ -184,9 +187,11 @@ TABLE_INVARIANTS: dict[str, tuple[str, str]] = {
     "pay_histories_states_something_ck": ("pay_histories", "(amount IS NOT NULL) OR (rate IS NOT NULL) OR (formula IS NOT NULL)"),
     "payment_applications_item_needs_invoice_ck": ("payment_applications", "(invoice_item_id IS NULL) OR (invoice_id IS NOT NULL)"),
     "payments_amount_positive_ck": ("payments", "amount > 0"),
-    "policies_effective_period_ck": ("policies", "(effective_thru IS NULL) OR (effective_from IS NULL) OR (effective_thru >= effective_from)"),
-    "policies_published_attribution_ck": ("policies", "(status <> 'published') OR ((published_at IS NOT NULL) AND (published_by IS NOT NULL))"),
-    "policies_restricted_needs_capability_ck": ("policies", "(visibility <> 'restricted') OR (required_capability IS NOT NULL)"),
+    "policies_effective_period_ck": ("business_rules", "(effective_thru IS NULL) OR (effective_from IS NULL) OR (effective_thru >= effective_from)"),
+    "policies_published_attribution_ck": ("business_rules", "(status <> 'published') OR ((published_at IS NOT NULL) AND (published_by IS NOT NULL))"),
+    "policies_restricted_needs_capability_ck": ("business_rules", "(visibility <> 'restricted') OR (required_capability IS NOT NULL)"),
+    "business_rules_scope_ck": ("business_rules", "(kind = 'policy') OR ((entity_kind IS NOT NULL) AND (object_type IS NOT NULL) AND (name IS NOT NULL))"),
+    "business_rules_category_ck": ("business_rules", "(kind <> 'policy') OR (category IS NOT NULL)"),
     "product_skus_list_price_chk": ("product_skus", "(list_price IS NULL) OR (list_price >= 0)"),
     "products_list_price_chk": ("products", "(list_price IS NULL) OR (list_price >= 0)"),
     "projects_date_chk": ("projects", "(end_date IS NULL) OR (start_date IS NULL) OR (end_date >= start_date)"),
@@ -213,7 +218,6 @@ TABLE_INVARIANTS: dict[str, tuple[str, str]] = {
     "tenant_skills_version_chk": ("tenant_skills", "version >= 1"),
     "timesheet_entries_hours_chk": ("timesheet_entries", "(hours > 0) AND (hours <= 24)"),
     "timesheet_headers_period_chk": ("timesheet_headers", "period_end >= period_start"),
-    "workflow_definitions_version_chk": ("workflow_definitions", "version >= 1"),
 }
 
 

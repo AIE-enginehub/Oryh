@@ -92,7 +92,7 @@ POST /capabilities
 
 **A custom capability takes effect in exactly two places**: the
 `required_capability` gate on skill distribution, and routing decisions in a
-workflow definition. **The core server API never checks it** — do not expect it
+approval flow. **The core server API never checks it** — do not expect it
 to gate an endpoint.
 
 - name collides with a system capability → 409

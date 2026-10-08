@@ -15,7 +15,7 @@ three weeks later to notice.
   "round_no": 1, "sequence_no": 2,
   "action": "returned",
   "approver_role": "workflow-admin",
-  "comment": "why it is being returned, in the definition's own words",
+  "comment": "why it is being returned, in the rule's own words",
   "document_status": "returned",
   "handoff": {
     "employee_id": "…",

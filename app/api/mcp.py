@@ -39,7 +39,7 @@ from app.services.bundles import (
     service_permissions,
     tenant_slug,
 )
-from app.services.bundles import render_content
+from app.services.bundles import calibration_section, render_content
 from app.services.delivery import for_delivery
 
 router = APIRouter(include_in_schema=False)
@@ -357,7 +357,8 @@ async def _handle(request: Request, db: Session, actor: Actor, message: dict) ->
         skill = next((s for s in _skills(db, actor) if s.name == name), None)
         if skill is None:
             return _err(request_id, -32602, f"no skill {name!r} reaches this credential")
-        text = _render(skill.files_jsonb.get("SKILL.md", ""), _render_context(db, actor))
+        # the workspace's own refinement rides the prompt exactly as it rides a bundle
+        text = _render(skill.files_jsonb.get("SKILL.md", "") + calibration_section(skill.calibration), _render_context(db, actor))
         return _ok(request_id, {
             "description": skill.description or skill.title or skill.name,
             "messages": [{"role": "user", "content": {"type": "text", "text": text}}],

@@ -50,10 +50,10 @@ def workspace() -> Generator[dict, None, None]:
         def make(code: str, title: str, category: str, publish: bool = True, **extra) -> dict:
             body = {"code": code, "category": category, "title": title, "body": f"# {title}"}
             body.update(extra)
-            made = client.post("/api/v1/policies", json=body, headers=hr).json()["data"]
+            made = client.post("/api/v1/business-rules", json={"kind": "policy", **body}, headers=hr).json()["data"]
             if publish:
                 made = client.post(
-                    f"/api/v1/policies/{made['id']}/publish",
+                    f"/api/v1/business-rules/{made['id']}/publish",
                     json={"effective_from": "2026-01-01"}, headers=hr,
                 ).json()["data"]["current"]
             return made
@@ -66,7 +66,7 @@ def workspace() -> Generator[dict, None, None]:
                          rules_json={"bonus": {"pool_rate": 0.15}})
         layoffs = make("HR-900", "组织调整方案", "hr", publish=False)
         repealed = make("FIN-OLD", "旧差旅标准", "expense")
-        client.post(f"/api/v1/policies/{repealed['id']}/repeal", json={}, headers=hr)
+        client.post(f"/api/v1/business-rules/{repealed['id']}/repeal", json={}, headers=hr)
 
         yield {
             "client": client, "hr": hr, "manager": manager, "staff": staff,
@@ -76,7 +76,7 @@ def workspace() -> Generator[dict, None, None]:
 
 
 def codes(client: TestClient, headers: dict) -> set[str]:
-    return {row["code"] for row in client.get("/api/v1/policies", headers=headers).json()["data"]}
+    return {row["code"] for row in client.get("/api/v1/business-rules?kind=policy", headers=headers).json()["data"]}
 
 
 def test_the_handbook_is_readable_without_any_capability(workspace: dict) -> None:
@@ -84,7 +84,7 @@ def test_the_handbook_is_readable_without_any_capability(workspace: dict) -> Non
     becomes unreadable is just as broken as one that leaks the salary policy."""
     client, staff = workspace["client"], workspace["staff"]
     assert "HR-001" in codes(client, staff)
-    detail = client.get(f"/api/v1/policies/{workspace['handbook']['id']}", headers=staff)
+    detail = client.get(f"/api/v1/business-rules/{workspace['handbook']['id']}", headers=staff)
     assert detail.status_code == 200
     assert detail.json()["data"]["body"].startswith("# 员工手册")
 
@@ -96,10 +96,10 @@ def test_a_restricted_policy_needs_the_capability_it_names(workspace: dict) -> N
 
     # 404 rather than 403 — that a 薪酬管理办法 exists is part of what it hides
     assert client.get(
-        f"/api/v1/policies/{workspace['pay_rules']['id']}", headers=workspace["staff"]
+        f"/api/v1/business-rules/{workspace['pay_rules']['id']}", headers=workspace["staff"]
     ).status_code == 404
     assert client.get(
-        f"/api/v1/policies/{workspace['pay_rules']['id']}", headers=workspace["manager"]
+        f"/api/v1/business-rules/{workspace['pay_rules']['id']}", headers=workspace["manager"]
     ).status_code == 200
 
 
@@ -109,7 +109,7 @@ def test_a_draft_is_invisible_to_everyone_but_its_authors(workspace: dict) -> No
     for headers in (workspace["staff"], workspace["manager"]):
         assert "HR-900" not in codes(client, headers)
         assert client.get(
-            f"/api/v1/policies/{workspace['layoffs']['id']}", headers=headers
+            f"/api/v1/business-rules/{workspace['layoffs']['id']}", headers=headers
         ).status_code == 404
     assert "HR-900" in codes(client, workspace["hr"])
 
@@ -123,6 +123,19 @@ def test_a_repealed_policy_leaves_the_handbook(workspace: dict) -> None:
     assert "FIN-OLD" in codes(client, workspace["hr"])
 
 
+def test_what_governed_a_date_is_readable_by_whoever_could_read_it_then(workspace: dict) -> None:
+    """"What were the rules in March" is an employee's question too. A repealed
+    policy answers the date question and is fetchable by id — it is only the
+    default list, the handbook of what applies now, that it has left."""
+    client, staff = workspace["client"], workspace["staff"]
+    # repealed today (effective_thru defaulted to today), so it governed January
+    then = client.get("/api/v1/business-rules?in_force_on=2026-01-15", headers=staff).json()["data"]
+    assert "FIN-OLD" in {row["code"] for row in then}
+    assert client.get(f"/api/v1/business-rules/{workspace['repealed']['id']}", headers=staff).status_code == 200
+    # a draft stays the authors' alone, on any read
+    assert client.get(f"/api/v1/business-rules/{workspace['layoffs']['id']}", headers=staff).status_code == 404
+
+
 def test_the_figures_are_gated_with_the_document_that_carries_them(workspace: dict) -> None:
     """`rules_json` rides the policy row, so there is no separate surface to
     gate — and no way to read a restricted 薪酬管理办法 one number at a time,
@@ -132,7 +145,7 @@ def test_the_figures_are_gated_with_the_document_that_carries_them(workspace: di
     def rules_seen(headers: dict) -> dict:
         return {
             row["code"]: row.get("rules_json")
-            for row in client.get("/api/v1/policies", headers=headers).json()["data"]
+            for row in client.get("/api/v1/business-rules?kind=policy", headers=headers).json()["data"]
         }
 
     staff = rules_seen(workspace["staff"])
@@ -147,7 +160,7 @@ def test_the_count_is_filtered_not_just_the_rows(workspace: dict) -> None:
     client = workspace["client"]
 
     def total(headers: dict) -> int:
-        body = client.get("/api/v1/policies?page=1&size=1", headers=headers).json()
+        body = client.get("/api/v1/business-rules?kind=policy&page=1&size=1", headers=headers).json()
         return body["meta"]["total"]
 
     assert total(workspace["hr"]) == 4          # handbook, pay, draft, repealed
@@ -158,8 +171,8 @@ def test_the_count_is_filtered_not_just_the_rows(workspace: dict) -> None:
 def test_writing_a_policy_needs_the_capability(workspace: dict) -> None:
     client, staff = workspace["client"], workspace["staff"]
     refused = client.post(
-        "/api/v1/policies",
-        json={"code": "X-1", "category": "hr", "title": "自封的制度", "body": "x"},
+        "/api/v1/business-rules",
+        json={"kind": "policy", "code": "X-1", "category": "hr", "title": "自封的制度", "body": "x"},
         headers=staff,
     )
     assert refused.status_code == 403
@@ -167,12 +180,12 @@ def test_writing_a_policy_needs_the_capability(workspace: dict) -> None:
 
     # and publishing is a separate grant from drafting
     made = client.post(
-        "/api/v1/policies",
-        json={"code": "X-2", "category": "hr", "title": "草稿", "body": "x"},
+        "/api/v1/business-rules",
+        json={"kind": "policy", "code": "X-2", "category": "hr", "title": "草稿", "body": "x"},
         headers=workspace["hr"],
     ).json()["data"]
     assert client.post(
-        f"/api/v1/policies/{made['id']}/publish", json={}, headers=staff
+        f"/api/v1/business-rules/{made['id']}/publish", json={}, headers=staff
     ).status_code == 403
 
 
@@ -188,7 +201,7 @@ def test_a_published_policy_can_be_closed_without_being_repealed(workspace: dict
 
     # the edit is still refused, and now says where to go instead
     frozen = client.patch(
-        f"/api/v1/policies/{handbook['id']}",
+        f"/api/v1/business-rules/{handbook['id']}",
         json={"visibility": "restricted", "required_capability": "payroll.read"},
         headers=hr,
     )
@@ -196,7 +209,7 @@ def test_a_published_policy_can_be_closed_without_being_repealed(workspace: dict
     assert "/visibility" in frozen.json()["detail"]
 
     rescoped = client.post(
-        f"/api/v1/policies/{handbook['id']}/visibility",
+        f"/api/v1/business-rules/{handbook['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read",
               "note": "含调薪区间，误发全员"},
         headers=hr,
@@ -216,13 +229,13 @@ def test_rescoping_never_touches_what_the_rule_says(workspace: dict) -> None:
     different name."""
     client, hr = workspace["client"], workspace["hr"]
     handbook = workspace["handbook"]
-    before = client.get(f"/api/v1/policies/{handbook['id']}", headers=hr).json()["data"]
+    before = client.get(f"/api/v1/business-rules/{handbook['id']}", headers=hr).json()["data"]
 
     client.post(
-        f"/api/v1/policies/{handbook['id']}/visibility",
+        f"/api/v1/business-rules/{handbook['id']}/visibility",
         json={"visibility": "public"}, headers=hr,
     )
-    after = client.get(f"/api/v1/policies/{handbook['id']}", headers=hr).json()["data"]
+    after = client.get(f"/api/v1/business-rules/{handbook['id']}", headers=hr).json()["data"]
 
     for field in ("code", "version", "title", "body", "rules_json",
                   "effective_from", "effective_thru", "published_at", "status"):
@@ -235,24 +248,24 @@ def test_a_superseded_version_is_closable_after_the_fact(workspace: dict) -> Non
     closable once somebody notices."""
     client, hr, staff = workspace["client"], workspace["hr"], workspace["staff"]
     v2 = client.post(
-        "/api/v1/policies",
-        json={"code": "HR-001", "category": "hr", "title": "员工手册 v2", "body": "# v2"},
+        "/api/v1/business-rules",
+        json={"kind": "policy", "code": "HR-001", "category": "hr", "title": "员工手册 v2", "body": "# v2"},
         headers=hr,
     ).json()["data"]
-    client.post(f"/api/v1/policies/{v2['id']}/publish",
+    client.post(f"/api/v1/business-rules/{v2['id']}/publish",
                 json={"effective_from": "2026-06-01"}, headers=hr)
 
-    old = client.get(f"/api/v1/policies/{workspace['handbook']['id']}", headers=hr).json()["data"]
+    old = client.get(f"/api/v1/business-rules/{workspace['handbook']['id']}", headers=hr).json()["data"]
     assert old["status"] == "superseded"
 
     closed = client.post(
-        f"/api/v1/policies/{old['id']}/visibility",
+        f"/api/v1/business-rules/{old['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read"},
         headers=hr,
     )
     assert closed.status_code == 200, closed.text
     visible = {
-        row["id"] for row in client.get("/api/v1/policies?status=superseded",
+        row["id"] for row in client.get("/api/v1/business-rules?status=superseded",
                                         headers=staff).json()["data"]
     }
     assert old["id"] not in visible
@@ -269,14 +282,14 @@ def test_rescoping_is_a_publisher_act_and_is_audited(workspace: dict) -> None:
     drafter = dict(invite_member(client, hr, "drafter", ["policy.manage"], email="drafter@rule-co.com"))
 
     refused = client.post(
-        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        f"/api/v1/business-rules/{workspace['handbook']['id']}/visibility",
         json={"visibility": "public"}, headers=drafter,
     )
     assert refused.status_code == 403
     assert "policy.publish" in refused.json()["detail"]
 
     client.post(
-        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        f"/api/v1/business-rules/{workspace['handbook']['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read",
               "note": "误发全员"},
         headers=hr,
@@ -295,7 +308,7 @@ def test_a_restricted_rescope_must_still_name_its_capability(workspace: dict) ->
     readable by everyone, which is the opposite of what it says."""
     client, hr = workspace["client"], workspace["hr"]
     bad = client.post(
-        f"/api/v1/policies/{workspace['handbook']['id']}/visibility",
+        f"/api/v1/business-rules/{workspace['handbook']['id']}/visibility",
         json={"visibility": "restricted"}, headers=hr,
     )
     assert bad.status_code == 422
@@ -315,15 +328,15 @@ def test_every_policy_lifecycle_act_leaves_a_trail(workspace: dict) -> None:
     client, hr = workspace["client"], workspace["hr"]
 
     drafted = client.post(
-        "/api/v1/policies",
+        "/api/v1/business-rules",
         json={"code": "AUD-1", "category": "hr", "title": "审计用", "body": "# t"},
         headers=hr,
     ).json()["data"]
-    client.post(f"/api/v1/policies/{drafted['id']}/publish",
+    client.post(f"/api/v1/business-rules/{drafted['id']}/publish",
                 json={"effective_from": "2026-03-01"}, headers=hr)
-    client.post(f"/api/v1/policies/{drafted['id']}/visibility",
+    client.post(f"/api/v1/business-rules/{drafted['id']}/visibility",
                 json={"visibility": "public"}, headers=hr)
-    client.post(f"/api/v1/policies/{drafted['id']}/repeal", json={}, headers=hr)
+    client.post(f"/api/v1/business-rules/{drafted['id']}/repeal", json={}, headers=hr)
 
     for action in ("policy.drafted", "policy.published",
                    "policy.visibility_changed", "policy.repealed"):
@@ -340,7 +353,7 @@ def test_a_rescope_that_changes_nothing_writes_no_audit(workspace: dict) -> None
     client, hr = workspace["client"], workspace["hr"]
     pay_rules = workspace["pay_rules"]
     same = client.post(
-        f"/api/v1/policies/{pay_rules['id']}/visibility",
+        f"/api/v1/business-rules/{pay_rules['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read"},
         headers=hr,
     )

@@ -19,7 +19,7 @@ Three facts shape everything here:
   state names belong to the workspace, so which of them mean "collectable" is
   your judgment, read from the tenant's invoice machine
   (`GET /object-type-definitions?entity_kind=builtin&object_type=invoice`);
-  the workflow definition holds the policy, the machine holds the names.
+  the business rules hold the policy, the machine holds the names.
 - **Corrections are counter-entries.** The ledger has no edit and no delete.
   Matched the wrong invoice? Apply a negative amount and then apply it right.
 
@@ -259,7 +259,8 @@ policy decision: confirm with the principal, never take it on your own reading.
 - Apply money to a supplier's bill or an expense claim (that is
   `$oryh-payables`), or settle across currencies.
 - Decide payment terms or write-off policy on its own — those live in the workspace's
-  workflow definition.
+  business rules (`GET /business-rules?kind=policy&category=finance&status=published`,
+  or the invoice `data_rule`).
 - Approve anything. Routing and approval are `the hosted workflow admin agent` for
   the bill and `the hosted workflow admin agent` for the money.
 - Import history — that is `$oryh-data-migration` (`POST /invoices/bulk`).

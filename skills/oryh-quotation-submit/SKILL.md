@@ -84,12 +84,12 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /workflow-definitions?entity_kind=builtin&object_type=sales_quotation` — the tenant's natural-language rules, current as of this moment. Read what it requires of a submission (discount authority, a maximum validity period, mandatory tax rates or lead times, and the like) and let it shape the conversation from the first question. No definition, or nothing about filing → only the universal checks apply; never invent requirements. Routing rules in the same document belong to other roles — ignore them.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&status=published` — what a quotation must carry to be filed here, in the workspace's own words, current as of this moment. Read what it requires of a submission (discount authority, a maximum validity period, mandatory tax rates or lead times, and the like) and let it shape the conversation from the first question. No data rule published → only the universal checks apply; never invent requirements. (A workspace that published before the kinds existed carries its requirements as a "submission requirements" section inside its `approval_flow` rule, its heading possibly in the workspace's own language — read that section and nothing else of it.)
 3. **Reuse before create**: `GET /sales-quotations?employee_id={me}&status=draft` — reuse an open draft for the same deal; retries must not duplicate. A `returned` quotation is also reused: fix it, don't recreate — the rework todo's `description` and the latest `returned` approval record's `comment` say exactly what to fix. A successful resubmit completes the rework todo itself — there is nothing to close by hand.
 
 4. **In-flight duplicate check**: `GET /sales-quotations?employee_id={me}&status=submitted` and `?status=sent` — an open quotation for the same customer and scope means revise or wait, not a second number. This is a conversation, not a hard stop.
 
-   **Steps 2, 3, 4 and the step-5 lookups are ONE wave: the definition, the
+   **Steps 2, 3, 4 and the step-5 lookups are ONE wave: the data rule, the
    draft query, both in-flight queries, the customer lookup and every line's
    product lookup depend on nothing but the person's words — send them
    together the moment the names are known.** Sequencing them multiplies
@@ -141,8 +141,10 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 **Tenant requirements (the flow agent returns violations; catch them in conversation first):**
 
-- Whatever the step-2 definition requires. Typical shapes: a discount over X% needs a stated reason; validity may not exceed 30 days; the quotation must state whether prices include tax; free gifts need approval. The definition's own wording always wins over these examples.
-- The definition is also where the tenant states whether quoted prices are tax-inclusive — put the convention in `remarks` so the printed document says it.
+{{include:_common/business-rules.md}}
+
+- Whatever the step-2 data rule requires. Typical shapes: a discount over X% needs a stated reason; validity may not exceed 30 days; the quotation must state whether prices include tax; free gifts need approval. The definition's own wording always wins over these examples.
+- The data rule is also where the tenant states whether quoted prices are tax-inclusive — put the convention in `remarks` so the printed document says it.
 
 **Reasonableness (pause and ask before writing):**
 

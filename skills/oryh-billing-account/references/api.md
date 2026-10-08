@@ -119,7 +119,7 @@ pass excludes the batch instead of expiring it again.
 
 `expiring_amount` is the batches' total, not the amount to expire: the server
 does not track which batch a redemption drew from, because FIFO/LIFO/pool is
-the workspace's rule and lives in its workflow definition.
+the workspace's rule and lives in its membership policy (`/business-rules?kind=policy`).
 
 ## Settlement against a money account
 
@@ -154,7 +154,7 @@ the response reports `balance` and `available_amount` instead of
 
 ## Related
 
-- `GET /workflow-definitions?entity_kind=builtin&object_type=invoice` — where a
+- `GET /business-rules?kind=policy&status=published&keyword=points` — where a
   workspace states its earning and redemption rules. The server holds none.
 - `POST /invoice-items` with `invoice_item_type: "discount"` — the money half of
   a points redemption. The points half is an account entry; they are two facts,

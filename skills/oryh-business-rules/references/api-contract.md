@@ -1,18 +1,18 @@
 <!-- generated from the API contract by the api-contract sync (sync_skill_api_contracts) — edit the server, not this file -->
 
-# oryh-policy: API contract
+# oryh-business-rules: API contract
 
 Every endpoint this skill names, with the parameters the server actually
 accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
-## DELETE /policies/{policy_id}
+## DELETE /business-rules/{rule_id}
 
-Delete Policy
+Delete Business Rule
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
+| `rule_id` | path | string | yes |  |
 | `reason` | query | string (≤500 chars) | no |  |
 
 ## DELETE /type-options/{type_option_id}
@@ -22,6 +22,72 @@ Archive Type Option
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `type_option_id` | path | string | yes |  |
+
+## GET /attachments/{attachment_id}
+
+Get Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `attachment_id` | path | string | yes |  |
+
+## GET /attachments/{attachment_id}/content
+
+Get Attachment Content
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `attachment_id` | path | string | yes |  |
+
+## GET /business-rules
+
+List Business Rules
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `kind` | query | string | no |  |
+| `entity_kind` | query | string | no |  |
+| `object_type` | query | string | no |  |
+| `name` | query | string | no |  |
+| `code` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `visibility` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+| `keyword` | query | string | no |  |
+| `include_deleted` | query | boolean | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_thru_from` | query | date | no | rows whose effective_thru is on or after this |
+| `effective_thru_thru` | query | date | no | rows whose effective_thru is on or before this |
+| `published_at_from` | query | date-time | no | rows whose published_at is at or after this |
+| `published_at_thru` | query | date-time | no | rows whose published_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `supersedes_id` | query | string | no |  |
+| `origin` | query | string | no |  |
+
+## GET /business-rules/{rule_id}
+
+Get Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+## GET /business-rules/{rule_id}/attachments/{attachment_id}/content
+
+Get Business Rule Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
 
 ## GET /employees
 
@@ -46,51 +112,6 @@ Get Employee
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
-
-## GET /policies
-
-List Policies
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `code` | query | string | no |  |
-| `category` | query | string | no |  |
-| `status` | query | string | no |  |
-| `visibility` | query | string | no |  |
-| `in_force_on` | query | date | no |  |
-| `keyword` | query | string | no |  |
-| `include_deleted` | query | boolean | no |  |
-| `page` | query | integer (≥1) | no |  |
-| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
-| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
-| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
-| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
-| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
-| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
-| `effective_thru_from` | query | date | no | rows whose effective_thru is on or after this |
-| `effective_thru_thru` | query | date | no | rows whose effective_thru is on or before this |
-| `published_at_from` | query | date-time | no | rows whose published_at is at or after this |
-| `published_at_thru` | query | date-time | no | rows whose published_at is at or before this |
-| `attachment_id` | query | string | no |  |
-| `owner_employee_id` | query | string | no |  |
-| `supersedes_id` | query | string | no |  |
-
-## GET /policies/{policy_id}
-
-Get Policy
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
-
-## GET /policies/{policy_id}/attachments/{attachment_id}/content
-
-Get Policy Attachment
-
-| parameter | in | type | required | notes |
-|---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
-| `attachment_id` | path | string | yes |  |
 
 ## GET /todos
 
@@ -133,13 +154,13 @@ List Type Options
 | `family` | query | string | no |  |
 | `status` | query | string | no |  |
 
-## PATCH /policies/{policy_id}
+## PATCH /business-rules/{rule_id}
 
-Update Policy
+Update Business Rule
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
+| `rule_id` | path | string | yes |  |
 
 Body:
 
@@ -192,35 +213,78 @@ Body:
 | `status` | `active` | `archived` | optional |  |
 | `title` | string (≤200 chars) | optional |  |
 
-## POST /policies
+## POST /attachments
 
-Create Policy
+Create Attachment
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `content_base64` | string | required |  |
+| `content_type` | string (≤100 chars) | required |  |
+| `filename` | string (≤255 chars) | required |  |
+
+## POST /business-rules
+
+Create Business Rule
 
 Body:
 
 | field | type | | notes |
 |---|---|---|---|
 | `body` | string | required |  |
-| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | required |  |
-| `code` | string (≤50 chars) | required |  |
-| `title` | string (≤200 chars) | required |  |
 | `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `effective_from` | date | optional |  |
 | `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
 | `owner_employee_id` | string | optional |  |
 | `required_capability` | string (≤100 chars) | optional |  |
 | `rules_json` | object | optional |  |
 | `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
 | `visibility` | `internal` | `restricted` | `public` | optional |  |
 
-## POST /policies/{policy_id}/publish
+## POST /business-rules/publish
 
-Publish Policy
+Publish Business Rule Now
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /business-rules/{rule_id}/publish
+
+Publish Business Rule
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
+| `rule_id` | path | string | yes |  |
 
 Body:
 
@@ -229,13 +293,13 @@ Body:
 | `effective_from` | date | optional |  |
 | `note` | string (≤2000 chars) | optional |  |
 
-## POST /policies/{policy_id}/repeal
+## POST /business-rules/{rule_id}/repeal
 
-Repeal Policy
+Repeal Business Rule
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
+| `rule_id` | path | string | yes |  |
 
 Body:
 
@@ -244,13 +308,13 @@ Body:
 | `effective_thru` | date | optional |  |
 | `note` | string (≤2000 chars) | optional |  |
 
-## POST /policies/{policy_id}/visibility
+## POST /business-rules/{rule_id}/visibility
 
-Rescope Policy
+Rescope Business Rule
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
-| `policy_id` | path | string | yes |  |
+| `rule_id` | path | string | yes |  |
 
 Body:
 

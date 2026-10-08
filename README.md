@@ -171,7 +171,7 @@ Design notes for the parts where the modelling is the interesting bit:
 - [Billing accounts](docs/billing-accounts.md) — one shape for money and points
 - [Customers](docs/customers.md) — retail and B2B on one table, and why not a
   Party layer
-- [Payroll](docs/payroll.md) · [Policies](docs/policies.md) ·
+- [Payroll](docs/payroll.md) · [Business rules](docs/business-rules.md) ·
   [Device flow](docs/device-flow.md) ·
   [Capabilities and skills](docs/capabilities-skills-api.md)
 

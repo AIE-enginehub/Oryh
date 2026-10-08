@@ -85,7 +85,7 @@ What the server itself writes and seeds: the shipped vocabularies (leave
 types, expense categories, payment methods and the rest), the capability
 catalogue, system emails, the console shell. A self-hosted deployment is
 English unless this says `zh`. Web pages follow the browser's language on
-their own; skills and workflow definitions are the workspace's own text and
+their own; skills and business rules are the workspace's own text and
 carry whatever language their authors wrote.
 
 ### Email

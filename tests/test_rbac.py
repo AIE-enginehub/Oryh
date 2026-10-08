@@ -33,7 +33,7 @@ def invite_with_role(
 def test_provisioning_seeds_catalog_and_roles(client: TestClient) -> None:
     ctx = provision_tenant(client)
     roles = client.get("/api/v1/roles", headers=ctx["service"]).json()["data"]
-    assert {r["name"] for r in roles if r["is_system"]} == {"admin", "member"}
+    assert {r["name"] for r in roles if r["is_system"]} == {"admin", "member", "hosted_flow_agent"}
     admin_role = next(r for r in roles if r["name"] == "admin")
     assert "users.manage" in admin_role["permissions"]
 

@@ -8,8 +8,8 @@ It is not intended to become a traditional monolithic OA suite or a heavyweight 
 
 The platform split is:
 
-- `oryh`: records business objects, object links, approval events, todos, bookings, and audit-friendly facts — and stores the tenant's structure and rules **as data**: object type definitions (schema + lifecycle state machines), versioned natural-language workflow definitions, roles/capabilities, and the skill registry
-- AI agent: understands user intent, reads the tenant's workflow definition, decides next actions, and coordinates tools — the backend never interprets the rules it stores
+- `oryh`: records business objects, object links, approval events, todos, bookings, and audit-friendly facts — and stores the tenant's structure and rules **as data**: object type definitions (schema + lifecycle state machines), versioned natural-language business rules — approval flows, data rules, linkages, policies — roles/capabilities, and the skill registry
+- AI agent: understands user intent, reads the tenant's business rules, decides next actions, and coordinates tools — the backend never interprets the rules it stores
 - memory: softer per-agent context — contacts, preferences, conventions
 - notifier and integrations: deliver emails, messages, reminders, escalations, and external system sync
 
@@ -143,9 +143,11 @@ local agents changed that: an agent's memory is private and volatile, while
 routing rules are tenant assets. Durable policy therefore moved into oryh
 as versioned tenant data, still interpreted only by agents:
 
-- **workflow definitions** (`/workflow-definitions`): natural-language process
-  maps, append-only versions, history queryable — "which requests require
-  manager and finance approval" lives here
+- **business rules** (`/business-rules`): one table, four kinds — `policy`,
+  `approval_flow` (the natural-language process map that was
+  `/workflow-definitions`), `data_rule`, `linkage` — versioned, effective-dated,
+  history queryable — "which requests require manager and finance approval"
+  lives here, as an approval flow
 - **roles and capabilities** (`/roles`, `/capabilities`): who may do what
 - **object type definitions**: payload schema + lifecycle state machines
 - **the skill registry**: the process contracts themselves
@@ -205,10 +207,10 @@ Skill granularity is a first-class rule (encoded in `oryh-skill-author`'s
 authoring guide): split by role (submit/approve/flow), merge one role's
 phases into a single skill with per-phase references, and never mint a skill
 per object type — `oryh-business-object` covers any custom type by reading
-its object-type definition and workflow definition at use time. An ordinary
+its object-type definition and business rules at use time. An ordinary
 member's bundle should stay well under ten skills.
 
-The quote-to-cash customization demonstrates the layering end to end: policy (discount tiers, OCR-confirm requirement, freight notes) lives in the tenants' workflow definitions; process contracts live in these skills; deterministic needs (price matrices, exact code parsers, PDF templates) are named as agent-side tools, deliberately outside both. `oryh-skill-author` is how a tenant admin's agent produces this kind of configuration from plain language.
+The quote-to-cash customization demonstrates the layering end to end: policy (discount tiers, OCR-confirm requirement, freight notes) lives in the tenants' business rules — approval flows and data rules; process contracts live in these skills; deterministic needs (price matrices, exact code parsers, PDF templates) are named as agent-side tools, deliberately outside both. `oryh-skill-author` is how a tenant admin's agent produces this kind of configuration from plain language.
 
 Typical responsibilities:
 
@@ -233,7 +235,7 @@ convention:
 - approve skill: record exactly one approval fact and complete own todo
   (`approval.record`) — never advances the flow
 - approval-flow skill: the workflow admin's loop — work queue → trail →
-  workflow definition → next todo or final status (`timesheet.advance`,
+  approval flow → next todo or final status (`timesheet.advance`,
   normally a service credential)
 
 The JC warranty flow follows the same split:
@@ -277,7 +279,7 @@ Example:
 
 - A service provider submits a JC warranty card application in natural language.
 - Their agent uses the `jc-warranty-card-apply` skill (from their personal bundle) to create a `warranty_card` business object and records the `submitted` fact.
-- The tenant's flow agent finds it in the work queue, reads the tenant's warranty workflow definition, and creates the approver's todo.
+- The tenant's flow agent finds it in the work queue, reads the tenant's warranty approval flow, and creates the approver's todo.
 - The notifier skill pushes the assignment to the approver's channel.
 - The approver's agent records the approval fact and completes its own todo; the flow agent finalizes the status and registration fields follow.
 - Later repairs are stored through `jc-warranty-repair-record` as `warranty_repair` business objects and linked with `repair_of`.
@@ -287,7 +289,7 @@ Example:
 The BPM behavior comes from the combination of:
 
 - business objects, approval records, and todos in `oryh`
-- versioned natural-language workflow definitions in `oryh` (data, not engine)
+- versioned natural-language approval flows — business rules in `oryh` (data, not engine)
 - a flow agent that derives the position from the trail and decides the next node
 - lifecycle state machines that guard coarse legality (409 on illegal transitions)
 - state-based coordination: work-queue queries and todos, no event cursors
@@ -297,7 +299,7 @@ Two principles proved out in review and are now load-bearing:
 - **Workflow nodes are not object states.** A node can repeat (finance review
   twice after an override) or run in parallel; no status field can express
   that. Nodes passed = approval records; current holder = open todos;
-  possible next = the workflow definition. The record stays `submitted`
+  possible next = the approval flow. The record stays `submitted`
   while the flow runs.
 - **Coordination is level-triggered state, not delivered events.** Todos make
   "handled or not" a first-class fact; a crashed agent loses nothing because
@@ -327,7 +329,7 @@ The current implementation already fits this architecture well:
 - timesheets are recorded as business facts; approvals as append-only, idempotent events
 - todos represent work waiting on a person, with due dates for escalation
 - business objects + links handle tenant-specific records without dedicated tables; type definitions add optional schema and lifecycle guards — and, since a production tenant loaded 150,000 legacy customers and products into generic objects named exactly that, the server refuses a generic object named after a shipped collection, and every skill that can create one carries the same iron rule: warn the person before the first row, and take a stated reason when a shipped twin exists
-- workflow definitions make routing rules durable, versioned tenant data
+- business rules make routing rules, data requirements, linkages and policies durable, versioned, effective-dated tenant data
 - roles/capabilities make the permission surface tenant-configurable, with scoped grants extending automatically to new object types
 - skills are tenant data with capability gates — including object-type-scoped gates (`business_object.write:daily_report`), matched by the same grammar the API enforces — authorable in the React console (`/console/skills`) and delivered as credential-embedded personal bundles that self-update via per-user manifest sync (no credential rotation, no push channel)
 - onboarding is self-service end to end: the credential-free `oryh-connect` skill (public download at `/web/connect`) runs a browser device flow that mints a per-device key and pulls the person's bundle — no admin in the loop, admin issuance remains the rotate-all lever
@@ -338,7 +340,7 @@ The current implementation already fits this architecture well:
 
 Built since this document was first written: audit trail with policy version
 references, role and permission models (tenant-defined RBAC), skill
-versioning and per-tenant registries, workflow definitions with version
+versioning and per-tenant registries, business rules with version
 pinning, member self-service onboarding (browser device flow + per-device
 keys, [device-flow.md](device-flow.md)), object-type-scoped skill gates with
 a console skill editor ([scoped-skill-capabilities.md](scoped-skill-capabilities.md)).

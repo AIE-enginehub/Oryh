@@ -100,11 +100,11 @@ intentionally back no agent skill.)
 | `billing_account.manage` | `POST`/`PATCH`/`DELETE`/`restore` `/billing-accounts*` | `oryh-billing-account` |
 | `billing_account.post` *(scopable `:currency` / `:points`)* | `POST /business-objects/{id}/post-entries` (a tenant-defined account document whose type declares `account_effect: {reason, state}` posts its signed lines once; the poster needs the grant for each account's unit type), `POST /billing-accounts/{id}/expire` (the expiry sweep's write, held to the batch). **There is no direct entries write**: money moves through `POST /payments/{id}/apply`, opening balances through the account's creation | `oryh-billing-account` |
 | `payroll.manage` | `POST`/`PATCH /pay-histories*` | `oryh-payroll` |
-| `policy.manage` | `POST`/`PATCH`/`DELETE /policies*` (drafts only); also **widens reads** — drafts and repealed policies are visible only to holders | `oryh-policy` |
-| `policy.publish` | `POST /policies/{id}/publish`, `POST /policies/{id}/repeal` | `oryh-policy` |
+| `policy.manage` | `POST`/`PATCH`/`DELETE /business-rules*` on `kind: policy` (drafts only); also **widens reads** — drafts and repealed policies are visible only to holders | `oryh-business-rules` |
+| `policy.publish` | `POST /business-rules/{id}/publish`, `POST /business-rules/{id}/repeal`, `POST /business-rules/{id}/visibility` on a policy | `oryh-business-rules` |
 | *(`users.manage` also **reads the machinery**)* | `GET /roles` (the access topology), `GET /attachments/{id}` and its `/content` (by bare id; everyone else reads attachments through the owning document) — pinned by `tests/test_member_api_surface.py` | — |
 | *(**`POST /attachments`** is granted by ANY of these ten)* | `expense.submit_own`, `purchase.submit_own`, `purchase_order.manage`, `quotation.submit_own`, `order.submit_own`, `invoice.manage` (any scope), `payment.record`, `policy.manage`, `master_data.manage` (product pictures), `contract.manage` (contract originals) — one per model carrying `attachment_id`, because whoever files the record must be able to attach its evidence. Pinned to the code by `tests/test_attachment_upload_gate.py`. **Reading** the bytes is a different question: `GET /attachments/{id}/content` needs `users.manage`, and everyone else goes through the document — `GET /invoices/{id}/attachments/{attachment_id}/content` and its nine siblings (products included — pictures are read by everyone through the product; contracts included — originals are read by the contract desk through the contract), where the document's own visibility answers first (`tests/test_attachment_reach.py`) | — |
-| `payroll.read` | **a read gate, not a write gate** — filters `GET /invoices*`, `GET /payments*`, `GET /payment-applications`, `GET /object-directory`, and gates `GET /pay-histories*`, `GET /employees/{id}/pay-history`. Also in the hosted flow agent's fixed grant set, so that payslips route through `oryh-invoice-approval-flow` like every other invoice | `oryh-payroll` |
+| `payroll.read` | **a read gate, not a write gate** — filters `GET /invoices*`, `GET /payments*`, `GET /payment-applications`, `GET /object-directory`, and gates `GET /pay-histories*`, `GET /employees/{id}/pay-history`. Also in the hosted flow agent's default role (`hosted_flow_agent`, tenant-editable), so that payslips route through `oryh-invoice-approval-flow` like every other invoice | `oryh-payroll` |
 | `business_object.write` *(scopable `:type`)* | `POST`/`PATCH /business-objects`, `POST`/`PATCH /approval-targets` | `oryh-business-object` (bare); a tenant skill may gate on `business_object.write:daily_report` etc. |
 | `business_object.advance` *(scopable)* | same `PATCH` endpoints, only on `status` change | *(none shipped — flow-admin/service credential)* |
 | `business_object.summarize` *(scopable)* | *(none — no API gate)* | `oryh-business-object-summary` |
@@ -125,7 +125,7 @@ intentionally back no agent skill.)
 | `users.manage` | `POST /auth/invitations`, `GET`/`PATCH /auth/users*`, `POST`/`PATCH`/`DELETE /roles`, `POST`/`DELETE /capabilities`, `POST /users/{id}/skill-bundle`, `GET /workspace/setup-report` (the derived where-does-this-workspace-stand read behind the setup wizard) | `oryh-access-admin`, `oryh-workspace-setup` |
 | `keys.manage` | `GET`/`POST`/`PATCH /tenant/api-keys*`, `POST /users/{id}/skill-bundle`; also the tenant's side of flow driving — `GET /flow-runs`, `GET /flow-subscriptions` (or `flow_run.record`), `PATCH /flow-subscriptions/{id}` (`enabled` on/off, `clear_park` once a parked queue's cause is fixed) | `oryh-workspace-setup` |
 | `object_types.manage` | `POST`/`PATCH`/`DELETE /object-type-definitions*` | *(console only)* |
-| `workflows.publish` | `POST /workflow-definitions` | *(console only)* |
+| `workflows.publish` | the three scoped kinds — `approval_flow`, `data_rule`, `linkage`: `POST /business-rules` (a draft), `POST /business-rules/publish` (draft and publish in one call), and `POST /business-rules/{id}/publish`, `POST /business-rules/{id}/visibility`, `POST /business-rules/{id}/repeal` | `oryh-business-rules` (reaches holders of `policy.manage`), the console |
 | `skills.manage` | `GET`/`POST`/`PATCH`/`DELETE /skills*` — the registry, reads included: every skill's text, files, audience and calibration. A member's own surface is `GET /my/skill-bundle` + `/my/skills/*` | *(console only)* |
 | `skills.calibrate` (scopable: `skills.calibrate:oryh-product-matching`) | `GET /skills/{ref}` and `PATCH /skills/{ref}` with **only** `calibration` in the body — the workspace's own rules for one shipped skill (product-matching rules, report style). Files, audience and status stay with `skills.manage` | any skill whose calibration a desk maintains |
 | `tenant.act_for_any_employee` | not a standalone gate — the bypass in `enforce_member_employee` that lets a role act on any employee's timesheets/bookings/todos | *(none)* |
@@ -147,7 +147,7 @@ Three deliberate asymmetries worth noting:
   that is deliberate rather than an oversight: an employee handbook nobody may
   open is not a handbook. A policy that wants an audience names the capability
   itself in `required_capability`, reusing this same catalog — a compensation policy
-  simply says `payroll.read`. See policies.md.
+  simply says `payroll.read`. See business-rules.md.
 - **Personal documents are read by their person, by whoever they were routed
   to, and by `<family>.read_all`** (`timesheet`, `leave`, `expense`, `purchase`,
   `quotation`, `order`, `crm`) — see `app/api/visibility.py`, the one place the

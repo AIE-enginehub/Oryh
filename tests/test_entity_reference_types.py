@@ -254,7 +254,9 @@ def test_an_existing_admin_role_is_topped_up_with_new_capabilities() -> None:
 
             created, widened = provision_system_roles(db, TEST_TENANT)
             db.commit()
-            assert created == 0 and widened == 1
+            # the hosted agent's role (2026-10-07) did not exist in this hand-built
+            # tenant and is created beside the top-up
+            assert created == 1 and widened == 1
 
             admin = db.scalar(select(Role).where(
                 Role.tenant_id == TEST_TENANT, Role.name == "admin"))

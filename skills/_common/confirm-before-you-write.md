@@ -32,6 +32,6 @@ visible before it becomes a record.
   server does not already hold it.
 
 The unattended flow agent is outside this rule: it advances documents by the
-tenant's workflow definition and never writes their content. A workspace
+tenant's approval flow and never writes their content. A workspace
 that wants a lighter touch on one routine write — a person's own timesheet
 lines, say — names it in this skill's calibration; without that, ask.

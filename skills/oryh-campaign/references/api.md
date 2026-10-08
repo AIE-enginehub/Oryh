@@ -33,5 +33,5 @@ GET    /type-options?family=campaign_type
 GET    /type-options?family=campaign_member_status
 GET    /leads?campaign_id=            GET /opportunities?campaign_id=
 GET    /sales-orders?opportunity_id=  → the money behind a won deal
-GET    /workflow-definitions?entity_kind=builtin&object_type=campaign
+GET    /business-rules?kind=data_rule&entity_kind=builtin&object_type=campaign&status=published
 ```

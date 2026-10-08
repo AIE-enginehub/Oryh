@@ -1445,7 +1445,6 @@ def test_console_lists_export_typed_openapi_contracts() -> None:
         "/api/v1/business-object-links": "ListEnvelope_BusinessObjectLinkRead_",
         "/api/v1/object-directory": "ListEnvelope_ObjectDirectoryEntryRead_",
         "/api/v1/object-type-definitions": "ListEnvelope_ObjectTypeDefinitionRead_",
-        "/api/v1/workflow-definitions": "ListEnvelope_WorkflowDefinitionRead_",
         "/api/v1/skills": "ListEnvelope_TenantSkillSummary_",
         "/api/v1/tenant/api-keys": "ListEnvelope_ApiKeyRead_",
         "/api/v1/tenant/api-key-owners": "ListEnvelope_ApiKeyOwnerRead_",

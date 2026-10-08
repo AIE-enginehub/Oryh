@@ -18297,6 +18297,473 @@
       "related": []
     },
     {
+      "key": "business-rules",
+      "path": "/api/v1/business-rules",
+      "group": "system",
+      "label": [
+        "业务规则",
+        "Business rules"
+      ],
+      "filters": [
+        {
+          "name": "kind",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "entity_kind",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "object_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "visibility",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "in_force_on",
+          "description": "",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "include_deleted",
+          "description": "",
+          "type": "boolean"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_from",
+          "description": "rows whose effective_thru is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru_thru",
+          "description": "rows whose effective_thru is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "published_at_from",
+          "description": "rows whose published_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "published_at_thru",
+          "description": "rows whose published_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "attachment_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "supersedes_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "origin",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "kind",
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "integer"
+        },
+        {
+          "name": "entity_kind",
+          "type": "string"
+        },
+        {
+          "name": "object_type",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "origin",
+          "type": "string"
+        },
+        {
+          "name": "catalog_hash",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "type": "string"
+        },
+        {
+          "name": "visibility",
+          "type": "string"
+        },
+        {
+          "name": "required_capability",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "published_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "published_by",
+          "type": "string"
+        },
+        {
+          "name": "supersedes_id",
+          "type": "string"
+        },
+        {
+          "name": "attachment_id",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "created_by",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "kind",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "policy",
+            "approval_flow",
+            "data_rule",
+            "linkage"
+          ]
+        },
+        {
+          "name": "code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "entity_kind",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "business_object",
+            "builtin"
+          ]
+        },
+        {
+          "name": "object_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "internal",
+            "restricted",
+            "public"
+          ]
+        },
+        {
+          "name": "required_capability",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "effective_from",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "attachment_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "category",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "body",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "visibility",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "internal",
+            "restricted",
+            "public"
+          ]
+        },
+        {
+          "name": "required_capability",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "effective_from",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_thru",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "attachment_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [
+        {
+          "verb": "publish",
+          "path": "/api/v1/business-rules/{rule_id}/publish",
+          "summary": "Publish Business Rule",
+          "fields": [
+            {
+              "name": "effective_from",
+              "required": false,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "note",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "verb": "repeal",
+          "path": "/api/v1/business-rules/{rule_id}/repeal",
+          "summary": "Repeal Business Rule",
+          "fields": [
+            {
+              "name": "effective_thru",
+              "required": false,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "note",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "verb": "visibility",
+          "path": "/api/v1/business-rules/{rule_id}/visibility",
+          "summary": "Rescope Business Rule",
+          "fields": [
+            {
+              "name": "visibility",
+              "required": true,
+              "type": "string",
+              "enum": [
+                "internal",
+                "restricted",
+                "public"
+              ]
+            },
+            {
+              "name": "required_capability",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "note",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "recordPath": "/api/v1/business-rules/{rule_id}",
+      "related": []
+    },
+    {
       "key": "flow-runs",
       "path": "/api/v1/flow-runs",
       "group": "system",
@@ -18780,530 +19247,6 @@
       "remove": true,
       "actions": [],
       "recordPath": "/api/v1/object-type-definitions/{definition_id}",
-      "related": []
-    },
-    {
-      "key": "policies",
-      "path": "/api/v1/policies",
-      "group": "system",
-      "label": [
-        "政策",
-        "Policies"
-      ],
-      "filters": [
-        {
-          "name": "code",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "category",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "status",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "visibility",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "in_force_on",
-          "description": "",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "keyword",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "include_deleted",
-          "description": "",
-          "type": "boolean"
-        },
-        {
-          "name": "created_at_from",
-          "description": "rows whose created_at is at or after this",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "created_at_thru",
-          "description": "rows whose created_at is at or before this",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "effective_from_from",
-          "description": "rows whose effective_from is on or after this",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_from_thru",
-          "description": "rows whose effective_from is on or before this",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_thru_from",
-          "description": "rows whose effective_thru is on or after this",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_thru_thru",
-          "description": "rows whose effective_thru is on or before this",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "published_at_from",
-          "description": "rows whose published_at is at or after this",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "published_at_thru",
-          "description": "rows whose published_at is at or before this",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "attachment_id",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "owner_employee_id",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "supersedes_id",
-          "description": "",
-          "type": "string"
-        }
-      ],
-      "columns": [
-        {
-          "name": "id",
-          "type": "string"
-        },
-        {
-          "name": "code",
-          "type": "string"
-        },
-        {
-          "name": "version",
-          "type": "integer"
-        },
-        {
-          "name": "category",
-          "type": "string"
-        },
-        {
-          "name": "title",
-          "type": "string"
-        },
-        {
-          "name": "summary",
-          "type": "string"
-        },
-        {
-          "name": "body",
-          "type": "string"
-        },
-        {
-          "name": "visibility",
-          "type": "string"
-        },
-        {
-          "name": "required_capability",
-          "type": "string"
-        },
-        {
-          "name": "status",
-          "type": "string"
-        },
-        {
-          "name": "effective_from",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_thru",
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "published_at",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "published_by",
-          "type": "string"
-        },
-        {
-          "name": "supersedes_id",
-          "type": "string"
-        },
-        {
-          "name": "attachment_id",
-          "type": "string"
-        },
-        {
-          "name": "owner_employee_id",
-          "type": "string"
-        },
-        {
-          "name": "created_by",
-          "type": "string"
-        },
-        {
-          "name": "created_at",
-          "type": "string",
-          "format": "date-time"
-        },
-        {
-          "name": "updated_at",
-          "type": "string",
-          "format": "date-time"
-        }
-      ],
-      "create": [
-        {
-          "name": "code",
-          "required": true,
-          "type": "string",
-          "maxLength": 50
-        },
-        {
-          "name": "category",
-          "required": true,
-          "type": "string"
-        },
-        {
-          "name": "title",
-          "required": true,
-          "type": "string",
-          "maxLength": 200
-        },
-        {
-          "name": "body",
-          "required": true,
-          "type": "string"
-        },
-        {
-          "name": "summary",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "visibility",
-          "required": false,
-          "type": "string",
-          "enum": [
-            "internal",
-            "restricted",
-            "public"
-          ]
-        },
-        {
-          "name": "required_capability",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "effective_from",
-          "required": false,
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_thru",
-          "required": false,
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "attachment_id",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "owner_employee_id",
-          "required": false,
-          "type": "string"
-        }
-      ],
-      "update": [
-        {
-          "name": "category",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "title",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "body",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "summary",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "visibility",
-          "required": false,
-          "type": "string",
-          "enum": [
-            "internal",
-            "restricted",
-            "public"
-          ]
-        },
-        {
-          "name": "required_capability",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "effective_from",
-          "required": false,
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "effective_thru",
-          "required": false,
-          "type": "string",
-          "format": "date"
-        },
-        {
-          "name": "attachment_id",
-          "required": false,
-          "type": "string"
-        },
-        {
-          "name": "owner_employee_id",
-          "required": false,
-          "type": "string"
-        }
-      ],
-      "remove": true,
-      "actions": [
-        {
-          "verb": "publish",
-          "path": "/api/v1/policies/{policy_id}/publish",
-          "summary": "Publish Policy",
-          "fields": [
-            {
-              "name": "effective_from",
-              "required": false,
-              "type": "string",
-              "format": "date"
-            },
-            {
-              "name": "note",
-              "required": false,
-              "type": "string"
-            }
-          ]
-        },
-        {
-          "verb": "repeal",
-          "path": "/api/v1/policies/{policy_id}/repeal",
-          "summary": "Repeal Policy",
-          "fields": [
-            {
-              "name": "effective_thru",
-              "required": false,
-              "type": "string",
-              "format": "date"
-            },
-            {
-              "name": "note",
-              "required": false,
-              "type": "string"
-            }
-          ]
-        },
-        {
-          "verb": "visibility",
-          "path": "/api/v1/policies/{policy_id}/visibility",
-          "summary": "Rescope Policy",
-          "fields": [
-            {
-              "name": "visibility",
-              "required": true,
-              "type": "string",
-              "enum": [
-                "internal",
-                "restricted",
-                "public"
-              ]
-            },
-            {
-              "name": "required_capability",
-              "required": false,
-              "type": "string"
-            },
-            {
-              "name": "note",
-              "required": false,
-              "type": "string"
-            }
-          ]
-        }
-      ],
-      "recordPath": "/api/v1/policies/{policy_id}",
-      "related": []
-    },
-    {
-      "key": "workflow-definitions",
-      "path": "/api/v1/workflow-definitions",
-      "group": "system",
-      "label": [
-        "工作流定义",
-        "Workflow definitions"
-      ],
-      "filters": [
-        {
-          "name": "entity_kind",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "object_type",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "name",
-          "description": "",
-          "type": "string"
-        },
-        {
-          "name": "history",
-          "description": "",
-          "type": "boolean"
-        },
-        {
-          "name": "status",
-          "description": "",
-          "type": "string",
-          "enum": [
-            "active",
-            "superseded",
-            "all"
-          ]
-        },
-        {
-          "name": "keyword",
-          "description": "",
-          "type": "string"
-        }
-      ],
-      "columns": [
-        {
-          "name": "id",
-          "type": "string"
-        },
-        {
-          "name": "tenant_id",
-          "type": "string"
-        },
-        {
-          "name": "entity_kind",
-          "type": "string",
-          "enum": [
-            "business_object",
-            "builtin"
-          ]
-        },
-        {
-          "name": "object_type",
-          "type": "string"
-        },
-        {
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "name": "version",
-          "type": "integer"
-        },
-        {
-          "name": "definition_text",
-          "type": "string"
-        },
-        {
-          "name": "status",
-          "type": "string",
-          "enum": [
-            "active",
-            "superseded"
-          ]
-        },
-        {
-          "name": "created_by",
-          "type": "string"
-        },
-        {
-          "name": "created_at",
-          "type": "string",
-          "format": "date-time"
-        }
-      ],
-      "create": [
-        {
-          "name": "entity_kind",
-          "required": false,
-          "type": "string",
-          "enum": [
-            "business_object",
-            "builtin"
-          ]
-        },
-        {
-          "name": "object_type",
-          "required": true,
-          "type": "string",
-          "maxLength": 100
-        },
-        {
-          "name": "name",
-          "required": false,
-          "type": "string",
-          "maxLength": 100
-        },
-        {
-          "name": "definition_text",
-          "required": true,
-          "type": "string",
-          "maxLength": 20000
-        },
-        {
-          "name": "created_by",
-          "required": false,
-          "type": "string"
-        }
-      ],
-      "actions": [],
-      "recordPath": "/api/v1/workflow-definitions/{definition_id}",
       "related": []
     }
   ]

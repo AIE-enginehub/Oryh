@@ -56,6 +56,7 @@ from app.api.common import (
     visible_payroll_filter,
 )
 from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
+from app.api.business_rules import published_rules_of
 from app.api.deps import Actor, attributed, enforce_member_employee, get_actor, has_permission, require_permission
 from app.core.entity_types import (
     APPROVAL_ENTITY_TYPES,
@@ -102,7 +103,6 @@ from app.models import (
     TimesheetHeader,
     Todo,
     User,
-    WorkflowDefinition,
 )
 from app.schemas import (
     PostObjectEntriesEnvelope,
@@ -153,7 +153,7 @@ from app.schemas import (
     UpdateBusinessObjectRequest,
     UpdateObjectTypeDefinitionRequest,
     UpdateTodoRequest,
-    WorkflowDefinitionRead,
+    BusinessRuleRead,
 )
 from app.services.audit import record_audit
 from app.services.object_types import (
@@ -984,6 +984,8 @@ def update_object_type_definition(
             definition.version += 1
             version_bumped = True
         definition.json_schema = updates.pop("json_schema")
+    machine_before = None
+    machine_changed = False
     if "state_machine" in updates:
         machine = updates.pop("state_machine")
         if machine is None and definition.entity_kind == "builtin":
@@ -995,11 +997,33 @@ def update_object_type_definition(
             ensure_valid_state_machine(
                 machine, entity_kind=definition.entity_kind, object_type=definition.object_type
             )
-        if machine != definition.state_machine and not version_bumped:
-            definition.version += 1
+        if machine != definition.state_machine:
+            machine_before = definition.state_machine
+            machine_changed = True
+            if not version_bumped:
+                definition.version += 1
         definition.state_machine = machine
     for field, value in updates.items():
         setattr(definition, field, value)
+    if machine_changed:
+        # the machine is the one rule the server itself enforces, and the only
+        # one that had no trail: a renamed state that broke a route could not
+        # be traced to the afternoon it was renamed. Both snapshots, in full.
+        record_audit(
+            db,
+            tenant_id=actor.tenant_id,
+            action="rule.machine_changed",
+            entity_type="object_type_definition",
+            entity_id=definition.id,
+            actor=actor.label,
+            detail={
+                "entity_kind": definition.entity_kind,
+                "object_type": definition.object_type,
+                "version": definition.version,
+                "before": machine_before,
+                "after": definition.state_machine,
+            },
+        )
     db.commit()
     db.refresh(definition)
     return envelope(ObjectTypeDefinitionRead.model_validate(definition).model_dump())
@@ -1553,19 +1577,11 @@ def get_business_object_detail(
         .order_by(ObjectTypeDefinition.version.desc(), ObjectTypeDefinition.created_at.desc())
         .limit(1)
     )
-    workflow_definitions = db.scalars(
-        select(WorkflowDefinition)
-        .where(
-            WorkflowDefinition.tenant_id == tenant_id,
-            WorkflowDefinition.entity_kind == "business_object",
-            WorkflowDefinition.object_type == business_object.object_type,
-        )
-        .order_by(
-            WorkflowDefinition.name.asc(),
-            WorkflowDefinition.version.desc(),
-            WorkflowDefinition.id.desc(),
-        )
-    ).all()
+    # every non-draft rule about this type: the approval flows in the shape
+    # every kind in force for the type, beside the document
+    rules = published_rules_of(
+        db, tenant_id, entity_kind="business_object", object_type=business_object.object_type,
+    )
     detail = BusinessObjectDetailRead(
         business_object=BusinessObjectRead.model_validate(business_object),
         links=[BusinessObjectLinkRead.model_validate(item) for item in links],
@@ -1577,9 +1593,7 @@ def get_business_object_detail(
             if object_type_definition is not None
             else None
         ),
-        workflow_definitions=[
-            WorkflowDefinitionRead.model_validate(item) for item in workflow_definitions
-        ],
+        rules=[BusinessRuleRead.model_validate(item) for item in rules],
     )
     return envelope(detail.model_dump(by_alias=True))
 

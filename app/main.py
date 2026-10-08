@@ -17,7 +17,7 @@ from app.api.master_data import router as master_data_router
 from app.api.notifications import router as notifications_router
 from app.api.objects import router as objects_router
 from app.api.people import router as people_router
-from app.api.policies import router as policies_router
+from app.api.business_rules import router as business_rules_router
 from app.api.query_guard import reject_unknown_query_params
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
@@ -35,7 +35,6 @@ from app.api.mcp import router as mcp_router
 from app.api.bundles import router as bundles_router
 from app.api.console import router as console_router
 from app.api.roles import router as roles_router
-from app.api.workflows import router as workflows_router
 from app.core.config import API_PREFIX, settings
 from app.core.deployment_profile import enforce_deployment_profile
 from app.core.idempotency import IdempotencyMiddleware, openapi_with_idempotency_key
@@ -112,7 +111,7 @@ app.include_router(objects_router, prefix=API_PREFIX)
 app.include_router(master_data_router, prefix=API_PREFIX)
 app.include_router(external_router, prefix=API_PREFIX)
 app.include_router(people_router, prefix=API_PREFIX)
-app.include_router(policies_router, prefix=API_PREFIX)
+app.include_router(business_rules_router, prefix=API_PREFIX)
 app.include_router(resources_router, prefix=API_PREFIX)
 app.include_router(contracts_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
@@ -124,7 +123,6 @@ app.include_router(workspace_router, prefix=API_PREFIX)
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(device_router, prefix=API_PREFIX)
 app.include_router(skills_router, prefix=API_PREFIX)
-app.include_router(workflows_router, prefix=API_PREFIX)
 app.include_router(roles_router, prefix=API_PREFIX)
 app.include_router(bundles_router, prefix=API_PREFIX)
 app.include_router(console_router, prefix=API_PREFIX)

@@ -109,10 +109,10 @@ ledger entry, whichever door it came through.
 ## Where A Return's Goods Land
 
 The inbound leg's line names the position the goods land in, and which
-position is the tenant's own sentence in the sales_return definition
-(`GET /workflow-definitions?entity_kind=builtin&object_type=sales_return`
+position is the tenant's own sentence in the sales_return `linkage` rule
+(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&status=published`
 — once per session, with the return's own reads): a quarantine the returns area, a
-`RET-` lot, or — the definition silent — the original position, found
+`RET-` lot, or — the rule silent — the original position, found
 from the order's own issue (`GET /inventory-item-details?sales_order_id={original}&reason=issued`).
 Creating the stated position on first use is $oryh-inventory's write; ask
 that desk (or, holding `inventory.manage`, create it: facility, bin and
