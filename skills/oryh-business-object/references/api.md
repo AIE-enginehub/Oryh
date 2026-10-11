@@ -117,7 +117,7 @@ States are the **coarse lifecycle** (open/approved/paid …), never workflow nod
 The workspace's rules for a type live in `/business-rules` — plain natural language per tenant per type, four `kind`s (`approval_flow` is the flow agent's map, `data_rule` what a record must carry, `linkage` what happens elsewhere on a state change, `policy` the standing company rule):
 
 ```text
-GET  /business-rules?kind=&entity_kind=&object_type=&status=published   → the version in force
+GET  /business-rules?kind=&entity_kind=&object_type=&in_force_on=<today>   → the version in force
 GET  /business-rules?kind=&entity_kind=&object_type=                    → every version, newest first
 GET  /business-rules?kind=&entity_kind=&object_type=&in_force_on=       → the one that governed a date
 GET  /business-rules/{rule_id}                                          → any version, incl. superseded

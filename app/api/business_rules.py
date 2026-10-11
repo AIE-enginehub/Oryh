@@ -42,8 +42,8 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
-from sqlalchemy import and_, func, or_, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, exists, func, or_, select, text
+from sqlalchemy.orm import Session, aliased
 
 from app.api.common import (
     ListFilters,
@@ -589,6 +589,19 @@ def publish_rule(
             BusinessRule.deleted_at.is_(None),
         )
     ).first()
+    if superseded is not None and superseded.effective_from is not None and effective_from < superseded.effective_from:
+        # a version cannot start before the one it replaces: the handover
+        # would leave two versions covering the days between, and a reader
+        # of those days would get no single answer (review 2026-10-10, R06).
+        # To correct a wrongly dated version, repeal it and publish again.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"v{superseded.version} already applies from {superseded.effective_from.isoformat()}; the next "
+                f"version cannot start earlier ({effective_from.isoformat()}). Repeal v{superseded.version} first "
+                "if it was dated wrongly, or start this one on or after that date"
+            ),
+        )
     if superseded is not None:
         superseded.status = "superseded"
         if superseded.effective_thru is None or superseded.effective_thru >= effective_from:
@@ -703,6 +716,19 @@ def rules_query(
     if narrowing is not None:
         stmt = stmt.where(narrowing)
     if in_force_on is not None:
+        # one answer per code for a date: when two versions both cover it
+        # (a flow published twice in one afternoon closes the earlier one on
+        # its own first day), the later version is the one that governed
+        newer = aliased(BusinessRule)
+        stmt = stmt.where(~exists().where(
+            newer.tenant_id == BusinessRule.tenant_id,
+            newer.code == BusinessRule.code,
+            newer.version > BusinessRule.version,
+            newer.deleted_at.is_(None),
+            newer.status.in_(("published", "superseded", "repealed")),
+            or_(newer.effective_from.is_(None), newer.effective_from <= in_force_on),
+            or_(newer.effective_thru.is_(None), newer.effective_thru >= in_force_on),
+        ))
         stmt = stmt.where(
             BusinessRule.status.in_(("published", "superseded", "repealed")),
             or_(BusinessRule.effective_from.is_(None), BusinessRule.effective_from <= in_force_on),
@@ -745,17 +771,30 @@ def published_rules_of(
     ).all()
 
 
+def in_force_filter(as_of: date):
+    """The version that governs `as_of`: published, or superseded by a
+    version that has not started yet, with a period covering the day.
+    `status = 'published'` alone names the LATEST version, which may start
+    next year (review 2026-10-10, R05); this is the question every reader
+    of "the rule today" means."""
+    return and_(
+        BusinessRule.status.in_(("published", "superseded")),
+        BusinessRule.deleted_at.is_(None),
+        or_(BusinessRule.effective_from.is_(None), BusinessRule.effective_from <= as_of),
+        or_(BusinessRule.effective_thru.is_(None), BusinessRule.effective_thru >= as_of),
+    )
+
+
 def has_published_approval_flow(db: Session, tenant_id: str, entity_kind: str, object_type: str) -> bool:
     """The existence question the runner, the setup report and the platform
-    console ask: is there a map for this family?"""
+    console ask: is there a map for this family — in force today?"""
     return db.scalar(
         select(BusinessRule.id).where(
             BusinessRule.tenant_id == tenant_id,
             BusinessRule.kind == "approval_flow",
             BusinessRule.entity_kind == entity_kind,
             BusinessRule.object_type == object_type,
-            BusinessRule.status == "published",
-            BusinessRule.deleted_at.is_(None),
+            in_force_filter(date.today()),
         ).limit(1)
     ) is not None
 
@@ -763,17 +802,20 @@ def has_published_approval_flow(db: Session, tenant_id: str, entity_kind: str, o
 def published_rule_index(
     db: Session, tenant_id: str, entity_kind: str | None = None
 ) -> dict[tuple[str, str], BusinessRule]:
-    """The version in force per (object_type, kind) — what the setup report
-    says a family has, and what it checks a flow's text against."""
+    """The version in force today per (object_type, kind) — what the setup
+    report says a family has, and what it checks a flow's text against.
+    Two versions covering today (a same-day republish) resolve to the later."""
     stmt = select(BusinessRule).where(
         BusinessRule.tenant_id == tenant_id,
         BusinessRule.kind != "policy",
-        BusinessRule.status == "published",
-        BusinessRule.deleted_at.is_(None),
-    )
+        in_force_filter(date.today()),
+    ).order_by(BusinessRule.version.asc())
     if entity_kind is not None:
         stmt = stmt.where(BusinessRule.entity_kind == entity_kind)
-    return {(rule.object_type, rule.kind): rule for rule in db.scalars(stmt)}
+    index: dict[tuple[str, str], BusinessRule] = {}
+    for rule in db.scalars(stmt):
+        index[(rule.object_type, rule.kind)] = rule
+    return index
 
 
 REQUIREMENTS_HEADINGS = ("提交要求", "submission requirement", "submission requirements")
@@ -791,8 +833,7 @@ def families_with_published_approval_flow(db: Session, tenant_id: str, entity_ki
     stmt = select(BusinessRule.object_type).where(
         BusinessRule.tenant_id == tenant_id,
         BusinessRule.kind == "approval_flow",
-        BusinessRule.status == "published",
-        BusinessRule.deleted_at.is_(None),
+        in_force_filter(date.today()),
     )
     if entity_kind is not None:
         stmt = stmt.where(BusinessRule.entity_kind == entity_kind)

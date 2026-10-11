@@ -11,6 +11,8 @@ Transport is injectable so tests drive the real app in-process without a socket.
 
 from __future__ import annotations
 
+from datetime import date
+
 import json
 import urllib.error
 import urllib.parse
@@ -118,7 +120,9 @@ class OryhClient:
             "/business-rules",
             params={
                 "kind": "approval_flow",
-                "status": "published",
+                # the version that governs today — `status=published` alone
+                # is the latest version, which may not have started yet
+                "in_force_on": date.today().isoformat(),
                 "entity_kind": entity_kind,
                 "object_type": entity_type,
                 "page": 1,

@@ -11,10 +11,10 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | Call | Purpose |
 |---|---|
 | `GET /business-rules` | what this credential may see, every kind |
-| `GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=expense_claim&status=published` | the version in force for one scope |
+| `GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=expense_claim&in_force_on=<today>` | the version in force for one scope |
 | `GET /business-rules?kind=data_rule&entity_kind=business_object&object_type=warranty_card` | every version of one scoped rule, newest first |
 | `GET /business-rules?kind=policy&code=HR-001` | every version of one policy, newest first |
-| `GET /business-rules?kind=policy&category=payroll&status=published` | the live compensation policies |
+| `GET /business-rules?kind=policy&category=payroll&in_force_on=<today>` | the live compensation policies |
 | `GET /business-rules?in_force_on=2026-03-15` | **what applied on a date** — reads across superseded versions, any kind |
 | `GET /business-rules?keyword=travel` | matches code, title, summary, body and object type |
 | `GET /business-rules?status=draft&origin=catalog` | the seeded drafts not yet made this workspace's own |

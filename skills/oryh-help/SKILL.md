@@ -42,7 +42,7 @@ A live fact is different: *which* roles this workspace has, *who* holds
 `master_data.manage` today, *whether* a picklist practice is written into
 the sales-order linkage rule. For those, one read each — `GET /roles`,
 `GET /capabilities`, `GET /workspace/setup-report`, `GET /builtin-object-types`,
-`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&status=published` — and say
+`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&in_force_on=<today>` — and say
 which read the answer came from.
 
 When the answer ends in an action ("so add `master_data.manage` to her

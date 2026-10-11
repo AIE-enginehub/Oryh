@@ -108,10 +108,48 @@ def validate_resource_booking(
         return overlaps
 
     max_quantity = resource.max_quantity or 1
-    booked_quantity = sum(item.quantity for item in overlaps)
-    if booked_quantity + quantity > max_quantity:
+    if peak_concurrent_quantity(overlaps, start_at, end_at) + quantity > max_quantity:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="resource quantity is unavailable for that time")
     return overlaps
+
+
+def peak_concurrent_quantity(bookings, start_at: datetime, end_at: datetime) -> int:
+    """The most of a shared resource in use at any one instant of
+    [start_at, end_at): a sweep over the endpoints, releases before takes
+    at the same instant. Summing every overlapping booking refused a
+    09:00–11:00 request on a pool of two that had one booked 09:00–10:00
+    and one 10:00–11:00, though no instant held more than one (review
+    2026-10-10, R12)."""
+    start_at, end_at = _aware(start_at), _aware(end_at)
+    events: list[tuple[datetime, int, int]] = []
+    for booking in bookings:
+        take_at = max(_aware(booking.start_at), start_at)
+        release_at = min(_aware(booking.end_at), end_at)
+        if release_at <= take_at:
+            continue
+        events.append((take_at, 1, booking.quantity))
+        events.append((release_at, 0, -booking.quantity))
+    peak = held = 0
+    for _, _, delta in sorted(events, key=lambda event: (event[0], event[1])):
+        held += delta
+        peak = max(peak, held)
+    return peak
+
+
+def _aware(value: datetime) -> datetime:
+    """SQLite hands back naive UTC; the request carries an offset. Compare
+    them on one footing."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+
+
+def lock_resource(db: Session, tenant_id: str, resource_id: str) -> Resource:
+    """The resource's row, held for the transaction: two bookings that both
+    saw a free slot and both wrote are what the lock prevents (review
+    2026-10-10, R11). SQLite ignores the clause; PostgreSQL serialises."""
+    resource = get_scoped_or_404(db, Resource, tenant_id, resource_id)
+    return db.scalar(
+        select(Resource).where(Resource.id == resource.id).with_for_update().execution_options(populate_existing=True)
+    )
 
 
 def build_resource_availability(
@@ -236,7 +274,7 @@ def create_resource_booking(
 ):
     tenant_id = actor.tenant_id
     require_permission(actor, "booking.own")
-    resource = get_scoped_or_404(db, Resource, tenant_id, payload.resource_id)
+    resource = lock_resource(db, tenant_id, payload.resource_id)
     ensure_resource_active(resource)
     get_scoped_or_404(db, Employee, tenant_id, payload.booked_by_employee_id)
     enforce_member_employee(actor, payload.booked_by_employee_id)
@@ -297,12 +335,24 @@ def update_resource_booking(
     if booking.status == "cancelled":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="cancelled booking cannot be changed")
     enforce_member_employee(actor, booking.booked_by_employee_id)
-    resource = get_scoped_or_404(db, Resource, tenant_id, booking.resource_id)
+    resource = lock_resource(db, tenant_id, booking.resource_id)
     ensure_resource_active(resource)
     updates = payload.model_dump(exclude_unset=True)
+    for field in ("start_at", "end_at", "quantity", "title"):
+        if field in updates and updates[field] is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"{field} cannot be cleared"
+            )
     start_at = updates.get("start_at", booking.start_at)
     end_at = updates.get("end_at", booking.end_at)
     quantity = updates.get("quantity", booking.quantity)
+    if _aware(end_at) <= _aware(start_at):
+        # the request model can only compare the two when both are sent;
+        # the merged booking is what must hold (review 2026-10-10, R13)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"end_at ({end_at.isoformat()}) must be after start_at ({start_at.isoformat()})",
+        )
     validate_resource_booking(
         db,
         tenant_id=tenant_id,

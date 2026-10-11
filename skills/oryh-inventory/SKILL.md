@@ -116,7 +116,7 @@ A stock document is a business object whose type definition carries a
 
 ```text
 GET /object-type-definitions?entity_kind=business_object   → which types post stock, under which reason, from which state
-GET /business-rules?kind=data_rule&entity_kind=business_object&object_type=damage_report&status=published  → the tenant's words on when one is filed; `kind=approval_flow` on who approves
+GET /business-rules?kind=data_rule&entity_kind=business_object&object_type=damage_report&in_force_on=<today>  → the tenant's words on when one is filed; `kind=approval_flow` on who approves
 ```
 
 Filing and posting one, in that order:
@@ -195,7 +195,7 @@ workspace reserves at all is the same admin sentence that governs picking
 never a stored switch.** A three-person shop ships straight from the shelf;
 a real warehouse walks a list. Before fulfilling a confirmed order, read
 the tenant's sales_order `linkage` rule
-(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_order&status=published` —
+(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_order&in_force_on=<today>` —
 once per session, sent with the order's own reads, not before them):
 if it says picking is required ("pick before shipping" — one sentence is enough),
 create a picklist; if it says nothing about picking, ship directly. The
@@ -238,7 +238,7 @@ whether returned goods sit apart until someone inspects them. That choice
 belongs to the tenant, stated in words, not in a parameter:
 
 1. **Read the tenant's rule** — once per session, in the same wave as the
-   return's own reads: `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&status=published`.
+   return's own reads: `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&in_force_on=<today>`.
    If the rule states a receiving policy — "returns land in the
    quarantine area, transfer to main after inspection", "returns go
    straight back to the original position",

@@ -870,26 +870,42 @@ def main() -> int:
             print(f"  [{'ok' if lagging == 0 else 'note'}] {name}" + (f" — {lagging} rows" if lagging else ""))
 
         print("== payload conformance against active definitions ==")
-        rows = db.execute(
+        # Streamed, not `.all()`: every object's payload plus a copy of its
+        # type's schema per row is what the API pod's memory limit killed on
+        # 2026-10-10 (exit 137). The schema is read once per definition and
+        # the validator built once per schema; rows pass through a cursor.
+        definitions = {
+            (tenant_id, object_type): json_schema
+            for tenant_id, object_type, json_schema in db.execute(text(
+                "select tenant_id, object_type, json_schema from object_type_definitions where status='active'"
+            ))
+        }
+        tenant_names = dict(db.execute(text("select id, name from tenants")).all())
+        validators: dict[tuple[str, str], object] = {}
+        bad = seen = 0
+        cursor = db.execute(
             text(
-                """select b.id, b.object_type, b.payload_jsonb, d.json_schema, t.name
+                """select b.id, b.tenant_id, b.object_type, b.payload_jsonb
                    from business_objects b
-                   join object_type_definitions d
-                     on d.tenant_id=b.tenant_id and d.object_type=b.object_type and d.status='active'
-                   join tenants t on t.id=b.tenant_id
                    where b.deleted_at is null"""
-            )
-        ).all()
-        bad = 0
-        for object_id, object_type, payload, json_schema, tenant_name in rows:
-            validator_cls = validator_for(json_schema, default=Draft202012Validator)
-            errors = list(validator_cls(json_schema).iter_errors(payload))
+            ).execution_options(stream_results=True, yield_per=500)
+        )
+        for object_id, tenant_id, object_type, payload in cursor:
+            json_schema = definitions.get((tenant_id, object_type))
+            if json_schema is None:
+                continue
+            seen += 1
+            validator = validators.get((tenant_id, object_type))
+            if validator is None:
+                validator = validator_for(json_schema, default=Draft202012Validator)(json_schema)
+                validators[(tenant_id, object_type)] = validator
+            errors = list(validator.iter_errors(payload))
             if errors:
                 bad += 1
                 failures.append(
-                    f"payload violates schema: {tenant_name}/{object_type}/{object_id}: {errors[0].message}"
+                    f"payload violates schema: {tenant_names.get(tenant_id, tenant_id)}/{object_type}/{object_id}: {errors[0].message}"
                 )
-        check(f"all {len(rows)} schema-governed objects conform", bad == 0, f"{bad} violations")
+        check(f"all {seen} schema-governed objects conform", bad == 0, f"{bad} violations")
 
     if failures:
         print(f"\nDATA AUDIT FAILED ({len(failures)}):")

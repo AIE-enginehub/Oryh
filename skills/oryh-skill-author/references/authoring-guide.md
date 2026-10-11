@@ -98,7 +98,7 @@ The gate is also the **distribution rule**: holding the skill always implies per
 Any number, threshold, named approver, or routing rule belongs in the workspace's business rules. The skill's job is to *point* at it:
 
 > **Wrong (in a skill):** "a discount below 80% needs the general manager to countersign"
-> **Right (in a skill):** "before submitting, read `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&status=published` and apply it to the conversation"
+> **Right (in a skill):** "before submitting, read `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&in_force_on=<today>` and apply it to the conversation"
 > **Right (in the quotation `approval_flow`):** "for a discount below 80%, the sales manager approves and the general manager countersigns"
 
 This is why tenants can retune the process without touching any skill.

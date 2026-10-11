@@ -143,7 +143,11 @@ at once, never one line at a time.
    or CUP-350?". Never pick a look-alike yourself, and treat "none of these"
    as an answer: that listing waits for the catalog desk, and the line may
    meanwhile be recorded in words (`description`, no `product_id`) if the
-   caller prefers that to waiting.
+   caller prefers that to waiting. (The batch caller, $oryh-channel-order-import,
+   runs this same procedure for a whole file — it reads this calibration
+   for its rules, proposes a candidate per unmapped listing, and the
+   person confirms every proposal in one message before any line or map
+   row is written.)
 5. **Record what the person confirmed** so the next import skips steps 2–4:
    `POST /external-product-maps` per pairing — `source`, `external_name` as
    printed (never tidied), `external_sku_id` as printed or `""`,

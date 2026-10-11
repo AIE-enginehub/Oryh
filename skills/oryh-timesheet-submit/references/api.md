@@ -11,7 +11,7 @@ GET /projects?keyword=&status=active                      → match a real proje
 GET /timesheet-headers?employee_id={me}&status=draft      → reuse before create
 GET /timesheet-headers/{header_id}/detail                 → header + entries + approval trail
 GET /approval-records?entity_type=timesheet_header&entity_id={header_id}   → progress
-GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=timesheet_header&status=published  → the data rule; apply it (step 2)
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=timesheet_header&in_force_on=<today>  → the data rule; apply it (step 2)
 ```
 
 ## Create Header

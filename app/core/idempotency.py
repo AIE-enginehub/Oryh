@@ -24,6 +24,18 @@ The contract (the shape Stripe made conventional):
   with the same key.
 * A 5xx is not remembered: the retry runs again, which is the point of
   retrying.
+* A replay is served only to a credential that still authenticates. The
+  claim is scoped by the credential's hash, not by who it was at the time,
+  so the stored answer is re-gated on every replay: a revoked key, an
+  expired session, a deactivated user or a suspended tenant gets the 401
+  it would get for a fresh request, never the old 201 (review 2026-10-10,
+  R01).
+* A claim whose first attempt never reported back is NOT re-run with the
+  same key once its grace is over. The handler commits before the answer
+  is stored, so "no answer" may mean "written, then the process died": the
+  retry is told the outcome is unknown and to read back before sending a
+  new request with a new key. Re-running silently was how a committed
+  write got written twice (review 2026-10-10, R02).
 
 Pure ASGI (like the other middlewares here), so it sees the raw body and
 the raw response, and needs no cooperation from any handler — except one:
@@ -49,6 +61,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from fastapi import HTTPException
 
 from app.core.browser_auth import SESSION_COOKIE
 from app.core.config import API_PREFIX
@@ -115,12 +129,27 @@ def _json_response(status: int, detail) -> tuple[int, list[tuple[bytes, bytes]],
     return status, [(b"content-type", b"application/json"), (b"cache-control", b"no-store")], body
 
 
+UNRESOLVED = (
+    "the first attempt with this Idempotency-Key never reported its outcome — it may have been "
+    "written. Read back (GET the collection) before deciding; a new request takes a new key"
+)
+
+
 class IdempotencyMiddleware:
-    def __init__(self, app, session_resolver: Callable[[], Callable[[], Iterator[Session]]]):
+    def __init__(
+        self,
+        app,
+        session_resolver: Callable[[], Callable[[], Iterator[Session]]],
+        authenticator: Callable[[Session, str], None] | None = None,
+    ):
         self.app = app
         # Resolved per request so the test stack's `get_db` override is what
         # the middleware writes through, the same as every handler.
         self.session_resolver = session_resolver
+        # Re-gates a replay: given a session and the presented credential
+        # (`key:…`, `bearer:…`, `session:…`), returns when it still
+        # authenticates and raises HTTPException when it does not.
+        self.authenticator = authenticator
 
     @contextmanager
     def _session(self) -> Iterator[Session]:
@@ -161,6 +190,10 @@ class IdempotencyMiddleware:
         verdict = self._claim_in_session(scope_hash, key, fingerprint, scope["method"], scope["path"])
         if verdict[0] == "replay":
             record = verdict[1]
+            refused = self._regate(credential)
+            if refused is not None:
+                await self._reply(send, *refused)
+                return
             stored = json.loads(record.response_headers or "[]")
             response_headers = [(n.encode("latin-1"), v.encode("latin-1")) for n, v in stored]
             response_headers.append((REPLAYED_HEADER.lower().encode(), b"true"))
@@ -221,6 +254,19 @@ class IdempotencyMiddleware:
             for queued in held:
                 await send(queued)
 
+    def _regate(self, credential: str) -> tuple[int, list[tuple[bytes, bytes]], bytes] | None:
+        """The stored answer leaves only for a credential that authenticates
+        now. Without an authenticator (a bare middleware in a unit test) the
+        replay is served as before."""
+        if self.authenticator is None:
+            return None
+        try:
+            with self._session() as db:
+                self.authenticator(db, credential)
+        except HTTPException as exc:
+            return _json_response(exc.status_code, exc.detail)
+        return None
+
     def _settle(self, record_id: str, state: dict) -> None:
         status = state["status"]
         if status is None or status >= 500:
@@ -275,14 +321,12 @@ class IdempotencyMiddleware:
             if _utc(existing.created_at) > now - IN_FLIGHT_GRACE:
                 return ("refuse", _json_response(409, f"a request with this {HEADER} is still being processed; retry with the same key"))
             if existing.fingerprint != fingerprint:
-                # a stale claim is taken over only by the same request: the
-                # key never becomes a way to run a different one
                 return ("refuse", _json_response(422, [{
                     "type": "idempotency_key_reused", "loc": ["header", HEADER],
                     "msg": f"{HEADER} was already used for a different request; a new request takes a new key", "input": key}]))
-            existing.created_at = now
-            db.commit()
-            return ("run", existing.id)
+            # the first attempt may have committed and died before it stored
+            # its answer: the same key is never a licence to run it again
+            return ("refuse", _json_response(409, UNRESOLVED))
         if existing.fingerprint != fingerprint:
             return ("refuse", _json_response(422, [{
                 "type": "idempotency_key_reused", "loc": ["header", HEADER],

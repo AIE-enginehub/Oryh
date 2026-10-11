@@ -207,6 +207,24 @@ def hosted_agent_permissions(db: Session, tenant_id: str) -> frozenset[str]:
     return frozenset(role.permissions_jsonb or [])
 
 
+def authenticate_credential(db: Session, credential: str) -> None:
+    """Whether a presented credential still authenticates — the gate the
+    idempotency middleware runs before it replays a stored answer. The
+    string is the middleware's own `kind:value`; each kind resolves exactly
+    as a fresh request with it would, and the same HTTPException says why
+    not. CSRF is not re-checked: the stored answer was produced by a request
+    that passed it, and nothing is written on a replay."""
+    kind, _, value = credential.partition(":")
+    if kind == "key":
+        _resolve_api_key_actor(db, value)
+    elif kind == "bearer":
+        _resolve_bearer_actor(db, value)
+    elif kind == "session":
+        _resolve_session_actor(db, value)
+    else:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unknown credential")
+
+
 def get_actor(
     request: Request,
     db: Annotated[Session, Depends(get_db)],

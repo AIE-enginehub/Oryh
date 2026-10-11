@@ -211,7 +211,7 @@ skill and NOT in the server.** Read them from the workspace's own words — its
 membership rules are a `policy`:
 
 ```text
-GET /business-rules?kind=policy&status=published&keyword=points
+GET /business-rules?kind=policy&in_force_on=<today>&keyword=points
 ```
 
 …or whatever category that workspace filed its membership rules under. If nothing states a

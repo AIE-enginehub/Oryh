@@ -10,17 +10,20 @@
 > | `policy` | the company's standing rules, keyed by their own `code` — the staff handbook, expense standards, the social-insurance base | everyone, by `code` or `category` |
 >
 > ```text
-> GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=<type>&status=published
-> GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=<type>&status=published
-> GET /business-rules?kind=linkage&entity_kind=builtin&object_type=<type>&status=published
+> GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=<type>&in_force_on=<today>
+> GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=<type>&in_force_on=<today>
+> GET /business-rules?kind=linkage&entity_kind=builtin&object_type=<type>&in_force_on=<today>
 > GET /business-rules?kind=policy&category=<category>&in_force_on=<date>
 > ```
 >
-> - `status=published` is the version in force today. To judge a document by
->   the rules that governed on ITS date — a March timesheet read in May, a leave
->   request's `from_date` — send `in_force_on=<that date>` instead of `status`;
->   it reads across superseded versions. A document or todo that pinned
->   `rule_code` + `rule_version` names one exact row: `GET /business-rules/{rule_id}`.
+> - `in_force_on=<date>` is the version that governs that date — one row per
+>   rule, across versions. For a decision today, `<today>`; to judge a document
+>   by the rules that governed on ITS date — a March timesheet read in May, a
+>   leave request's `from_date` — its date. `status=published` is the LATEST
+>   version, which a workspace may have dated to start next quarter: it is the
+>   question "what was published", not "what applies", so never read a rule to
+>   act on by status alone. A document or todo that pinned `rule_code` +
+>   `rule_version` names one exact row: `GET /business-rules/{rule_id}`.
 > - `entity_kind` is `builtin` for shipped documents and `business_object` for
 >   the workspace's own types; `name` is `default` unless the workspace named a
 >   second rule for the same type.
@@ -43,8 +46,12 @@
 >   rule cannot authorise a write the skill forbids. When a rule names a state
 >   the object's machine does not have, **the machine wins** and the server
 >   answers 409 — say which sentence needs changing.
-> - **What belongs where.** A company rule — matching rules, tolerances, payment terms, points ratios —
->   is a `policy` or a `data_rule`, published, versioned and read by every
->   agent. A preference about how ONE skill behaves here — how much to report,
->   which shortcut to take — is that skill's `calibration`. Never park a rule in
->   a calibration to avoid publishing it.
+> - **What belongs where.** A company rule — a tolerance, a payment term, a
+>   points ratio, which listings must never be sold — is a `policy` or a
+>   `data_rule`, published, versioned and read by every agent. How ONE skill
+>   does its work here — how much to report, which shortcut to take, how this
+>   workspace's platform titles are built and which words in them mean nothing
+>   (the matching skill's rules of thumb) — is that skill's `calibration`: a
+>   method, not a rule, and it cannot authorise what the skill forbids. The
+>   test: if a person could be held to it, publish it; if only an agent follows
+>   it, calibrate it. Never park a rule in a calibration to avoid publishing it.

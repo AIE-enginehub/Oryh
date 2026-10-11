@@ -105,7 +105,7 @@ Plus `ordered_total` / `billed_total` / `unbilled_total` for the document and
 **Read the workspace's rule before judging a gap**:
 
 ```text
-GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=invoice&status=published
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=invoice&in_force_on=<today>
 ```
 
 Tolerances and whether freight may exceed the order are the invoice `data_rule`;
@@ -136,7 +136,7 @@ them.** Two places, in order:
   already here, nothing to fetch ("pay claims directly, no invoice" /
   "always bill first").
 - the claim's `linkage` rule:
-  `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=expense_claim&status=published`
+  `GET /business-rules?kind=linkage&entity_kind=builtin&object_type=expense_claim&in_force_on=<today>`
   — what happens after approval is exactly that row's subject.
 
 {{include:_common/business-rules.md}}

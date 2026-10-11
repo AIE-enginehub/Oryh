@@ -104,7 +104,7 @@ that does not say where those documents go. Publishing the next version of
 that family's definition lifts the park by itself; if the definition was
 already right and the cause was elsewhere, `PATCH /flow-subscriptions/{id}`
 with `{"clear_park": true}` (needs `keys.manage`). If nothing is parked,
-check the flow is published (`GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=…&status=published`)
+check the flow is published (`GET /business-rules?kind=approval_flow&entity_kind=builtin&object_type=…&in_force_on=<today>`)
 and read the latest `GET /flow-runs` row for that family.
 
 **"Can the system be configured to skip a step?"** There are no switches.

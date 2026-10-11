@@ -176,6 +176,18 @@ def item_reads(db: Session, family: ItemFamily, rows) -> list[dict]:
 
 def _item_write_gate(db: Session, actor: Actor, family: ItemFamily, parent_id: str):
     parent = get_active_document_or_404(db, family.parent_model, actor.tenant_id, parent_id)
+    # Every write that changes a document's lines holds the document's row
+    # for the rest of the transaction — the same lock `/save` takes — so a
+    # line written while a whole-document save is restating the lines, or
+    # while the state is moving past editable, waits and then re-reads the
+    # state it is judged by (review 2026-10-10, R04). SQLite ignores the
+    # clause; PostgreSQL serialises on it.
+    parent = db.scalar(
+        select(family.parent_model)
+        .where(family.parent_model.id == parent.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     ensure_document_editable(db, parent)
     if family.owner_checked:
         enforce_member_employee(actor, parent.employee_id)

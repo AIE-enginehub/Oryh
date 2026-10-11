@@ -71,7 +71,7 @@ Everything else comes from the conversation and from the tenant's own records.
        `sales_order`, and so on), which is where your draft should be composing
        from anyway. Do not infer fields from one sample record; optional ones
        will be missing.
-   - `GET /business-rules?entity_kind=...&object_type=...&status=published` — the rules in force for the objects involved, every kind. Never duplicate a rule into the skill.
+   - `GET /business-rules?entity_kind=...&object_type=...&in_force_on=<today>` — the rules in force for the objects involved, every kind. Never duplicate a rule into the skill.
    - `GET /skills?status=all` — the existing registry. A near-miss skill means **revise, don't fork**; the product skills (kind=product) show the house style to follow.
    - `GET /capabilities` and `GET /roles` — what gates are available and who holds them today.
 4. **Classify** each part of the requirement per the table above:

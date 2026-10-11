@@ -52,7 +52,7 @@ Examples already in scope:
 Business processes that are specific to a customer or tenant should normally be represented as:
 
 - a skill that describes the workflow
-- memory that stores policy, contacts, routing, and tenant conventions
+- published business rules (approval flows, data rules, linkages, policies) read by date — never recalled from memory
 - generic records in `business_objects`
 - typed relationships in `business_object_links`
 - approval facts in `approval_records`
@@ -271,7 +271,7 @@ In an AI-native model, those concerns are distributed differently:
 - `oryh` records the request and its state
 - the AI agent drives approval and operational steps
 - notification skills contact the right people
-- memory stores business-specific routing and policy
+- published business rules carry the routing and policy, versioned and read by date
 
 This allows OA-like coverage without requiring a rigid page-first product for every process.
 

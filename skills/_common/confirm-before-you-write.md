@@ -32,6 +32,9 @@ visible before it becomes a record.
   server does not already hold it.
 
 The unattended flow agent is outside this rule: it advances documents by the
-tenant's approval flow and never writes their content. A workspace
+tenant's approval flow and never edits a document's content; what it may
+create is a derived document a published `linkage` names — a shipment draft
+after `confirmed`, a stock hold — and nothing a person's confirmation would
+have shaped. A workspace
 that wants a lighter touch on one routine write — a person's own timesheet
 lines, say — names it in this skill's calibration; without that, ask.

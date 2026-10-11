@@ -53,6 +53,10 @@ def main() -> int:
     parser.add_argument("--json", dest="body", help="request body: inline JSON or @file")
     parser.add_argument("--base-url")
     parser.add_argument("--api-key")
+    parser.add_argument(
+        "--idempotency-key",
+        help="sent as Idempotency-Key on a write: one stable value per business intent, the same on every retry",
+    )
     args = parser.parse_args()
 
     base_url = _configured(args.base_url, "ORYH_BASE_URL", DEFAULT_BASE_URL)
@@ -75,6 +79,8 @@ def main() -> int:
 
     data = None
     headers = {"X-API-Key": api_key, "Accept": "application/json"}
+    if args.idempotency_key:
+        headers["Idempotency-Key"] = args.idempotency_key
     if args.body is not None:
         raw = open(args.body[1:], encoding="utf-8").read() if args.body.startswith("@") else args.body
         try:

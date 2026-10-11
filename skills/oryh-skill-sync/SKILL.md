@@ -119,7 +119,7 @@ Skills carry the **mechanism**: which endpoint to call, what to ask before
 writing, what to check. The tenant's **rules** — who approves, at what
 threshold, what a submission must contain — are NOT in these files. Every
 skill that needs them fetches them at the moment it runs
-(`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&status=published`), so a rule
+(`GET /business-rules?kind=…&entity_kind=builtin&object_type=…&in_force_on=<today>`), so a rule
 change is live immediately, for everyone, with nothing to install.
 
 | The admin changed… | Does sync report a change? | When does it take effect? |

@@ -154,7 +154,7 @@ the response reports `balance` and `available_amount` instead of
 
 ## Related
 
-- `GET /business-rules?kind=policy&status=published&keyword=points` — where a
+- `GET /business-rules?kind=policy&in_force_on=<today>&keyword=points` — where a
   workspace states its earning and redemption rules. The server holds none.
 - `POST /invoice-items` with `invoice_item_type: "discount"` — the money half of
   a points redemption. The points half is an account entry; they are two facts,

@@ -18,7 +18,7 @@ GET /sales-quotations?employee_id={me}&status=submitted    → in-flight duplica
 GET /sales-quotations?quote_number=QT-000123&include_deleted=false → every revision of one number
 GET /sales-quotations/{quotation_id}/detail                → quotation + items + adjustments + computed_total + adjustments_total + adjusted_total + unpriced_item_count + revisions + approval trail
 GET /approval-records?entity_type=sales_quotation&entity_id={quotation_id} → progress
-GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&status=published  → the data rule; apply it (step 2)
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_quotation&in_force_on=<today>  → the data rule; apply it (step 2)
 ```
 
 ## Create Quotation

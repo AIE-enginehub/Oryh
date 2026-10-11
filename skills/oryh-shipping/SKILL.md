@@ -110,7 +110,7 @@ ledger entry, whichever door it came through.
 
 The inbound leg's line names the position the goods land in, and which
 position is the tenant's own sentence in the sales_return `linkage` rule
-(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&status=published`
+(`GET /business-rules?kind=linkage&entity_kind=builtin&object_type=sales_return&in_force_on=<today>`
 — once per session, with the return's own reads): a quarantine the returns area, a
 `RET-` lot, or — the rule silent — the original position, found
 from the order's own issue (`GET /inventory-item-details?sales_order_id={original}&reason=issued`).

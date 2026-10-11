@@ -729,6 +729,38 @@ def test_the_channel_import_loop_puts_the_person_in_the_middle() -> None:
         < orders.index("Create the order"), "reads first, the person in the middle, writes last"
 
 
+def test_the_batch_import_proposes_and_the_person_confirms_every_match() -> None:
+    """The batch desk sorts a whole file before asking, so the person answers
+    once — but every product it found is confirmed by the person before it
+    lands on a line or in the map (decided 2026-10-08). Dedup comes first,
+    the translation uses the order's date, the drafts are never submitted
+    by this skill, and a proposal nobody confirmed is recorded in words.
+    Losing any sentence here turns a batch import into silent
+    mis-shipments, which is the exact thing the desk skills'
+    person-in-the-middle doctrine exists to prevent."""
+    skill = (PRODUCT_SKILLS_DIR / "oryh-channel-order-import" / "SKILL.md").read_text(encoding="utf-8")
+    head = skill.split("---", 2)[1]
+    assert "required_capability: order.submit_own" in head
+    assert "Every matched product is confirmed by the person before it lands" in skill
+    assert "A proposal is a question for the person, not a decision" in skill
+    assert "No draft is created before this answer" in skill
+    assert "a pairing the person does not confirm is not a pairing" in skill
+    assert "Dedup by the platform number FIRST" in skill
+    assert "as of each order's date" in skill
+    assert "no `/submit`: `employee_id` yours" in skill
+    assert "decided_by" in skill and "`map` / `confirmed` / `none`" in skill
+    assert skill.index("Dedup by the platform number") < skill.index("Translate every line through the map") \
+        < skill.index("propose the likeliest product") < skill.index("The person confirms every proposal") \
+        < skill.index("Create the drafts") < skill.index("Remember what the person confirmed"), \
+        "reads first, the person in the middle for the whole batch, writes last"
+    assert "$oryh-product-matching" in skill, "the rules live in the matching skill's calibration"
+    assert "$oryh-order-submit" in skill, "submission is the desk skill's"
+    seller = (PRODUCT_SKILLS_DIR / "oryh-order-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "$oryh-channel-order-import" in seller, "the desk must know where a whole file goes"
+    matching = (PRODUCT_SKILLS_DIR / "oryh-product-matching" / "SKILL.md").read_text(encoding="utf-8")
+    assert "$oryh-channel-order-import" in matching and "confirms every proposal" in matching
+
+
 def test_the_map_is_taught_to_answer_by_title() -> None:
     """The lesson from the merchant's own export: it carries titles, not
     listing ids. The curator learns to key rows by title (verbatim, never

@@ -14,7 +14,7 @@ GET /expense-claims?employee_id={me}&status=draft        → reuse before create
 GET /expense-items?invoice_number={n}                    → duplicate check before filing
 GET /expense-claims/{claim_id}/detail                    → claim + items + totals + attachments + approval trail
 GET /approval-records?entity_type=expense_claim&entity_id={claim_id}   → progress
-GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=expense_claim&status=published  → the data rule; apply it (step 2)
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=expense_claim&in_force_on=<today>  → the data rule; apply it (step 2)
 ```
 
 ## Create Claim

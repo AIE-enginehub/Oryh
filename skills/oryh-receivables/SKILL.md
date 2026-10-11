@@ -259,7 +259,7 @@ policy decision: confirm with the principal, never take it on your own reading.
 - Apply money to a supplier's bill or an expense claim (that is
   `$oryh-payables`), or settle across currencies.
 - Decide payment terms or write-off policy on its own — those live in the workspace's
-  business rules (`GET /business-rules?kind=policy&category=finance&status=published`,
+  business rules (`GET /business-rules?kind=policy&category=finance&in_force_on=<today>`,
   or the invoice `data_rule`).
 - Approve anything. Routing and approval are `the hosted workflow admin agent` for
   the bill and `the hosted workflow admin agent` for the money.

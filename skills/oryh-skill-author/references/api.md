@@ -14,7 +14,7 @@ Use with:
 ```text
 GET /auth/me                                   → permissions (need skills.manage; workflows.publish for a scoped rule)
 GET /object-type-definitions                   → builtin + custom objects, schemas, state machines
-GET /business-rules?entity_kind=&object_type=&status=published  → the rules in force, every kind
+GET /business-rules?entity_kind=&object_type=&in_force_on=<today>  → the rules in force, every kind
 GET /skills?status=all                         → existing registry (product + custom)
 GET /skills/{name}                             → full files of one skill (house style / revision base)
 GET /capabilities                              → system + custom gates

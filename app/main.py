@@ -41,6 +41,7 @@ from app.core.idempotency import IdempotencyMiddleware, openapi_with_idempotency
 from app.core.legacy_usage import LegacyWebUsageMiddleware
 from app.core.request_context import RequestBaseUrlMiddleware
 from app.core.responses import JSONCharsetMiddleware
+from app.api.deps import authenticate_credential
 from app.db.session import get_db
 from app.web.routes import router as web_router
 
@@ -95,6 +96,7 @@ app.add_middleware(LegacyWebUsageMiddleware)
 app.add_middleware(
     IdempotencyMiddleware,
     session_resolver=lambda: app.dependency_overrides.get(get_db, get_db),
+    authenticator=authenticate_credential,
 )
 # Added last so it wraps outermost and sees every response, including ones
 # synthesized by exception handlers and the middlewares above.

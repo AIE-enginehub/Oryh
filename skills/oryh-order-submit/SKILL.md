@@ -50,7 +50,7 @@ oryh:
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
-2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_order&status=published` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
+2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_order&in_force_on=<today>` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
 
 3. **From the won quotation** (the normal path) — **after step 4's reuse check, which goes out in the same wave as step 2**: `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array rides `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when a delivery date was promised). `POST /sales-order-items` remains for adding a line to an existing draft. An order with no quotation behind it is also legal — snapshots stand alone.
    - **The storefront**: a channel order names the front it came through —
@@ -116,8 +116,11 @@ not optional. Line removals and deletion release by themselves.
 An export from Tmall (JD, Amazon, a mini-program, a small vendor's site) is
 a spreadsheet of platform order numbers and product TITLES, and recording
 it means two translations — both server-backed lookups, never memory, never
-guesswork. The loop, per order, in this order — reads first, the person in
-the middle, writes last:
+guesswork. A whole FILE of them — a day's orders to land as drafts and
+review afterwards — is $oryh-channel-order-import's job, which proposes a
+product for every unmapped line and has the person confirm them all in one
+message; this loop is for recording orders here, one at a time. The loop, per order, in this order — reads first, the
+person in the middle, writes last:
 
 1. **Dedup by the platform number FIRST**:
    `GET /external-document-links?source=tmall&external_kind=order&external_no={theirs}`.

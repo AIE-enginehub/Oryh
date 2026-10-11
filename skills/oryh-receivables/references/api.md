@@ -196,7 +196,7 @@ invoicing request back to its filer. Tenants rename and rewire — read the mach
 
 ## Related
 
-- `GET /business-rules?kind=policy&category=finance&status=published` — the
+- `GET /business-rules?kind=policy&category=finance&in_force_on=<today>` — the
   workspace's own billing and collection policy, in its own words; its invoice
   `data_rule` and `approval_flow` sit beside it under `kind=`.
 - `POST /todos` with `entity_type: "invoice"` — a chase-up assignment.

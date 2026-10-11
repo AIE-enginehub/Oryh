@@ -12,6 +12,7 @@ from app.api.deps import has_permission, Actor, attributed, get_actor, require_p
 from app.api.roles import custom_capability_names
 from app.db.session import get_db
 from app.core.permissions import validate_permission_grammar
+from app.core.permissions import GATE_ALTERNATIVE
 from app.models import Role, TenantSkill, TenantSkillAssignment, User
 from app.schemas import (
     CreateSkillAssignmentRequest,
@@ -81,9 +82,16 @@ def validate_required_capability(db: Session, tenant_id: str, name: str | None) 
     if name is None:
         return
     known_custom = custom_capability_names(db, tenant_id)
-    error = validate_permission_grammar(name, known_custom)
-    if error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"required_capability: {error}")
+    parts = [part.strip() for part in name.split(GATE_ALTERNATIVE)]
+    if any(not part for part in parts):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="required_capability: alternatives are joined by `|`, each a capability",
+        )
+    for part in parts:
+        error = validate_permission_grammar(part, known_custom)
+        if error:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"required_capability: {error}")
 
 
 def get_skill_or_404(db: Session, tenant_id: str, skill_ref: str) -> TenantSkill:

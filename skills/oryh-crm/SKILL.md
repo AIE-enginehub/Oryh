@@ -75,7 +75,7 @@ oryh:
 
 ## Working the pipeline
 
-1. **Requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=lead&status=published`
+1. **Requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=lead&in_force_on=<today>`
    (and `object_type=opportunity`) — once per session, in the same wave as the dedup
    lookups, never as a separate wait; the defaults below hold unless it says
    otherwise, and a 409 on a status you assumed is the cheap way to learn the

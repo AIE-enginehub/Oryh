@@ -96,6 +96,7 @@ see operations.
 |---|---|
 | Capture and advance leads, convert one into a customer and an opportunity | `oryh-crm` |
 | Record orders from Tmall, JD or another platform — dedup by the platform number, translate listings through the product map, confirm the unmapped ones once | `oryh-order-submit` |
+| Land a whole platform export as drafts — dedup, translate through the map, propose the likeliest product for the rest, and have the person confirm every proposal in one message before the drafts are created | `oryh-channel-order-import` |
 | Resolve platform listings to catalog products by this workspace's own rules — the rules are the skill's calibration, the confirmed pairings are the map | `oryh-product-matching` |
 
 ## Procurement and stock

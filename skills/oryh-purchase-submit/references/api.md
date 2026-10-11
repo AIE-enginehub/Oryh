@@ -15,7 +15,7 @@ GET /purchase-requests?employee_id={me}&status=draft      → reuse before creat
 GET /purchase-requests?employee_id={me}&status=submitted  → in-flight duplicate check
 GET /purchase-requests/{request_id}/detail                → request + items (each with its `sales_order` context when pinned, and the `purchase_order_items` procurement later places against it) + estimated_total + unpriced_item_count + approval trail
 GET /approval-records?entity_type=purchase_request&entity_id={request_id}   → progress
-GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=purchase_request&status=published  → the data rule; apply it (step 2)
+GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=purchase_request&in_force_on=<today>  → the data rule; apply it (step 2)
 ```
 
 ## Create Request

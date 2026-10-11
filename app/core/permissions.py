@@ -601,11 +601,19 @@ def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
     return any(permissions_cover_any_scope(permissions, wider) for wider in IMPLIED_BY.get(verb, ()))
 
 
+GATE_ALTERNATIVE = "|"
+
+
 def capability_covers(permissions: frozenset[str], required: str) -> bool:
     """A skill's required_capability is either a system verb — bare, or
     scoped like `business_object.write:daily_report`, in which case the
     scope must match exactly, via `verb:*`, or via the bare verb — or a
-    custom capability (exact grant, scope-less by grammar)."""
+    custom capability (exact grant, scope-less by grammar). Several joined
+    by `|` are alternatives: a skill that serves two desks (the policy
+    editor and the flow publisher both maintain business rules) reaches
+    whoever holds any one of them (review 2026-10-10, R09)."""
+    if GATE_ALTERNATIVE in required:
+        return any(capability_covers(permissions, part.strip()) for part in required.split(GATE_ALTERNATIVE) if part.strip())
     verb, _, scope = required.partition(":")
     if verb in SYSTEM_CAPABILITY_NAMES:
         if scope:

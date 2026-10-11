@@ -1,7 +1,7 @@
 ---
 name: oryh-business-rules
 description: Use to write, publish, amend, re-scope or repeal any of the workspace's own rules — a company policy (员工手册、报销制度、薪酬管理办法) or an external standard (社保缴费基数、最低工资), who approves what (an approval flow), what a document must carry when filed (a data rule), what happens elsewhere when it reaches a state (a linkage) — and to split a pre-2026-10 workflow definition into its kinds. Also when an agent needs a figure a policy sets, with its version and publisher. Not for one person's pay (oryh-payroll) or for writing a skill (oryh-skill-author).
-required_capability: policy.manage
+required_capability: policy.manage|policy.publish|workflows.publish
 ---
 
 # Oryh Business Rules
@@ -126,7 +126,7 @@ A sentence in the wrong kind is read by the wrong agent or by nobody.
 
 Every publish replaces the whole text of that rule. Asked to "add one more", start
 from the version in force — `GET
-/business-rules?kind=approval_flow&entity_kind=builtin&object_type=expense_claim&status=published`
+/business-rules?kind=approval_flow&entity_kind=builtin&object_type=expense_claim&in_force_on=<today>`
 — weave the change into it, carry every other sentence forward unedited, and
 publish the complete text. Before publishing, read back **what is new, what
 changed, and what would be removed**; if the third list is not empty and the
