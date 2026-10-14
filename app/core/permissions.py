@@ -245,7 +245,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "(contract.manage:purchase 仅采购侧,:sales 仅销售侧);读取同样需要此能力",
     ),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
-    ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力"),
+    ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力；只能授出自己持有的权限，不能把人请进 admin 或造出比自己更宽的角色——那是管理员的事"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用工作空间与个人访问凭证"),
     ("object_types.manage", False, "对象类型管理", "定义对象字段与状态流程"),
     ("workflows.publish", False, "发布流程规则", "起草、发布与废止审批流程、数据要求、单据联动三类业务规则（business_rules）"),
@@ -324,7 +324,7 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "fin_account.manage": ("Fin accounts and bank statements", "Record fin accounts (bank, cash, payment platforms) and their register lines, import statements, link payments for reconciliation; not the payment documents themselves"),
     "contract.manage": ("Manage contracts", "File contracts and originals, locate clauses, advance status, link orders, invoices and payments; scopable by side (contract.manage:purchase, :sales); reading needs it too"),
     "employees.manage": ("Manage employees", "Create and maintain employee records"),
-    "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities"),
+    "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities — within the holder's own grants: inviting into admin or building a wider role is the administrator's"),
     "keys.manage": ("Manage access credentials", "Issue, view and disable workspace and personal credentials"),
     "object_types.manage": ("Manage object types", "Define object fields and lifecycles"),
     "workflows.publish": ("Publish flow rules", "Draft, publish and repeal the three scoped kinds of business rule: approval flows, data rules and linkages"),
@@ -602,6 +602,16 @@ def permissions_cover_any_scope(permissions: frozenset[str], verb: str) -> bool:
 
 
 GATE_ALTERNATIVE = "|"
+
+
+def grants_beyond(permissions: frozenset[str], grants) -> list[str]:
+    """The grants in `grants` that `permissions` does not cover — what a
+    person would be handing out without holding it. `users.manage` lets a
+    person invite and shape roles, and a tenant found that an order-and-stock
+    administrator given it could invite an administrator (2026-10-14): the
+    verb was never meant to be a ladder. A grant is covered by the same
+    grant, by `verb:*` for a scoped one, or by the bare verb."""
+    return sorted(g for g in grants if not capability_covers(permissions, g))
 
 
 def capability_covers(permissions: frozenset[str], required: str) -> bool:

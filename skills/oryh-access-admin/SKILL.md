@@ -152,6 +152,12 @@ back to the principal.
 
 ## Where the server will stop you (explain, do not retry)
 
+- **No ladder**: a person hands out only what they hold. Unless the principal
+  is the system `admin`, inviting or moving someone into a role, or building
+  or widening one, is refused (403 naming the grants) when that role carries
+  anything the principal lacks — `users.manage` on a desk role lets that desk
+  bring in its own kind, never an administrator. Say so and hand the request
+  to an administrator rather than looking for another route.
 - **Lockout protection**: the `admin` role cannot lose `users.manage`, and no
   change may leave the tenant without a last active user holding `users.manage`
   (all three paths hit this — editing role permissions, changing a user's role,

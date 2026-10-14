@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.common import PAGE_SIZE_DOC, envelope, get_scoped_or_404, paginated_envelope, requested_pagination
-from app.api.deps import Actor, as_utc, get_actor, require_permission, utc_now
+from app.api.deps import Actor, as_utc, ensure_may_assign_role, get_actor, require_permission, utc_now
 from app.core.browser_auth import (
     clear_browser_auth_cookies,
     require_same_origin,
@@ -445,6 +445,7 @@ def invite_user(
 
     require_permission(actor, "users.manage")
     ensure_role_exists(db, actor.tenant_id, payload.role)
+    ensure_may_assign_role(db, actor, payload.role)
     # Invitations are deliberately exempt from the corporate-domain check:
     # external collaborators (service providers, auditors) join this way.
     if db.scalar(select(User).where(User.email == payload.email)) is not None:
@@ -620,6 +621,7 @@ def update_user(
             )
     if "role" in updates:
         ensure_role_exists(db, actor.tenant_id, updates["role"])
+        ensure_may_assign_role(db, actor, updates["role"])
     if updates.get("status") == "active" and user.invitation_pending:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

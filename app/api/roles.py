@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.common import envelope
-from app.api.deps import Actor, attributed, get_actor, require_permission
+from app.api.deps import Actor, attributed, ensure_grants_within_own, get_actor, require_permission
 from app.core.permissions import SYSTEM_CAPABILITY_NAMES, capability_collections, validate_permission_grammar
 from app.db.session import get_db
 from app.models import Capability, ObjectTypeDefinition, Role, TenantSkill, User
@@ -107,6 +107,7 @@ def create_role(
 ):
     require_permission(actor, "users.manage")
     validate_permissions(db, actor.tenant_id, payload.permissions)
+    ensure_grants_within_own(actor, payload.permissions, what="the new role")
     existing = db.scalar(
         select(Role).where(Role.tenant_id == actor.tenant_id, Role.name == payload.name)
     )
@@ -140,10 +141,16 @@ def update_role(
     require_permission(actor, "users.manage")
     lock_tenant_identity(db, actor.tenant_id)
     role = get_role_or_404(db, actor.tenant_id, role_ref)
+    if role.is_system and role.name == "admin" and not (actor.bypasses_permissions or actor.role == "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="only an administrator changes the admin role",
+        )
     updates = payload.model_dump(exclude_unset=True)
     if "permissions" in updates:
         permissions = updates.pop("permissions")
         validate_permissions(db, actor.tenant_id, permissions)
+        ensure_grants_within_own(actor, permissions, what=f"role {role.name!r}")
         if role.is_system and role.name == "admin" and "users.manage" not in permissions:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

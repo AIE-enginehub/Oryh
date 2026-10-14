@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.browser_auth import CSRF_COOKIE, SESSION_COOKIE
 from app.core.permissions import (
+    grants_beyond,
     HOSTED_FLOW_AGENT_PERMISSIONS,
     HOSTED_FLOW_AGENT_ROLE,
     PRINCIPAL_HOSTED_FLOW_AGENT,
@@ -205,6 +206,27 @@ def hosted_agent_permissions(db: Session, tenant_id: str) -> frozenset[str]:
     if role is None:
         return frozenset(HOSTED_FLOW_AGENT_PERMISSIONS)
     return frozenset(role.permissions_jsonb or [])
+
+
+def ensure_grants_within_own(actor: "Actor", grants, *, what: str) -> None:
+    """A person hands out only what they hold. The system administrator
+    role and a tenant's own service key are outside the rule — they hold
+    everything by definition; everyone else, `users.manage` included, may
+    assign or build a role only from grants they themselves carry."""
+    if actor.bypasses_permissions or actor.role == "admin":
+        return
+    beyond = grants_beyond(actor.permissions, grants)
+    if beyond:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{what} grants what you do not hold: {', '.join(beyond)} — an administrator does that",
+        )
+
+
+def ensure_may_assign_role(db: Session, actor: "Actor", role_name: str) -> None:
+    """Inviting or moving a person into a role is granting that role's
+    permissions; the rule above, read off the role."""
+    ensure_grants_within_own(actor, permissions_of_role(db, actor.tenant_id, role_name), what=f"role {role_name!r}")
 
 
 def authenticate_credential(db: Session, credential: str) -> None:
