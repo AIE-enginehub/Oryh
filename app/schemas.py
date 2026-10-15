@@ -256,7 +256,13 @@ class Envelope(BaseModel, Generic[T]):
 class ProjectBase(RequestModel):
     project_code: str | None = Field(default=None, max_length=64)
     project_name: str | None = Field(default=None, max_length=200)
+    # the client's name as typed; a snapshot of the customer's name when
+    # customer_id is given and this is left out
     client: str | None = Field(default=None, max_length=200)
+    customer_id: str | None = None
+    opportunity_id: str | None = None
+    contract_id: str | None = None
+    owner_employee_id: str | None = None
     status: ProjectStatus = "active"
     start_date: date | None = None
     end_date: date | None = None
@@ -276,6 +282,10 @@ class ProjectRead(APIModel):
     project_code: str | None = None
     project_name: str
     client: str | None = None
+    customer_id: str | None = None
+    opportunity_id: str | None = None
+    contract_id: str | None = None
+    owner_employee_id: str | None = None
     status: ProjectStatus
     start_date: date | None = None
     end_date: date | None = None
@@ -2102,11 +2112,29 @@ class ContractItemBase(RequestModel):
         return self
 
 
+class UpstreamContractReference(RequestModel):
+    """A contract that is not ours but governs this one — the agreement
+    between our customer and their client that our subcontract serves. A
+    reference: it is not listed as a contract, not summed, and has no state.
+    `attachment_id` points at a copy in the attachment store."""
+
+    contract_no: str | None = Field(default=None, max_length=100)
+    parties: list[str] = Field(default_factory=list, max_length=10)
+    signed_date: date | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
+    summary: str | None = Field(default=None, max_length=4000)
+    attachment_id: str | None = None
+
+
 class ContractBase(RequestModel):
     # validated against the tenant's contract_type vocabulary at write
     contract_type: str = Field(default="other", max_length=50)
     vendor_id: str | None = None
     customer_id: str | None = None
+    # the deal this agreement closes; its parties are copied onto the contract
+    opportunity_id: str | None = None
+    upstream: UpstreamContractReference | None = None
     counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
     total_amount: float | None = Field(default=None, ge=0, le=999_999_999_999.99)
     currency: str = Field(default="CNY", min_length=3, max_length=3)
@@ -2304,6 +2332,12 @@ class ContractRead(APIModel):
     counterparty_signatory: str | None = None
     employee_id: str | None = None
     parent_contract_id: str | None = None
+    opportunity_id: str | None = None
+    upstream_jsonb: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("upstream_jsonb", "upstream"),
+        serialization_alias="upstream",
+    )
     summary: str | None = None
     status: str
     signed_at: datetime | None = None
@@ -2313,8 +2347,9 @@ class ContractRead(APIModel):
         serialization_alias="custom_fields",
     )
     # present on the single read: what was agreed, the originals, the
-    # located clauses grouped by type
+    # located clauses grouped by type, and the parties beyond the counterparty
     items: list[ContractItemRead] | None = None
+    parties: list["DocumentPartyDetailRead"] | None = None
     # what `POST …/save` takes as expected_revision (header + lines)
     revision: str | None = None
     documents: list[ContractDocumentRead] | None = None
@@ -2772,6 +2807,80 @@ class OpportunityContactDetailRead(OpportunityContactRead):
     contact_email: str | None = None
 
 
+PartyCarrier = Literal["opportunity", "contract", "project"]
+
+
+class DocumentPartyBase(RequestModel):
+    customer_id: str | None = None
+    # the workspace's deal_party_role vocabulary; `contracting` is never a
+    # row — it is the carrier's own customer_id, derived on every read
+    party_role: str | None = Field(default=None, max_length=50)
+    contact_id: str | None = None
+    # what was agreed with this party — a commission, a trigger; agents read
+    # it, the server never interprets it
+    terms: dict[str, Any] | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateDocumentPartyRequest(DocumentPartyBase):
+    entity_type: PartyCarrier
+    entity_id: str
+    customer_id: str
+    party_role: str = Field(max_length=50)
+
+
+UpdateDocumentPartyRequest = partial_model("UpdateDocumentPartyRequest", DocumentPartyBase)
+
+
+class DocumentPartyRead(APIModel):
+    id: str
+    entity_type: str
+    entity_id: str
+    customer_id: str
+    party_role: str
+    contact_id: str | None = None
+    terms_jsonb: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("terms_jsonb", "terms"),
+        serialization_alias="terms",
+    )
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class DocumentPartyDetailRead(DocumentPartyRead):
+    """A party with names, as a detail read shows it. The contracting party
+    is derived from the carrier's customer_id: `id` is None and `derived`
+    is True for it, so a reader knows it is not a row to PATCH."""
+
+    id: str | None = None
+    derived: bool = False
+    customer_name: str | None = None
+    contact_name: str | None = None
+
+
+DocumentPartyListEnvelope = ListEnvelope[DocumentPartyRead]
+DocumentPartyEnvelope = Envelope[DocumentPartyRead]
+
+
+class ProjectFromOpportunityRequest(RequestModel):
+    """The won-deal bridge's few choices; everything else — customer,
+    parties, owner — comes from the deal."""
+
+    project_name: str | None = Field(default=None, max_length=200)
+    project_code: str | None = Field(default=None, max_length=64)
+    owner_employee_id: str | None = None
+    contract_id: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+
+
 class QuoteOpportunityRequest(RequestModel):
     """The quote bridge's few choices: the draft's title (the deal's by
     default), its dates and terms. Lines come from the opportunity's own
@@ -3042,6 +3151,9 @@ class LeadBase(RequestModel):
     source: str | None = Field(default=None, max_length=100)
     campaign_id: str | None = None
     geo_id: str | None = None
+    # who introduced it: a customer on file and, when known, the person there
+    referrer_customer_id: str | None = None
+    referrer_contact_id: str | None = None
     status: str | None = Field(default=None, max_length=50)
     remarks: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -3099,6 +3211,8 @@ class LeadRead(APIModel):
     source: str | None = None
     campaign_id: str | None = None
     geo_id: str | None = None
+    referrer_customer_id: str | None = None
+    referrer_contact_id: str | None = None
     employee_id: str
     status: str
     converted_customer_id: str | None = None
@@ -7482,18 +7596,81 @@ class OpportunityDetailRead(BaseModel):
     activities: list[ActivityRead] = Field(default_factory=list)
     events: list[EventRead] = Field(default_factory=list)
     communications: list[CommunicationEventRead] = Field(default_factory=list)
+    # the deal's parties beyond its customer: end client, referrer, reseller…
+    parties: list[DocumentPartyDetailRead] = Field(default_factory=list)
 
 
 OpportunityDetailEnvelope = Envelope[OpportunityDetailRead]
 
 
+class CustomerRelationBase(RequestModel):
+    related_customer_id: str | None = None
+    # the workspace's customer_relation_type vocabulary, said from the
+    # subject's side: customer_id IS the relation_type OF related_customer_id
+    relation_type: str | None = Field(default=None, max_length=50)
+    effective_from: date | None = None
+    effective_to: date | None = None
+    remarks: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _period(self) -> "CustomerRelationBase":
+        f, t = self.effective_from, self.effective_to
+        if f is not None and t is not None and t < f:
+            raise ValueError("effective_to must not precede effective_from")
+        return self
+
+
+class CreateCustomerRelationRequest(CustomerRelationBase):
+    customer_id: str
+    related_customer_id: str
+    relation_type: str = Field(max_length=50)
+
+
+UpdateCustomerRelationRequest = partial_model("UpdateCustomerRelationRequest", CustomerRelationBase)
+
+
+class CustomerRelationRead(APIModel):
+    id: str
+    customer_id: str
+    related_customer_id: str
+    relation_type: str
+    effective_from: date | None = None
+    effective_to: date | None = None
+    remarks: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class CustomerRelationSideRead(CustomerRelationRead):
+    """A relation as seen from one customer: `other_customer_id` is the
+    other party, `relation_type_here` the type read from this side (the
+    reverse of the row's when this customer is the row's object)."""
+
+    other_customer_id: str
+    other_customer_name: str | None = None
+    relation_type_here: str
+    direction: Literal["subject", "object"]
+
+
+CustomerRelationListEnvelope = ListEnvelope[CustomerRelationRead]
+CustomerRelationEnvelope = Envelope[CustomerRelationRead]
+CustomerRelationSideListEnvelope = ListEnvelope[CustomerRelationSideRead]
+
+
 class CustomerDetailRead(BaseModel):
     """The customer with what a visit brief needs in one read: its people,
     its open deals, the last contacts with it, what is scheduled, the last
-    messages, and its recent quotations and orders (F-16)."""
+    messages, its recent quotations and orders (F-16), and the customers it
+    is related to."""
 
     customer: CustomerRead
     contacts: list[CustomerContactRead]
+    relations: list[CustomerRelationSideRead] = Field(default_factory=list)
     opportunities: list[OpportunityRead]
     activities: list[ActivityRead]
     events: list[EventRead]
@@ -7504,3 +7681,19 @@ class CustomerDetailRead(BaseModel):
 
 
 CustomerDetailEnvelope = Envelope[CustomerDetailRead]
+
+
+class ProjectDetailRead(BaseModel):
+    """The project and where it came from, in one read: the customer it is
+    for, the deal it came from, the contract it runs under, who owns it, and
+    every party to it (plan 2026-10-14)."""
+
+    project: ProjectRead
+    customer: CustomerRead | None = None
+    opportunity: OpportunityRead | None = None
+    contract: ContractRead | None = None
+    owner_employee_name: str | None = None
+    parties: list[DocumentPartyDetailRead] = Field(default_factory=list)
+
+
+ProjectDetailEnvelope = Envelope[ProjectDetailRead]

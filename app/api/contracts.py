@@ -52,6 +52,7 @@ from app.api.common import (
     save_rows,
 )
 from app.api.family_routes import Verb, register_document_verbs
+from app.api.parties import copy_parties, parties_of
 from app.api.deps import Actor, get_actor, has_permission, require_permission
 from app.db.session import get_db
 from app.models import (
@@ -62,6 +63,7 @@ from app.models import (
     ContractTerm,
     Employee,
     Invoice,
+    Opportunity,
     Payment,
     Product,
     PurchaseOrder,
@@ -186,6 +188,7 @@ def _contract_read(db: Session, tenant_id: str, contract: Contract, *, full: boo
             ContractTermRead.model_validate(row).model_dump(by_alias=True)
         )
     data["terms_by_type"] = grouped
+    data["parties"] = [row.model_dump(by_alias=True) for row in parties_of(db, tenant_id, "contract", contract.id, contract.customer_id)]
     return data
 
 
@@ -209,6 +212,7 @@ def list_contracts(
     vendor_id: str | None = None,
     customer_id: str | None = None,
     parent_contract_id: str | None = None,
+    opportunity_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     include_deleted: bool = False,
     keyword: str | None = None,
@@ -233,6 +237,7 @@ def list_contracts(
             Contract.vendor_id: vendor_id,
             Contract.customer_id: customer_id,
             Contract.parent_contract_id: parent_contract_id,
+            Contract.opportunity_id: opportunity_id,
             Contract.status: status_filter,
         },
         keyword=keyword,
@@ -320,6 +325,10 @@ def create_contract(
         get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     if payload.parent_contract_id:
         get_scoped_or_404(db, Contract, tenant_id, payload.parent_contract_id)
+    if payload.opportunity_id:
+        get_active_document_or_404(db, Opportunity, tenant_id, payload.opportunity_id)
+    if payload.upstream and payload.upstream.attachment_id:
+        get_scoped_or_404(db, Attachment, tenant_id, payload.upstream.attachment_id)
     initial_status = require_machine_state(db, actor, Contract, payload.status)
     contract_no = payload.contract_no or allocate_number(db, Contract, tenant_id)
     contract = Contract(
@@ -339,6 +348,8 @@ def create_contract(
         counterparty_signatory=payload.counterparty_signatory,
         employee_id=payload.employee_id,
         parent_contract_id=payload.parent_contract_id,
+        opportunity_id=payload.opportunity_id,
+        upstream_jsonb=payload.upstream.model_dump(mode="json") if payload.upstream else None,
         summary=payload.summary,
         status=initial_status,
         remarks=payload.remarks,
@@ -349,6 +360,9 @@ def create_contract(
     db.add(contract)
     try:
         db.flush()
+        if payload.opportunity_id:
+            # the deal's parties ride into the agreement that closes it
+            copy_parties(db, tenant_id, "opportunity", payload.opportunity_id, "contract", contract.id)
         for index, line in enumerate(payload.items, start=1):
             build_contract_item(db, tenant_id, contract, line, index=index)
         documents = [build_contract_document(db, tenant_id, contract, row) for row in payload.documents]
@@ -418,9 +432,19 @@ def update_contract(
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="a contract cannot supplement itself")
         get_scoped_or_404(db, Contract, tenant_id, updates["parent_contract_id"])
+    if updates.get("opportunity_id"):
+        get_active_document_or_404(db, Opportunity, tenant_id, updates["opportunity_id"])
+    if "upstream" in updates:
+        upstream = updates.pop("upstream")
+        if upstream and upstream.get("attachment_id"):
+            get_scoped_or_404(db, Attachment, tenant_id, upstream["attachment_id"])
+        contract.upstream_jsonb = (
+            payload.upstream.model_dump(mode="json") if payload.upstream is not None else None
+        )
     # summary/remarks/custom_fields are the desk's notes and move at any
-    # state; the AGREEMENT's own fields obey the machine's editable states
-    notes = {"summary", "remarks", "custom_fields", "employee_id"}
+    # state; the AGREEMENT's own fields obey the machine's editable states;
+    # the upstream reference and the deal link are notes too
+    notes = {"summary", "remarks", "custom_fields", "employee_id", "opportunity_id"}
     if any(field not in notes for field in updates):
         ensure_document_editable(db, contract)
     if status_change is not None and status_change != contract.status:

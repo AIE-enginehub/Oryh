@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261007_0098
+-- Alembic revision: 20261015_0099
 --
 
 --
@@ -569,6 +569,8 @@ CREATE TABLE oryh.contracts (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    opportunity_id uuid,
+    upstream_jsonb jsonb,
     CONSTRAINT contracts_one_counterparty_check CHECK (((vendor_id IS NULL) OR (customer_id IS NULL)))
 );
 
@@ -616,6 +618,27 @@ CREATE TABLE oryh.customer_products (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT customer_products_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
+-- Name: customer_relations; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.customer_relations (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    customer_id uuid NOT NULL,
+    related_customer_id uuid NOT NULL,
+    relation_type character varying(50) NOT NULL,
+    effective_from date,
+    effective_to date,
+    remarks text,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT customer_relations_period_ck CHECK (((effective_to IS NULL) OR (effective_from IS NULL) OR (effective_to >= effective_from))),
+    CONSTRAINT customer_relations_two_parties_ck CHECK ((customer_id <> related_customer_id))
 );
 
 
@@ -668,6 +691,28 @@ CREATE TABLE oryh.device_authorizations (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     refresh_token_plaintext character varying(200),
     CONSTRAINT device_authorizations_status_chk CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'denied'::text, 'consumed'::text])))
+);
+
+
+--
+-- Name: document_parties; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.document_parties (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    entity_type character varying(30) NOT NULL,
+    entity_id uuid NOT NULL,
+    customer_id uuid NOT NULL,
+    party_role character varying(50) NOT NULL,
+    contact_id uuid,
+    terms_jsonb jsonb,
+    remarks text,
+    metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT document_parties_entity_type_ck CHECK (((entity_type)::text = ANY ((ARRAY['opportunity'::character varying, 'contract'::character varying, 'project'::character varying])::text[]))),
+    CONSTRAINT document_parties_not_contracting_ck CHECK (((party_role)::text <> 'contracting'::text))
 );
 
 
@@ -1207,6 +1252,8 @@ CREATE TABLE oryh.leads (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     campaign_id uuid,
     geo_id uuid,
+    referrer_customer_id uuid,
+    referrer_contact_id uuid,
     CONSTRAINT leads_names_somebody_check CHECK (((company_name IS NOT NULL) OR (contact_name IS NOT NULL)))
 );
 
@@ -1681,6 +1728,10 @@ CREATE TABLE oryh.projects (
     metadata_jsonb jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    customer_id uuid,
+    opportunity_id uuid,
+    contract_id uuid,
+    owner_employee_id uuid,
     CONSTRAINT projects_date_chk CHECK (((end_date IS NULL) OR (start_date IS NULL) OR (end_date >= start_date))),
     CONSTRAINT projects_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
 );
@@ -2762,6 +2813,22 @@ ALTER TABLE ONLY oryh.customer_products
 
 
 --
+-- Name: customer_relations customer_relations_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customer_relations
+    ADD CONSTRAINT customer_relations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_relations customer_relations_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customer_relations
+    ADD CONSTRAINT customer_relations_uk UNIQUE (customer_id, related_customer_id, relation_type, effective_from);
+
+
+--
 -- Name: customers customers_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -2783,6 +2850,22 @@ ALTER TABLE ONLY oryh.device_authorizations
 
 ALTER TABLE ONLY oryh.device_authorizations
     ADD CONSTRAINT device_authorizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_parties document_parties_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.document_parties
+    ADD CONSTRAINT document_parties_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_parties document_parties_role_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.document_parties
+    ADD CONSTRAINT document_parties_role_uk UNIQUE (entity_type, entity_id, customer_id, party_role);
 
 
 --
@@ -4279,6 +4362,27 @@ CREATE INDEX customer_products_tenant_idx ON oryh.customer_products USING btree 
 
 
 --
+-- Name: customer_relations_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customer_relations_customer_id_idx ON oryh.customer_relations USING btree (customer_id);
+
+
+--
+-- Name: customer_relations_related_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customer_relations_related_customer_id_idx ON oryh.customer_relations USING btree (related_customer_id);
+
+
+--
+-- Name: customer_relations_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX customer_relations_tenant_id_idx ON oryh.customer_relations USING btree (tenant_id);
+
+
+--
 -- Name: customers_geo_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4332,6 +4436,34 @@ CREATE INDEX customers_territory_id_idx ON oryh.customers USING btree (territory
 --
 
 CREATE INDEX device_authorizations_user_code_idx ON oryh.device_authorizations USING btree (user_code);
+
+
+--
+-- Name: document_parties_carrier_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX document_parties_carrier_idx ON oryh.document_parties USING btree (tenant_id, entity_type, entity_id);
+
+
+--
+-- Name: document_parties_contact_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX document_parties_contact_id_idx ON oryh.document_parties USING btree (contact_id);
+
+
+--
+-- Name: document_parties_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX document_parties_customer_id_idx ON oryh.document_parties USING btree (customer_id);
+
+
+--
+-- Name: document_parties_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX document_parties_tenant_id_idx ON oryh.document_parties USING btree (tenant_id);
 
 
 --
@@ -4860,6 +4992,13 @@ CREATE INDEX invoices_vendor_idx ON oryh.invoices USING btree (vendor_id);
 
 
 --
+-- Name: ix_contracts_opportunity_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_contracts_opportunity_id ON oryh.contracts USING btree (opportunity_id);
+
+
+--
 -- Name: ix_idempotency_records_created_at; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -4892,6 +5031,48 @@ CREATE INDEX ix_invoice_items_expense_item_id ON oryh.invoice_items USING btree 
 --
 
 CREATE INDEX ix_invoices_expense_claim_id ON oryh.invoices USING btree (expense_claim_id);
+
+
+--
+-- Name: ix_leads_referrer_contact_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_leads_referrer_contact_id ON oryh.leads USING btree (referrer_contact_id);
+
+
+--
+-- Name: ix_leads_referrer_customer_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_leads_referrer_customer_id ON oryh.leads USING btree (referrer_customer_id);
+
+
+--
+-- Name: ix_projects_contract_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_projects_contract_id ON oryh.projects USING btree (contract_id);
+
+
+--
+-- Name: ix_projects_customer_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_projects_customer_id ON oryh.projects USING btree (customer_id);
+
+
+--
+-- Name: ix_projects_opportunity_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_projects_opportunity_id ON oryh.projects USING btree (opportunity_id);
+
+
+--
+-- Name: ix_projects_owner_employee_id; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ix_projects_owner_employee_id ON oryh.projects USING btree (owner_employee_id);
 
 
 --
@@ -6402,6 +6583,14 @@ ALTER TABLE ONLY oryh.contracts
 
 
 --
+-- Name: contracts contracts_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.contracts
+    ADD CONSTRAINT contracts_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
 -- Name: contracts contracts_parent_contract_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -6442,6 +6631,22 @@ ALTER TABLE ONLY oryh.customer_products
 
 
 --
+-- Name: customer_relations customer_relations_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customer_relations
+    ADD CONSTRAINT customer_relations_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: customer_relations customer_relations_related_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.customer_relations
+    ADD CONSTRAINT customer_relations_related_customer_id_fkey FOREIGN KEY (related_customer_id) REFERENCES oryh.customers(id);
+
+
+--
 -- Name: customers customers_geo_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -6463,6 +6668,22 @@ ALTER TABLE ONLY oryh.customers
 
 ALTER TABLE ONLY oryh.customers
     ADD CONSTRAINT customers_territory_id_fkey FOREIGN KEY (territory_id) REFERENCES oryh.territories(id);
+
+
+--
+-- Name: document_parties document_parties_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.document_parties
+    ADD CONSTRAINT document_parties_contact_id_fkey FOREIGN KEY (contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: document_parties document_parties_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.document_parties
+    ADD CONSTRAINT document_parties_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
 
 
 --
@@ -6874,6 +7095,22 @@ ALTER TABLE ONLY oryh.leads
 
 
 --
+-- Name: leads leads_referrer_contact_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.leads
+    ADD CONSTRAINT leads_referrer_contact_id_fkey FOREIGN KEY (referrer_contact_id) REFERENCES oryh.customer_contacts(id);
+
+
+--
+-- Name: leads leads_referrer_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.leads
+    ADD CONSTRAINT leads_referrer_customer_id_fkey FOREIGN KEY (referrer_customer_id) REFERENCES oryh.customers(id);
+
+
+--
 -- Name: opportunities opportunities_campaign_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -7207,6 +7444,38 @@ ALTER TABLE ONLY oryh.product_skus
 
 ALTER TABLE ONLY oryh.products
     ADD CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id) REFERENCES oryh.product_categories(id);
+
+
+--
+-- Name: projects projects_contract_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.projects
+    ADD CONSTRAINT projects_contract_id_fkey FOREIGN KEY (contract_id) REFERENCES oryh.contracts(id);
+
+
+--
+-- Name: projects projects_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.projects
+    ADD CONSTRAINT projects_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: projects projects_opportunity_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.projects
+    ADD CONSTRAINT projects_opportunity_id_fkey FOREIGN KEY (opportunity_id) REFERENCES oryh.opportunities(id);
+
+
+--
+-- Name: projects projects_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.projects
+    ADD CONSTRAINT projects_owner_employee_id_fkey FOREIGN KEY (owner_employee_id) REFERENCES oryh.employees(id);
 
 
 --
@@ -7956,10 +8225,22 @@ ALTER TABLE oryh.customer_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.customer_products ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: customer_relations; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.customer_relations ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: customers; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
 ALTER TABLE oryh.customers ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: document_parties; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.document_parties ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: employee_leaves; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -8475,10 +8756,24 @@ CREATE POLICY tenant_isolation ON oryh.customer_products USING ((((tenant_id)::t
 
 
 --
+-- Name: customer_relations tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.customer_relations USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: customers tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
 CREATE POLICY tenant_isolation ON oryh.customers USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: document_parties tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.document_parties USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

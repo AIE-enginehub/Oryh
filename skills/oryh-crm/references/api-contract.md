@@ -55,6 +55,14 @@ Delete Customer
 |---|---|---|---|---|
 | `customer_id` | path | string | yes |  |
 
+## DELETE /document-parties/{party_id}
+
+Delete Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
+
 ## DELETE /event-participants/{row_id}
 
 Delete Event Participant
@@ -332,6 +340,38 @@ Get Customer Detail
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `customer_id` | path | string | yes |  |
+
+## GET /customers/{customer_id}/relations
+
+List Customer Relations Of
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /document-parties
+
+List Document Parties
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `party_role` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+
+## GET /document-parties/{party_id}
+
+Get Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
 
 ## GET /employees
 
@@ -783,6 +823,25 @@ Body:
 | `tax_id` | string (≤64 chars) | optional |  |
 | `territory_id` | string | optional |  |
 
+## PATCH /document-parties/{party_id}
+
+Update Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contact_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `party_role` | string (≤50 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `terms` | object | optional |  |
+
 ## PATCH /employees/{employee_id}
 
 Update Employee
@@ -882,6 +941,8 @@ Body:
 | `email` | string (≤320 chars) | optional |  |
 | `geo_id` | string | optional |  |
 | `phone` | string (≤50 chars) | optional |  |
+| `referrer_contact_id` | string | optional |  |
+| `referrer_customer_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
@@ -1241,6 +1302,23 @@ Body:
 | `dry_run` | boolean | optional |  |
 | `on_error` | `abort` | `skip` | optional |  |
 
+## POST /document-parties
+
+Create Document Party
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `customer_id` | string | required |  |
+| `entity_id` | string | required |  |
+| `entity_type` | `opportunity` | `contract` | `project` | required |  |
+| `party_role` | string (≤50 chars) | required |  |
+| `contact_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `terms` | object | optional |  |
+
 ## POST /employees
 
 Create Employee
@@ -1365,6 +1443,8 @@ Body:
 | `geo_id` | string | optional |  |
 | `lead_no` | string (≤64 chars) | optional |  |
 | `phone` | string (≤50 chars) | optional |  |
+| `referrer_contact_id` | string | optional |  |
+| `referrer_customer_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
@@ -1421,6 +1501,25 @@ Body:
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
+
+## POST /opportunities/{opportunity_id}/project
+
+Project From Opportunity
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `opportunity_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contract_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
 
 ## POST /opportunities/{opportunity_id}/quote
 

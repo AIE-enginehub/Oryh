@@ -48,6 +48,7 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ("approval_records", "action"): (
         "approved", "commented", "rejected", "returned", "submitted",
     ),
+    ("document_parties", "entity_type"): ("contract", "opportunity", "project"),
     ("approval_records", "entity_type"): (
         "approval_target", "business_object", "campaign", "contract", "employee_leave", "event", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist",

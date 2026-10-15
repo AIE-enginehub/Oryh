@@ -2744,6 +2744,26 @@
           "type": "string"
         },
         {
+          "name": "customer_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
           "name": "created_at_from",
           "description": "rows whose created_at is at or after this",
           "type": "string",
@@ -2798,6 +2818,22 @@
           "type": "string"
         },
         {
+          "name": "customer_id",
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "type": "string"
+        },
+        {
           "name": "status",
           "type": "string",
           "enum": [
@@ -2844,6 +2880,26 @@
           "type": "string"
         },
         {
+          "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "status",
           "required": false,
           "type": "string",
@@ -2878,6 +2934,26 @@
         },
         {
           "name": "client",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "contract_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
           "required": false,
           "type": "string"
         },
@@ -14739,6 +14815,14 @@
           "type": "string"
         },
         {
+          "name": "referrer_customer_id",
+          "type": "string"
+        },
+        {
+          "name": "referrer_contact_id",
+          "type": "string"
+        },
+        {
           "name": "employee_id",
           "type": "string"
         },
@@ -14807,6 +14891,16 @@
           "type": "string"
         },
         {
+          "name": "referrer_customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "referrer_contact_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "status",
           "required": false,
           "type": "string"
@@ -14865,6 +14959,16 @@
         },
         {
           "name": "geo_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "referrer_customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "referrer_contact_id",
           "required": false,
           "type": "string"
         },
@@ -15302,6 +15406,45 @@
       ],
       "remove": true,
       "actions": [
+        {
+          "verb": "project",
+          "path": "/api/v1/opportunities/{opportunity_id}/project",
+          "summary": "Project From Opportunity",
+          "fields": [
+            {
+              "name": "project_name",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "project_code",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "owner_employee_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "contract_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "start_date",
+              "required": false,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "end_date",
+              "required": false,
+              "type": "string",
+              "format": "date"
+            }
+          ]
+        },
         {
           "verb": "quote",
           "path": "/api/v1/opportunities/{opportunity_id}/quote",
@@ -16342,6 +16485,11 @@
           "type": "string"
         },
         {
+          "name": "opportunity_id",
+          "description": "",
+          "type": "string"
+        },
+        {
           "name": "status",
           "description": "",
           "type": "string"
@@ -16504,6 +16652,10 @@
           "type": "string"
         },
         {
+          "name": "opportunity_id",
+          "type": "string"
+        },
+        {
           "name": "summary",
           "type": "string"
         },
@@ -16549,6 +16701,11 @@
         },
         {
           "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
           "required": false,
           "type": "string"
         },
@@ -16636,6 +16793,11 @@
       "update": [
         {
           "name": "contract_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "opportunity_id",
           "required": false,
           "type": "string"
         },
@@ -19247,6 +19409,325 @@
       "remove": true,
       "actions": [],
       "recordPath": "/api/v1/object-type-definitions/{definition_id}",
+      "related": []
+    },
+    {
+      "key": "customer-relations",
+      "path": "/api/v1/customer-relations",
+      "group": "other",
+      "label": [
+        "Customer relations",
+        "Customer relations"
+      ],
+      "filters": [
+        {
+          "name": "customer_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "related_customer_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "relation_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "effective_from_from",
+          "description": "rows whose effective_from is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_from_thru",
+          "description": "rows whose effective_from is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_from",
+          "description": "rows whose effective_to is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to_thru",
+          "description": "rows whose effective_to is on or before this",
+          "type": "string",
+          "format": "date"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "type": "string"
+        },
+        {
+          "name": "related_customer_id",
+          "type": "string"
+        },
+        {
+          "name": "relation_type",
+          "type": "string"
+        },
+        {
+          "name": "effective_from",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "remarks",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "related_customer_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "relation_type",
+          "required": true,
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "effective_from",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "related_customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "relation_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "effective_from",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "effective_to",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "remarks",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [],
+      "recordPath": "/api/v1/customer-relations/{relation_id}",
+      "related": []
+    },
+    {
+      "key": "document-parties",
+      "path": "/api/v1/document-parties",
+      "group": "other",
+      "label": [
+        "Document parties",
+        "Document parties"
+      ],
+      "filters": [
+        {
+          "name": "entity_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "entity_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "party_role",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "entity_type",
+          "type": "string"
+        },
+        {
+          "name": "entity_id",
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "type": "string"
+        },
+        {
+          "name": "party_role",
+          "type": "string"
+        },
+        {
+          "name": "contact_id",
+          "type": "string"
+        },
+        {
+          "name": "remarks",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "customer_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "party_role",
+          "required": true,
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "contact_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "remarks",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "entity_type",
+          "required": true,
+          "type": "string",
+          "enum": [
+            "opportunity",
+            "contract",
+            "project"
+          ]
+        },
+        {
+          "name": "entity_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "party_role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "contact_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "remarks",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [],
+      "recordPath": "/api/v1/document-parties/{party_id}",
       "related": []
     }
   ]

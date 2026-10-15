@@ -38,6 +38,14 @@ Delete Customer Product
 |---|---|---|---|---|
 | `customer_product_id` | path | string | yes |  |
 
+## DELETE /customer-relations/{relation_id}
+
+Delete Customer Relation
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `relation_id` | path | string | yes |  |
+
 ## DELETE /customers/{customer_id}
 
 Delete Customer
@@ -109,6 +117,14 @@ Delete Product
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `product_id` | path | string | yes |  |
+
+## DELETE /projects/{project_id}
+
+Delete Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
 
 ## DELETE /sales-channels/{channel_id}
 
@@ -308,6 +324,25 @@ Get Customer Product
 |---|---|---|---|---|
 | `customer_product_id` | path | string | yes |  |
 
+## GET /customer-relations
+
+List Customer Relations
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | query | string | no |  |
+| `related_customer_id` | query | string | no |  |
+| `relation_type` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_to_from` | query | date | no | rows whose effective_to is on or after this |
+| `effective_to_thru` | query | date | no | rows whose effective_to is on or before this |
+
 ## GET /customers
 
 List Customers
@@ -340,6 +375,14 @@ Get Customer
 ## GET /customers/{customer_id}/detail
 
 Get Customer Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /customers/{customer_id}/relations
+
+List Customer Relations Of
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
@@ -641,6 +684,44 @@ Get Product Attachment
 |---|---|---|---|---|
 | `product_id` | path | string | yes |  |
 | `attachment_id` | path | string | yes |  |
+
+## GET /projects
+
+List Projects
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `end_date_from` | query | date | no | rows whose end_date is on or after this |
+| `end_date_thru` | query | date | no | rows whose end_date is on or before this |
+| `start_date_from` | query | date | no | rows whose start_date is on or after this |
+| `start_date_thru` | query | date | no | rows whose start_date is on or before this |
+
+## GET /projects/{project_id}
+
+Get Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/detail
+
+Get Project Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
 
 ## GET /sales-channels
 
@@ -993,6 +1074,25 @@ Body:
 | `order_increment` | number (≤9999999.99) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 
+## PATCH /customer-relations/{relation_id}
+
+Update Customer Relation
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `relation_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_from` | date | optional |  |
+| `effective_to` | date | optional |  |
+| `metadata` | object | optional |  |
+| `related_customer_id` | string | optional |  |
+| `relation_type` | string (≤50 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+
 ## PATCH /customers/{customer_id}
 
 Update Customer
@@ -1180,6 +1280,30 @@ Body:
 | `spec` | string (≤200 chars) | optional |  |
 | `status` | `active` | `archived` | optional |  |
 | `unit` | string (≤50 chars) | optional |  |
+
+## PATCH /projects/{project_id}
+
+Update Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
 
 ## PATCH /sales-channels/{channel_id}
 
@@ -1489,6 +1613,22 @@ Body:
 | `min_order_quantity` | number (≤9999999.99) | optional |  |
 | `order_increment` | number (≤9999999.99) | optional |  |
 | `status` | `active` | `archived` | optional |  |
+
+## POST /customer-relations
+
+Create Customer Relation
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `customer_id` | string | required |  |
+| `related_customer_id` | string | required |  |
+| `relation_type` | string (≤50 chars) | required |  |
+| `effective_from` | date | optional |  |
+| `effective_to` | date | optional |  |
+| `metadata` | object | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
 
 ## POST /customers
 
@@ -1810,6 +1950,26 @@ Body:
 | `dimension` | string (≤50 chars) | required |  |
 | `values` | array of string | required |  |
 | `list_price` | number (≥0.0, ≤9999999.99) | string (pattern `^(?!^[-+.]*$)[+-]?0*\d*\.?\d{0,2}0*$`) | optional |  |
+
+## POST /projects
+
+Create Project
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `project_name` | string (≤200 chars) | required |  |
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
 
 ## POST /sales-channels
 

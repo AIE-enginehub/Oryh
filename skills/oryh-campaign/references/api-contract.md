@@ -508,6 +508,8 @@ Body:
 | `email` | string (≤320 chars) | optional |  |
 | `geo_id` | string | optional |  |
 | `phone` | string (≤50 chars) | optional |  |
+| `referrer_contact_id` | string | optional |  |
+| `referrer_customer_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
@@ -799,6 +801,8 @@ Body:
 | `geo_id` | string | optional |  |
 | `lead_no` | string (≤64 chars) | optional |  |
 | `phone` | string (≤50 chars) | optional |  |
+| `referrer_contact_id` | string | optional |  |
+| `referrer_customer_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
@@ -871,6 +875,25 @@ Body:
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
+
+## POST /opportunities/{opportunity_id}/project
+
+Project From Opportunity
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `opportunity_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contract_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
 
 ## POST /opportunities/{opportunity_id}/quote
 

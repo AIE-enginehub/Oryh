@@ -9,9 +9,10 @@ Reads and writes both require `contract.manage`, scoped by side:
 vendor, `:sales` those with a customer; the unscoped grant reaches both.
 
 ```text
-GET    /contracts?side=&contract_type=&vendor_id=&customer_id=&parent_contract_id=&status=&keyword=
-POST   /contracts                     → {title, contract_type, vendor_id | customer_id, total_amount?, dates…, items?: [...]}
-GET    /contracts/{contract_id}       → header + items + documents (no text) + terms_by_type
+GET    /contracts?side=&contract_type=&vendor_id=&customer_id=&parent_contract_id=&opportunity_id=&status=&keyword=
+POST   /contracts                     → {title, contract_type, vendor_id | customer_id, total_amount?, dates…, items?: [...], opportunity_id?, upstream?: {contract_no?, parties?, signed_date?, effective_from?, effective_to?, summary?, attachment_id?}}
+GET    /contracts/{contract_id}       → header + items + documents (no text) + terms_by_type + parties (the counterparty first, derived) + upstream
+GET    /document-parties?entity_type=contract&entity_id=   · POST /document-parties {entity_type: "contract", entity_id, customer_id, party_role, contact_id?, terms?}
 PATCH  /contracts/{contract_id}       → status (signed stamps signed_at); agreement fields only while draft/negotiating; summary/remarks always
 DELETE /contracts/{contract_id} · POST /contracts/{contract_id}/restore
 GET    /contracts/{contract_id}/execution     → orders/invoices/payments under it, contracted vs ordered by product (derived)

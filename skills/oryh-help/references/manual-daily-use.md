@@ -94,7 +94,7 @@ see operations.
 
 | Ask for | Skill |
 |---|---|
-| Capture and advance leads, convert one into a customer and an opportunity | `oryh-crm` |
+| Capture and advance leads, convert one into a customer and an opportunity; record who introduced a deal, who the end client is, and open the project once it is won | `oryh-crm` |
 | Record orders from Tmall, JD or another platform — dedup by the platform number, translate listings through the product map, confirm the unmapped ones once | `oryh-order-submit` |
 | Land a whole platform export as drafts — dedup, translate through the map, propose the likeliest product for the rest, and have the person confirm every proposal in one message before the drafts are created | `oryh-channel-order-import` |
 | Resolve platform listings to catalog products by this workspace's own rules — the rules are the skill's calibration, the confirmed pairings are the map | `oryh-product-matching` |
@@ -104,7 +104,7 @@ see operations.
 | Ask for | Skill |
 |---|---|
 | Place and maintain purchase orders, receive against them; hand an OEM factory the material advice from the bill of materials | `oryh-purchase-order` |
-| File a contract's original and its key terms, then ask "what is the payment schedule on this one" | `oryh-contracts` |
+| File a contract's original and its key terms, then ask "what is the payment schedule on this one"; reference the upstream agreement a subcontract serves | `oryh-contracts` |
 | Goods in, goods out, counts, adjustments; reservations, picklists, shipments and their stock posting | `oryh-inventory` |
 
 ## Finance

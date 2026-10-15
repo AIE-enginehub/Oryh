@@ -398,6 +398,30 @@ answers "who receives the invoice" and "who signs the acceptance".
 - Documents keep their free-text contact snapshots on purpose — this table
   is what agents CONSULT when writing them, not a FK they must resolve.
 
+## Relations Between Customers
+
+Two customers may be related — a parent and its subsidiary, partners, an
+agent and its principal, the one who introduced the other, the end client
+behind an intermediary — and `/customer-relations` is where that is said,
+from the subject's side: `{"customer_id": X, "related_customer_id": Y,
+"relation_type": "referrer_of", "effective_from"?, "effective_to"?,
+"remarks"?}` reads "X is the referrer of Y". The types are the workspace's
+`customer_relation_type` vocabulary; read from Y's side the type reverses
+(`referred_by`), which `GET /customers/{id}/relations` does for either
+customer. A relation is dated because a partner stops being one.
+
+This is how a customer may exist with no documents of its own and still be
+honest: the bus company behind a referral deal is a customer row, its
+relation to the friend who brought it says "single line of contact", and
+nothing is ever quoted or invoiced to it. Deciding who is related how is
+the person's; you record what they said, with the date they gave.
+
+A **project** links to the customer it is for (`customer_id`; `client`
+follows the customer's name unless typed), the deal it came from, the
+contract it runs under and its owner (`owner_employee_id`). Projects are
+`project.manage`'s, which `master_data.manage` includes; a won deal opens
+its own project through the sales desk's bridge ($oryh-crm).
+
 ## Customer Price Agreements
 
 `/customer-products` is the sell-side mirror of `/supplier-products`: one
@@ -514,6 +538,7 @@ Where a customer is, and whose it therefore is, are two facts kept apart:
 - Delete master data. Obsolete entries are archived (`status: archived`),
   because quotations and requisitions already reference them by id.
 - Touch employees, roles, or business documents. This is catalog data only.
+- Decide that two customers are related, or which way round: the person says it, with a date; you write it.
 
 ## Reference
 

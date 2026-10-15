@@ -44,6 +44,34 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("no_decision", "未决策", "长期无决定"),
         ("other", "其他", "其余原因"),
     ),
+    "deal_party_role": (
+        ("end_client", "末端客户", "最终使用或受益的一方；我们未必与其签约"),
+        ("referrer", "转介人", "把这笔交易介绍给我们的一方，可能有分成"),
+        ("reseller", "分销商", "转售我们产品或服务的一方"),
+        ("general_contractor", "总包方", "我们作为分包为其服务的一方"),
+        ("consultant", "顾问", "为客户把关或提供建议的第三方"),
+        ("other", "其他", "其余角色"),
+    ),
+    "customer_relation_type": (
+        ("parent_of", "母公司", "主体是客体的母公司"),
+        ("subsidiary_of", "子公司", "主体是客体的子公司"),
+        ("partner_of", "合作伙伴", "双方互为合作伙伴"),
+        ("referrer_of", "转介人", "主体把客体介绍给我们"),
+        ("referred_by", "经其转介", "主体由客体介绍而来"),
+        ("agent_of", "代理", "主体是客体的代理或中间人"),
+        ("principal_of", "被代理方", "主体由客体代理"),
+        ("end_client_of", "末端客户", "主体是客体所服务的末端客户"),
+        ("intermediary_of", "中间方", "主体是客体与我们之间的中间方"),
+        ("other", "其他", "其余关系"),
+    ),
+    "lead_source": (
+        ("referral", "转介绍", "客户、伙伴或朋友介绍"),
+        ("exhibition", "展会", "展会或活动上结识"),
+        ("inbound", "主动联系", "对方主动找上门"),
+        ("outbound", "主动开发", "我们主动联系"),
+        ("campaign", "营销活动", "来自某次营销活动"),
+        ("other", "其他", "其余来源"),
+    ),
     "opportunity_contact_role": (
         ("decision_maker", "决策者", "拍板的人"),
         ("influencer", "影响者", "意见影响决策的人"),
@@ -188,6 +216,7 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("other", "其他", "未归类条款"),
     ),
     "contract_document_type": (
+        ("upstream_reference", "上游合同副本", "对方与其客户之间、管着这份合同的那份协议的副本"),
         ("signed", "签署版", "双方签署的正式版本"),
         ("draft", "草稿", "谈判中的版本"),
         ("annex", "附件/附表", "合同附件、附表、报价单"),
@@ -386,6 +415,34 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("no_decision", "No decision", "Went quiet for good"),
         ("other", "Other", "Any other reason"),
     ),
+    "deal_party_role": (
+        ("end_client", "End client", "Who the work is ultimately for; not necessarily who signs with us"),
+        ("referrer", "Referrer", "Who brought the deal; may be owed a share"),
+        ("reseller", "Reseller", "Resells our product or service"),
+        ("general_contractor", "General contractor", "We serve as their subcontractor"),
+        ("consultant", "Consultant", "A third party advising the customer"),
+        ("other", "Other", "Any other role"),
+    ),
+    "customer_relation_type": (
+        ("parent_of", "Parent of", "The subject is the object's parent company"),
+        ("subsidiary_of", "Subsidiary of", "The subject is the object's subsidiary"),
+        ("partner_of", "Partner of", "Partners, either way round"),
+        ("referrer_of", "Referrer of", "The subject introduced the object to us"),
+        ("referred_by", "Referred by", "The subject came through the object"),
+        ("agent_of", "Agent of", "The subject acts for the object"),
+        ("principal_of", "Principal of", "The subject is represented by the object"),
+        ("end_client_of", "End client of", "The subject is the end client the object serves"),
+        ("intermediary_of", "Intermediary of", "The subject stands between the object and us"),
+        ("other", "Other", "Any other relation"),
+    ),
+    "lead_source": (
+        ("referral", "Referral", "Introduced by a customer, partner or friend"),
+        ("exhibition", "Exhibition", "Met at a trade show or event"),
+        ("inbound", "Inbound", "They came to us"),
+        ("outbound", "Outbound", "We went to them"),
+        ("campaign", "Campaign", "From a marketing campaign"),
+        ("other", "Other", "Any other source"),
+    ),
     "opportunity_contact_role": (
         ("decision_maker", "Decision maker", "Signs off"),
         ("influencer", "Influencer", "Shapes the decision"),
@@ -520,6 +577,7 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("other", "Other", "Uncategorised clauses"),
     ),
     "contract_document_type": (
+        ("upstream_reference", "Upstream contract copy", "A copy of the agreement between the counterparty and their client that this contract serves"),
         ("signed", "Signed version", "The executed version signed by both parties"),
         ("draft", "Draft", "A version under negotiation"),
         ("annex", "Annex / schedule", "Attachments, schedules, quotations"),
@@ -697,6 +755,21 @@ TYPE_OPTION_SIGNS: dict[str, dict[str, int]] = {
 # enforces. A tenant adding a value here without one is refused, because an
 # unsigned payslip item is exactly the ambiguity this family exists to remove.
 SIGNED_TYPE_FAMILIES = frozenset(TYPE_OPTION_SIGNS)
+
+# A customer relation is said from the subject's side; read from the object's
+# side it is the reverse. Kept beside the catalog like the signs: it is part
+# of a shipped value's meaning. A type with no entry reads the same both ways
+# (partners), and so does any type a workspace adds.
+CUSTOMER_RELATION_REVERSE: dict[str, str] = {
+    "parent_of": "subsidiary_of",
+    "subsidiary_of": "parent_of",
+    "referrer_of": "referred_by",
+    "referred_by": "referrer_of",
+    "agent_of": "principal_of",
+    "principal_of": "agent_of",
+    "end_client_of": "intermediary_of",
+    "intermediary_of": "end_client_of",
+}
 
 
 def system_type_names(family: str) -> frozenset[str]:

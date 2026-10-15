@@ -339,7 +339,13 @@ class Project(TenantRecord, MetadataJsonbMixin, Base):
 
     project_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     project_name: Mapped[str] = mapped_column(String(200))
+    # the name as it was typed; a snapshot of the customer's name when
+    # `customer_id` is set (plan 2026-10-14: a project knows where it came from)
     client: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True, index=True)
+    contract_id: Mapped[str | None] = mapped_column(ForeignKey("contracts.id"), nullable=True, index=True)
+    owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -1555,6 +1561,13 @@ class Contract(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(50), default="draft")
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # the deal this agreement closes, when it came from the pipeline
+    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True, index=True)
+    # a contract that is NOT ours but governs this one — the agreement
+    # between our customer and their client that our subcontract serves:
+    # number, parties, dates, a summary, a copy in the attachment store.
+    # A reference, never a contract row: not listed, not summed, no state.
+    upstream_jsonb: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
 
     vendor: Mapped["Vendor | None"] = relationship()
     customer: Mapped["Customer | None"] = relationship()
@@ -2085,6 +2098,10 @@ class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     )
     # where the inquiry is from; the customer it converts into inherits it
     geo_id: Mapped[str | None] = mapped_column(ForeignKey("geos.id"), nullable=True, index=True)
+    # who introduced it — a customer already on file and, when known, the
+    # person there; the conversion carries them onto the deal as its referrer
+    referrer_customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    referrer_contact_id: Mapped[str | None] = mapped_column(ForeignKey("customer_contacts.id"), nullable=True, index=True)
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="new")
     converted_customer_id: Mapped[str | None] = mapped_column(
@@ -2093,7 +2110,7 @@ class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     employee: Mapped[Employee] = relationship()
-    converted_customer: Mapped[Customer | None] = relationship()
+    converted_customer: Mapped[Customer | None] = relationship(foreign_keys=[converted_customer_id])
 
 
 class Opportunity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
@@ -4146,6 +4163,78 @@ class FlowRun(TenantRecord, Base):
     recorded_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
 
+PARTY_CARRIERS = ("opportunity", "contract", "project")
+
+
+class DocumentParty(TenantRecord, MetadataJsonbMixin, Base):
+    """One of the parties to a deal, a contract or a project beyond the one
+    the carrier's `customer_id` names (plan 2026-10-14). A referral deal has
+    three: the friend who signs with us (the carrier's customer — the
+    *contracting* party, never a row here but derived on every read), the bus
+    company the system is for (`end_client`), and the friend again as the one
+    who brought it (`referrer`, with the split in `terms_jsonb`).
+
+    `party_role` is the workspace's `deal_party_role` vocabulary; `contact_id`
+    is the person on that party's side and must belong to it; `terms_jsonb`
+    is what was agreed with that party — a commission, a trigger — read by
+    agents and never interpreted by the server. The carrier is polymorphic
+    like a todo's: the server checks it exists and is readable, and the
+    integrity audit checks nothing points at a carrier that is gone."""
+
+    __tablename__ = "document_parties"
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_type", "entity_id", "customer_id", "party_role",
+            name="document_parties_role_uk",
+        ),
+        # the registry (app/core/table_constraints.py) carries the vocabulary;
+        # the named CHECK here is what the migration and the snapshot call it
+        CheckConstraint(
+            "entity_type in ('opportunity', 'contract', 'project')",
+            name="document_parties_entity_type_ck",
+        ),
+        CheckConstraint("party_role <> 'contracting'", name="document_parties_not_contracting_ck"),
+        Index("document_parties_carrier_idx", "tenant_id", "entity_type", "entity_id"),
+    )
+
+    entity_type: Mapped[str] = mapped_column(String(30))
+    entity_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    party_role: Mapped[str] = mapped_column(String(50))
+    contact_id: Mapped[str | None] = mapped_column(ForeignKey("customer_contacts.id"), nullable=True, index=True)
+    terms_jsonb: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class CustomerRelation(TenantRecord, MetadataJsonbMixin, Base):
+    """A relation between two customers, said from the subject's side:
+    `customer_id` *is the* `relation_type` *of* `related_customer_id` — X is
+    the `referrer_of` the bus company, A is the `parent_of` B. Read from the
+    object's side the type is reversed (`CUSTOMER_RELATION_REVERSE`); a type
+    with no reverse reads the same both ways. Dated, because a partner stops
+    being one and the past should still say it was."""
+
+    __tablename__ = "customer_relations"
+    __table_args__ = (
+        UniqueConstraint(
+            "customer_id", "related_customer_id", "relation_type", "effective_from",
+            name="customer_relations_uk",
+        ),
+        CheckConstraint("customer_id <> related_customer_id", name="customer_relations_two_parties_ck"),
+        CheckConstraint(
+            "effective_to is null or effective_from is null or effective_to >= effective_from",
+            name="customer_relations_period_ck",
+        ),
+    )
+
+    customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    related_customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
+    relation_type: Mapped[str] = mapped_column(String(50))
+    effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 # Every fixed-value column's CHECK, attached from one registry rather than
 # restated on thirty classes. Runs after the last class so `Base.metadata`
 # already holds every table this module defines.
@@ -4165,3 +4254,4 @@ _attached_constraints = apply_table_constraints(Base.metadata)
 from app.services.audit_trail import install as _install_audit_trail  # noqa: E402
 
 _install_audit_trail()
+

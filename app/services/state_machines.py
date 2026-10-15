@@ -478,7 +478,7 @@ STATE_ROLES["contract"] = ()
 STATE_ROLES["lead"] = ("converted",)
 # the quotation bridge moves a deal to `quoting` — the one state the server
 # writes on an opportunity, and the one a rename must map
-STATE_ROLES["opportunity"] = ("quoting",)
+STATE_ROLES["opportunity"] = ("quoting", "won")
 # a campaign has no server anchor: nothing is written to it by a bridge
 STATE_ROLES["campaign"] = ()
 # the log bridge (/events/{id}/log) lands the event in `held`

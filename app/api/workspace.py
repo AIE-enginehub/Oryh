@@ -56,6 +56,7 @@ from app.schemas import _hosted_runner_holds
 from app.services.provisioning import unheld_shipped_capabilities
 from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, Filter, GetResource, ListResource, register
 from app.api.business_rules import flow_text_carries_requirements, published_rule_index
+from app.api.parties import parties_of
 from app.api.deps import (
     hosted_agent_permissions,
     Actor,
@@ -78,6 +79,7 @@ from app.models import (
     Attachment,
     AuditLog,
     BillOfMaterials,
+    Contract,
     Customer,
     CustomerContact,
     CustomerProduct,
@@ -92,6 +94,7 @@ from app.models import (
     hash_api_key,
     Invoice,
     InvoiceItem,
+    Opportunity,
     Payment,
     Product,
     ProductCategory,
@@ -131,6 +134,11 @@ from app.schemas import (
     UpdateApiKeyRequest,
     UpdateProjectRequest,
     UpdateTypeOptionRequest,
+    ProjectDetailEnvelope,
+    ProjectDetailRead,
+    CustomerRead,
+    OpportunityRead,
+    ContractRead,
 )
 from app.services.audit import record_audit
 from app.core.type_options import (
@@ -430,6 +438,31 @@ def update_api_key(
 # --- projects: the cost centre a timesheet or an expense books against ------
 
 
+def require_project_manage(actor: Actor) -> None:
+    """`project.manage`, which `master_data.manage` implies — and, as for every
+    master-data write, the legacy `users.manage` grant still passes, with the
+    legacy message, so a workspace that never heard of the focused
+    capability keeps working."""
+    if has_permission(actor, "project.manage"):
+        return
+    require_master_data_manage(actor)
+
+
+def _project_links(db: Session, tenant_id: str, fields: dict, current: Project | None = None) -> None:
+    """A project's four links exist in this workspace; `client` follows the
+    customer's name when the customer is set and no name was typed."""
+    if fields.get("customer_id"):
+        customer = get_scoped_or_404(db, Customer, tenant_id, fields["customer_id"])
+        if not fields.get("client") and (current is None or current.client in (None, "") or "customer_id" in fields):
+            fields["client"] = customer.name
+    if fields.get("opportunity_id"):
+        get_scoped_or_404(db, Opportunity, tenant_id, fields["opportunity_id"])
+    if fields.get("contract_id"):
+        get_scoped_or_404(db, Contract, tenant_id, fields["contract_id"])
+    if fields.get("owner_employee_id"):
+        get_scoped_or_404(db, Employee, tenant_id, fields["owner_employee_id"])
+
+
 @router.post(
     "/projects",
     response_model=ProjectEnvelope,
@@ -441,12 +474,18 @@ def create_project(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    require_project_manage(actor)
+    fields = payload.model_dump(exclude_unset=True)
+    _project_links(db, actor.tenant_id, fields)
     project = Project(
         tenant_id=actor.tenant_id,
         project_code=payload.project_code,
         project_name=payload.project_name,
-        client=payload.client,
+        client=fields.get("client"),
+        customer_id=payload.customer_id,
+        opportunity_id=payload.opportunity_id,
+        contract_id=payload.contract_id,
+        owner_employee_id=payload.owner_employee_id,
         status=payload.status,
         start_date=payload.start_date,
         end_date=payload.end_date,
@@ -458,6 +497,36 @@ def create_project(
     return envelope(ProjectRead.model_validate(project).model_dump(by_alias=True))
 
 
+@router.get("/projects/{project_id}/detail", response_model=ProjectDetailEnvelope, response_model_exclude_unset=True)
+def get_project_detail(
+    project_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """The project and where it came from: the customer it is for, the deal,
+    the contract (when this reader may read contracts of that side), the
+    owner's name and every party (plan 2026-10-14)."""
+    tenant_id = actor.tenant_id
+    project = get_scoped_or_404(db, Project, tenant_id, project_id)
+    customer = db.get(Customer, project.customer_id) if project.customer_id else None
+    opportunity = db.get(Opportunity, project.opportunity_id) if project.opportunity_id else None
+    contract = db.get(Contract, project.contract_id) if project.contract_id else None
+    if contract is not None and not (actor.bypasses_permissions or has_permission(
+        actor, "contract.manage", "purchase" if contract.vendor_id else "sales"
+    )):
+        contract = None
+    owner = db.get(Employee, project.owner_employee_id) if project.owner_employee_id else None
+    detail = ProjectDetailRead(
+        project=ProjectRead.model_validate(project),
+        customer=CustomerRead.model_validate(customer) if customer is not None else None,
+        opportunity=OpportunityRead.model_validate(opportunity) if opportunity is not None else None,
+        contract=ContractRead.model_validate(contract) if contract is not None else None,
+        owner_employee_name=owner.name if owner is not None else None,
+        parties=parties_of(db, tenant_id, "project", project.id, project.customer_id),
+    )
+    return envelope(detail.model_dump(by_alias=True))
+
+
 @router.patch("/projects/{project_id}", response_model=ProjectEnvelope, response_model_exclude_unset=True)
 def update_project(
     project_id: str,
@@ -465,9 +534,10 @@ def update_project(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    require_master_data_manage(actor)
+    require_project_manage(actor)
     project = get_scoped_or_404(db, Project, actor.tenant_id, project_id)
     updates = payload.model_dump(exclude_unset=True)
+    _project_links(db, actor.tenant_id, updates, current=project)
     if "metadata" in updates:
         project.metadata_jsonb = updates.pop("metadata")
     for field, value in updates.items():
@@ -483,7 +553,10 @@ def delete_project(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return archive_row(db, actor, Project, project_id)
+    return archive_row(
+        db, actor, Project, project_id,
+        permission="project.manage" if has_permission(actor, "project.manage") else None,
+    )
 
 
 # --- type options: the tenant's vocabularies for *_type fields --------------
@@ -1235,7 +1308,7 @@ register(
     router,
     ListResource(
         path="/projects", name="list_projects", model=Project, read_model=ProjectRead, response_model=ProjectListEnvelope,
-        params=(KEYWORD, Filter("status"), PAGE, SIZE, ORDER_BY),
+        params=(KEYWORD, Filter("status"), Filter("customer_id"), Filter("opportunity_id"), Filter("contract_id"), Filter("owner_employee_id"), PAGE, SIZE, ORDER_BY),
         order_by=(Project.created_at.desc(), Project.id.desc()),
         keyword_columns=(Project.project_name,),
         ranges=("created_at", "end_date", "start_date"),

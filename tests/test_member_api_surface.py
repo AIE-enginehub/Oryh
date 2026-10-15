@@ -58,9 +58,13 @@ MEMBER_READS: dict[tuple[str, str], str] = {
            "geos", "territories", "territory-geos", "territory-members",
            "external-document-links",
        )},
+    # a deal's or a project's parties are readable by whoever reads the deal or
+    # the project — everyone; a contract's parties are hidden from a reader
+    # without the contract grant inside the handler (plan 2026-10-14)
+    ("GET", "/api/v1/document-parties"): "parties follow their carrier's visibility; contracts' are filtered inside",
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
-       for r in ("customers", "customer-contacts", "vendors", "employees", "products", "product-skus", "product-categories",
+       for r in ("customers", "customer-contacts", "customer-relations", "vendors", "employees", "products", "product-skus", "product-categories",
                  "facilities", "sales-channels", "stores", "store-facilities",
                  "bills-of-materials", "bom-items", "product-images",
                  "product-prices", "supplier-products", "customer-products", "external-product-maps",

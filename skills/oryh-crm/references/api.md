@@ -62,7 +62,13 @@ POST   /opportunity-items               → {opportunity_id, product_id | produc
 PATCH  /opportunity-items/{id}          → any line field; amount is recomputed from quantity × unit_price (a stated one must equal it)
 DELETE /opportunity-items/{id}
 GET    /opportunity-contacts?opportunity_id=&role=
-POST   /opportunity-contacts            → {opportunity_id, contact_id, role?, is_primary?, remarks?}; contact must be the deal's customer's
+POST   /opportunity-contacts            → {opportunity_id, contact_id, role?, is_primary?, remarks?}; contact must belong to the deal's customer or to one of its parties
+GET    /document-parties?entity_type=opportunity&entity_id=   → the parties beyond the customer (rows); the detail read adds the derived contracting party first
+POST   /document-parties                → {entity_type: "opportunity", entity_id, customer_id, party_role (deal_party_role option), contact_id?, terms?, remarks?}
+PATCH  /document-parties/{id}           → party_role, contact_id, terms, remarks     · DELETE /document-parties/{id}
+POST   /opportunities/{id}/project      → {project_name?, project_code?, owner_employee_id?, contract_id?, start_date?, end_date?}
+                                          201: the project (customer, parties, owner, contract from the deal); 200 on a second call; 409 unless won;
+                                          needs project.manage beside the deal
 PATCH  /opportunity-contacts/{id}       → role, is_primary (demotes the previous primary), remarks
 DELETE /opportunity-contacts/{id}
 POST   /opportunities/{id}/quote        → {title?, quote_date?, valid_until?, payment_terms?, delivery_terms?, remarks?}
@@ -72,6 +78,8 @@ POST   /opportunities/{id}/quote        → {title?, quote_date?, valid_until?, 
 
 `PATCH /opportunities/{id}` also takes `probability` (0–100), `lost_reason`
 (from `opportunity_lost_reason` options), `competitor`, `source`.
+`POST /leads` and `PATCH /leads/{id}` take `referrer_customer_id` and
+`referrer_contact_id`; `source` values come from `GET /type-options?family=lead_source`.
 Quotations and orders carry `opportunity_id` (`?opportunity_id=` on both
 lists); an order created from a quotation inherits it.
 

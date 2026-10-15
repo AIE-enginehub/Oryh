@@ -145,6 +145,18 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
         "select count(*) from todos td where td.entity_type='business_object' and not exists (select 1 from business_objects b where b.id=td.entity_id and b.tenant_id=td.tenant_id)",
     ),
     (
+        "document parties point at a carrier that exists in the tenant",
+        "select count(*) from document_parties p where "
+        "(p.entity_type='opportunity' and not exists (select 1 from opportunities o where o.id=p.entity_id and o.tenant_id=p.tenant_id)) or "
+        "(p.entity_type='contract' and not exists (select 1 from contracts c where c.id=p.entity_id and c.tenant_id=p.tenant_id)) or "
+        "(p.entity_type='project' and not exists (select 1 from projects j where j.id=p.entity_id and j.tenant_id=p.tenant_id))",
+    ),
+    (
+        "document parties and relations name customers of the same tenant",
+        "select (select count(*) from document_parties p join customers c on c.id=p.customer_id where c.tenant_id<>p.tenant_id) + "
+        "(select count(*) from customer_relations r join customers c on c.id=r.related_customer_id where c.tenant_id<>r.tenant_id)",
+    ),
+    (
         "todos timesheet entity exists in tenant",
         "select count(*) from todos td where td.entity_type='timesheet_header' and not exists (select 1 from timesheet_headers h where h.id=td.entity_id and h.tenant_id=td.tenant_id)",
     ),

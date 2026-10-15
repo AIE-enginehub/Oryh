@@ -261,6 +261,14 @@ Get Customer Detail
 |---|---|---|---|---|
 | `customer_id` | path | string | yes |  |
 
+## GET /customers/{customer_id}/relations
+
+List Customer Relations Of
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
 ## GET /employees
 
 List Employees

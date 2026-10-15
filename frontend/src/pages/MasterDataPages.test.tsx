@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   updateVendor: vi.fn(),
   archiveVendor: vi.fn(),
   listCustomers: vi.fn(),
+  listEmployees: vi.fn(),
   createCustomer: vi.fn(),
   updateCustomer: vi.fn(),
   archiveCustomer: vi.fn(),
@@ -108,6 +109,7 @@ beforeEach(() => {
   api.updateVendor.mockResolvedValue(vendor);
   api.archiveVendor.mockResolvedValue(undefined);
   api.listCustomers.mockResolvedValue({ data: [customer], meta: { total: 1, page: 1, page_size: 20, pages: 1 } });
+  api.listEmployees.mockResolvedValue({ data: [], meta: { total: 0, page: 1, page_size: 20, pages: 1 } });
   api.createCustomer.mockResolvedValue(customer);
   api.updateCustomer.mockResolvedValue(customer);
   api.archiveCustomer.mockResolvedValue(undefined);
@@ -146,7 +148,7 @@ describe("project master data", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: "编辑" }));
-    const clientInput = screen.getByLabelText("客户");
+    const clientInput = screen.getByLabelText("客户名称（文字）");
     await user.clear(clientInput);
     await user.type(clientInput, "新客户");
     await user.click(screen.getByRole("button", { name: "保存更改" }));

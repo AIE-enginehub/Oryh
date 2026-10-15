@@ -7162,6 +7162,17 @@
             ],
             "title": "Items"
           },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
           "our_signatory": {
             "anyOf": [
               {
@@ -7183,6 +7194,20 @@
               }
             ],
             "title": "Parent Contract Id"
+          },
+          "parties": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DocumentPartyDetailRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parties"
           },
           "remarks": {
             "anyOf": [
@@ -7285,6 +7310,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upstream"
           },
           "vendor_id": {
             "anyOf": [
@@ -9392,6 +9429,17 @@
             "title": "Items",
             "type": "array"
           },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
           "our_signatory": {
             "anyOf": [
               {
@@ -9489,6 +9537,16 @@
               }
             ],
             "title": "Total Amount"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamContractReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "vendor_id": {
             "anyOf": [
@@ -9816,6 +9874,72 @@
         "title": "CreateCustomerProductRequest",
         "type": "object"
       },
+      "CreateCustomerRelationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "related_customer_id": {
+            "title": "Related Customer Id",
+            "type": "string"
+          },
+          "relation_type": {
+            "maxLength": 50,
+            "title": "Relation Type",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "required": [
+          "related_customer_id",
+          "relation_type",
+          "customer_id"
+        ],
+        "title": "CreateCustomerRelationRequest",
+        "type": "object"
+      },
       "CreateCustomerRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9987,6 +10111,81 @@
           "name"
         ],
         "title": "CreateCustomerRequest",
+        "type": "object"
+      },
+      "CreateDocumentPartyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "enum": [
+              "opportunity",
+              "contract",
+              "project"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "party_role": {
+            "maxLength": 50,
+            "title": "Party Role",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "required": [
+          "customer_id",
+          "party_role",
+          "entity_type",
+          "entity_id"
+        ],
+        "title": "CreateDocumentPartyRequest",
         "type": "object"
       },
       "CreateEmployeeLeaveRequest": {
@@ -12182,6 +12381,28 @@
             ],
             "title": "Phone"
           },
+          "referrer_contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Contact Id"
+          },
+          "referrer_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Customer Id"
+          },
           "remarks": {
             "anyOf": [
               {
@@ -13599,6 +13820,28 @@
             ],
             "title": "Client"
           },
+          "contract_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "end_date": {
             "anyOf": [
               {
@@ -13615,6 +13858,28 @@
             "additionalProperties": true,
             "title": "Metadata",
             "type": "object"
+          },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
           },
           "project_code": {
             "anyOf": [
@@ -17181,7 +17446,7 @@
         "type": "object"
       },
       "CustomerDetailRead": {
-        "description": "The customer with what a visit brief needs in one read: its people,\nits open deals, the last contacts with it, what is scheduled, the last\nmessages, and its recent quotations and orders (F-16).",
+        "description": "The customer with what a visit brief needs in one read: its people,\nits open deals, the last contacts with it, what is scheduled, the last\nmessages, its recent quotations and orders (F-16), and the customers it\nis related to.",
         "properties": {
           "activities": {
             "items": {
@@ -17233,6 +17498,13 @@
               "$ref": "#/components/schemas/SalesQuotationRead"
             },
             "title": "Quotations",
+            "type": "array"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRelationSideRead"
+            },
+            "title": "Relations",
             "type": "array"
           },
           "territory": {
@@ -17566,6 +17838,199 @@
           "created_at"
         ],
         "title": "CustomerRead",
+        "type": "object"
+      },
+      "CustomerRelationRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "related_customer_id": {
+            "title": "Related Customer Id",
+            "type": "string"
+          },
+          "relation_type": {
+            "title": "Relation Type",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "related_customer_id",
+          "relation_type",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CustomerRelationRead",
+        "type": "object"
+      },
+      "CustomerRelationSideRead": {
+        "description": "A relation as seen from one customer: `other_customer_id` is the\nother party, `relation_type_here` the type read from this side (the\nreverse of the row's when this customer is the row's object).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "subject",
+              "object"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "other_customer_id": {
+            "title": "Other Customer Id",
+            "type": "string"
+          },
+          "other_customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Other Customer Name"
+          },
+          "related_customer_id": {
+            "title": "Related Customer Id",
+            "type": "string"
+          },
+          "relation_type": {
+            "title": "Relation Type",
+            "type": "string"
+          },
+          "relation_type_here": {
+            "title": "Relation Type Here",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "related_customer_id",
+          "relation_type",
+          "metadata",
+          "created_at",
+          "updated_at",
+          "other_customer_id",
+          "relation_type_here",
+          "direction"
+        ],
+        "title": "CustomerRelationSideRead",
         "type": "object"
       },
       "DeleteBillingAccountRequest": {
@@ -17997,6 +18462,210 @@
           }
         },
         "title": "DisplayNameResolveRequest",
+        "type": "object"
+      },
+      "DocumentPartyDetailRead": {
+        "description": "A party with names, as a detail read shows it. The contracting party\nis derived from the carrier's customer_id: `id` is None and `derived`\nis True for it, so a reader knows it is not a row to PATCH.",
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "contact_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
+          },
+          "derived": {
+            "default": false,
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "party_role": {
+            "title": "Party Role",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "customer_id",
+          "party_role",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DocumentPartyDetailRead",
+        "type": "object"
+      },
+      "DocumentPartyRead": {
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "party_role": {
+            "title": "Party Role",
+            "type": "string"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "entity_type",
+          "entity_id",
+          "customer_id",
+          "party_role",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DocumentPartyRead",
         "type": "object"
       },
       "EmployeeLeaveRead": {
@@ -19103,6 +19772,21 @@
         "title": "Envelope[CustomerRead]",
         "type": "object"
       },
+      "Envelope_CustomerRelationRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CustomerRelationRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[CustomerRelationRead]",
+        "type": "object"
+      },
       "Envelope_DisplayNameResolutionRead_": {
         "properties": {
           "data": {
@@ -19116,6 +19800,21 @@
           "data"
         ],
         "title": "Envelope[DisplayNameResolutionRead]",
+        "type": "object"
+      },
+      "Envelope_DocumentPartyRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DocumentPartyRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[DocumentPartyRead]",
         "type": "object"
       },
       "Envelope_EmployeeLeaveRead_": {
@@ -19761,6 +20460,21 @@
           "data"
         ],
         "title": "Envelope[ProductSkuRead]",
+        "type": "object"
+      },
+      "Envelope_ProjectDetailRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectDetailRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ProjectDetailRead]",
         "type": "object"
       },
       "Envelope_ProjectRead_": {
@@ -24758,6 +25472,28 @@
             ],
             "title": "Phone"
           },
+          "referrer_contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Contact Id"
+          },
+          "referrer_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Customer Id"
+          },
           "remarks": {
             "anyOf": [
               {
@@ -25392,6 +26128,63 @@
           "data"
         ],
         "title": "ListEnvelope[CustomerRead]",
+        "type": "object"
+      },
+      "ListEnvelope_CustomerRelationRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRelationRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[CustomerRelationRead]",
+        "type": "object"
+      },
+      "ListEnvelope_CustomerRelationSideRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRelationSideRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[CustomerRelationSideRead]",
+        "type": "object"
+      },
+      "ListEnvelope_DocumentPartyRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentPartyRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[DocumentPartyRead]",
         "type": "object"
       },
       "ListEnvelope_EmployeeLeaveRead_": {
@@ -27194,6 +27987,13 @@
               "$ref": "#/components/schemas/SalesOrderRead"
             },
             "title": "Orders",
+            "type": "array"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentPartyDetailRead"
+            },
+            "title": "Parties",
             "type": "array"
           },
           "quotations": {
@@ -29360,6 +30160,145 @@
         "title": "ProductSkuRead",
         "type": "object"
       },
+      "ProjectDetailRead": {
+        "description": "The project and where it came from, in one read: the customer it is\nfor, the deal it came from, the contract it runs under, who owns it, and\nevery party to it (plan 2026-10-14).",
+        "properties": {
+          "contract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opportunity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpportunityRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner_employee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Name"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentPartyDetailRead"
+            },
+            "title": "Parties",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRead"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "ProjectDetailRead",
+        "type": "object"
+      },
+      "ProjectFromOpportunityRequest": {
+        "additionalProperties": false,
+        "description": "The won-deal bridge's few choices; everything else — customer,\nparties, owner — comes from the deal.",
+        "properties": {
+          "contract_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Id"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
+          },
+          "project_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Code"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          }
+        },
+        "title": "ProjectFromOpportunityRequest",
+        "type": "object"
+      },
       "ProjectRead": {
         "properties": {
           "client": {
@@ -29373,10 +30312,32 @@
             ],
             "title": "Client"
           },
+          "contract_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
           },
           "end_date": {
             "anyOf": [
@@ -29398,6 +30359,28 @@
             "additionalProperties": true,
             "title": "Metadata",
             "type": "object"
+          },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
           },
           "project_code": {
             "anyOf": [
@@ -42067,6 +43050,17 @@
             ],
             "title": "Employee Id"
           },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
           "our_signatory": {
             "anyOf": [
               {
@@ -42163,6 +43157,16 @@
               }
             ],
             "title": "Total Amount"
+          },
+          "upstream": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpstreamContractReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "UpdateContractRequest",
@@ -42513,6 +43517,84 @@
         "title": "UpdateCustomerProductRequest",
         "type": "object"
       },
+      "UpdateCustomerRelationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "related_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Customer Id"
+          },
+          "relation_type": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relation Type"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          }
+        },
+        "title": "UpdateCustomerRelationRequest",
+        "type": "object"
+      },
       "UpdateCustomerRequest": {
         "additionalProperties": false,
         "properties": {
@@ -42688,6 +43770,83 @@
           }
         },
         "title": "UpdateCustomerRequest",
+        "type": "object"
+      },
+      "UpdateDocumentPartyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "party_role": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Role"
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remarks"
+          },
+          "terms": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "title": "UpdateDocumentPartyRequest",
         "type": "object"
       },
       "UpdateEmployeeLeaveRequest": {
@@ -44515,6 +45674,28 @@
             ],
             "title": "Phone"
           },
+          "referrer_contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Contact Id"
+          },
+          "referrer_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referrer Customer Id"
+          },
           "remarks": {
             "anyOf": [
               {
@@ -45908,6 +47089,28 @@
             ],
             "title": "Client"
           },
+          "contract_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Id"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "end_date": {
             "anyOf": [
               {
@@ -45924,6 +47127,28 @@
             "additionalProperties": true,
             "title": "Metadata",
             "type": "object"
+          },
+          "opportunity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Id"
+          },
+          "owner_employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Employee Id"
           },
           "project_code": {
             "anyOf": [
@@ -49391,6 +50616,93 @@
           }
         },
         "title": "UpdateVendorRequest",
+        "type": "object"
+      },
+      "UpstreamContractReference": {
+        "additionalProperties": false,
+        "description": "A contract that is not ours but governs this one — the agreement\nbetween our customer and their client that our subcontract serves. A\nreference: it is not listed as a contract, not summed, and has no state.\n`attachment_id` points at a copy in the attachment store.",
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Id"
+          },
+          "contract_no": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract No"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Parties",
+            "type": "array"
+          },
+          "signed_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signed Date"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "title": "UpstreamContractReference",
         "type": "object"
       },
       "UserRead": {
@@ -69387,6 +70699,22 @@
           },
           {
             "in": "query",
+            "name": "opportunity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Opportunity Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -72414,6 +73742,723 @@
         "summary": "Update Customer Product"
       }
     },
+    "/api/v1/customer-relations": {
+      "get": {
+        "description": "The rows as written, subject's side; `GET /customers/{id}/relations`\nreads both directions from one customer's side.",
+        "operationId": "list_customer_relations_api_v1_customer_relations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "related_customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Related Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "relation_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Relation Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "description": "rows whose effective_from is on or after this",
+            "in": "query",
+            "name": "effective_from_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_from is on or after this",
+              "title": "Effective From From"
+            }
+          },
+          {
+            "description": "rows whose effective_from is on or before this",
+            "in": "query",
+            "name": "effective_from_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_from is on or before this",
+              "title": "Effective From Thru"
+            }
+          },
+          {
+            "description": "rows whose effective_to is on or after this",
+            "in": "query",
+            "name": "effective_to_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_to is on or after this",
+              "title": "Effective To From"
+            }
+          },
+          {
+            "description": "rows whose effective_to is on or before this",
+            "in": "query",
+            "name": "effective_to_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose effective_to is on or before this",
+              "title": "Effective To Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_CustomerRelationRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Customer Relations"
+      },
+      "post": {
+        "operationId": "create_customer_relation_api_v1_customer_relations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerRelationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CustomerRelationRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Customer Relation"
+      }
+    },
+    "/api/v1/customer-relations/{relation_id}": {
+      "delete": {
+        "operationId": "delete_customer_relation_api_v1_customer_relations__relation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "relation_id",
+            "required": true,
+            "schema": {
+              "title": "Relation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Customer Relation"
+      },
+      "patch": {
+        "operationId": "update_customer_relation_api_v1_customer_relations__relation_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "relation_id",
+            "required": true,
+            "schema": {
+              "title": "Relation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerRelationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CustomerRelationRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Customer Relation"
+      }
+    },
     "/api/v1/customers": {
       "get": {
         "operationId": "list_customers_api_v1_customers_get",
@@ -73519,6 +75564,125 @@
         "summary": "Get Customer Detail"
       }
     },
+    "/api/v1/customers/{customer_id}/relations": {
+      "get": {
+        "operationId": "list_customer_relations_of_api_v1_customers__customer_id__relations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_CustomerRelationSideRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Customer Relations Of"
+      }
+    },
     "/api/v1/directory/display-names/resolve": {
       "post": {
         "description": "Resolve only the requested tenant-scoped display labels.\n\nThe endpoint deliberately returns maps rather than user/key records so an\nobject page can label one bounded page of activity without downloading a\ntenant-wide identity directory or exposing unrelated profile fields.",
@@ -73649,6 +75813,780 @@
           }
         },
         "summary": "Resolve Display Names"
+      }
+    },
+    "/api/v1/document-parties": {
+      "get": {
+        "description": "The rows, never the derived contracting party — a carrier's detail\nread shows that one. Naming a carrier reads it first; without one, a\nreader who holds no contract grant sees no contract's parties.",
+        "operationId": "list_document_parties_api_v1_document_parties_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "party_role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Party Role"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_DocumentPartyRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Document Parties"
+      },
+      "post": {
+        "operationId": "create_document_party_api_v1_document_parties_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDocumentPartyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DocumentPartyRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Document Party"
+      }
+    },
+    "/api/v1/document-parties/{party_id}": {
+      "delete": {
+        "operationId": "delete_document_party_api_v1_document_parties__party_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "party_id",
+            "required": true,
+            "schema": {
+              "title": "Party Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Document Party"
+      },
+      "get": {
+        "operationId": "get_document_party_api_v1_document_parties__party_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "party_id",
+            "required": true,
+            "schema": {
+              "title": "Party Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DocumentPartyRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Document Party"
+      },
+      "patch": {
+        "operationId": "update_document_party_api_v1_document_parties__party_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "party_id",
+            "required": true,
+            "schema": {
+              "title": "Party Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDocumentPartyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DocumentPartyRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Document Party"
       }
     },
     "/api/v1/employee-leaves": {
@@ -94171,6 +97109,146 @@
         "summary": "Get Opportunity Detail"
       }
     },
+    "/api/v1/opportunities/{opportunity_id}/project": {
+      "post": {
+        "description": "The won-deal bridge: one project from the deal — its customer, its\nparties, its owner — in one transaction, once. A second call returns the\nproject the first made (200); a deal not yet won is refused (409). Needs\nthe deal (`crm.own`, the owner's) and `project.manage`, because a project\nis a project like any other (plan 2026-10-14).",
+        "operationId": "project_from_opportunity_api_v1_opportunities__opportunity_id__project_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "opportunity_id",
+            "required": true,
+            "schema": {
+              "title": "Opportunity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectFromOpportunityRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProjectRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project From Opportunity"
+      }
+    },
     "/api/v1/opportunities/{opportunity_id}/quote": {
       "post": {
         "description": "The one orchestration between the pipeline and the quotation: a draft\nquotation from the deal's own lines, priced from each line's stated\nprice, else the customer's agreement, else the catalog — the response\nsays which per line — with the deal's primary contact on it and the\ndeal moved to its `quoting` state, one transaction. Needs the quoting\ngrant as well as the deal: the draft is a quotation like any other.",
@@ -104980,6 +108058,70 @@
           },
           {
             "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "opportunity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Opportunity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "contract_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Contract Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "owner_employee_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner Employee Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
@@ -105757,6 +108899,126 @@
           }
         },
         "summary": "Update Project"
+      }
+    },
+    "/api/v1/projects/{project_id}/detail": {
+      "get": {
+        "description": "The project and where it came from: the customer it is for, the deal,\nthe contract (when this reader may read contracts of that side), the\nowner's name and every party (plan 2026-10-14).",
+        "operationId": "get_project_detail_api_v1_projects__project_id__detail_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProjectDetailRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project Detail"
       }
     },
     "/api/v1/purchase-order-adjustments": {

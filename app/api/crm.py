@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import IntegrityError
@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.core.line_math import derive_line_amount
 from app.api.visibility import scoped
+from app.api.parties import add_party, copy_parties, parties_of, party_customer_ids
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -65,6 +66,7 @@ from app.models import (
     Campaign,
     CampaignMember,
     CommunicationEvent,
+    Contract,
     Customer,
     CustomerContact,
     CustomerProduct,
@@ -77,6 +79,7 @@ from app.models import (
     OpportunityItem,
     Product,
     ProductSku,
+    Project,
     SalesOrder,
     SalesQuotation,
     SalesQuotationItem,
@@ -130,6 +133,9 @@ from app.schemas import (
     SaveOpportunityLinesRequest,
     SavedLinesEnvelope,
     OpportunityItemBase,
+    ProjectEnvelope,
+    ProjectRead,
+    ProjectFromOpportunityRequest,
 )
 from app.services.audit import record_audit
 from app.services.state_machines import (
@@ -209,6 +215,8 @@ def create_lead(
         get_active_document_or_404(db, Campaign, tenant_id, payload.campaign_id)
     if payload.geo_id:
         get_scoped_or_404(db, Geo, tenant_id, payload.geo_id)
+    referrer = payload.model_dump(exclude_unset=True)
+    _referrer_fields(db, tenant_id, referrer)
     lead_no = payload.lead_no or allocate_number(db, Lead, tenant_id)
     lead = Lead(
         tenant_id=tenant_id,
@@ -221,6 +229,8 @@ def create_lead(
         source=payload.source,
         campaign_id=payload.campaign_id,
         geo_id=payload.geo_id,
+        referrer_customer_id=referrer.get("referrer_customer_id"),
+        referrer_contact_id=referrer.get("referrer_contact_id"),
         employee_id=payload.employee_id,
         status=initial_status,
         remarks=payload.remarks,
@@ -276,6 +286,7 @@ def update_lead(
         get_active_document_or_404(db, Campaign, actor.tenant_id, updates["campaign_id"])
     if updates.get("geo_id"):
         get_scoped_or_404(db, Geo, actor.tenant_id, updates["geo_id"])
+    _referrer_fields(db, actor.tenant_id, updates, current=lead)
     if "custom_fields" in updates:
         lead.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
@@ -283,6 +294,21 @@ def update_lead(
     db.commit()
     db.refresh(lead)
     return envelope(LeadRead.model_validate(lead).model_dump(by_alias=True))
+
+
+def _referrer_fields(db: Session, tenant_id: str, fields: dict, current: Lead | None = None) -> None:
+    """Who introduced the lead: a customer on file, and a person who must be
+    one of that customer's people."""
+    if fields.get("referrer_customer_id"):
+        get_scoped_or_404(db, Customer, tenant_id, fields["referrer_customer_id"])
+    customer_id = fields.get("referrer_customer_id", current.referrer_customer_id if current else None)
+    if fields.get("referrer_contact_id"):
+        person = get_scoped_or_404(db, CustomerContact, tenant_id, fields["referrer_contact_id"])
+        if customer_id is None:
+            fields["referrer_customer_id"] = person.customer_id
+        elif person.customer_id != customer_id:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                detail="referrer_contact_id must be a person of referrer_customer_id")
 
 
 register_document_verbs(router, Lead, path="/leads", id_param="lead_id", delete=Verb(), restore=Verb())
@@ -394,6 +420,15 @@ def convert_lead(
         )
         db.add(opportunity)
         db.flush()
+        # who brought the lead is a party to the deal it became
+        if lead.referrer_customer_id and lead.referrer_customer_id != customer.id:
+            add_party(db, tenant_id, "opportunity", opportunity.id, customer_id=lead.referrer_customer_id,
+                      party_role="referrer", contact_id=lead.referrer_contact_id)
+        elif lead.referrer_customer_id and lead.referrer_customer_id == customer.id:
+            # the customer introduced themselves to us — a fact, recorded as
+            # the deal's referrer party under the same customer
+            add_party(db, tenant_id, "opportunity", opportunity.id, customer_id=customer.id,
+                      party_role="referrer", contact_id=lead.referrer_contact_id)
 
     apply_status_change(db, actor, lead, converted_state)
     lead.status = converted_state
@@ -1105,10 +1140,16 @@ def delete_opportunity_item(
 
 
 def _contact_of_deal(db: Session, tenant_id: str, opportunity: Opportunity, contact_id: str) -> CustomerContact:
+    """A person on the deal's cast belongs to one of its parties: the
+    customer, or any party filed on it (the end client's buyer, the
+    referrer) — plan 2026-10-14."""
     contact = get_scoped_or_404(db, CustomerContact, tenant_id, contact_id)
-    if opportunity.customer_id and contact.customer_id != opportunity.customer_id:
+    allowed = party_customer_ids(db, tenant_id, "opportunity", opportunity.id)
+    if opportunity.customer_id:
+        allowed.add(opportunity.customer_id)
+    if allowed and contact.customer_id not in allowed:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                            detail="that person belongs to a different customer than this deal")
+                            detail="that person belongs to a customer that is not a party to this deal — file the party first")
     return contact
 
 
@@ -1270,8 +1311,69 @@ def get_opportunity_detail(
         activities=[ActivityRead.model_validate(a) for a in activities],
         events=[EventRead.model_validate(e) for e in events],
         communications=[CommunicationEventRead.model_validate(c) for c in communications],
+        parties=parties_of(db, tenant_id, "opportunity", opportunity.id, opportunity.customer_id),
     )
     return envelope(detail.model_dump(by_alias=True))
+
+
+@router.post("/opportunities/{opportunity_id}/project", response_model=ProjectEnvelope, response_model_exclude_unset=True)
+def project_from_opportunity(
+    opportunity_id: str,
+    response: Response,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    payload: ProjectFromOpportunityRequest = Body(default=None),
+):
+    """The won-deal bridge: one project from the deal — its customer, its
+    parties, its owner — in one transaction, once. A second call returns the
+    project the first made (200); a deal not yet won is refused (409). Needs
+    the deal (`crm.own`, the owner's) and `project.manage`, because a project
+    is a project like any other (plan 2026-10-14)."""
+    payload = payload or ProjectFromOpportunityRequest()
+    tenant_id = actor.tenant_id
+    require_permission(actor, "project.manage")
+    opportunity = _own_opportunity(db, actor, opportunity_id, editable=False)
+    existing = db.scalar(select(Project).where(Project.tenant_id == tenant_id, Project.opportunity_id == opportunity.id))
+    if existing is not None:
+        return envelope(ProjectRead.model_validate(existing).model_dump(by_alias=True))
+    machine = get_builtin_machine(db, tenant_id, "opportunity")
+    won = state_for_role(machine, "opportunity", "won")
+    if opportunity.status != won:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"the deal is {opportunity.status!r}; a project is opened from a deal that is {won!r}")
+    fields = payload.model_dump(exclude_unset=True)
+    if fields.get("owner_employee_id"):
+        get_scoped_or_404(db, Employee, tenant_id, fields["owner_employee_id"])
+    contract_id = fields.get("contract_id")
+    if contract_id:
+        get_scoped_or_404(db, Contract, tenant_id, contract_id)
+    else:
+        contract_id = db.scalar(select(Contract.id).where(
+            Contract.tenant_id == tenant_id, Contract.opportunity_id == opportunity.id, Contract.deleted_at.is_(None),
+        ).order_by(Contract.created_at.desc()).limit(1))
+    customer = db.get(Customer, opportunity.customer_id) if opportunity.customer_id else None
+    project = Project(
+        tenant_id=tenant_id,
+        project_code=fields.get("project_code"),
+        project_name=fields.get("project_name") or opportunity.title,
+        client=customer.name if customer is not None else opportunity.customer_name_snapshot,
+        customer_id=opportunity.customer_id,
+        opportunity_id=opportunity.id,
+        contract_id=contract_id,
+        owner_employee_id=fields.get("owner_employee_id") or opportunity.employee_id,
+        start_date=fields.get("start_date"),
+        end_date=fields.get("end_date"),
+    )
+    db.add(project)
+    db.flush()
+    copied = copy_parties(db, tenant_id, "opportunity", opportunity.id, "project", project.id)
+    record_audit(db, tenant_id=tenant_id, action="opportunity.project_opened", entity_type="opportunity",
+                 entity_id=opportunity.id, actor=actor.label,
+                 detail={"opportunity_no": opportunity.opportunity_no, "project_id": project.id, "parties": copied})
+    commit_or_conflict(db, "a project for this deal was opened concurrently; read it back")
+    db.refresh(project)
+    response.status_code = status.HTTP_201_CREATED
+    return envelope(ProjectRead.model_validate(project).model_dump(by_alias=True))
 
 
 def _agreed_price(db: Session, tenant_id: str, customer_id: str | None, product_id: str | None) -> float | None:

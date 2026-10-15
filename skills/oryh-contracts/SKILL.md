@@ -59,7 +59,16 @@ oryh:
    and is what your scope is checked against), dates, `total_amount`,
    signatories, and `items` where the contract lists what is contracted
    (product, quantity, unit price, delivery note). Omit `contract_no` for
-   `CT-NNNNNN`.
+   `CT-NNNNNN`. Two more things a header may say: `opportunity_id`, the
+   deal this agreement closes — its parties (end client, referrer, …)
+   ride onto the contract — and `upstream`, a reference to a contract that
+   is NOT ours but governs this one: the agreement between our customer
+   and their client that our subcontract serves (`{"contract_no",
+   "parties": [...], "signed_date", "effective_from", "effective_to",
+   "summary", "attachment_id"}`, the copy filed as an attachment, and as a
+   contract document of type `upstream_reference` when the person wants it
+   beside the originals). It is a reference: never a contract row, never
+   in the list, never summed.
 2. **Originals**: for every file the person hands you, `POST /attachments`
    (any format — a PDF, each scanned page, the Word draft) then
    `POST /contract-documents` with `document_type` (signed / draft / annex
@@ -106,6 +115,9 @@ and stores nothing.
 - Paraphrase into `content`, or answer a clause question from memory.
 - Edit a signed contract's agreement fields, or "update" a contract for a
   supplement — that is a new contract pointing at its parent.
+- File somebody else's contract as one of ours because it governs ours —
+  the customer's agreement with their client is `upstream` on our contract,
+  a reference with a copy attached.
 - Write a term type the vocabulary lacks as `other` because it was quicker.
 - Read a contract it is not scoped to: a buyer's key sees purchase
   contracts; the seller's desk sees its own.

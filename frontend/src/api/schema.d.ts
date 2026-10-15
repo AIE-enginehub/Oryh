@@ -2188,6 +2188,46 @@ export interface paths {
         patch: operations["update_customer_product_api_v1_customer_products__customer_product_id__patch"];
         trace?: never;
     };
+    "/api/v1/customer-relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Customer Relations
+         * @description The rows as written, subject's side; `GET /customers/{id}/relations`
+         *     reads both directions from one customer's side.
+         */
+        get: operations["list_customer_relations_api_v1_customer_relations_get"];
+        put?: never;
+        /** Create Customer Relation */
+        post: operations["create_customer_relation_api_v1_customer_relations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customer-relations/{relation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Customer Relation */
+        delete: operations["delete_customer_relation_api_v1_customer_relations__relation_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Customer Relation */
+        patch: operations["update_customer_relation_api_v1_customer_relations__relation_id__patch"];
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -2267,6 +2307,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/customers/{customer_id}/relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Customer Relations Of */
+        get: operations["list_customer_relations_of_api_v1_customers__customer_id__relations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/directory/display-names/resolve": {
         parameters: {
             query?: never;
@@ -2289,6 +2346,48 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/document-parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Document Parties
+         * @description The rows, never the derived contracting party — a carrier's detail
+         *     read shows that one. Naming a carrier reads it first; without one, a
+         *     reader who holds no contract grant sees no contract's parties.
+         */
+        get: operations["list_document_parties_api_v1_document_parties_get"];
+        put?: never;
+        /** Create Document Party */
+        post: operations["create_document_party_api_v1_document_parties_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/document-parties/{party_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document Party */
+        get: operations["get_document_party_api_v1_document_parties__party_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Document Party */
+        delete: operations["delete_document_party_api_v1_document_parties__party_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Document Party */
+        patch: operations["update_document_party_api_v1_document_parties__party_id__patch"];
         trace?: never;
     };
     "/api/v1/employee-leaves": {
@@ -3901,6 +4000,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/opportunities/{opportunity_id}/project": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Project From Opportunity
+         * @description The won-deal bridge: one project from the deal — its customer, its
+         *     parties, its owner — in one transaction, once. A second call returns the
+         *     project the first made (200); a deal not yet won is refused (409). Needs
+         *     the deal (`crm.own`, the owner's) and `project.manage`, because a project
+         *     is a project like any other (plan 2026-10-14).
+         */
+        post: operations["project_from_opportunity_api_v1_opportunities__opportunity_id__project_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/opportunities/{opportunity_id}/quote": {
         parameters: {
             query?: never;
@@ -4729,6 +4852,28 @@ export interface paths {
         head?: never;
         /** Update Project */
         patch: operations["update_project_api_v1_projects__project_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Detail
+         * @description The project and where it came from: the customer it is for, the deal,
+         *     the contract (when this reader may read contracts of that side), the
+         *     owner's name and every party (plan 2026-10-14).
+         */
+        get: operations["get_project_detail_api_v1_projects__project_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/purchase-order-adjustments": {
@@ -9181,10 +9326,14 @@ export interface components {
             id: string;
             /** Items */
             items?: components["schemas"]["ContractItemRead"][] | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Our Signatory */
             our_signatory?: string | null;
             /** Parent Contract Id */
             parent_contract_id?: string | null;
+            /** Parties */
+            parties?: components["schemas"]["DocumentPartyDetailRead"][] | null;
             /** Remarks */
             remarks?: string | null;
             /** Revision */
@@ -9212,6 +9361,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Upstream */
+            upstream?: {
+                [key: string]: unknown;
+            } | null;
             /** Vendor Id */
             vendor_id?: string | null;
         };
@@ -9788,6 +9941,8 @@ export interface components {
             employee_id?: string | null;
             /** Items */
             items?: components["schemas"]["ContractItemBase"][];
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Our Signatory */
             our_signatory?: string | null;
             /** Parent Contract Id */
@@ -9806,6 +9961,7 @@ export interface components {
             title: string;
             /** Total Amount */
             total_amount?: number | null;
+            upstream?: components["schemas"]["UpstreamContractReference"] | null;
             /** Vendor Id */
             vendor_id?: string | null;
         };
@@ -9898,6 +10054,25 @@ export interface components {
              */
             status: "active" | "archived";
         };
+        /** CreateCustomerRelationRequest */
+        CreateCustomerRelationRequest: {
+            /** Customer Id */
+            customer_id: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Related Customer Id */
+            related_customer_id: string;
+            /** Relation Type */
+            relation_type: string;
+            /** Remarks */
+            remarks?: string | null;
+        };
         /** CreateCustomerRequest */
         CreateCustomerRequest: {
             /** Address */
@@ -9936,6 +10111,32 @@ export interface components {
             tax_id?: string | null;
             /** Territory Id */
             territory_id?: string | null;
+        };
+        /** CreateDocumentPartyRequest */
+        CreateDocumentPartyRequest: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Customer Id */
+            customer_id: string;
+            /** Entity Id */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "opportunity" | "contract" | "project";
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Party Role */
+            party_role: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Terms */
+            terms?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * CreateEmployeeLeaveRequest
@@ -10558,6 +10759,10 @@ export interface components {
             lead_no?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Referrer Contact Id */
+            referrer_contact_id?: string | null;
+            /** Referrer Customer Id */
+            referrer_customer_id?: string | null;
             /** Remarks */
             remarks?: string | null;
             /** Source */
@@ -10978,12 +11183,20 @@ export interface components {
         CreateProjectRequest: {
             /** Client */
             client?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
             /** End Date */
             end_date?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
             /** Project Code */
             project_code?: string | null;
             /** Project Name */
@@ -11951,7 +12164,8 @@ export interface components {
          * CustomerDetailRead
          * @description The customer with what a visit brief needs in one read: its people,
          *     its open deals, the last contacts with it, what is scheduled, the last
-         *     messages, and its recent quotations and orders (F-16).
+         *     messages, its recent quotations and orders (F-16), and the customers it
+         *     is related to.
          */
         CustomerDetailRead: {
             /** Activities */
@@ -11969,6 +12183,8 @@ export interface components {
             orders: components["schemas"]["SalesOrderRead"][];
             /** Quotations */
             quotations: components["schemas"]["SalesQuotationRead"][];
+            /** Relations */
+            relations?: components["schemas"]["CustomerRelationSideRead"][];
             territory?: components["schemas"]["TerritoryRead"] | null;
         };
         /** CustomerProductRead */
@@ -12059,6 +12275,84 @@ export interface components {
             territory_id?: string | null;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** CustomerRelationRead */
+        CustomerRelationRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Related Customer Id */
+            related_customer_id: string;
+            /** Relation Type */
+            relation_type: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * CustomerRelationSideRead
+         * @description A relation as seen from one customer: `other_customer_id` is the
+         *     other party, `relation_type_here` the type read from this side (the
+         *     reverse of the row's when this customer is the row's object).
+         */
+        CustomerRelationSideRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "subject" | "object";
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Other Customer Id */
+            other_customer_id: string;
+            /** Other Customer Name */
+            other_customer_name?: string | null;
+            /** Related Customer Id */
+            related_customer_id: string;
+            /** Relation Type */
+            relation_type: string;
+            /** Relation Type Here */
+            relation_type_here: string;
+            /** Remarks */
+            remarks?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** DeleteBillingAccountRequest */
         DeleteBillingAccountRequest: {
@@ -12168,6 +12462,90 @@ export interface components {
             actor_labels?: string[];
             /** Employee Ids */
             employee_ids?: string[];
+        };
+        /**
+         * DocumentPartyDetailRead
+         * @description A party with names, as a detail read shows it. The contracting party
+         *     is derived from the carrier's customer_id: `id` is None and `derived`
+         *     is True for it, so a reader knows it is not a row to PATCH.
+         */
+        DocumentPartyDetailRead: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Customer Name */
+            customer_name?: string | null;
+            /**
+             * Derived
+             * @default false
+             */
+            derived: boolean;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Id */
+            id?: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Party Role */
+            party_role: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Terms */
+            terms?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DocumentPartyRead */
+        DocumentPartyRead: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Party Role */
+            party_role: string;
+            /** Remarks */
+            remarks?: string | null;
+            /** Terms */
+            terms?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** EmployeeLeaveRead */
         EmployeeLeaveRead: {
@@ -12515,9 +12893,19 @@ export interface components {
             data: components["schemas"]["CustomerRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[CustomerRelationRead] */
+        Envelope_CustomerRelationRead_: {
+            data: components["schemas"]["CustomerRelationRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[DisplayNameResolutionRead] */
         Envelope_DisplayNameResolutionRead_: {
             data: components["schemas"]["DisplayNameResolutionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[DocumentPartyRead] */
+        Envelope_DocumentPartyRead_: {
+            data: components["schemas"]["DocumentPartyRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[EmployeeLeaveRead] */
@@ -12733,6 +13121,11 @@ export interface components {
         /** Envelope[ProductSkuRead] */
         Envelope_ProductSkuRead_: {
             data: components["schemas"]["ProductSkuRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectDetailRead] */
+        Envelope_ProjectDetailRead_: {
+            data: components["schemas"]["ProjectDetailRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ProjectRead] */
@@ -14243,6 +14636,10 @@ export interface components {
             lead_no: string;
             /** Phone */
             phone?: string | null;
+            /** Referrer Contact Id */
+            referrer_contact_id?: string | null;
+            /** Referrer Customer Id */
+            referrer_customer_id?: string | null;
             /** Remarks */
             remarks?: string | null;
             /** Source */
@@ -14450,6 +14847,24 @@ export interface components {
         ListEnvelope_CustomerRead_: {
             /** Data */
             data: components["schemas"]["CustomerRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CustomerRelationRead] */
+        ListEnvelope_CustomerRelationRead_: {
+            /** Data */
+            data: components["schemas"]["CustomerRelationRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CustomerRelationSideRead] */
+        ListEnvelope_CustomerRelationSideRead_: {
+            /** Data */
+            data: components["schemas"]["CustomerRelationSideRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[DocumentPartyRead] */
+        ListEnvelope_DocumentPartyRead_: {
+            /** Data */
+            data: components["schemas"]["DocumentPartyRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[EmployeeLeaveRead] */
@@ -15036,6 +15451,8 @@ export interface components {
             opportunity: components["schemas"]["OpportunityRead"];
             /** Orders */
             orders: components["schemas"]["SalesOrderRead"][];
+            /** Parties */
+            parties?: components["schemas"]["DocumentPartyDetailRead"][];
             /** Quotations */
             quotations: components["schemas"]["SalesQuotationRead"][];
             /** Revision */
@@ -15759,15 +16176,54 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ProjectDetailRead
+         * @description The project and where it came from, in one read: the customer it is
+         *     for, the deal it came from, the contract it runs under, who owns it, and
+         *     every party to it (plan 2026-10-14).
+         */
+        ProjectDetailRead: {
+            contract?: components["schemas"]["ContractRead"] | null;
+            customer?: components["schemas"]["CustomerRead"] | null;
+            opportunity?: components["schemas"]["OpportunityRead"] | null;
+            /** Owner Employee Name */
+            owner_employee_name?: string | null;
+            /** Parties */
+            parties?: components["schemas"]["DocumentPartyDetailRead"][];
+            project: components["schemas"]["ProjectRead"];
+        };
+        /**
+         * ProjectFromOpportunityRequest
+         * @description The won-deal bridge's few choices; everything else — customer,
+         *     parties, owner — comes from the deal.
+         */
+        ProjectFromOpportunityRequest: {
+            /** Contract Id */
+            contract_id?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Project Code */
+            project_code?: string | null;
+            /** Project Name */
+            project_name?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+        };
         /** ProjectRead */
         ProjectRead: {
             /** Client */
             client?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Customer Id */
+            customer_id?: string | null;
             /** End Date */
             end_date?: string | null;
             /** Id */
@@ -15776,6 +16232,10 @@ export interface components {
             metadata: {
                 [key: string]: unknown;
             };
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
             /** Project Code */
             project_code?: string | null;
             /** Project Name */
@@ -19249,6 +19709,8 @@ export interface components {
             effective_to?: string | null;
             /** Employee Id */
             employee_id?: string | null;
+            /** Opportunity Id */
+            opportunity_id?: string | null;
             /** Our Signatory */
             our_signatory?: string | null;
             /** Parent Contract Id */
@@ -19265,6 +19727,7 @@ export interface components {
             title?: string | null;
             /** Total Amount */
             total_amount?: number | null;
+            upstream?: components["schemas"]["UpstreamContractReference"] | null;
         };
         /** UpdateContractTermRequest */
         UpdateContractTermRequest: {
@@ -19333,6 +19796,23 @@ export interface components {
             /** Status */
             status?: ("active" | "archived") | null;
         };
+        /** UpdateCustomerRelationRequest */
+        UpdateCustomerRelationRequest: {
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Related Customer Id */
+            related_customer_id?: string | null;
+            /** Relation Type */
+            relation_type?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+        };
         /** UpdateCustomerRequest */
         UpdateCustomerRequest: {
             /** Address */
@@ -19371,6 +19851,25 @@ export interface components {
             tax_id?: string | null;
             /** Territory Id */
             territory_id?: string | null;
+        };
+        /** UpdateDocumentPartyRequest */
+        UpdateDocumentPartyRequest: {
+            /** Contact Id */
+            contact_id?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Party Role */
+            party_role?: string | null;
+            /** Remarks */
+            remarks?: string | null;
+            /** Terms */
+            terms?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** UpdateEmployeeLeaveRequest */
         UpdateEmployeeLeaveRequest: {
@@ -19748,6 +20247,10 @@ export interface components {
             geo_id?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Referrer Contact Id */
+            referrer_contact_id?: string | null;
+            /** Referrer Customer Id */
+            referrer_customer_id?: string | null;
             /** Remarks */
             remarks?: string | null;
             /** Source */
@@ -20049,12 +20552,20 @@ export interface components {
         UpdateProjectRequest: {
             /** Client */
             client?: string | null;
+            /** Contract Id */
+            contract_id?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
             /** End Date */
             end_date?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             };
+            /** Opportunity Id */
+            opportunity_id?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
             /** Project Code */
             project_code?: string | null;
             /** Project Name */
@@ -20752,6 +21263,29 @@ export interface components {
             tax_id?: string | null;
             /** Vendor Code */
             vendor_code?: string | null;
+        };
+        /**
+         * UpstreamContractReference
+         * @description A contract that is not ours but governs this one — the agreement
+         *     between our customer and their client that our subcontract serves. A
+         *     reference: it is not listed as a contract, not summed, and has no state.
+         *     `attachment_id` points at a copy in the attachment store.
+         */
+        UpstreamContractReference: {
+            /** Attachment Id */
+            attachment_id?: string | null;
+            /** Contract No */
+            contract_no?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Parties */
+            parties?: string[];
+            /** Signed Date */
+            signed_date?: string | null;
+            /** Summary */
+            summary?: string | null;
         };
         /** UserRead */
         UserRead: {
@@ -26736,6 +27270,7 @@ export interface operations {
                 vendor_id?: string | null;
                 customer_id?: string | null;
                 parent_contract_id?: string | null;
+                opportunity_id?: string | null;
                 status?: string | null;
                 include_deleted?: boolean;
                 keyword?: string | null;
@@ -27552,6 +28087,187 @@ export interface operations {
             };
         };
     };
+    list_customer_relations_api_v1_customer_relations_get: {
+        parameters: {
+            query?: {
+                customer_id?: string | null;
+                related_customer_id?: string | null;
+                relation_type?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose effective_from is on or after this */
+                effective_from_from?: string | null;
+                /** @description rows whose effective_from is on or before this */
+                effective_from_thru?: string | null;
+                /** @description rows whose effective_to is on or after this */
+                effective_to_from?: string | null;
+                /** @description rows whose effective_to is on or before this */
+                effective_to_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CustomerRelationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_customer_relation_api_v1_customer_relations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCustomerRelationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerRelationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_customer_relation_api_v1_customer_relations__relation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                relation_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_customer_relation_api_v1_customer_relations__relation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                relation_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCustomerRelationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CustomerRelationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_customers_api_v1_customers_get: {
         parameters: {
             query?: {
@@ -27849,6 +28565,44 @@ export interface operations {
             };
         };
     };
+    list_customer_relations_of_api_v1_customers__customer_id__relations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                customer_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CustomerRelationSideRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     resolve_display_names_api_v1_directory_display_names_resolve_post: {
         parameters: {
             query?: never;
@@ -27878,6 +28632,218 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_DisplayNameResolutionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_document_parties_api_v1_document_parties_get: {
+        parameters: {
+            query?: {
+                entity_type?: string | null;
+                entity_id?: string | null;
+                customer_id?: string | null;
+                party_role?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_DocumentPartyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_document_party_api_v1_document_parties_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDocumentPartyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DocumentPartyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_party_api_v1_document_parties__party_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                party_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DocumentPartyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_document_party_api_v1_document_parties__party_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                party_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_document_party_api_v1_document_parties__party_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                party_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDocumentPartyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DocumentPartyRead_"];
                 };
             };
             /** @description Validation Error */
@@ -33327,6 +34293,50 @@ export interface operations {
             };
         };
     };
+    project_from_opportunity_api_v1_opportunities__opportunity_id__project_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                opportunity_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProjectFromOpportunityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     quote_opportunity_api_v1_opportunities__opportunity_id__quote_post: {
         parameters: {
             query?: never;
@@ -36259,6 +37269,10 @@ export interface operations {
             query?: {
                 keyword?: string | null;
                 status?: string | null;
+                customer_id?: string | null;
+                opportunity_id?: string | null;
+                contract_id?: string | null;
+                owner_employee_id?: string | null;
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
                 size?: number | null;
@@ -36459,6 +37473,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ProjectRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_detail_api_v1_projects__project_id__detail_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectDetailRead_"];
                 };
             };
             /** @description Validation Error */

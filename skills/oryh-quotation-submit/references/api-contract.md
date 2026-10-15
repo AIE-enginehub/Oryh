@@ -234,6 +234,14 @@ Get Customer Detail
 |---|---|---|---|---|
 | `customer_id` | path | string | yes |  |
 
+## GET /customers/{customer_id}/relations
+
+List Customer Relations Of
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
 ## GET /employees
 
 List Employees
@@ -979,6 +987,25 @@ Body:
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source` | string (≤100 chars) | optional |  |
 | `status` | string (≤50 chars) | optional |  |
+
+## POST /opportunities/{opportunity_id}/project
+
+Project From Opportunity
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `opportunity_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contract_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
 
 ## POST /opportunities/{opportunity_id}/quote
 

@@ -185,6 +185,7 @@ List Contracts
 | `vendor_id` | query | string | no |  |
 | `customer_id` | query | string | no |  |
 | `parent_contract_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
 | `status` | query | string | no |  |
 | `include_deleted` | query | boolean | no |  |
 | `keyword` | query | string | no |  |
@@ -676,6 +677,7 @@ Body:
 | `effective_from` | date | optional |  |
 | `effective_to` | date | optional |  |
 | `employee_id` | string | optional |  |
+| `opportunity_id` | string | optional |  |
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
@@ -684,6 +686,7 @@ Body:
 | `summary` | string (≤10000 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
+| `upstream` | object | optional |  |
 
 ## PATCH /object-type-definitions/{definition_id}
 
@@ -1046,6 +1049,7 @@ Body:
   | `quantity` | number (≤99999999.9999) | optional |  |
   | `unit` | string (≤50 chars) | optional |  |
   | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `opportunity_id` | string | optional |  |
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
@@ -1065,6 +1069,7 @@ Body:
   | `summary` | string (≤2000 chars) | optional |  |
   | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
+| `upstream` | object | optional |  |
 | `vendor_id` | string | optional |  |
 
 ## POST /contracts/{contract_id}/restore

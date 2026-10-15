@@ -371,6 +371,39 @@ POST /customer-contacts
 }
 ```
 
+## Customer Relations
+
+```text
+GET    /customers/{customer_id}/relations   → both directions from this customer's side: other_customer_id/name, relation_type_here, direction
+GET    /customer-relations?customer_id=&related_customer_id=&relation_type=
+POST   /customer-relations                  → {customer_id, related_customer_id, relation_type (customer_relation_type option), effective_from?, effective_to?, remarks?}
+PATCH  /customer-relations/{relation_id}    · DELETE /customer-relations/{relation_id}
+```
+
+```json
+POST /customer-relations
+{
+  "customer_id": "friend-customer-id",
+  "related_customer_id": "bus-company-customer-id",
+  "relation_type": "referrer_of",
+  "effective_from": "2026-10-01",
+  "remarks": "single line of contact; we never deal with the bus company directly"
+}
+```
+
+Said from the subject's side: the friend `referrer_of` the bus company; read
+from the bus company's side it is `referred_by`. Two customers, never the same
+one twice (422); the same relation on the same date twice is a 409.
+
+## Projects
+
+```text
+GET    /projects?customer_id=&opportunity_id=&contract_id=&owner_employee_id=&status=&keyword=
+POST   /projects          → {project_name, project_code?, customer_id?, opportunity_id?, contract_id?, owner_employee_id?, client?, start_date?, end_date?}   (project.manage)
+GET    /projects/{project_id}/detail   → project + customer + opportunity + contract (when readable) + owner name + parties
+PATCH  /projects/{project_id} · DELETE /projects/{project_id} (archive)
+```
+
 ## The External Product Map (channel listings → catalog)
 
 What a platform's product id means in this catalog: Tmall listing 6543… IS

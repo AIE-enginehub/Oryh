@@ -40,6 +40,8 @@ per record: when a lead already has your open todo, a new next step is a
 - "This one is decided — create the customer and open the deal"
 - "We won this one"
 - "Their budget got cut, this one is lost"
+- "A friend in the US introduced a bus company's project; we quote the friend, the bus company is the end client"
+- "We won it — open the project"
 
 ## Required Inputs
 
@@ -88,11 +90,13 @@ oryh:
    same inquiry arriving twice is one lead worked twice, not two. Also
    check `GET /customers?keyword=` — somebody already in master data is
    not a lead; open an opportunity for them directly.
-3. **Capture**: `POST /leads {"employee_id": "{{EMPLOYEE_ID}}", "company_name"/"contact_name", "phone", "source": "trade_fair", "geo_id": …, "campaign_id": …}`.
-   Keep `source` values consistent within the workspace — the vocabulary
-   is habit, not a table, and "fair"/"trade fair"/"trade-show" splitting
-   one channel three ways ruins the question "where do our leads come
-   from".
+3. **Capture**: `POST /leads {"employee_id": "{{EMPLOYEE_ID}}", "company_name"/"contact_name", "phone", "source": "referral", "geo_id": …, "campaign_id": …}`.
+   `source` is the workspace's `lead_source` vocabulary (`GET /type-options?family=lead_source`);
+   one channel under one name, or "where do our leads come from" has no
+   answer. **Who introduced it** is a fact of its own: `referrer_customer_id`
+   (a customer on file) and `referrer_contact_id` (the person there — naming
+   the person is enough, the customer follows). The conversion carries the
+   referrer onto the deal as a party.
 4. **Advance**: `PATCH /leads/{id} {"status": ...}` as facts happen. Field
    edits obey the machine's editable states; terminal states freeze the
    record (a revival is a status move, not an edit).
@@ -103,6 +107,12 @@ oryh:
 6. **Drive the deal**: `PATCH /opportunities/{id}` — stage moves, estimate
    updates, `remarks` for why. On `won`/`lost`, say the why in `remarks`
    out loud before writing it; `closed_at` stamps itself.
+7. **Open the project** once it is won: `POST /opportunities/{id}/project`
+   — one project from the deal, its customer, its parties and its owner
+   (the deal's salesperson unless `owner_employee_id` says otherwise), the
+   signed contract that names the deal when there is one; a second call
+   returns the same project. It needs `project.manage` beside the deal:
+   without it, say the deal is won and name the project desk.
 
 ## Where A Lead Is, And Whose It Becomes
 
@@ -187,6 +197,37 @@ An opportunity is more than a title and an estimate once it is real:
   expectation. `GET /opportunities/{id}/detail` reads all of it — lines,
   cast with names, quotations, orders, campaign — in one call.
 
+## The Parties To A Deal
+
+A deal has one **customer** — who signs with us, the carrier's `customer_id`,
+what quotations and orders are made out to. It may have other **parties**,
+and they are rows, not remarks: `POST /document-parties {"entity_type":
+"opportunity", "entity_id": …, "customer_id": …, "party_role": …,
+"contact_id"?, "terms"?}`. The roles are the workspace's `deal_party_role`
+vocabulary — `end_client` (who the work is ultimately for), `referrer` (who
+brought it, with their share in `terms`, e.g. `{"commission_pct": 10,
+"trigger": "on_receipt"}`), `reseller`, `general_contractor`, `consultant`.
+A referral deal — a friend introduces a bus company's project, signs with
+them and subcontracts to us — reads: customer = the friend; parties =
+the bus company as `end_client`, the friend as `referrer`. The bus company
+is a customer record with no documents of its own, which is exactly the
+fact; its relation to the friend is the catalog desk's ($oryh-master-data,
+`customer_relations`).
+
+- The contracting party is never filed as a row: it IS `customer_id`, and
+  the detail read shows it first, marked `derived`. To change who signs,
+  change the deal's `customer_id`.
+- A party's `contact_id` must be one of that party's own people; once a
+  party is filed, its people may join the cast (`/opportunity-contacts`) —
+  the bus company's operations director as `end_user`, say.
+- `terms` is what was agreed with that party, for an agent to read. The
+  server computes nothing from it: "pay the referrer their share when the
+  money arrives" is a `linkage` on the order or the invoice, executed by
+  the flow agent.
+- The parties ride with the deal into the quotation's customer (unchanged),
+  the contract filed with `opportunity_id`, and the project the bridge
+  opens; from then on each keeps its own.
+
 ## Campaigns: Where Leads Come From
 
 A campaign is a marketing effort — a trade fair, a webinar, a mailing, an
@@ -222,7 +263,8 @@ itself" a count instead of a recollection.
   the bridge is the promotion.
 - Work anyone else's pipeline, or quote and order from here — those are
   $oryh-quotation-submit and $oryh-order-submit.
-- Treat `expected_amount` as money owed or earned.
+- Treat `expected_amount` as money owed or earned, or compute a referrer's share from `terms` — that is a linkage's sentence and the flow agent's act.
+- File the end client as the deal's customer because they are the one using the system — the customer is who signs with us; everyone else is a party.
 - Invent a campaign to attribute a lead to, or report a campaign's `won_expected_amount` as revenue.
 - Build a quotation by hand from a deal's lines, or set `probability` from a formula; the bridge quotes, the person judges.
 - Record an activity's `content` the person has not confirmed, send a message to a customer, or mark an event `held` without logging it.

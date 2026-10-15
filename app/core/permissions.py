@@ -192,6 +192,15 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "主数据管理",
         "创建、编辑和归档项目、供应商、客户、产品、SKU 与资源等工作空间主数据",
     ),
+    # Split out of master_data.manage (plan 2026-10-14): a project is where a
+    # deal lands after it is won, and the salesperson or project manager who
+    # opens it is not the catalog desk. master_data.manage still implies it.
+    (
+        "project.manage",
+        False,
+        "项目管理",
+        "创建、编辑、归档项目，并把项目链接到客户、商机、合同与负责人；成交建项目（POST /opportunities/{id}/project）也需要它",
+    ),
     # Split out of master_data.manage. The stock ledger is a warehouse's daily
     # work — receiving, issuing, stock-takes, the informal movements nobody has
     # a document for — and a keeper is not a catalog administrator. Under one
@@ -319,6 +328,7 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "campaign.manage": ("Run marketing campaigns", "Create, maintain and advance marketing campaigns and record the leads and customers they reached; attribution on leads and deals is written by whoever files them"),
     "crm.own": ("Work own leads and opportunities", "Create, advance and convert one's own leads and drive one's own opportunities to won or lost; the conversion bridge creates the customer record"),
     "master_data.manage": ("Manage master data", "Create, edit and archive projects, vendors, customers, products, SKUs and resources"),
+    "project.manage": ("Manage projects", "Create, edit and archive projects and link them to a customer, an opportunity, a contract and an owner; the won-deal bridge (POST /opportunities/{id}/project) needs it too"),
     "inventory.manage": ("Manage stock", "Register stock positions, import counts, post stock documents (damage, transfer, production receipts) and hold stock for orders; ledger rows come only from these acts. Includes shipment.manage"),
     "shipment.manage": ("Ship and receive parcels", "File, advance and post-stock shipments (sales dispatch, return receipt, purchase-return dispatch); no positions, counts or stock documents"),
     "fin_account.manage": ("Fin accounts and bank statements", "Record fin accounts (bank, cash, payment platforms) and their register lines, import statements, link payments for reconciliation; not the payment documents themselves"),
@@ -409,6 +419,7 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
         "bills-of-materials", "bom-items", "facilities", "projects", "sales-channels", "stores",
         "store-facilities", "external-product-maps", "geos", "territories", "type-options",
     ),
+    "project.manage": ("projects", "document-parties"),
     "inventory.manage": ("inventory-items", "inventory-item-details", "picklists", "picklist-items"),
     "shipment.manage": ("shipments", "shipment-items", "fulfilment-backlog"),
     "fin_account.manage": ("fin-accounts", "fin-account-transactions"),
@@ -569,6 +580,7 @@ DEFAULT_ROLE_PERMISSIONS[HOSTED_FLOW_AGENT_ROLE] = HOSTED_FLOW_AGENT_PERMISSIONS
 # `shipment.manage` reaches nothing else.
 IMPLIED_BY: dict[str, tuple[str, ...]] = {
     "shipment.manage": ("inventory.manage",),
+    "project.manage": ("master_data.manage",),
 }
 
 

@@ -38,6 +38,14 @@ Delete Contract
 |---|---|---|---|---|
 | `contract_id` | path | string | yes |  |
 
+## DELETE /document-parties/{party_id}
+
+Delete Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
+
 ## DELETE /invoices/{invoice_id}
 
 Delete Invoice
@@ -181,6 +189,7 @@ List Contracts
 | `vendor_id` | query | string | no |  |
 | `customer_id` | query | string | no |  |
 | `parent_contract_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
 | `status` | query | string | no |  |
 | `include_deleted` | query | boolean | no |  |
 | `keyword` | query | string | no |  |
@@ -224,6 +233,30 @@ Contract Execution
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `contract_id` | path | string | yes |  |
+
+## GET /document-parties
+
+List Document Parties
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `party_role` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+
+## GET /document-parties/{party_id}
+
+Get Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
 
 ## GET /employees
 
@@ -622,6 +655,7 @@ Body:
 | `effective_from` | date | optional |  |
 | `effective_to` | date | optional |  |
 | `employee_id` | string | optional |  |
+| `opportunity_id` | string | optional |  |
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
@@ -630,6 +664,26 @@ Body:
 | `summary` | string (≤10000 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
+| `upstream` | object | optional |  |
+
+## PATCH /document-parties/{party_id}
+
+Update Document Party
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `party_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `contact_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `party_role` | string (≤50 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `terms` | object | optional |  |
 
 ## PATCH /invoices/{invoice_id}
 
@@ -912,6 +966,7 @@ Body:
   | `quantity` | number (≤99999999.9999) | optional |  |
   | `unit` | string (≤50 chars) | optional |  |
   | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `opportunity_id` | string | optional |  |
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
@@ -931,6 +986,7 @@ Body:
   | `summary` | string (≤2000 chars) | optional |  |
   | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
+| `upstream` | object | optional |  |
 | `vendor_id` | string | optional |  |
 
 ## POST /contracts/{contract_id}/restore
@@ -967,6 +1023,23 @@ Body:
   | `quantity` | number | optional |  |
   | `unit` | string | optional |  |
   | `unit_price` | number | optional |  |
+
+## POST /document-parties
+
+Create Document Party
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `customer_id` | string | required |  |
+| `entity_id` | string | required |  |
+| `entity_type` | `opportunity` | `contract` | `project` | required |  |
+| `party_role` | string (≤50 chars) | required |  |
+| `contact_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `terms` | object | optional |  |
 
 ## POST /invoices
 

@@ -259,6 +259,10 @@ List Projects
 |---|---|---|---|---|
 | `keyword` | query | string | no |  |
 | `status` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
 | `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
@@ -272,6 +276,14 @@ List Projects
 ## GET /projects/{project_id}
 
 Get Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/detail
+
+Get Project Detail
 
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
@@ -426,8 +438,12 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
 | `end_date` | date | optional |  |
 | `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
 | `project_code` | string (≤64 chars) | optional |  |
 | `project_name` | string (≤200 chars) | optional |  |
 | `start_date` | date | optional |  |
@@ -773,8 +789,12 @@ Body:
 |---|---|---|---|
 | `project_name` | string (≤200 chars) | required |  |
 | `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
 | `end_date` | date | optional |  |
 | `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
 | `project_code` | string (≤64 chars) | optional |  |
 | `start_date` | date | optional |  |
 | `status` | `active` | `archived` | optional |  |

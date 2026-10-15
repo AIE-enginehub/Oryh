@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.registry import KEYWORD, ORDER_BY, PAGE, SIZE, STATUS, GetResource, ListResource, Param, register
 from app.api.visibility import scoped
+from app.api.parties import relations_of
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -516,6 +517,7 @@ def get_customer_detail(
         quotations=[SalesQuotationRead.model_validate(q) for q in recent(SalesQuotation, SalesQuotation.created_at, limit=5)],
         orders=[SalesOrderRead.model_validate(o) for o in recent(SalesOrder, SalesOrder.created_at, limit=5)],
         territory=TerritoryRead.model_validate(territory) if territory is not None else None,
+        relations=relations_of(db, tenant_id, customer.id),
     )
     return envelope(detail.model_dump(by_alias=True))
 
