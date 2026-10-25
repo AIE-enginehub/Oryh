@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useI18n } from "../../i18n";
 
 export type AttributeRow = {
@@ -44,38 +45,38 @@ export function VariantAttributesEditor({ rows, onChange }: VariantAttributesEdi
 
   return (
     <fieldset className="variant-editor">
-      <legend>{text("规格属性", "Variant attributes")}</legend>
-      <p>{text("用名称和值描述 SKU，例如“颜色 / 深空灰”“尺码 / L”。", "Describe the SKU with names and values, for example “Color / Space Gray” or “Size / L”.")}</p>
+      <legend>{text(zhCN.componentsProductsVariantAttributesEditor.variantAttributes, "Variant attributes")}</legend>
+      <p>{text(zhCN.componentsProductsVariantAttributesEditor.describeTheSKUWithNamesAndValuesForExample, "Describe the SKU with names and values, for example “Color / Space Gray” or “Size / L”.")}</p>
       <div className="variant-rows">
         {rows.map((row, index) => (
           <div className="variant-row" key={row.id}>
             <label>
-              <span className="sr-only">{text(`属性 ${index + 1} 名称`, `Attribute ${index + 1} name`)}</span>
+              <span className="sr-only">{text(zhCN.componentsProductsVariantAttributesEditor.attributeName2(`${index + 1}`), `Attribute ${index + 1} name`)}</span>
               <input
-                aria-label={text(`属性 ${index + 1} 名称`, `Attribute ${index + 1} name`)}
+                aria-label={text(zhCN.componentsProductsVariantAttributesEditor.attributeName2(`${index + 1}`), `Attribute ${index + 1} name`)}
                 maxLength={100}
-                placeholder={text("属性名称", "Attribute name")}
+                placeholder={text(zhCN.componentsProductsVariantAttributesEditor.attributeName, "Attribute name")}
                 value={row.key}
                 onChange={(event) => update(row.id, "key", event.target.value)}
               />
             </label>
             <span className="variant-divider" aria-hidden="true">/</span>
             <label>
-              <span className="sr-only">{text(`属性 ${index + 1} 值`, `Attribute ${index + 1} value`)}</span>
+              <span className="sr-only">{text(zhCN.componentsProductsVariantAttributesEditor.attributeValue2(`${index + 1}`), `Attribute ${index + 1} value`)}</span>
               <input
-                aria-label={text(`属性 ${index + 1} 值`, `Attribute ${index + 1} value`)}
+                aria-label={text(zhCN.componentsProductsVariantAttributesEditor.attributeValue2(`${index + 1}`), `Attribute ${index + 1} value`)}
                 maxLength={200}
-                placeholder={text("属性值", "Attribute value")}
+                placeholder={text(zhCN.componentsProductsVariantAttributesEditor.attributeValue, "Attribute value")}
                 value={row.value}
                 onChange={(event) => update(row.id, "value", event.target.value)}
               />
-              {row.valueType === "json" && <small>{text("结构化内容", "Structured content")}</small>}
+              {row.valueType === "json" && <small>{text(zhCN.componentsProductsVariantAttributesEditor.structuredContent, "Structured content")}</small>}
             </label>
-            <button className="variant-remove" type="button" aria-label={text(`删除第 ${index + 1} 行属性`, `Remove attribute row ${index + 1}`)} onClick={() => remove(row.id)}>×</button>
+            <button className="variant-remove" type="button" aria-label={text(zhCN.componentsProductsVariantAttributesEditor.removeAttributeRow(`${index + 1}`), `Remove attribute row ${index + 1}`)} onClick={() => remove(row.id)}>×</button>
           </div>
         ))}
       </div>
-      <button className="button compact" type="button" onClick={() => onChange([...rows, emptyAttributeRow()])}>{text("＋ 添加属性", "+ Add attribute")}</button>
+      <button className="button compact" type="button" onClick={() => onChange([...rows, emptyAttributeRow()])}>{text(zhCN.componentsProductsVariantAttributesEditor.addAttribute, "+ Add attribute")}</button>
     </fieldset>
   );
 }

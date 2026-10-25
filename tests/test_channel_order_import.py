@@ -14,6 +14,13 @@ is create a product — the map is the boundary, not the catalog.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_channel_order_import.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -25,24 +32,24 @@ def shop():
         t = provision_tenant(client, company_name="Tmall Co", email="admin@tmall-co.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
 
-        emp = client.post("/api/v1/employees", json={"name": "运营小李"},
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_2B47B04BD90436CF']},
                           headers=admin).json()["data"]["id"]
         ops = invite_member(client, admin, "channel_ops", ["order.submit_own"], employee_id=emp)
         client.post("/api/v1/sales-channels", headers=admin, json={
-            "channel_code": "tmall", "name": "天猫", "channel_kind": "marketplace"})
+            "channel_code": "tmall", "name": _ZH_TEXT['TEXT_650D7BCACD9B4DDB'], "channel_kind": "marketplace"})
 
         store = client.post("/api/v1/stores", headers=admin, json={
-            "name": "天猫旗舰店", "channel": "online", "source": "tmall"}).json()["data"]["id"]
+            "name": _ZH_TEXT['TEXT_9FF35AEF8AA0B90B'], "channel": "online", "source": "tmall"}).json()["data"]["id"]
         cup = client.post("/api/v1/products", headers=admin, json={
-            "name": "保温杯 500ml", "product_code": "CUP-500", "spec": "樱花粉"}).json()["data"]["id"]
+            "name": _ZH_TEXT['TEXT_C63B790BA155C554'], "product_code": "CUP-500", "spec": _ZH_TEXT['TEXT_B3EE72B23F2799ED']}).json()["data"]["id"]
         client.post("/api/v1/products", headers=admin, json={
-            "name": "保温杯 350ml", "product_code": "CUP-350"})
+            "name": _ZH_TEXT['TEXT_D0A789535FD55995'], "product_code": "CUP-350"})
         client.post("/api/v1/products", headers=admin, json={
-            "name": "登山杖", "product_code": "POLE-1"})
+            "name": _ZH_TEXT['TEXT_CE80530D40705511'], "product_code": "POLE-1"})
         # named with the words in the other order and no spaces: only a
         # vocabulary match (CJK bigrams) can see it inside a platform title
         thermos = client.post("/api/v1/products", headers=admin, json={
-            "name": "樱花粉保温杯", "product_code": "CUP-PINK"}).json()["data"]["id"]
+            "name": _ZH_TEXT['TEXT_83614F41456F31DB'], "product_code": "CUP-PINK"}).json()["data"]["id"]
 
         nobody = invite_member(client, admin, "nobody", [])
 
@@ -50,7 +57,7 @@ def shop():
                "employee": emp, "store": store, "cup": cup, "thermos": thermos}
 
 
-TITLE = "【官方旗舰】保温杯500ml樱花粉 便携随行杯"
+TITLE = _ZH_TEXT['TEXT_C36E473522917827']
 ORDER_NO = "2039487651234"
 
 
@@ -75,9 +82,9 @@ def test_the_first_import_asks_the_catalog_and_records_the_answer(shop) -> None:
     assert candidates.status_code == 200, candidates.text
     ranked = candidates.json()["data"]
     assert ranked[0]["id"] == shop["cup"] and ranked[0]["match_score"] > ranked[1]["match_score"]
-    assert "登山杖" not in {r["name"] for r in ranked}
+    assert _ZH_TEXT['TEXT_CE80530D40705511'] not in {r["name"] for r in ranked}
     assert shop["thermos"] in {r["id"] for r in ranked}, \
-        "樱花粉保温杯 shares the title's vocabulary even with the words reordered and unspaced"
+        _ZH_TEXT['TEXT_520137769E7EACC7']
 
     # 4. the person confirms → the import desk records the title-keyed map
     recorded = client.post("/api/v1/external-product-maps", headers=ops, json={
@@ -86,8 +93,8 @@ def test_the_first_import_asks_the_catalog_and_records_the_answer(shop) -> None:
 
     # 5. the order lands on its storefront, linked to the platform number
     order = client.post("/api/v1/sales-orders", headers=ops, json={
-        "employee_id": shop["employee"], "customer_name_snapshot": "淘宝买家",
-        "store_id": shop["store"], "title": "天猫订单",
+        "employee_id": shop["employee"], "customer_name_snapshot": _ZH_TEXT['TEXT_F4C787EAA2CCA18C'],
+        "store_id": shop["store"], "title": _ZH_TEXT['TEXT_115C7ACA3DA2F6FE'],
         "items": [{"line_no": 1, "product_id": shop["cup"], "quantity": 2, "unit_price": 99}],
     })
     assert order.status_code == 201, order.text
@@ -98,10 +105,10 @@ def test_the_first_import_asks_the_catalog_and_records_the_answer(shop) -> None:
 
     # the boundary: the import desk curates the MAP, never the catalog —
     # and a credential that records nothing curates nothing
-    forbidden = client.post("/api/v1/products", headers=ops, json={"name": "野货"})
+    forbidden = client.post("/api/v1/products", headers=ops, json={"name": _ZH_TEXT['TEXT_7E8371FEE1D514D4']})
     assert forbidden.status_code == 403
     whiteboard = client.post("/api/v1/external-product-maps", headers=shop["nobody"], json={
-        "source": "tmall", "external_name": "乱写", "product_id": shop["cup"]})
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_4595BF1CDA295C28'], "product_id": shop["cup"]})
     assert whiteboard.status_code == 403
 
 
@@ -110,7 +117,7 @@ def test_the_second_import_finds_the_map_and_the_link(shop) -> None:
     client.post("/api/v1/external-product-maps", headers=ops, json={
         "source": "tmall", "external_name": TITLE, "product_id": shop["cup"]})
     order = client.post("/api/v1/sales-orders", headers=ops, json={
-        "employee_id": shop["employee"], "store_id": shop["store"], "title": "天猫订单",
+        "employee_id": shop["employee"], "store_id": shop["store"], "title": _ZH_TEXT['TEXT_115C7ACA3DA2F6FE'],
         "items": [{"line_no": 1, "product_id": shop["cup"], "quantity": 2, "unit_price": 99}],
     }).json()["data"]
     client.post("/api/v1/external-document-links", headers=ops, json={
@@ -120,7 +127,7 @@ def test_the_second_import_finds_the_map_and_the_link(shop) -> None:
     # the export arrives again, its title re-spaced by a spreadsheet
     mapped = client.get("/api/v1/external-product-maps", headers=ops,
                         params={"source": "tmall",
-                                "external_name": "【官方旗舰】保温杯500ml樱花粉　便携随行杯",
+                                "external_name": _ZH_TEXT['TEXT_1C44E934535D9AD9'],
                                 "at": "2026-09-02"}).json()["data"]
     assert [r["product_id"] for r in mapped] == [shop["cup"]], \
         "the confirmed answer is remembered; no question this time"
@@ -139,7 +146,7 @@ def test_candidates_are_ranked_by_score_not_by_age(shop) -> None:
     name at the top of every list."""
     client, admin, ops = shop["client"], shop["admin"], shop["ops"]
     exact = client.post("/api/v1/products", headers=admin, json={
-        "name": "保温杯500ml樱花粉 便携随行杯", "product_code": "CUP-EXACT"}).json()["data"]["id"]
+        "name": _ZH_TEXT['TEXT_1C10DE70832A321B'], "product_code": "CUP-EXACT"}).json()["data"]["id"]
     ranked = client.get("/api/v1/product-matches", headers=ops,
                         params={"title": TITLE, "limit": 3}).json()["data"]
     assert ranked[0]["id"] == exact, "the newest product outranks the older partial matches"

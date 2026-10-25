@@ -10,6 +10,13 @@ that quotation inherits the deal — so the detail shows where the money went.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_opportunity_lines.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 
@@ -26,11 +33,11 @@ def deal():
             who = invite_member(client, admin, f"role_{name}", permissions, employee=name)
             return {"employee_id": who.employee_id, "key": dict(who)}
 
-        customer = client.post("/api/v1/customers", json={"name": "市一医院"}, headers=admin).json()["data"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_85DED9E803B8D55E']}, headers=admin).json()["data"]
         contact = client.post("/api/v1/customer-contacts", headers=admin,
-                              json={"customer_id": customer["id"], "name": "王主任", "phone": "13900000001", "title": "设备科主任"}).json()["data"]
+                              json={"customer_id": customer["id"], "name": _ZH_TEXT['TEXT_2DFDF0F6DE583BB9'], "phone": "13900000001", "title": _ZH_TEXT['TEXT_53107C6DEAE5055D']}).json()["data"]
         product = client.post("/api/v1/products", headers=admin,
-                              json={"name": "监护仪", "product_code": "MON-1", "list_price": 12000}).json()["data"]
+                              json={"name": _ZH_TEXT['TEXT_2CF991FD264FDDEC'], "product_code": "MON-1", "list_price": 12000}).json()["data"]
         client.post("/api/v1/customer-products", headers=admin,
                     json={"customer_id": customer["id"], "product_id": product["id"], "agreed_price": 11000})
         yield {"client": client, "admin": admin, "person": person, "customer": customer, "contact": contact, "product": product}
@@ -41,7 +48,7 @@ def test_lines_and_cast_are_the_owners_and_the_close_details_are_facts(deal) -> 
     zhang = deal["person"]("zhang", ["crm.own", "quotation.submit_own"])
     li = deal["person"]("li", ["crm.own"])
     opp = client.post("/api/v1/opportunities", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "title": "监护仪 20 台", "customer_id": deal["customer"]["id"],
+        "employee_id": zhang["employee_id"], "title": _ZH_TEXT['TEXT_D2669BDD1F03BC97'], "customer_id": deal["customer"]["id"],
         "expected_amount": 240000, "probability": 40, "source": "referral",
     }).json()["data"]
     assert opp["probability"] == 40 and opp["source"] == "referral"
@@ -54,16 +61,16 @@ def test_lines_and_cast_are_the_owners_and_the_close_details_are_facts(deal) -> 
     assert line.status_code == 201, line.text
     assert line.json()["data"]["amount"] is None, "no price stated, no amount invented"
     free = client.post("/api/v1/opportunity-items", headers=zhang["key"],
-                       json={"opportunity_id": opp["id"], "product_name_snapshot": "安装培训", "quantity": 1, "unit_price": 3000})
+                       json={"opportunity_id": opp["id"], "product_name_snapshot": _ZH_TEXT['TEXT_CC6C546CF36EBA2F'], "quantity": 1, "unit_price": 3000})
     assert free.status_code == 201 and free.json()["data"]["amount"] == 3000.0
     stranger = client.post("/api/v1/opportunity-items", headers=li["key"],
                            json={"opportunity_id": opp["id"], "product_name_snapshot": "x", "quantity": 1})
     assert stranger.status_code == 404, "my deal's lines are mine — the deal does not exist for a stranger"
 
     # the cast: the customer's own people, one primary
-    other_customer = client.post("/api/v1/customers", json={"name": "别家"}, headers=deal["admin"]).json()["data"]
+    other_customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_EA0CF81B19342818']}, headers=deal["admin"]).json()["data"]
     outsider = client.post("/api/v1/customer-contacts", headers=deal["admin"],
-                           json={"customer_id": other_customer["id"], "name": "路人"}).json()["data"]
+                           json={"customer_id": other_customer["id"], "name": _ZH_TEXT['TEXT_50E716572F3A1075']}).json()["data"]
     wrong = client.post("/api/v1/opportunity-contacts", headers=zhang["key"],
                         json={"opportunity_id": opp["id"], "contact_id": outsider["id"], "role": "decision_maker"})
     assert wrong.status_code == 422
@@ -81,7 +88,7 @@ def test_lines_and_cast_are_the_owners_and_the_close_details_are_facts(deal) -> 
     assert client.patch(f"/api/v1/opportunities/{opp['id']}", headers=zhang["key"],
                         json={"lost_reason": "vibes"}).status_code == 422
     lost = client.patch(f"/api/v1/opportunities/{opp['id']}", headers=zhang["key"],
-                        json={"status": "lost", "lost_reason": "competitor", "competitor": "迈瑞", "probability": 0})
+                        json={"status": "lost", "lost_reason": "competitor", "competitor": _ZH_TEXT['TEXT_653AC7262187C37B'], "probability": 0})
     assert lost.status_code == 200, lost.text
     assert lost.json()["data"]["lost_reason"] == "competitor" and lost.json()["data"]["closed_at"]
     # lost freezes the lines, not the cast
@@ -95,7 +102,7 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
     client = deal["client"]
     zhang = deal["person"]("zhang", ["crm.own", "quotation.submit_own", "order.submit_own"])
     opp = client.post("/api/v1/opportunities", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "title": "监护仪 20 台", "customer_id": deal["customer"]["id"],
+        "employee_id": zhang["employee_id"], "title": _ZH_TEXT['TEXT_D2669BDD1F03BC97'], "customer_id": deal["customer"]["id"],
     }).json()["data"]
     empty = client.post(f"/api/v1/opportunities/{opp['id']}/quote", headers=zhang["key"], json={})
     assert empty.status_code == 422, "nothing to quote yet"
@@ -103,9 +110,9 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
     client.post("/api/v1/opportunity-items", headers=zhang["key"],
                 json={"opportunity_id": opp["id"], "product_id": deal["product"]["id"], "quantity": 20})
     client.post("/api/v1/opportunity-items", headers=zhang["key"],
-                json={"opportunity_id": opp["id"], "product_name_snapshot": "安装培训", "quantity": 1, "unit_price": 3000})
+                json={"opportunity_id": opp["id"], "product_name_snapshot": _ZH_TEXT['TEXT_CC6C546CF36EBA2F'], "quantity": 1, "unit_price": 3000})
     client.post("/api/v1/opportunity-items", headers=zhang["key"],
-                json={"opportunity_id": opp["id"], "product_name_snapshot": "未定价的服务", "quantity": 2})
+                json={"opportunity_id": opp["id"], "product_name_snapshot": _ZH_TEXT['TEXT_0DA78C1D48E35BAB'], "quantity": 2})
     client.post("/api/v1/opportunity-contacts", headers=zhang["key"],
                 json={"opportunity_id": opp["id"], "contact_id": deal["contact"]["id"], "role": "decision_maker", "is_primary": True})
 
@@ -114,11 +121,11 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
     assert quoted.status_code == 201, quoted.text
     quotation = quoted.json()["data"]
     assert quotation["opportunity_id"] == opp["id"] and quotation["status"] == "draft"
-    assert quotation["contact_name"] == "王主任" and quotation["contact_phone"] == "13900000001"
+    assert quotation["contact_name"] == _ZH_TEXT['TEXT_2DFDF0F6DE583BB9'] and quotation["contact_phone"] == "13900000001"
     bases = {i["product_name_snapshot"] or i["product_id"]: (i["unit_price"], i["price_basis"]) for i in quotation["items"]}
-    assert bases["安装培训"] == (3000.0, "opportunity_line")
-    assert bases["未定价的服务"] == (None, "unpriced")
-    priced = next(v for k, v in bases.items() if k == deal["product"]["id"] or k == "监护仪")
+    assert bases[_ZH_TEXT['TEXT_CC6C546CF36EBA2F']] == (3000.0, "opportunity_line")
+    assert bases[_ZH_TEXT['TEXT_0DA78C1D48E35BAB']] == (None, "unpriced")
+    priced = next(v for k, v in bases.items() if k == deal["product"]["id"] or k == _ZH_TEXT['TEXT_2CF991FD264FDDEC'])
     assert priced == (11000.0, "customer_agreement"), "the customer's agreed price beats the catalog's 12000"
     catalog = next(i for i in quotation["items"] if i["product_id"] == deal["product"]["id"])
     assert catalog["list_price_snapshot"] == 12000.0
@@ -128,7 +135,7 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
 
     # an order raised from that quotation carries the deal without being told
     order = client.post("/api/v1/sales-orders", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "title": "监护仪订单", "quotation_id": quotation["id"],
+        "employee_id": zhang["employee_id"], "title": _ZH_TEXT['TEXT_C6C9893012EEEB19'], "quotation_id": quotation["id"],
         "customer_id": deal["customer"]["id"],
     })
     assert order.status_code == 201, order.text
@@ -136,7 +143,7 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
 
     detail = client.get(f"/api/v1/opportunities/{opp['id']}/detail", headers=zhang["key"]).json()["data"]
     assert len(detail["items"]) == 3
-    assert detail["contacts"][0]["contact_name"] == "王主任" and detail["contacts"][0]["is_primary"] is True
+    assert detail["contacts"][0]["contact_name"] == _ZH_TEXT['TEXT_2DFDF0F6DE583BB9'] and detail["contacts"][0]["is_primary"] is True
     assert [q["id"] for q in detail["quotations"]] == [quotation["id"]]
     assert [o["id"] for o in detail["orders"]] == [order.json()["data"]["id"]]
     listed = client.get(f"/api/v1/sales-orders?opportunity_id={opp['id']}", headers=zhang["key"]).json()["data"]

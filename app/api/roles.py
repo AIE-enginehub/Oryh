@@ -146,6 +146,11 @@ def update_role(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="only an administrator changes the admin role",
         )
+    # judged on what the role holds now, not only on what it will hold:
+    # narrowing a wider role demotes everyone on it at once — the same act
+    # as demoting each of them, which is the administrator's (review
+    # 2026-10-22, N1)
+    ensure_grants_within_own(actor, role.permissions_jsonb or (), what=f"role {role.name!r}")
     updates = payload.model_dump(exclude_unset=True)
     if "permissions" in updates:
         permissions = updates.pop("permissions")

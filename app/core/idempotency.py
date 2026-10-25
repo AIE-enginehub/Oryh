@@ -22,8 +22,11 @@ The contract (the shape Stripe made conventional):
   it.
 * Same key while the first attempt is still running: 409 — wait and retry
   with the same key.
-* A 5xx is not remembered: the retry runs again, which is the point of
-  retrying.
+* A 5xx, or an exception, from an attempt that committed nothing is not
+  remembered: the retry runs again, which is the point of retrying. One
+  that HAD committed — the handler wrote, then failed building its answer —
+  is left unresolved, exactly like an attempt that never reported back:
+  forgetting it let the same key write twice (review 2026-10-19, F03).
 * A replay is served only to a credential that still authenticates. The
   claim is scoped by the credential's hash, not by who it was at the time,
   so the stored answer is re-gated on every replay: a revoked key, an
@@ -56,9 +59,10 @@ import json
 import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -92,6 +96,19 @@ NOT_REPLAYABLE = (
 )
 log = logging.getLogger(__name__)
 _last_purge: datetime | None = None
+
+# Set while one claimed request runs: one flag that turns True when any
+# session commits on the request's behalf. A list rather than a bool, because
+# a sync handler runs on a worker thread with a COPY of this context — it
+# flips the same object the middleware then reads.
+_request_commits: ContextVar[list[bool] | None] = ContextVar("idempotency_request_commits", default=None)
+
+
+@event.listens_for(Session, "after_commit")
+def _note_commit(session: Session) -> None:
+    flag = _request_commits.get()
+    if flag is not None:
+        flag[0] = True
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -206,7 +223,9 @@ class IdempotencyMiddleware:
 
         replay_receive = _replay(body)
         held: list[dict] = []
-        state = {"status": None, "headers": [], "chunks": [], "settled": False, "no_store": False}
+        commits = [False]
+        state = {"status": None, "headers": [], "chunks": [], "settled": False, "no_store": False,
+                 "commits": commits}
 
         async def capture(message):
             # The answer is stored BEFORE its first byte leaves. Stored after
@@ -242,15 +261,18 @@ class IdempotencyMiddleware:
                     await send(queued)
                 held.clear()
 
+        token = _request_commits.set(commits)
         try:
             await self.app(scope, replay_receive, capture)
         except BaseException:
             if not state["settled"]:
-                self._forget(record_id)
+                self._abandon(record_id, commits)
             raise
+        finally:
+            _request_commits.reset(token)
         if not state["settled"]:
-            # the app ended without a final body chunk: nothing to remember
-            self._forget(record_id)
+            # the app ended without a final body chunk: nothing to replay
+            self._abandon(record_id, commits)
             for queued in held:
                 await send(queued)
 
@@ -267,10 +289,24 @@ class IdempotencyMiddleware:
             return _json_response(exc.status_code, exc.detail)
         return None
 
+    def _abandon(self, record_id: str, commits: list[bool]) -> None:
+        """No answer to keep. Free the key only when nothing was committed;
+        otherwise the write may stand, and the retry is told to read back."""
+        if not commits[0]:
+            self._forget(record_id)
+            return
+        log.warning("idempotency: claim %s committed without a storable answer; left unresolved", record_id)
+        with self._session() as db:
+            # backdated past the grace, so the retry hears "unknown outcome"
+            # at once rather than "still being processed" for five minutes
+            db.execute(update(IdempotencyRecord).where(IdempotencyRecord.id == record_id)
+                       .values(created_at=_now() - IN_FLIGHT_GRACE - timedelta(seconds=1)))
+            db.commit()
+
     def _settle(self, record_id: str, state: dict) -> None:
         status = state["status"]
         if status is None or status >= 500:
-            self._forget(record_id)
+            self._abandon(record_id, state["commits"])
             return
         headers, body = state["headers"], b"".join(state["chunks"])
         try:

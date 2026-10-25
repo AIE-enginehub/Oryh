@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # scripts/bootstrap_db_roles.py.
     app_db_password: str | None = None
     database_schema: str = "oryh"
+    # Where "today" is for business rules (app/core/business_date.py): an
+    # IANA name or an offset such as +08:00. The process clock is UTC.
+    business_timezone: str = "Asia/Shanghai"
     # What to call THIS deployment — "acme-test", "production". Handed
     # to agents beside the tenant identity so the two are separate fields
     # rather than one blur: an agent told only a place name read it as

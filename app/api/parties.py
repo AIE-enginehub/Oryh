@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,7 +40,8 @@ from app.api.common import (
     require_family_permission,
     require_master_data_manage,
 )
-from app.api.deps import Actor, enforce_member_employee, get_actor, has_permission_any_scope, require_permission
+from app.api.contract_sides import restrict_to_sides, sides_read
+from app.api.deps import Actor, enforce_member_employee, get_actor, require_permission
 from app.core.type_options import CUSTOMER_RELATION_REVERSE
 from app.db.session import get_db
 from app.models import (
@@ -113,6 +114,18 @@ def require_carrier_write(db: Session, actor: Actor, entity_type: str, entity_id
     else:
         require_permission(actor, "project.manage")
     return carrier
+
+
+def _restrict_contract_rows(stmt, actor: Actor):
+    """A contract's parties are read by the side that reads the contract:
+    `contract.manage:purchase` sees purchase contracts' parties and no sales
+    contract's — a referrer's commission is the sales desk's (review
+    2026-10-19, F02) — by the contracts API's own rule."""
+    visible = sides_read(actor)
+    # and only a contract not deleted (review 2026-10-24, finding 4)
+    readable = restrict_to_sides(select(Contract.id).where(
+        Contract.tenant_id == actor.tenant_id, Contract.deleted_at.is_(None)), visible)
+    return stmt.where(or_(DocumentParty.entity_type != "contract", DocumentParty.entity_id.in_(readable)))
 
 
 def _party_detail(db: Session, tenant_id: str, row: DocumentParty, names: dict[str, str]) -> DocumentPartyDetailRead:
@@ -239,8 +252,8 @@ def list_document_parties(
     stmt = select(DocumentParty).where(DocumentParty.tenant_id == tenant_id)
     if entity_type is not None and entity_id is not None:
         require_carrier_read(db, actor, entity_type, entity_id)
-    elif not has_permission_any_scope(actor, "contract.manage"):
-        stmt = stmt.where(DocumentParty.entity_type != "contract")
+    else:
+        stmt = _restrict_contract_rows(stmt, actor)
     return list_rows(
         db, stmt,
         filters={
@@ -309,6 +322,10 @@ def update_document_party(
     row = _party_or_404(db, tenant_id, party_id)
     require_carrier_write(db, actor, row.entity_type, row.entity_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "customer_id" in updates and updates["customer_id"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="customer_id cannot be cleared")
+    if "party_role" in updates and updates["party_role"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="party_role cannot be cleared")
     if updates.get("party_role") == CONTRACTING:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="the contracting party is the carrier's customer_id — change it on the record itself")
@@ -316,12 +333,16 @@ def update_document_party(
         require_type_option(db, tenant_id, "deal_party_role", updates["party_role"])
     if "customer_id" in updates:
         get_scoped_or_404(db, Customer, tenant_id, updates["customer_id"])
+    # judged on the merged row: changing the party alone must not leave the
+    # previous customer's person on it (review 2026-10-19, F08)
     customer_id = updates.get("customer_id", row.customer_id)
-    if updates.get("contact_id"):
-        person = get_scoped_or_404(db, CustomerContact, tenant_id, updates["contact_id"])
+    contact_id = updates.get("contact_id", row.contact_id)
+    if contact_id:
+        person = get_scoped_or_404(db, CustomerContact, tenant_id, contact_id)
         if person.customer_id != customer_id:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                                detail="contact_id must be a person of this party's customer")
+                                detail="contact_id must be a person of this party's customer — name the new "
+                                       "customer's person, or send contact_id: null")
     if "terms" in updates:
         row.terms_jsonb = updates.pop("terms")
     if "metadata" in updates:
@@ -430,6 +451,37 @@ def _relation_fields(db: Session, tenant_id: str, updates: dict, current: Custom
     t = updates.get("effective_to", current.effective_to if current else None)
     if f is not None and t is not None and t < f:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="effective_to must not precede effective_from")
+    relation_type = updates.get("relation_type", current.relation_type if current else None)
+    _refuse_mirror(db, tenant_id, customer_id, related, relation_type, f, current)
+
+
+SYMMETRIC_RELATIONS = frozenset({"partner_of"})
+
+
+def _refuse_mirror(db: Session, tenant_id: str, customer_id, related, relation_type, effective_from, current) -> None:
+    """A parent_of B and B subsidiary_of A are one fact; so are A partner_of
+    B and B partner_of A. The second is refused, naming the first, so the
+    relation has one row to read and to end (review 2026-10-19, F07)."""
+    reverse = CUSTOMER_RELATION_REVERSE.get(relation_type) or (
+        relation_type if relation_type in SYMMETRIC_RELATIONS else None
+    )
+    if reverse is None or customer_id is None or related is None:
+        return
+    stmt = select(CustomerRelation.id).where(
+        CustomerRelation.tenant_id == tenant_id,
+        CustomerRelation.customer_id == related,
+        CustomerRelation.related_customer_id == customer_id,
+        CustomerRelation.relation_type == reverse,
+        CustomerRelation.effective_from.is_(None) if effective_from is None else CustomerRelation.effective_from == effective_from,
+    )
+    if current is not None:
+        stmt = stmt.where(CustomerRelation.id != current.id)
+    mirror = db.scalar(stmt)
+    if mirror is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"the same relation is already recorded from the other side ({reverse}, relation {mirror})",
+        )
 
 
 @router.post("/customer-relations", response_model=CustomerRelationEnvelope, response_model_exclude_unset=True,

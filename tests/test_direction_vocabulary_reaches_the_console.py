@@ -1,7 +1,7 @@
 """A direction the server accepts must have a name in the console.
 
 `reimbursement` was added to the API and the console was not told. Its label
-came from a ternary chain that fell through to 工资条 for anything it did not
+came from a ternary chain that fell through to payslip for anything it did not
 name, so a payable owed to an employee appeared in the invoice list as that
 employee's **payslip** — the one mislabel in this family that reads as a
 different kind of money entirely.

@@ -17,7 +17,9 @@
 > ```
 >
 > - `in_force_on=<date>` is the version that governs that date — one row per
->   rule, across versions. For a decision today, `<today>`; to judge a document
+>   rule, across versions. For a decision today, `<today>` — the workspace's
+>   date (Asia/Shanghai unless the deployment says otherwise), not UTC's, which
+>   is still yesterday until 08:00 Beijing time; to judge a document
 >   by the rules that governed on ITS date — a March timesheet read in May, a
 >   leave request's `from_date` — its date. `status=published` is the LATEST
 >   version, which a workspace may have dated to start next quarter: it is the

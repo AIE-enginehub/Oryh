@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import type { Capability } from "../../api/client";
 import { useI18n } from "../../i18n";
 
@@ -92,13 +93,13 @@ export function PermissionMatrix({
       <section className="permission-section" aria-labelledby="system-capabilities-title">
         <div className="permission-heading">
           <div>
-            <h3 id="system-capabilities-title">{text("系统能力", "System capabilities")}</h3>
-            <p>{text("控制 Oryh 中各项业务操作的访问权限。", "Control access to business operations in Oryh.")}</p>
+            <h3 id="system-capabilities-title">{text(zhCN.componentsRolesPermissionMatrix.systemCapabilities, "System capabilities")}</h3>
+            <p>{text(zhCN.componentsRolesPermissionMatrix.controlAccessToBusinessOperationsInOryh, "Control access to business operations in Oryh.")}</p>
           </div>
           <span>{simpleCapabilities.length}</span>
         </div>
         {simpleCapabilities.length === 0 ? (
-          <div className="permission-empty">{text("暂无非作用域系统能力。", "No unscoped system capabilities.")}</div>
+          <div className="permission-empty">{text(zhCN.componentsRolesPermissionMatrix.noUnscopedSystemCapabilities, "No unscoped system capabilities.")}</div>
         ) : (
           <div className="permission-checks">
             {simpleCapabilities.map((capability) => {
@@ -115,7 +116,7 @@ export function PermissionMatrix({
                     <strong>{capabilityTitle(capability)}</strong>
                     <code>{capability.name}</code>
                     {capabilityDescription(capability) && <small>{capabilityDescription(capability)}</small>}
-                    {locked && <small className="lock-note">{text("管理员锁定保护，不能移除", "Protected for the administrator role and cannot be removed")}</small>}
+                    {locked && <small className="lock-note">{text(zhCN.componentsRolesPermissionMatrix.protectedForTheAdministratorRoleAndCannotBeRemoved, "Protected for the administrator role and cannot be removed")}</small>}
                   </span>
                 </label>
               );
@@ -127,13 +128,13 @@ export function PermissionMatrix({
       <section className="permission-section" aria-labelledby="scoped-capabilities-title">
         <div className="permission-heading">
           <div>
-            <h3 id="scoped-capabilities-title">{text("作用域能力", "Scoped capabilities")}</h3>
-            <p>{text("授予全部对象类型，或仅授予指定 object_type。", "Grant access to all object types or only selected object_type values.")}</p>
+            <h3 id="scoped-capabilities-title">{text(zhCN.componentsRolesPermissionMatrix.scopedCapabilities, "Scoped capabilities")}</h3>
+            <p>{text(zhCN.componentsRolesPermissionMatrix.grantAccessToAllObjectTypesOrOnlySelected, "Grant access to all object types or only selected object_type values.")}</p>
           </div>
           <span>{scopedCapabilities.length}</span>
         </div>
         {scopedCapabilities.length === 0 ? (
-          <div className="permission-empty">{text("暂无作用域系统能力。", "No scoped system capabilities.")}</div>
+          <div className="permission-empty">{text(zhCN.componentsRolesPermissionMatrix.noScopedSystemCapabilities, "No scoped system capabilities.")}</div>
         ) : (
           <div className="scoped-capability-list">
             {scopedCapabilities.map((capability) => {
@@ -153,7 +154,7 @@ export function PermissionMatrix({
                         checked={allScopes}
                         onChange={(event) => toggleAllScopes(capability.name, event.target.checked)}
                       />
-                      <span>{text("全部对象类型", "All object types")} <code>{wildcard}</code></span>
+                      <span>{text(zhCN.componentsRolesPermissionMatrix.allObjectTypes, "All object types")} <code>{wildcard}</code></span>
                     </label>
                     {objectTypes.map((objectType) => {
                       const grant = `${capability.name}:${objectType}`;
@@ -171,7 +172,7 @@ export function PermissionMatrix({
                     })}
                   </div>
                   {objectTypes.length === 0 && !allScopes && (
-                    <small className="permission-hint">{text("当前没有启用的业务对象类型；仍可授予全部类型。", "No business object types are enabled; access to all types can still be granted.")}</small>
+                    <small className="permission-hint">{text(zhCN.componentsRolesPermissionMatrix.noBusinessObjectTypesAreEnabledAccessToAll, "No business object types are enabled; access to all types can still be granted.")}</small>
                   )}
                 </fieldset>
               );
@@ -183,13 +184,13 @@ export function PermissionMatrix({
       <section className="permission-section" aria-labelledby="custom-capabilities-title">
         <div className="permission-heading">
           <div>
-            <h3 id="custom-capabilities-title">{text("自定义能力", "Custom capabilities")}</h3>
-            <p>{text("用于 Skill 分发门槛与流程参与资格，不会自动改变其他业务操作权限。", "Use these for Skill-distribution gates and workflow eligibility; they do not automatically change other business permissions.")}</p>
+            <h3 id="custom-capabilities-title">{text(zhCN.componentsRolesPermissionMatrix.customCapabilities, "Custom capabilities")}</h3>
+            <p>{text(zhCN.componentsRolesPermissionMatrix.useTheseForSkillDistributionGatesAndWorkflowEligibility, "Use these for Skill-distribution gates and workflow eligibility; they do not automatically change other business permissions.")}</p>
           </div>
           <span>{customCapabilities.length}</span>
         </div>
         {customCapabilities.length === 0 ? (
-          <div className="permission-empty">{text("还没有自定义能力。", "No custom capabilities yet.")}</div>
+          <div className="permission-empty">{text(zhCN.componentsRolesPermissionMatrix.noCustomCapabilitiesYet, "No custom capabilities yet.")}</div>
         ) : (
           <div className="permission-checks">
             {customCapabilities.map((capability) => (
@@ -214,8 +215,8 @@ export function PermissionMatrix({
         <section className="permission-section retained-permissions" aria-labelledby="retained-capabilities-title">
           <div className="permission-heading">
             <div>
-              <h3 id="retained-capabilities-title">{text("其他既有授权", "Other existing grants")}</h3>
-              <p>{text("这些授权当前不在能力目录中；保存时默认保留，也可以显式移除。", "These grants are not currently in the capability catalog. They are retained by default when saving, but can be removed explicitly.")}</p>
+              <h3 id="retained-capabilities-title">{text(zhCN.componentsRolesPermissionMatrix.otherExistingGrants, "Other existing grants")}</h3>
+              <p>{text(zhCN.componentsRolesPermissionMatrix.theseGrantsAreNotCurrentlyInTheCapabilityCatalog, "These grants are not currently in the capability catalog. They are retained by default when saving, but can be removed explicitly.")}</p>
             </div>
             <span>{retainedGrants.length}</span>
           </div>

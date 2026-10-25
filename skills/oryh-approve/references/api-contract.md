@@ -6,6 +6,31 @@ Every endpoint this skill names, with the parameters the server actually
 accepts. Paths are relative to the API root. Responses are `{data, meta}` and
 lists page with `page`/`size` (see the conventions in this skill).
 
+## DELETE /business-rules/{rule_id}
+
+Delete Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `reason` | query | string (≤500 chars) | no |  |
+
+## DELETE /customer-products/{customer_product_id}
+
+Delete Customer Product
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_product_id` | path | string | yes |  |
+
+## DELETE /customers/{customer_id}
+
+Delete Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
 ## DELETE /expense-claims/{claim_id}
 
 Delete Expense Claim
@@ -97,6 +122,14 @@ Body:
 | `delete_reason` | string (≤2000 chars) | optional |  |
 | `deleted_by` | string (≤100 chars) | optional |  |
 
+## DELETE /stores/{store_id}
+
+Delete Store
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `store_id` | path | string | yes |  |
+
 ## DELETE /timesheet-headers/{header_id}
 
 Delete Timesheet Header
@@ -163,6 +196,126 @@ Get Attachment Content
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `attachment_id` | path | string | yes |  |
+
+## GET /business-rules
+
+List Business Rules
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `kind` | query | string | no |  |
+| `entity_kind` | query | string | no |  |
+| `object_type` | query | string | no |  |
+| `name` | query | string | no |  |
+| `code` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `visibility` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+| `keyword` | query | string | no |  |
+| `include_deleted` | query | boolean | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `effective_from_from` | query | date | no | rows whose effective_from is on or after this |
+| `effective_from_thru` | query | date | no | rows whose effective_from is on or before this |
+| `effective_thru_from` | query | date | no | rows whose effective_thru is on or after this |
+| `effective_thru_thru` | query | date | no | rows whose effective_thru is on or before this |
+| `published_at_from` | query | date-time | no | rows whose published_at is at or after this |
+| `published_at_thru` | query | date-time | no | rows whose published_at is at or before this |
+| `attachment_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `supersedes_id` | query | string | no |  |
+| `origin` | query | string | no |  |
+
+## GET /business-rules/{rule_id}
+
+Get Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+## GET /business-rules/{rule_id}/attachments/{attachment_id}/content
+
+Get Business Rule Attachment
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+| `attachment_id` | path | string | yes |  |
+
+## GET /customer-products
+
+List Customer Products
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `product_id` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `customer_product_code` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `currency` | query | string | no |  |
+
+## GET /customer-products/{customer_product_id}
+
+Get Customer Product
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_product_id` | path | string | yes |  |
+
+## GET /customers
+
+List Customers
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `tax_id` | query | string | no |  |
+| `phone` | query | string | no |  |
+| `customer_kind` | query | string | no |  |
+| `customer_type` | query | string | no |  |
+| `geo_id` | query | string | no |  |
+| `territory_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+
+## GET /customers/{customer_id}
+
+Get Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /customers/{customer_id}/detail
+
+Get Customer Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+## GET /customers/{customer_id}/relations
+
+List Customer Relations Of
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
 
 ## GET /employees
 
@@ -546,6 +699,31 @@ Get Sales Quotation Detail
 | `quotation_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
 
+## GET /stores
+
+List Stores
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `channel` | query | string | no |  |
+| `source` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `sales_channel_id` | query | string | no |  |
+
+## GET /stores/{store_id}
+
+Get Store
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `store_id` | path | string | yes |  |
+
 ## GET /timesheet-headers
 
 List Timesheet Headers
@@ -650,6 +828,80 @@ Get Vendor
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `vendor_id` | path | string | yes |  |
+
+## PATCH /business-rules/{rule_id}
+
+Update Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `attachment_id` | string | optional |  |
+| `body` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## PATCH /customer-products/{customer_product_id}
+
+Update Customer Product
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_product_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `agreed_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `customer_product_code` | string (≤64 chars) | optional |  |
+| `customer_product_name` | string (≤200 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `min_order_quantity` | number (≤9999999.99) | optional |  |
+| `order_increment` | number (≤9999999.99) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## PATCH /customers/{customer_id}
+
+Update Customer
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `customer_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `address` | string (≤500 chars) | optional |  |
+| `contact` | string (≤200 chars) | optional |  |
+| `customer_code` | string (≤64 chars) | optional |  |
+| `customer_kind` | `person` | `company` | optional |  |
+| `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `geo_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `payment_terms` | string (≤500 chars) | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `territory_id` | string | optional |  |
 
 ## PATCH /expense-claims/{claim_id}
 
@@ -844,6 +1096,28 @@ Body:
 | `total_amount` | number (≥0.0, ≤9999999999.99) | optional |  |
 | `valid_until` | date | optional |  |
 
+## PATCH /stores/{store_id}
+
+Update Store
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `store_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `address` | string (≤500 chars) | optional |  |
+| `channel` | `offline` | `online` | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `sales_channel_id` | string | optional |  |
+| `source` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `store_code` | string (≤64 chars) | optional |  |
+
 ## PATCH /timesheet-headers/{header_id}
 
 Update Timesheet Header
@@ -932,6 +1206,176 @@ Body:
 | `content_base64` | string | required |  |
 | `content_type` | string (≤100 chars) | required |  |
 | `filename` | string (≤255 chars) | required |  |
+
+## POST /business-rules
+
+Create Business Rule
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /business-rules/publish
+
+Publish Business Rule Now
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `body` | string | required |  |
+| `attachment_id` | string | optional |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `code` | string (≤50 chars) | optional |  |
+| `custom_fields` | object | optional |  |
+| `effective_from` | date | optional |  |
+| `effective_thru` | date | optional |  |
+| `entity_kind` | `business_object` | `builtin` | optional |  |
+| `kind` | `policy` | `approval_flow` | `data_rule` | `linkage` | optional |  |
+| `name` | string (≤100 chars) | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `object_type` | string (≤100 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+| `rules_json` | object | optional |  |
+| `summary` | string (≤2000 chars) | optional |  |
+| `title` | string (≤200 chars) | optional |  |
+| `visibility` | `internal` | `restricted` | `public` | optional |  |
+
+## POST /business-rules/{rule_id}/publish
+
+Publish Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_from` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /business-rules/{rule_id}/repeal
+
+Repeal Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `effective_thru` | date | optional |  |
+| `note` | string (≤2000 chars) | optional |  |
+
+## POST /business-rules/{rule_id}/visibility
+
+Rescope Business Rule
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rule_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `visibility` | `internal` | `restricted` | `public` | required |  |
+| `note` | string (≤2000 chars) | optional |  |
+| `required_capability` | string (≤100 chars) | optional |  |
+
+## POST /customer-products
+
+Create Customer Product
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `customer_id` | string | required |  |
+| `product_id` | string | required |  |
+| `agreed_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `currency` | string (≤3 chars) | optional |  |
+| `customer_product_code` | string (≤64 chars) | optional |  |
+| `customer_product_name` | string (≤200 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `min_order_quantity` | number (≤9999999.99) | optional |  |
+| `order_increment` | number (≤9999999.99) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
+## POST /customers
+
+Create Customer
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `address` | string (≤500 chars) | optional |  |
+| `contact` | string (≤200 chars) | optional |  |
+| `customer_code` | string (≤64 chars) | optional |  |
+| `customer_kind` | `person` | `company` | optional |  |
+| `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `geo_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `payment_terms` | string (≤500 chars) | optional |  |
+| `phone` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `tax_id` | string (≤64 chars) | optional |  |
+| `territory_id` | string | optional |  |
+
+## POST /customers/bulk
+
+Bulk Upsert Customers
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `rows` | array of objects (fields below) | required |  |
+| ↳ each `rows[]` item: | | | |
+  | `customer_code` | string (≤64 chars) | required |  |
+  | `name` | string (≤200 chars) | required |  |
+  | `address` | string (≤500 chars) | optional |  |
+  | `contact` | string (≤200 chars) | optional |  |
+  | `customer_kind` | `person` | `company` | optional |  |
+  | `customer_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+  | `email` | string (≤320 chars) | optional |  |
+  | `geo_id` | string | optional |  |
+  | `metadata` | object | optional |  |
+  | `owner_employee_id` | string | optional |  |
+  | `payment_terms` | string (≤500 chars) | optional |  |
+  | `phone` | string (≤50 chars) | optional |  |
+  | `status` | `active` | `archived` | optional |  |
+  | `tax_id` | string (≤64 chars) | optional |  |
+  | `territory_id` | string | optional |  |
+| `dry_run` | boolean | optional |  |
+| `on_error` | `abort` | `skip` | optional |  |
 
 ## POST /expense-claims
 
@@ -1901,6 +2345,24 @@ Body:
 |---|---|---|---|
 | `source` | `web` | `api` | `ai` | `system` | optional |  |
 | `submitted_by` | string | optional |  |
+
+## POST /stores
+
+Create Store
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `channel` | `offline` | `online` | required |  |
+| `name` | string (≤100 chars) | required |  |
+| `address` | string (≤500 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `remarks` | string (≤2000 chars) | optional |  |
+| `sales_channel_id` | string | optional |  |
+| `source` | string (≤50 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
+| `store_code` | string (≤64 chars) | optional |  |
 
 ## POST /timesheet-headers
 

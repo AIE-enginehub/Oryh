@@ -122,7 +122,7 @@ class Employee(TenantRecord, MetadataJsonbMixin, Base):
     timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # When this person's employment started. A real column rather than a custom
     # field because it is universal to employment and because a computation
-    # depends on it: 年假 entitlement is a function of 工龄, and an agent that
+    # depends on it: annual leave entitlement is a function of length of service, and an agent that
     # has to guess the start date cannot answer "how many days do I have" at
     # all. Nullable — an imported roster may not carry it, and a null is an
     # honest "nobody said", which an agent can ask about.
@@ -187,7 +187,7 @@ class ApiKey(IdMixin, TimestampMixin, Base):
     # key minted before this column existed. An unattended workload's durable
     # secret cannot be eliminated, only housed properly (K8s Secret); a
     # laptop's markdown can at least stop holding a credential that outlives
-    # the laptop. See docs/mcp-adoption-plan-2026-08.md §3 阶段 1.
+    # the laptop. See docs/mcp-adoption-plan-2026-08.md §3 phase 1.
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     refresh_token_hash: Mapped[str | None] = mapped_column(
         String(64), unique=True, nullable=True, index=True
@@ -335,6 +335,15 @@ class Project(TenantRecord, MetadataJsonbMixin, Base):
             postgresql_where=text("project_code IS NOT NULL"),
             sqlite_where=text("project_code IS NOT NULL"),
         ),
+        # a deal opens one project; the bridge's read-then-insert alone let
+        # two concurrent calls open two (review 2026-10-19, F06)
+        Index(
+            "projects_tenant_opportunity_uk",
+            "tenant_id", "opportunity_id",
+            unique=True,
+            postgresql_where=text("opportunity_id IS NOT NULL"),
+            sqlite_where=text("opportunity_id IS NOT NULL"),
+        ),
     )
 
     project_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -353,7 +362,7 @@ class Project(TenantRecord, MetadataJsonbMixin, Base):
 
 class Vendor(TenantRecord, MetadataJsonbMixin, Base):
     """Supplier/vendor master data. Referenced by expense items (and future
-    payables); the receipt's 销售方名称/税号 is the agent's matching key."""
+    payables); the receipt's seller name/tax identifier is the agent's matching key."""
 
     __tablename__ = "vendors"
     # Upsert key for bulk import; partial for the same reason as products.
@@ -369,7 +378,7 @@ class Vendor(TenantRecord, MetadataJsonbMixin, Base):
 
     vendor_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
-    # 统一社会信用代码 / 纳税人识别号 — exact-match key against invoice seller
+    # unified social credit code / taxpayer identification number — exact-match key against invoice seller
     tax_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
@@ -404,7 +413,7 @@ class Geo(TenantRecord, MetadataJsonbMixin, Base):
 
 class Territory(TenantRecord, MetadataJsonbMixin, Base):
     """A sales territory: a named set of geos (its coverage) with the people
-    who work it. Territories nest (华东区 → 浙江区) through
+    who work it. Territories nest (East China region → Zhejiang region) through
     `parent_territory_id`; a customer's territory is resolved from its geo by
     walking the geo's ancestors and asking which territories cover each —
     the most specific answer first — and is then a fact on the customer."""
@@ -458,9 +467,9 @@ class TerritoryMember(TenantRecord, MetadataJsonbMixin, Base):
 
 
 class Customer(TenantRecord, MetadataJsonbMixin, Base):
-    """Customer/account master data — 零售 and B2B on ONE table.
+    """Customer/account master data — retail and B2B on ONE table.
 
-    A 会员 and a 集团客户 differ in what their file holds, not in what happens
+    A member and a corporate group differ in what their file holds, not in what happens
     to them: both quote, order, get invoiced, pay and may run a standing
     balance, and every one of those mechanics is identical. That is the test
     `Invoice` passes and the orders fail — the orders split because
@@ -480,13 +489,13 @@ class Customer(TenantRecord, MetadataJsonbMixin, Base):
     keeps it usable by a constraint later (a phone unique per person is the
     obvious candidate; nothing branches on it today), and it is the
     discriminator a Party layer would need, unchanged, if one is ever built.
-    Null is the honest default: nobody said, and 个体工商户 is genuinely both.
+    Null is the honest default: nobody said, and a sole proprietorship can fit both.
 
-    `customer_type` is the OPEN one: 零售/批发/经销/电商/政企, the tenant's own
+    `customer_type` is the OPEN one: retail/wholesale/distribution/e-commerce/government and enterprise, the tenant's own
     segmentation of its book, so it is a type option like every other *_type.
 
-    Neither gates anything. What a 经销商 may be sold at, whether a member
-    prepays, who gets 账期 — those are judgments, and judgments live in agents
+    Neither gates anything. What a dealer may be sold at, whether a member
+    prepays, who gets payment terms — those are judgments, and judgments live in agents
     and workflow definitions.
 
     Unlike vendors, tax_id is often unknown at quoting time (prospects), so the
@@ -517,12 +526,12 @@ class Customer(TenantRecord, MetadataJsonbMixin, Base):
 
     customer_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(200))
-    # 'person' = 自然人 (零售/会员), 'company' = 组织 (企业/机构/政府). Null is not
+    # 'person' = person (retail/member), 'company' = organization (businesses/institutions/government). Null is not
     # a third kind — it is nobody having stated one.
     customer_kind: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    # 零售 / 批发 / 经销 / 电商 / 政企 … — tenant vocabulary (customer_type family)
+    # retail / wholesale / distribution / e-commerce / government and enterprise … — tenant vocabulary (customer_type family)
     customer_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    # 统一社会信用代码 / 纳税人识别号 — filled in before invoicing, optional while quoting
+    # unified social credit code / taxpayer identification number — filled in before invoicing, optional while quoting
     tax_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     contact: Mapped[str | None] = mapped_column(String(200), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
@@ -537,7 +546,7 @@ class Customer(TenantRecord, MetadataJsonbMixin, Base):
     # the salesperson who owns the account; the conversion bridge sets it to
     # the lead's owner, a manager reassigns it — a fact, not a rule
     owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
-    # "月结 30 天" — free text the order and invoice desks copy in by default
+    # "net 30 days, billed monthly" — free text the order and invoice desks copy in by default
     payment_terms: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
 
@@ -546,7 +555,7 @@ class CustomerContact(TenantRecord, MetadataJsonbMixin, Base):
     """One person AT a customer — the rolodex behind a B2B account, which is
     ProductSku's shape applied to Customer: a child identity table under a
     master-data parent. A hospital has a procurement clerk, an equipment
-    engineer and a finance desk; "寄票找谁" and "验收谁签字" are questions
+    engineer and a finance desk; "who receives invoices" and "who signs acceptance" are questions
     about PEOPLE, and the parent row's single contact column cannot hold
     three of them.
 
@@ -556,7 +565,7 @@ class CustomerContact(TenantRecord, MetadataJsonbMixin, Base):
     when writing those snapshots and answering those questions.
 
     Two partial-unique invariants, both freed by archiving:
-    - at most one PRIMARY contact per customer (the default answer to "找谁"),
+    - at most one PRIMARY contact per customer (the default answer to "who to contact"),
       and SETTING a new primary demotes the old one in the same write — the
       rolodex semantic, documented at the endpoint;
     - one active row per (customer, phone): the same number twice under one
@@ -582,7 +591,7 @@ class CustomerContact(TenantRecord, MetadataJsonbMixin, Base):
 
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
-    # 职务/角色 as the tenant says it — 采购, 设备科, 财务, free text
+    # position/role as the tenant says it — procurement, equipment department, finance, free text
     title: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     wechat: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -602,7 +611,7 @@ class ProductCategory(TenantRecord, MetadataJsonbMixin, Base):
 
     `category_code` is the import identity, nullable and partial-unique like
     every master-data code — re-importing a code revives an archived row.
-    `name` is unique among ACTIVE siblings: two live "配件" folders under
+    `name` is unique among ACTIVE siblings: two live "accessories" folders under
     one parent is a filing error, while the same name under two different
     parents is normal shelving. Archiving frees the name slot (the archived
     row is history) and neither detaches children nor touches products —
@@ -682,7 +691,7 @@ class Product(TenantRecord, MetadataJsonbMixin, Base):
     # The manufacturing ROLE — the closed axis, universal like customer_kind
     # and not the tenant's to extend, because constraints branch on it: a
     # bill of materials is built for a finished or semi-finished good, never
-    # for a raw material or a service. Classification (原材料/辅料/包材) is
+    # for a raw material or a service. Classification (raw materials/auxiliary materials/packaging materials) is
     # the category tree's job. Whether something is bought or made is
     # derived — supplier links say bought, an active BOM says made.
     product_type: Mapped[str] = mapped_column(String(20), default="finished_good")
@@ -706,7 +715,7 @@ class Product(TenantRecord, MetadataJsonbMixin, Base):
 
 
 class ProductSku(TenantRecord, MetadataJsonbMixin, Base):
-    """Transaction-granularity variant of a product (e.g. 款色 → 尺码).
+    """Transaction-granularity variant of a product (e.g. style/color → size).
     Companies whose product IS the sku simply never create rows here.
     variant_attrs is free-form JSONB — the agent, not a schema, interprets
     what the dimensions mean per industry."""
@@ -755,7 +764,7 @@ class ProductImage(TenantRecord, MetadataJsonbMixin, Base):
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
     attachment_id: Mapped[str] = mapped_column(ForeignKey("attachments.id"), index=True)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
-    # WHAT this picture is — 展示图/详情图/设计图稿/包装图/尺寸图 — the
+    # WHAT this picture is — display image/detail image/design artwork/packaging image/dimension drawing — the
     # tenant-extensible `product_image_type` vocabulary. Orthogonal to
     # is_primary: the primary says which picture represents the product,
     # the type says what kind of picture it is
@@ -867,7 +876,7 @@ class ProductPrice(TenantRecord, MetadataJsonbMixin, Base):
     creates a new active one, so the invariant is one LIVE price per
     (product-or-sku, price_type, currency) and archived rows are the paper
     trail. Modeled on OFBiz ProductPrice with the store/date-range/price-calc
-    machinery removed; the tax flags stay because 含税/不含税 is the first
+    machinery removed; the tax flags stay because tax-inclusive/tax-exclusive is the first
     question every Chinese price column raises."""
 
     __tablename__ = "product_prices"
@@ -896,7 +905,7 @@ class ProductPrice(TenantRecord, MetadataJsonbMixin, Base):
     price_type: Mapped[str] = mapped_column(String(20))
     price: Mapped[float] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
-    # 含税与否 — the fact as the person stated it, never derived
+    # whether tax is included — the fact as the person stated it, never derived
     tax_in_price: Mapped[bool] = mapped_column(Boolean, default=True)
     tax_percentage: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
@@ -989,7 +998,7 @@ class CustomerProduct(TenantRecord, MetadataJsonbMixin, Base):
 
 
 class Facility(TenantRecord, MetadataJsonbMixin, Base):
-    """A physical place the company operates — 店铺/仓库/办公室/工厂 —
+    """A physical place the company operates — store/warehouse/office/factory —
     modeled on OFBiz Facility minus the location/container machinery.
     `facility_type` is the tenant-extensible `facility_type` vocabulary.
 
@@ -1019,7 +1028,7 @@ class Facility(TenantRecord, MetadataJsonbMixin, Base):
 
     facility_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str] = mapped_column(String(100))
-    # 店铺/仓库/办公室/工厂/... — the tenant-extensible facility_type family
+    # store/warehouse/office/factory/... — the tenant-extensible facility_type family
     facility_type: Mapped[str] = mapped_column(String(50))
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -1154,7 +1163,7 @@ def normalize_external_name(name: str | None) -> str | None:
     """The matching form of a platform listing title: NFKC (fullwidth →
     halfwidth, compatibility forms), casefolded, inner whitespace collapsed.
     An order export carries titles typed by merchants and re-spaced by
-    spreadsheets; "保温杯 500ML" and "保温杯　500ml" are one listing."""
+    spreadsheets; "insulated bottle 500ML" and "insulated bottle  500ml" are one listing."""
     if name is None:
         return None
     folded = unicodedata.normalize("NFKC", name).casefold()
@@ -1266,7 +1275,7 @@ class ExternalDocumentLink(IdMixin, TenantMixin, CreatedAtMixin, MetadataJsonbMi
     """One external document number tied to one document of ours: Tmall order
     TM2026… became sales order S-0042. Many-to-many by rows, because reality
     splits and merges — one platform order fulfilled as two of our orders
-    (拆单) is two rows, three platform orders shipped as one (合单) is three.
+    (split shipment) is two rows, three platform orders shipped as one (combined shipment) is three.
 
     Two tables, not one, for this and ExternalProductMap: a product mapping
     is reference data where multiple rows per external id are the POINT
@@ -1339,12 +1348,12 @@ class InventoryItem(TenantRecord, MetadataJsonbMixin, Base):
 
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), index=True)
     sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True, index=True)
-    # 仓库 and 库位/批号 as the person names them — free text, '' = unspecified
+    # warehouse and storage location/batch number as the person names them — free text, '' = unspecified
     facility: Mapped[str] = mapped_column(String(100), default="")
     # pointer into the facilities REGISTRY; the string above stays the
     # position's identity (unchangeable under a live ledger), this FK is the
     # registered fact beside it — nullable because positions predate the
-    # registry and 直发 flows never touch one
+    # registry and drop-ship flows never touch one
     facility_id: Mapped[str | None] = mapped_column(
         ForeignKey("facilities.id"), nullable=True, index=True
     )
@@ -1458,7 +1467,7 @@ class Picklist(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     The picklist is never the stock truth and never a router: stock moves
     only through the inventory ledger when the SHIPMENT posts, and the
     shipment (which may copy its lines from here via `picklist_id`) is the
-    freight fact. Lines REQUIRE a position — a 直发 line that touches no
+    freight fact. Lines REQUIRE a position — a drop-ship line that touches no
     stock has no business on a picking list."""
 
     __tablename__ = "picklists"
@@ -1515,12 +1524,15 @@ class Contract(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     scans, Word) live in the attachment store through ContractDocument
     rows, the text an agent extracted from each lives beside them, and
     ContractTerm rows point at the small passages that answer the questions
-    people actually ask — "付款节奏怎样?" is one lookup by term type, never
+    people actually ask — "what is the payment schedule?" is one lookup by term type, never
     a re-read of forty pages.
 
     The counterparty is a vendor OR a customer (CHECK, at most one), and the
-    SIDE — purchase or sales — is derived from which one is set; that side
-    is the scope `contract.manage:purchase` / `:sales` is checked against.
+    SIDE — purchase or sales — is stored and agrees with it (CHECK): a
+    vendor makes it purchase, a customer sales, and a contract filed with
+    only a name snapshot states its side, because a factory not yet in
+    master data is still a purchase (review 2026-10-24). That side is the
+    scope `contract.manage:purchase` / `:sales` is checked against.
     Signing is a fact the desk records (`signed` stamps signed_at, the
     shipment convention); review before signing, where a tenant wants it,
     is todos and approval facts against the contract, not a server-owned
@@ -1542,6 +1554,7 @@ class Contract(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     contract_type: Mapped[str] = mapped_column(String(50))
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    side: Mapped[str] = mapped_column(String(10))
     counterparty_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
     total_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
@@ -1571,12 +1584,6 @@ class Contract(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
 
     vendor: Mapped["Vendor | None"] = relationship()
     customer: Mapped["Customer | None"] = relationship()
-
-    @property
-    def side(self) -> str:
-        """purchase when the counterparty is a vendor, sales when a customer,
-        derived — the scope the filing capability is checked against."""
-        return "purchase" if self.vendor_id else "sales"
 
     @property
     def counterparty_name(self) -> str | None:
@@ -1658,7 +1665,7 @@ class ContractTerm(TenantRecord, MetadataJsonbMixin, Base):
     goes in `summary`, and an optional scalar or two it is sure of in
     metadata. `term_type` is the tenant-extensible vocabulary the lookup
     runs on; several clauses of one type are several rows. `document_id`
-    and `page_no` say where in which original the words sit, so "快速定位"
+    and `page_no` say where in which original the words sit, so "quickly locate the source"
     reaches the page, not just the contract."""
 
     __tablename__ = "contract_terms"
@@ -1743,7 +1750,7 @@ class ShipmentItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One product on one freight leg. `inventory_item_id` is the OFBiz
     ItemIssuance/ShipmentReceipt association collapsed to its useful core:
     which stock POSITION (product@facility@lot) the goods leave or land in.
-    Nullable, because a 直发/drop-ship leg never touches our stock — the
+    Nullable, because a drop-ship leg never touches our stock — the
     same convention the purchase-order receive keeps with its optional
     facility. When set, its product (and SKU when both name one) must match
     the line's, checked at write time."""
@@ -1930,7 +1937,7 @@ class CommunicationEvent(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, 
 class Activity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One contact with a customer that already happened — a call, a visit,
     a meeting, a message — with what was said and what comes next. The CRM
-    plan's "客户跟进记录": the fact the agent used to have to keep in the
+    plan's "customer follow-up record": the fact the agent used to have to keep in the
     conversation. Hangs off a customer, a lead or an opportunity (at least
     one); may name the event it was logged from and the message it records.
     `content` is the summary the person confirmed; `source_text` their own
@@ -2087,7 +2094,7 @@ class Lead(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     wechat: Mapped[str | None] = mapped_column(String(100), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
-    # free text on purpose — 展会/朋友介绍/抖音: the vocabulary is the
+    # free text on purpose — trade fair/personal referral/Douyin: the vocabulary is the
     # tenant's habit, and the skill teaches consistency instead of a table
     source: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # the campaign this lead came from — attribution, so "which fair paid
@@ -2173,7 +2180,7 @@ class Opportunity(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
 
 class FinAccount(TenantRecord, CustomFieldsJsonbMixin, Base):
     """One place the company's money sits: a bank account, the cash box, or a
-    third-party payment balance (微信支付/支付宝/PayPal merchant accounts).
+    third-party payment balance (WeChat Pay/Alipay/PayPal merchant accounts).
     Modeled on OFBiz FinAccount minus the retail machinery (authorizations,
     gift certificates, replenish) — the agent-native shape is a register and
     its running balance.
@@ -2187,7 +2194,7 @@ class FinAccount(TenantRecord, CustomFieldsJsonbMixin, Base):
 
     `account_type` is the tenant-extensible `fin_account_type` vocabulary
     (bank / cash / wallet / other shipped); `institution` is the bank — or
-    微信支付/支付宝/PayPal, which is why the column is not called bank_name.
+    WeChat Pay/Alipay/PayPal, which is why the column is not called bank_name.
     A PayPal holding several currencies is several accounts, one per
     currency; conversions are a transfer pair whose amounts differ by
     exactly the exchange."""
@@ -2225,7 +2232,7 @@ class FinAccountTrans(IdMixin, TenantMixin, CreatedAtMixin, CustomFieldsJsonbMix
       null — their reconciliation is the daily aggregate, an agent act).
     - the generic (`entity_type`, `entity_id`) pair — a retail line matched
       to its order, a refund line to the RETURN row, anything else.
-    - `custom_fields` — the PSP's raw facts (微信支付单号, buyer ids).
+    - `custom_fields` — the PSP's raw facts (WeChat Pay transaction number, buyer ids).
 
     `reference_no` is the bank's own line id, partially unique per account,
     which is what makes re-importing the same statement idempotent. The bank
@@ -2345,7 +2352,7 @@ class TypeOption(TenantRecord, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Which way a value of this kind moves money: +1 adds, -1 deducts, null
     # says nothing. Only families where the sign IS the meaning use it — a
-    # payslip's 个税 line recorded as +2000 rather than -2000 pays the person
+    # payslip's individual income tax line recorded as +2000 rather than -2000 pays the person
     # 4000 too much, so the vocabulary declares the direction and the write
     # path checks it. A tenant adding its own deduction type declares its own.
     sign: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -2375,7 +2382,7 @@ class Capability(IdMixin, TenantMixin, CreatedAtMixin, Base):
 class Role(TenantRecord, Base):
     """Named bundle of permission grants. System roles (admin/member) are
     seeded per tenant with behavior-preserving defaults; tenants add custom
-    roles (approver, finance, 服务商 …) and tune grants."""
+    roles (approver, finance, service provider …) and tune grants."""
 
     __tablename__ = "roles"
     __table_args__ = (
@@ -2441,8 +2448,8 @@ class TenantSkill(TenantRecord, Base):
     # `*-approval-flow` family) can ship `targeted` with nobody named and stay
     # out of every person's bundle without a tenant having to say so.
     catalog_distribution_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    # The workspace's own refinement of a skill it did not write: "只报简要内容",
-    # "报销单也带上项目名". Appended as a section when the bundle renders, and
+    # The workspace's own refinement of a skill it did not write: "report brief summaries only",
+    # "include the project name on expense claims". Appended as a section when the bundle renders, and
     # NEVER touched by the catalog sync — the third knob a tenant owns outright,
     # beside required_capability and distribution_mode.
     #
@@ -2495,7 +2502,7 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
     """A rule the workspace wrote down, of one of four kinds, published with a
     version and a name (docs/plans/business-rules-refactor-2026-10-06.zh.md):
 
-      * `policy`        — 员工手册, 报销制度, 薪酬管理办法, external standards;
+      * `policy`        — employee handbook, expense policy, compensation policy, external standards;
                           keyed to nothing (`object_type` may be null)
       * `approval_flow` — how documents of one type route after submission:
                           who decides, on what branches, when it ends, whether
@@ -2511,7 +2518,7 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
 
     Three of them are scoped to an object type and get their `code` generated
     (`approval_flow:builtin:sales_order:default`); a policy's code is the
-    workspace's own 制度编号. The lifecycle is the policy's and is shared:
+    workspace's own policy code. The lifecycle is the policy's and is shared:
     draft, publish with the previous version closed the day before, effective
     dates that answer "what applied in March", repeal, a visibility and a
     capability gate, every act audited. `kind` answers which question the row
@@ -2527,7 +2534,7 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
     joins and brings `decoratorContentId` and `childLeafCount` along with it.
     The shape worth keeping is smaller — a versioned document with a publisher,
     an effective range and a visibility (`DataResource.isPublic` is exactly the
-    "是否公开" field, only boolean where an HR policy needs three values).
+    "public visibility" field, only boolean where an HR policy needs three values).
 
     **Status is a marker; the dates are the truth.** `published` means "this is
     the current version of this code", and the partial unique index holds that.
@@ -2548,7 +2555,7 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
             "kind = 'policy' or (entity_kind is not null and object_type is not null and name is not null)",
             name="business_rules_scope_ck",
         ),
-        # a policy carries its 分类; the other kinds are classified by `kind`
+        # a policy carries its category; the other kinds are classified by `kind`
         CheckConstraint(
             "kind <> 'policy' or category is not null",
             name="business_rules_category_ck",
@@ -2580,8 +2587,8 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
         ),
         Index("policies_code_idx", "tenant_id", "code", "version"),
         Index("policies_category_idx", "tenant_id", "category", "status"),
-        # one live version per 制度编号 — two documents both claiming to be the
-        # current 报销制度 is the failure this table exists to prevent
+        # one live version per policy code — two documents both claiming to be the
+        # current expense policy is the failure this table exists to prevent
         Index(
             "policies_current_version_uk",
             "tenant_id", "code",
@@ -2603,7 +2610,7 @@ class BusinessRule(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
     # `tenant` (written here) or `catalog` (seeded from the shipped rules/ tree)
     origin: Mapped[str] = mapped_column(String(20), default="tenant")
     catalog_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # a policy's 分类 (hr, payroll, external_standard …); null on the other kinds
+    # a policy's category (hr, payroll, external_standard …); null on the other kinds
     category: Mapped[str | None] = mapped_column(String(30), nullable=True)
     title: Mapped[str] = mapped_column(String(200))
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -2713,9 +2720,9 @@ class EmployeeLeave(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbM
 
     **There is no balance anywhere in this model, and that is the design.**
     "How many days do I have left" is not a fact anybody recorded — it follows
-    from the tenant's leave policy applied to this person's 工龄 and these
+    from the tenant's leave policy applied to this person's length of service and these
     rows. Storing it would freeze a conclusion drawn under rules that change:
-    a company that revises 年假 mid-year, or backdates a 调休 ratio, would have
+    a company that revises annual leave mid-year, or backdates a compensatory leave ratio, would have
     a ledger full of entries that were true under the old text. Computed, the
     same revision simply produces different answers, including for the past —
     `GET /business-rules?in_force_on=…` answers what the rule WAS. This is the same
@@ -2834,7 +2841,7 @@ class ExpenseItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     project_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
     client: Mapped[str | None] = mapped_column(String(200), nullable=True)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
-    # full structured extraction from the receipt (发票代码, 购买方税号, …);
+    # full structured extraction from the receipt (tax-invoice code, buyer's tax identifier, …);
     # the typed columns above are the queryable subset
     extracted_fields_jsonb: Mapped[dict] = mapped_column("extracted_fields_jsonb", JsonType, default=dict)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -2872,10 +2879,10 @@ class PurchaseRequestItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin,
     request_id: Mapped[str] = mapped_column(ForeignKey("purchase_requests.id"), index=True)
     product_id: Mapped[str | None] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
     # sku refines the product to transaction granularity; null is a legal
-    # fact — either the tenant's products ARE skus, or the variant (尺码配比
+    # fact — either the tenant's products ARE skus, or the variant (size assortment
     # etc.) is genuinely undecided at requisition time
     sku_id: Mapped[str | None] = mapped_column(ForeignKey("product_skus.id"), nullable=True, index=True)
-    # 按单采购 (procure-to-order / 零库存): the sales order line this purchase
+    # Procure-to-order (zero-inventory): the sales order line this purchase
     # line exists to fulfil (OFBiz OrderItemAssoc, collapsed to the one
     # direction that matters here). It lives on THIS side because the sales
     # order is already confirmed — and therefore locked — by the time
@@ -2889,7 +2896,7 @@ class PurchaseRequestItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin,
     quantity: Mapped[float] = mapped_column(Numeric(12, 2))
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # pricing is optional by design: an unpriced requisition is a normal
-    # fact (询价 happens later in the flow), never an error
+    # fact (requesting a price happens later in the flow), never an error
     unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
@@ -2940,7 +2947,7 @@ class SalesQuotation(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonb
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     payment_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_terms: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # the negotiated document total (e.g. rounded 抹零); null means the line
+    # the negotiated document total (e.g. a rounding adjustment); null means the line
     # sum is the total — /detail reports both facts, agents judge the gap
     total_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="draft")
@@ -2977,11 +2984,11 @@ class SalesQuotationItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, 
     list_price_snapshot: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    # 货物13% / 服务6% mixed quoting: the per-line rate is an independent fact
+    # goods at 13% / services at 6% mixed quoting: the per-line rate is an independent fact
     tax_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     # keeps zero-priced giveaway lines from reading as 100% discounts
     is_gift: Mapped[bool] = mapped_column(Boolean, default=False)
-    # 现货 / 两周 / 30天 — free text, the agent interprets
+    # in stock / two weeks / 30 days — free text, the agent interprets
     lead_time: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -3018,7 +3025,7 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
         ForeignKey("contracts.id"), nullable=True, index=True
     )
     # 'order' or 'return' — a return to the vendor lives in this same table
-    # (the user-facing decision: 退单跟订单一张表), splitting only the KIND.
+    # (the user-facing decision: returns and orders share one table), splitting only the KIND.
     # The kind picks the row's state machine ('purchase_order' vs
     # 'purchase_return'); everything else — lines, numbering uniqueness,
     # provenance links — is shared. Identity, never editable after create.
@@ -3081,7 +3088,7 @@ class PurchaseOrderItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, B
     amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     tax_rate: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     promised_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    # 按单采购, one hop up the chain: the approved request line this PO line
+    # procure-to-order, one hop up the chain: the approved request line this PO line
     # orders. Sales traceability runs transitively —
     # SalesOrderItem ← PurchaseRequestItem ← here.
     purchase_request_item_id: Mapped[str | None] = mapped_column(
@@ -3099,7 +3106,7 @@ class PurchaseOrderItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, B
 
 class PurchaseOrderAdjustment(TenantRecord, SoftDeleteMixin, MetadataJsonbMixin, Base):
     """The PO twin of the sales-side adjustments: signed amounts beside the
-    line math (运费/税/折扣/抹零), optionally pinned to one line. Same
+    line math (freight/tax/discount/rounding adjustment), optionally pinned to one line. Same
     vocabulary family as the sales documents — an adjustment type is not a
     direction-specific idea."""
 
@@ -3143,15 +3150,15 @@ class SalesOrder(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixi
     # server-allocated when the agent doesn't bring a tenant convention
     order_no: Mapped[str] = mapped_column(String(64))
     # 'order' or 'return' — a customer return lives in this same table (the
-    # user-facing decision: 退单跟订单一张表), splitting only the KIND. The
+    # user-facing decision: returns and orders share one table), splitting only the KIND. The
     # kind picks the row's state machine ('sales_order' vs 'sales_return' —
-    # an e-commerce return runs 申请→发出→收到→验货入库→退款, which is not an
+    # an e-commerce return runs requested→dispatched→received→inspection and stocking→refund, which is not an
     # order's life); everything else — lines as the goods coming back, the
     # number series' uniqueness, external links — is shared. Identity, never
     # editable after create.
     order_kind: Mapped[str] = mapped_column(String(20), default="order")
     # the order this return reverses. One order, many returns: many rows
-    # point here — that IS the 多次退单 requirement. Nullable because reality
+    # point here — that IS the multiple returns requirement. Nullable because reality
     # outruns paperwork (the parcel arrives before anyone matches it); the
     # API refuses an original that is itself a return.
     original_order_id: Mapped[str | None] = mapped_column(
@@ -3271,7 +3278,7 @@ class SalesOrderItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base
 
 class SalesQuotationAdjustment(TenantRecord, SoftDeleteMixin, MetadataJsonbMixin, Base):
     """A signed amount that moves a quotation's total beside the line math —
-    促销 discounts, tax, shipping, fees, 抹零. Modeled on OFBiz's
+    promotional discounts, tax, shipping, fees, rounding adjustment. Modeled on OFBiz's
     QuoteAdjustment: many per quotation, each optionally pinned to one line
     (quotation_item_id null = a header-level adjustment). The amount is the
     recorded fact; source_percentage says how it was derived when it was a
@@ -3287,7 +3294,7 @@ class SalesQuotationAdjustment(TenantRecord, SoftDeleteMixin, MetadataJsonbMixin
     # discount/promotion/tax/shipping/fee/surcharge/rounding/other
     adjustment_type: Mapped[str] = mapped_column(String(20))
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # signed: negative reduces the total (discount, 抹零), positive adds
+    # signed: negative reduces the total (discount, rounding adjustment), positive adds
     # (tax, shipping, surcharge)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     source_percentage: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
@@ -3323,7 +3330,7 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     The orders were split (PurchaseOrder / SalesOrder) because their
     counterparty, direction and closure all differ. An invoice fails that test:
     its closure mechanic is identical on both sides (apply money until nothing
-    is outstanding), and a 增值税发票 has one physical shape whether we issued
+    is outstanding), and a VAT invoice has one physical shape whether we issued
     it or received it. Splitting would duplicate the settlement machinery,
     which is the expensive half.
 
@@ -3333,7 +3340,7 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
 
     Two different numbers live here on purpose: `invoice_no` is this system's
     document number (allocated, always present), `tax_invoice_number` is the
-    tax document's own 发票号码 (absent until the invoice is actually issued or
+    tax document's own tax-invoice number (absent until the invoice is actually issued or
     the vendor's copy is entered)."""
 
     __tablename__ = "invoices"
@@ -3354,7 +3361,7 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
             name="invoices_direction_counterparty_ck",
         ),
 
-        # 双发工资 is the expensive mistake in this family, so one payslip per
+        # duplicate payroll is the expensive mistake in this family, so one payslip per
         # person per period is a database fact rather than an agent's care.
         Index(
             "invoices_payroll_period_uk",
@@ -3387,13 +3394,13 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     # gets paid cannot be settled honestly — see the counterparty guard in
     # `SettlementTarget`.
     direction: Mapped[str] = mapped_column(String(20), index=True)
-    # 增值税专用发票 / 普通发票 / 电子发票 / 形式发票 / 收据 — tenant vocabulary
+    # special VAT invoice / ordinary invoice / electronic invoice / pro forma invoice / receipt — tenant vocabulary
     invoice_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    # the 经办人 who owns the document, as in every other family
+    # the person who owns the document, as in every other family
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
-    # 工资条 (direction='payroll'): the person being paid. Distinct from
+    # payslip (direction='payroll'): the person being paid. Distinct from
     # employee_id above, which is whoever ran payroll.
     payee_employee_id: Mapped[str | None] = mapped_column(
         ForeignKey("employees.id"), nullable=True, index=True
@@ -3419,7 +3426,7 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     applied_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     tax_invoice_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     tax_invoice_number: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    # full structured extraction / 查验 result for a received invoice; the typed
+    # full structured extraction / verification result for a received invoice; the typed
     # columns above are the queryable subset (as on expense items)
     extracted_fields_jsonb: Mapped[dict] = mapped_column("extracted_fields_jsonb", JsonType, default=dict)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
@@ -3461,16 +3468,16 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
 
 class InvoiceItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One billed line (OFBiz `InvoiceItem`). `invoice_item_type` is what lets
-    this family skip an adjustments table entirely: 运费/折扣/税/抹零 are line
+    this family skip an adjustments table entirely: freight/discount/tax/rounding adjustment are line
     types here, exactly as OFBiz models them with `invoiceItemTypeId`, so the
     quotation/order pattern of a separate adjustment row buys nothing.
 
-    Quantity and price are both optional — a pure charge line (运费 300) has
+    Quantity and price are both optional — a pure charge line (freight 300) has
     neither, and refusing it would be refusing a normal invoice.
 
     The order-item links are OFBiz's `OrderItemBilling` collapsed into explicit
     FKs, matching how `PurchaseOrderItem.purchase_request_item_id` records its
-    own document chain. They are what makes 已开票数量 answerable per order
+    own document chain. They are what makes billed quantity answerable per order
     line, and therefore what makes the three-way match possible."""
 
     __tablename__ = "invoice_items"
@@ -3537,7 +3544,7 @@ class Payment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     created in the terminal state, which every builtin allows.
 
     `counterparty_account` is here for one reason: the standing check against
-    改单诈骗 is comparing the account a payment is about to go to against the
+    payment-instruction fraud is comparing the account a payment is about to go to against the
     account on the vendor's master record. Storing it makes that check auditable
     afterwards rather than only conversational."""
 
@@ -3562,15 +3569,15 @@ class Payment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     contract_id: Mapped[str | None] = mapped_column(
         ForeignKey("contracts.id"), nullable=True, index=True
     )
-    # 'inbound' = 收款, 'outbound' = 付款
+    # 'inbound' = receipt, 'outbound' = payment
     direction: Mapped[str] = mapped_column(String(10), index=True)
-    # 银行转账 / 现金 / 支票 / 银行承兑 / 商业承兑 / 微信 / 支付宝 — tenant vocabulary
+    # bank transfer / cash / cheque / bank acceptance draft / commercial acceptance draft / WeChat / Alipay — tenant vocabulary
     payment_method: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    # the 经办人 (cashier) who owns the document
+    # the cashier who owns the document
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
-    # 报销付款: the counterparty is one of our own people, not a master-data party
+    # reimbursement payout: the counterparty is one of our own people, not a master-data party
     payee_employee_id: Mapped[str | None] = mapped_column(
         ForeignKey("employees.id"), nullable=True, index=True
     )
@@ -3579,7 +3586,7 @@ class Payment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
     # running sum of this payment's applications; amount - applied_amount is
-    # 预收款/预付款 — the unallocated balance IS the advance, so no separate
+    # advance receipt/advance payment — the unallocated balance IS the advance, so no separate
     # billing-account entity is needed
     applied_amount: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     bank_account: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -3606,9 +3613,9 @@ class PayHistory(TenantRecord, CustomFieldsJsonbMixin, Base):
     bonus arrangement, their allowances.
 
     The dividing line is whether the sentence changes when you change the
-    person. "13薪 in January" is company policy and belongs in a workflow
-    definition; "张三 gets 3% of collections" is a term of 张三's employment and
-    belongs here. National policy — 五险一金 rates and the like — belongs in
+    person. "a thirteenth-month salary in January" is company policy and belongs in a workflow
+    definition; "Zhang San gets 3% of collections" is a term of Zhang San's employment and
+    belongs here. National policy — social-insurance and housing-fund rates and the like — belongs in
     neither: it is public knowledge the agent already has, and what it produced
     is recorded on the payslip line itself.
 
@@ -3667,9 +3674,9 @@ class PayHistory(TenantRecord, CustomFieldsJsonbMixin, Base):
     amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     # a proportional term: 0.03. Meaningless without `basis`.
     rate: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
-    # what the rate applies TO, in the tenant's own words — 回款额 / 毛利 / 签约额
+    # what the rate applies TO, in the tenant's own words — collections / gross profit / signed contract value
     basis: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    # the whole arrangement in words when neither shape fits (阶梯提成, 绩效系数).
+    # the whole arrangement in words when neither shape fits (tiered commission, performance multiplier).
     # Text for the AGENT to read; the server never parses it, exactly as it
     # never parses a workflow definition.
     formula: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -3726,7 +3733,7 @@ class BillingAccount(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base
 
     account_code: Mapped[str] = mapped_column(String(64))
     name: Mapped[str] = mapped_column(String(200))
-    # 'currency' = 钱 (储值/挂账), 'points' = 积分/券额 and anything else counted
+    # 'currency' = money (stored value/credit balance), 'points' = points/voucher value and anything else counted
     unit_type: Mapped[str] = mapped_column(String(10), index=True)
     # a currency code when unit_type is 'currency'; a tenant vocabulary entry
     # (billing_account_unit) when it is 'points'
@@ -3814,7 +3821,7 @@ class BillingAccountEntry(IdMixin, TenantMixin, CreatedAtMixin, Base):
 
 
 class PaymentApplication(IdMixin, TenantMixin, CreatedAtMixin, Base):
-    """核销: one act of settling part of a payment against one document —
+    """Settlement application: one act of settling part of a payment against one document —
     OFBiz's `PaymentApplication`, including its ability to point at another
     payment (netting a refund against a receipt).
 
@@ -3882,7 +3889,7 @@ class PaymentApplication(IdMixin, TenantMixin, CreatedAtMixin, Base):
     expense_claim_id: Mapped[str | None] = mapped_column(
         ForeignKey("expense_claims.id"), nullable=True, index=True
     )
-    # OFBiz's billingAccountId: money paid INTO a standing account (客户预存) or
+    # OFBiz's billingAccountId: money paid INTO a standing account (customer deposit) or
     # refunded back out of one. Unlike the other targets this one has no ceiling
     # — a deposit is not a claim — so the settlement guard checks the account's
     # balance floor instead. See SettlementTarget in app/api/billing.py.
@@ -4216,9 +4223,13 @@ class CustomerRelation(TenantRecord, MetadataJsonbMixin, Base):
 
     __tablename__ = "customer_relations"
     __table_args__ = (
-        UniqueConstraint(
-            "customer_id", "related_customer_id", "relation_type", "effective_from",
-            name="customer_relations_uk",
+        # an undated relation is unique too: as a plain UNIQUE the NULL date
+        # made every undated copy distinct (review 2026-10-19, F07)
+        Index(
+            "customer_relations_uk",
+            "customer_id", "related_customer_id", "relation_type",
+            text("coalesce(effective_from, '0001-01-01')"),
+            unique=True,
         ),
         CheckConstraint("customer_id <> related_customer_id", name="customer_relations_two_parties_ck"),
         CheckConstraint(

@@ -11,6 +11,13 @@ withdrawn file soft-deletes the untouched drafts it seeded.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_rule_catalog.json').read_text(encoding="utf-8"))
+
+
 import hashlib
 from collections.abc import Generator
 from pathlib import Path
@@ -41,11 +48,10 @@ def catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def write_rule(catalog: Path, kind: str, object_type: str, en: str, zh: str = "中文", *, title: str = "T") -> None:
+def write_rule(catalog: Path, kind: str, object_type: str, en: str, zh: str = _ZH_TEXT['TEXT_72726D8818F69306'], *, title: str = "T") -> None:
     (catalog / kind).mkdir(exist_ok=True)
     (catalog / kind / f"{object_type}.md").write_text(
-        f"---\nkind: {kind}\nentity_kind: builtin\nobject_type: {object_type}\nname: default\n"
-        f"title: {title}\ntitle_zh: 标题\nvisibility: internal\n---\n{en}\n\n<!-- zh -->\n{zh}\n",
+        f"---\nkind: {kind}\nentity_kind: builtin\nobject_type: {object_type}\nname: default\ntitle: {title}{_ZH_TEXT['TEXT_DD61C990E7A498AE']}{en}\n\n<!-- zh -->\n{zh}\n",
         encoding="utf-8",
     )
 
@@ -129,10 +135,12 @@ def test_an_edited_seed_is_the_tenants(db: Session, catalog: Path) -> None:
 
 
 def test_a_published_scope_never_gets_a_seed(db: Session, catalog: Path) -> None:
-    from datetime import date, datetime, timezone
+    from datetime import datetime, timezone
+
+    from app.core.business_date import business_today
     db.add(BusinessRule(tenant_id=TENANT, kind="approval_flow", entity_kind="builtin", object_type="expense_claim",
                         name="default", code="approval_flow:builtin:expense_claim:default", version=1, title="ours",
-                        body="published by us", status="published", effective_from=date.today(),
+                        body="published by us", status="published", effective_from=business_today(),
                         published_at=datetime.now(timezone.utc), published_by="user:1"))
     db.commit()
     write_rule(catalog, "approval_flow", "expense_claim", "catalog text")
@@ -144,7 +152,7 @@ def test_a_published_scope_never_gets_a_seed(db: Session, catalog: Path) -> None
     write_rule(catalog, "data_rule", "expense_claim", "seed")
     provisioning.provision_rule_catalog(db, TENANT); db.commit()
     (seed,) = rows(db, "data_rule:builtin:expense_claim:default")
-    seed.status = "published"; seed.effective_from = date.today()
+    seed.status = "published"; seed.effective_from = business_today()
     seed.published_at = datetime.now(timezone.utc); seed.published_by = "user:1"; db.commit()
     write_rule(catalog, "data_rule", "expense_claim", "seed v2")
     assert provisioning.provision_rule_catalog(db, TENANT) == 0
@@ -178,11 +186,11 @@ def test_a_withdrawn_file_retires_its_untouched_draft_only(db: Session, catalog:
 
 
 def test_the_locale_picks_the_half(db: Session, catalog: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    write_rule(catalog, "data_rule", "timesheet_header", "every entry names a project", "每条工时必须写项目")
+    write_rule(catalog, "data_rule", "timesheet_header", "every entry names a project", _ZH_TEXT['TEXT_63FDECE42883B83F'])
     monkeypatch.setattr(type(provisioning.settings), "resolved_locale", property(lambda self: "zh"))
     provisioning.provision_rule_catalog(db, TENANT); db.commit()
     (row,) = rows(db, "data_rule:builtin:timesheet_header:default")
-    assert row.body == "每条工时必须写项目" and row.title == "标题"
+    assert row.body == _ZH_TEXT['TEXT_63FDECE42883B83F'] and row.title == _ZH_TEXT['TEXT_C3405F8C7D9D392A']
 
 
 def test_the_catalog_travels_with_the_image_and_the_export() -> None:

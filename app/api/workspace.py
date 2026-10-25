@@ -20,6 +20,8 @@ router.
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 import base64
 import binascii
 import hashlib
@@ -61,6 +63,8 @@ from app.api.deps import (
     hosted_agent_permissions,
     Actor,
     attributed,
+    ensure_may_issue_key_for,
+    ensure_may_issue_service_key,
     get_actor,
     has_permission,
     has_permission_any_scope,
@@ -282,7 +286,7 @@ def ensure_label_is_not_impersonation(label: str | None) -> None:
     if label and HOSTED_FLOW_AGENT_DISPLAY_NAME in label:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"名称 {HOSTED_FLOW_AGENT_DISPLAY_NAME!r} 由平台保留，不能用于工作空间凭证",
+            detail=f'{zh_messages.WORKSPACE_TEXT}{HOSTED_FLOW_AGENT_DISPLAY_NAME!r}{zh_messages.WORKSPACE_TEXT_2}',
         )
 
 
@@ -364,7 +368,10 @@ def create_api_key(
         user = get_scoped_or_404(db, User, actor.tenant_id, payload.user_id)
         if user.status != "active":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="user is not active")
+        ensure_may_issue_key_for(db, actor, user)
         key_role = user.role
+    else:
+        ensure_may_issue_service_key(actor)
     plain_text_api_key = generate_api_key()
     api_key = ApiKey(
         tenant_id=actor.tenant_id,
@@ -415,16 +422,23 @@ def update_api_key(
         if "label" in updates:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"{HOSTED_FLOW_AGENT_DISPLAY_NAME} 的名称由平台固定，不可修改",
+                detail=f'{HOSTED_FLOW_AGENT_DISPLAY_NAME}{zh_messages.WORKSPACE_TEXT_3}',
             )
         if updates.get("is_active") is True and not api_key.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
-                    f"{HOSTED_FLOW_AGENT_DISPLAY_NAME} 一经停用即为退订，"
-                    "重新启用需要平台重新签发"
+                    f'{HOSTED_FLOW_AGENT_DISPLAY_NAME}{zh_messages.WORKSPACE_TEXT_4}'
                 ),
             )
+    if updates.get("is_active") is True and not api_key.is_active:
+        # switching a key back on restores what it reached: the same rule
+        # as issuing it (review 2026-10-19, F01); switching off stays open
+        owner = db.get(User, api_key.user_id) if api_key.user_id else None
+        if owner is not None:
+            ensure_may_issue_key_for(db, actor, owner)
+        elif api_key.principal_kind == PRINCIPAL_TENANT_SERVICE:
+            ensure_may_issue_service_key(actor)
     for field, value in updates.items():
         setattr(api_key, field, value)
     db.commit()
@@ -457,6 +471,15 @@ def _project_links(db: Session, tenant_id: str, fields: dict, current: Project |
             fields["client"] = customer.name
     if fields.get("opportunity_id"):
         get_scoped_or_404(db, Opportunity, tenant_id, fields["opportunity_id"])
+        # one deal, one project (plan 2026-10-14); the partial unique index
+        # projects_tenant_opportunity_uk holds it under concurrency
+        taken = db.scalar(select(Project.id).where(
+            Project.tenant_id == tenant_id, Project.opportunity_id == fields["opportunity_id"],
+            *([Project.id != current.id] if current is not None else []),
+        ))
+        if taken is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail=f"that deal already has project {taken}; a deal opens one project")
     if fields.get("contract_id"):
         get_scoped_or_404(db, Contract, tenant_id, fields["contract_id"])
     if fields.get("owner_employee_id"):
@@ -594,7 +617,7 @@ def create_type_option(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Tenant-defined vocabulary entry (经销价、开票服务费…). The first
+    """Tenant-defined vocabulary entry (dealer price, invoicing service fee…). The first
     customization materializes the shipped catalog as system rows, so the
     vocabulary the tenant now owns is complete and editable."""
     require_permission(actor, "object_types.manage")
@@ -662,7 +685,7 @@ def update_type_option(
         )
     # Recorded BEFORE the writes, and only what actually moves: a business
     # vocabulary silently changing its meaning is exactly the thing nobody can
-    # reconstruct later. "渠道价" being redefined is a different price in every
+    # reconstruct later. "channel price" being redefined is a different price in every
     # report that reads it, and until now the row's `updated_at` was the only
     # trace — no actor, no old value, no reason.
     changed = {
@@ -837,10 +860,10 @@ MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
 # Every capability that files an attachment-backed record. The gate below said
 # "any capability that files attachment-backed records grants upload" and then
-# named two of them, while EIGHT models carry `attachment_id`. So an 应收会计
+# named two of them, while EIGHT models carry `attachment_id`. So an accounts-receivable accountant
 # holding only `invoice.manage:sales` could raise the invoice and could set its
-# `attachment_id`, but got 403 producing the id — the 发票原件 (a customer's
-# PDF, a 增值税发票扫描件) had nowhere to go, on the one document family whose
+# `attachment_id`, but got 403 producing the id — the original invoice (a customer's
+# PDF, a scanned VAT invoice) had nowhere to go, on the one document family whose
 # whole point is that the original is the evidence.
 #
 # It hid because every seeded role builds on `member_base`, which carries
@@ -975,7 +998,7 @@ def get_attachment_content(
     An attachment is never a thing you are entitled to because you hold its id.
 
     This route used to be tenant-scoped and nothing else, so any credential in
-    the workspace could read a payslip's PDF — 工资条 is an invoice, and its
+    the workspace could read a payslip's PDF — payslip is an invoice, and its
     attachment is the payslip. `tests/test_payroll_visibility.py` calls payroll
     "the first read in this API that belonging to the workspace does not
     entitle you to", and warns that a gate is only worth its least covered
@@ -1271,9 +1294,7 @@ def workspace_setup_report(
             "register_rows": count(FinAccountTrans),
         },
         "next": (
-            "grant fin_account.manage to the cashier (钱账分离 — deliberately "
-            "no shipped role carries it), then open accounts and import "
-            "statements — $oryh-treasury"
+            zh_messages.WORKSPACE_WORKSPACE_SETUP_REPORT_TEXT
         ),
     }
 

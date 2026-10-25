@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useRecordNotice } from "../components/master-data/RecordNotice";
 import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -95,15 +96,15 @@ function validateEmployee(form: EmployeeForm, text: Localize): EmployeeFieldErro
   const email = form.email.trim();
   const timezone = form.timezone.trim();
 
-  if (!name) errors.name = text("姓名不能为空。", "Name is required.");
-  else if (name.length > 200) errors.name = text("姓名不能超过 200 个字符。", "Name cannot exceed 200 characters.");
-  if (code.length > 64) errors.code = text("工号不能超过 64 个字符。", "Employee ID cannot exceed 64 characters.");
-  if (email && !isValidLoginEmail(email)) errors.email = text("请输入有效的邮箱地址。", "Enter a valid email address.");
-  if (email.length > 320) errors.email = text("邮箱不能超过 320 个字符。", "Email cannot exceed 320 characters.");
+  if (!name) errors.name = text(zhCN.pagesEmployeesPage.nameIsRequired, "Name is required.");
+  else if (name.length > 200) errors.name = text(zhCN.pagesEmployeesPage.nameCannotExceed200Characters, "Name cannot exceed 200 characters.");
+  if (code.length > 64) errors.code = text(zhCN.pagesEmployeesPage.employeeIDCannotExceed64Characters, "Employee ID cannot exceed 64 characters.");
+  if (email && !isValidLoginEmail(email)) errors.email = text(zhCN.pagesEmployeesPage.enterAValidEmailAddress, "Enter a valid email address.");
+  if (email.length > 320) errors.email = text(zhCN.pagesEmployeesPage.emailCannotExceed320Characters, "Email cannot exceed 320 characters.");
   if (timezone && !TIMEZONE_PATTERN.test(timezone)) {
-    errors.timezone = text("请输入 UTC 或 Area/Location 格式的 IANA 时区，例如 Asia/Shanghai。", "Enter UTC or an IANA time zone in Area/Location format, such as Asia/Shanghai.");
+    errors.timezone = text(zhCN.pagesEmployeesPage.enterUTCOrAnIANATimeZoneInArea, "Enter UTC or an IANA time zone in Area/Location format, such as Asia/Shanghai.");
   } else if (timezone.length > 100) {
-    errors.timezone = text("时区不能超过 100 个字符。", "Time zone cannot exceed 100 characters.");
+    errors.timezone = text(zhCN.pagesEmployeesPage.timeZoneCannotExceed100Characters, "Time zone cannot exceed 100 characters.");
   }
   return errors;
 }
@@ -114,7 +115,7 @@ function permissionCovers(permissions: string[], capability: string): boolean {
 
 function roleLabel(role: Role, text: Localize): string {
   const systemTitle = role.is_system
-    ? ({ admin: text("管理员", "Administrator"), member: text("成员", "Member") } as Record<string, string>)[role.name]
+    ? ({ admin: text(zhCN.pagesEmployeesPage.administrator, "Administrator"), member: text(zhCN.pagesEmployeesPage.member, "Member") } as Record<string, string>)[role.name]
     : undefined;
   const title = systemTitle ?? role.title;
   return title ? text(`${title}（${role.name}）`, `${title} (${role.name})`) : role.name;
@@ -125,13 +126,13 @@ function invitationFailureNotice(employee: Employee, error: unknown, text: Local
   return knownRejection
     ? {
         tone: "warning",
-        title: text(`员工「${employee.name}」已创建，用户邀请未完成`, `Employee “${employee.name}” was created, but the user invitation was not completed`),
-        message: text(`${apiErrorMessage(error)}。员工档案已保留，可前往用户管理修正后重试邀请。`, `${apiErrorMessage(error)}. The employee record was retained. Open user management to correct the issue and retry the invitation.`),
+        title: text(zhCN.pagesEmployeesPage.employeeWasCreatedButTheUserInvitationWasNot(`${employee.name}`), `Employee “${employee.name}” was created, but the user invitation was not completed`),
+        message: text(zhCN.pagesEmployeesPage.theEmployeeRecordWasRetainedOpenUserManagementTo(`${apiErrorMessage(error)}`), `${apiErrorMessage(error)}. The employee record was retained. Open user management to correct the issue and retry the invitation.`),
       }
     : {
         tone: "warning",
-        title: text(`员工「${employee.name}」已创建，用户邀请结果未能确认`, `Employee “${employee.name}” was created, but the invitation outcome could not be confirmed`),
-        message: text(`${apiErrorMessage(error)}。请求可能已创建用户，请先前往用户管理核对，必要时重发邀请。`, `${apiErrorMessage(error)}. The request may have created a user. Check user management first and resend the invitation if needed.`),
+        title: text(zhCN.pagesEmployeesPage.employeeWasCreatedButTheInvitationOutcomeCouldNot(`${employee.name}`), `Employee “${employee.name}” was created, but the invitation outcome could not be confirmed`),
+        message: text(zhCN.pagesEmployeesPage.theRequestMayHaveCreatedAUserCheckUser(`${apiErrorMessage(error)}`), `${apiErrorMessage(error)}. The request may have created a user. Check user management first and resend the invitation if needed.`),
       };
 }
 
@@ -209,10 +210,10 @@ export function EmployeesPage() {
         } else if (result.invitation) {
           setCreationNotice({
             tone: "success",
-            title: `${text("员工与登录用户已创建", "Employee and login user created")} · ${result.invitation.email}`,
+            title: zhCN.pagesEmployeesPage.title(`${text(zhCN.pagesEmployeesPage.employeeAndLoginUserCreated, "Employee and login user created")}`, `${result.invitation.email}`),
             message: result.invitation.invitation_url
-              ? text("一次性邀请链接仅在本次响应中显示，请立即安全发送给员工。", "The one-time invitation link is shown only in this response. Send it securely to the employee now.")
-              : text("邀请邮件已发送；员工接受邀请后即可登录。", "The invitation email was sent. The employee can sign in after accepting it."),
+              ? text(zhCN.pagesEmployeesPage.theOneTimeInvitationLinkIsShownOnlyIn, "The one-time invitation link is shown only in this response. Send it securely to the employee now.")
+              : text(zhCN.pagesEmployeesPage.theInvitationEmailWasSentTheEmployeeCanSign, "The invitation email was sent. The employee can sign in after accepting it."),
             invitationUrl: result.invitation.invitation_url,
           });
         }
@@ -276,15 +277,15 @@ export function EmployeesPage() {
     let invitationError: string | null = null;
     if (!editing && createUser) {
       if (!canCreateUsers) {
-        invitationError = text("当前身份缺少 users.manage，不能同时创建登录用户。", "Your current identity does not have users.manage and cannot create a login user at the same time.");
+        invitationError = text(zhCN.pagesEmployeesPage.yourCurrentIdentityDoesNotHaveUsersManageAnd, "Your current identity does not have users.manage and cannot create a login user at the same time.");
       } else if (!form.email.trim()) {
-        errors.email = text("同时创建登录用户时必须填写邮箱。", "Email is required when creating a login user at the same time.");
+        errors.email = text(zhCN.pagesEmployeesPage.emailIsRequiredWhenCreatingALoginUserAt, "Email is required when creating a login user at the same time.");
       } else if (roles.isPending) {
-        invitationError = text("正在加载角色，请稍候。", "Roles are loading. Please wait.");
+        invitationError = text(zhCN.pagesEmployeesPage.rolesAreLoadingPleaseWait, "Roles are loading. Please wait.");
       } else if (roles.isError) {
-        invitationError = text("角色目录加载失败，请重试或取消同时创建用户。", "The role directory could not be loaded. Retry or cancel creating the user.");
+        invitationError = text(zhCN.pagesEmployeesPage.theRoleDirectoryCouldNotBeLoadedRetryOr, "The role directory could not be loaded. Retry or cancel creating the user.");
       } else if (!roles.data?.some((role) => role.name === userRole)) {
-        invitationError = text("请选择有效的用户角色。", "Select a valid user role.");
+        invitationError = text(zhCN.pagesEmployeesPage.selectAValidUserRole, "Select a valid user role.");
       }
     }
     setFieldErrors(errors);
@@ -320,10 +321,10 @@ export function EmployeesPage() {
       <header className="page-intro">
         <div>
           <span className="eyebrow">Employee directory</span>
-          <h2>{text("员工档案", "Employee directory")}</h2>
-          <p>{text("维护员工身份、工号和工作时区，供工时、审批及人员关联流程使用。", "Maintain employee identities, employee IDs, and working time zones for timesheets, approvals, and people-linked workflows.")}</p>
+          <h2>{text(zhCN.pagesEmployeesPage.employeeDirectory, "Employee directory")}</h2>
+          <p>{text(zhCN.pagesEmployeesPage.maintainEmployeeIdentitiesEmployeeIDsAndWorkingTimeZones, "Maintain employee identities, employee IDs, and working time zones for timesheets, approvals, and people-linked workflows.")}</p>
         </div>
-        <Link className="related-page-link" to="/users">{text("管理登录用户与邀请", "Manage login users and invitations")} →</Link>
+        <Link className="related-page-link" to="/users">{text(zhCN.pagesEmployeesPage.manageLoginUsersAndInvitations, "Manage login users and invitations")} →</Link>
       </header>
       {notice}
 
@@ -335,26 +336,26 @@ export function EmployeesPage() {
           </div>
           {creationNotice.invitationUrl && (
             <div className="employee-invitation-link">
-              <label className="sr-only" htmlFor="employee-invitation-url">{text("一次性邀请链接", "One-time invitation link")}</label>
+              <label className="sr-only" htmlFor="employee-invitation-url">{text(zhCN.pagesEmployeesPage.oneTimeInvitationLink, "One-time invitation link")}</label>
               <input id="employee-invitation-url" readOnly value={creationNotice.invitationUrl} onFocus={(event) => event.currentTarget.select()} />
-              <button className="button compact" type="button" onClick={() => void copyInvitation()}>{copyState === "copied" ? text("已复制", "Copied") : text("复制邀请链接", "Copy invitation link")}</button>
+              <button className="button compact" type="button" onClick={() => void copyInvitation()}>{copyState === "copied" ? text(zhCN.pagesEmployeesPage.copied, "Copied") : text(zhCN.pagesEmployeesPage.copyInvitationLink, "Copy invitation link")}</button>
             </div>
           )}
-          {creationNotice.tone === "warning" && <Link className="text-action" to="/users">{text("前往用户管理", "Open user management")}</Link>}
-          {copyState === "failed" && <small className="field-error" role="alert">{text("浏览器未允许自动复制，请手动选择链接。", "The browser did not allow automatic copying. Select and copy the link manually.")}</small>}
-          <button className="employee-notice-close" type="button" aria-label={text("关闭创建结果", "Close creation result")} onClick={() => setCreationNotice(null)}>×</button>
+          {creationNotice.tone === "warning" && <Link className="text-action" to="/users">{text(zhCN.pagesEmployeesPage.openUserManagement, "Open user management")}</Link>}
+          {copyState === "failed" && <small className="field-error" role="alert">{text(zhCN.pagesEmployeesPage.theBrowserDidNotAllowAutomaticCopyingSelectAnd, "The browser did not allow automatic copying. Select and copy the link manually.")}</small>}
+          <button className="employee-notice-close" type="button" aria-label={text(zhCN.pagesEmployeesPage.closeCreationResult, "Close creation result")} onClick={() => setCreationNotice(null)}>×</button>
         </section>
       )}
 
-      <section className="data-panel" aria-label={text("员工列表", "Employee list")}>
+      <section className="data-panel" aria-label={text(zhCN.pagesEmployeesPage.employeeList, "Employee list")}>
         <ListToolbar
           keyword={keyword}
           status={status}
-          placeholder={text("按员工姓名搜索", "Search by employee name")}
-          createLabel={text("新增员工", "Add employee")}
+          placeholder={text(zhCN.pagesEmployeesPage.searchByEmployeeName, "Search by employee name")}
+          createLabel={text(zhCN.pagesEmployeesPage.addEmployee, "Add employee")}
           statusOptions={[
-            { value: "active", label: text("在职", "Active") },
-            { value: "inactive", label: text("停用", "Inactive") },
+            { value: "active", label: text(zhCN.pagesEmployeesPage.active, "Active") },
+            { value: "inactive", label: text(zhCN.pagesEmployeesPage.inactive, "Inactive") },
           ]}
           onCreate={openCreate}
           onApply={applyFilters}
@@ -364,11 +365,11 @@ export function EmployeesPage() {
           loading={employees.isPending}
           error={employees.isError ? apiErrorMessage(employees.error) : null}
           empty={Boolean(result && result.data.length === 0)}
-          emptyTitle={keyword || status ? text("没有匹配的员工", "No employees match") : text("还没有员工", "No employees yet")}
+          emptyTitle={keyword || status ? text(zhCN.pagesEmployeesPage.noEmployeesMatch, "No employees match") : text(zhCN.pagesEmployeesPage.noEmployeesYet, "No employees yet")}
           emptyDescription={
             keyword || status
-              ? text("尝试调整姓名或在职状态筛选。", "Try changing the name or employment status filters.")
-              : text("新增第一位员工，开始关联登录用户和业务记录。", "Add the first employee to start linking login users and business records.")
+              ? text(zhCN.pagesEmployeesPage.tryChangingTheNameOrEmploymentStatusFilters, "Try changing the name or employment status filters.")
+              : text(zhCN.pagesEmployeesPage.addTheFirstEmployeeToStartLinkingLoginUsers, "Add the first employee to start linking login users and business records.")
           }
           onRetry={() => void employees.refetch()}
         >
@@ -378,11 +379,11 @@ export function EmployeesPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>{text("员工", "Employee")}</th>
-                      <th>{text("邮箱", "Email")}</th>
-                      <th>{text("工作时区", "Working time zone")}</th>
-                      <th>{text("状态", "Status")}</th>
-                      <th><span className="sr-only">{text("操作", "Actions")}</span></th>
+                      <th>{text(zhCN.pagesEmployeesPage.employee, "Employee")}</th>
+                      <th>{text(zhCN.pagesEmployeesPage.email, "Email")}</th>
+                      <th>{text(zhCN.pagesEmployeesPage.workingTimeZone, "Working time zone")}</th>
+                      <th>{text(zhCN.pagesEmployeesPage.status, "Status")}</th>
+                      <th><span className="sr-only">{text(zhCN.pagesEmployeesPage.actions, "Actions")}</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -390,16 +391,16 @@ export function EmployeesPage() {
                       <tr key={employee.id}>
                         <td>
                           <button className="record-name" type="button" onClick={() => openEdit(employee)}>{employee.name}</button>
-                          <small>{employee.employee_code || text("未设置工号", "No employee ID")}</small>
+                          <small>{employee.employee_code || text(zhCN.pagesEmployeesPage.noEmployeeID, "No employee ID")}</small>
                         </td>
                         <td>{employee.email || <span className="muted-value">—</span>}</td>
                         <td className="mono-cell">
-                          {employee.timezone || <span className="muted-value">{text("未设置", "Not set")}</span>}
+                          {employee.timezone || <span className="muted-value">{text(zhCN.pagesEmployeesPage.notSet, "Not set")}</span>}
                         </td>
                         <td><StatusBadge status={employee.status} /></td>
                         <td className="row-actions">
                           <button className="text-action" type="button" onClick={() => openEdit(employee)}>
-                            {text("编辑", "Edit")}
+                            {text(zhCN.pagesEmployeesPage.edit, "Edit")}
                           </button>
                         </td>
                       </tr>
@@ -415,9 +416,9 @@ export function EmployeesPage() {
 
       <Drawer
         open={editing !== undefined}
-        title={editing ? text("编辑员工", "Edit employee") : text("新增员工", "Add employee")}
-        description={editing ? text(`更新 ${editing.name} 的员工档案。`, `Update the employee record for ${editing.name}.`) : createUser ? text("一次创建员工档案，并发送关联登录用户的邀请。", "Create an employee record and send an invitation for its linked login user.") : text("创建员工档案；登录用户可稍后关联。", "Create an employee record; a login user can be linked later.")}
-        submitLabel={editing ? text("保存更改", "Save changes") : createUser ? text("新增员工并邀请", "Add employee and invite") : text("新增员工", "Add employee")}
+        title={editing ? text(zhCN.pagesEmployeesPage.editEmployee, "Edit employee") : text(zhCN.pagesEmployeesPage.addEmployee, "Add employee")}
+        description={editing ? text(zhCN.pagesEmployeesPage.updateTheEmployeeRecordFor(`${editing.name}`), `Update the employee record for ${editing.name}.`) : createUser ? text(zhCN.pagesEmployeesPage.createAnEmployeeRecordAndSendAnInvitationFor, "Create an employee record and send an invitation for its linked login user.") : text(zhCN.pagesEmployeesPage.createAnEmployeeRecordALoginUserCanBe, "Create an employee record; a login user can be linked later.")}
+        submitLabel={editing ? text(zhCN.pagesEmployeesPage.saveChanges, "Save changes") : createUser ? text(zhCN.pagesEmployeesPage.addEmployeeAndInvite, "Add employee and invite") : text(zhCN.pagesEmployeesPage.addEmployee, "Add employee")}
         busy={save.isPending}
         submitDisabled={!editing && createUser && (roles.isPending || roles.isError || !roles.data?.length)}
         error={inviteValidation || (save.isError ? apiErrorMessage(save.error) : null)}
@@ -426,7 +427,7 @@ export function EmployeesPage() {
       >
         <div className="field-grid employee-form">
           <div className="field span-2">
-            <label htmlFor="employee-name">{text("姓名", "Name")} <b>*</b></label>
+            <label htmlFor="employee-name">{text(zhCN.pagesEmployeesPage.name, "Name")} <b>*</b></label>
             <input
               id="employee-name"
               required
@@ -440,7 +441,7 @@ export function EmployeesPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="employee-code">{text("工号", "Employee ID")}</label>
+            <label htmlFor="employee-code">{text(zhCN.pagesEmployeesPage.employeeID, "Employee ID")}</label>
             <input
               id="employee-code"
               maxLength={64}
@@ -453,21 +454,21 @@ export function EmployeesPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="employee-status">{text("状态", "Status")}</label>
+            <label htmlFor="employee-status">{text(zhCN.pagesEmployeesPage.status, "Status")}</label>
             <select
               id="employee-status"
               value={form.status}
               disabled={!editing && createUser}
               onChange={(event) => updateField("status", event.target.value as EmployeeStatus)}
             >
-              <option value="active">{text("在职", "Active")}</option>
-              <option value="inactive">{text("停用", "Inactive")}</option>
+              <option value="active">{text(zhCN.pagesEmployeesPage.active, "Active")}</option>
+              <option value="inactive">{text(zhCN.pagesEmployeesPage.inactive, "Inactive")}</option>
             </select>
-            {!editing && createUser && <small>{text("创建登录用户时，员工档案必须保持在职。", "The employee record must remain active when creating a login user.")}</small>}
+            {!editing && createUser && <small>{text(zhCN.pagesEmployeesPage.theEmployeeRecordMustRemainActiveWhenCreatingA, "The employee record must remain active when creating a login user.")}</small>}
           </div>
 
           <div className="field span-2">
-            <label htmlFor="employee-email">{text("邮箱", "Email")} {createUser && <b>*</b>}</label>
+            <label htmlFor="employee-email">{text(zhCN.pagesEmployeesPage.email, "Email")} {createUser && <b>*</b>}</label>
             <input
               id="employee-email"
               type="email"
@@ -482,7 +483,7 @@ export function EmployeesPage() {
           </div>
 
           <div className="field span-2">
-            <label htmlFor="employee-timezone">{text("工作时区", "Working time zone")}</label>
+            <label htmlFor="employee-timezone">{text(zhCN.pagesEmployeesPage.workingTimeZone, "Working time zone")}</label>
             <input
               id="employee-timezone"
               list="employee-timezones"
@@ -499,7 +500,7 @@ export function EmployeesPage() {
             {fieldErrors.timezone ? (
               <small id="employee-timezone-error" className="field-error" role="alert">{fieldErrors.timezone}</small>
             ) : (
-              <small id="employee-timezone-hint">{text("可输入 UTC 或 IANA 区域时区。", "Enter UTC or an IANA regional time zone.")}</small>
+              <small id="employee-timezone-hint">{text(zhCN.pagesEmployeesPage.enterUTCOrAnIANARegionalTimeZone, "Enter UTC or an IANA regional time zone.")}</small>
             )}
           </div>
 
@@ -509,7 +510,7 @@ export function EmployeesPage() {
                 <input
                   id="employee-create-user"
                   type="checkbox"
-                  aria-label={text("同时创建登录用户", "Create a login user at the same time")}
+                  aria-label={text(zhCN.pagesEmployeesPage.createALoginUserAtTheSameTime, "Create a login user at the same time")}
                   aria-describedby="employee-create-user-hint"
                   checked={createUser}
                   onChange={(event) => {
@@ -519,11 +520,11 @@ export function EmployeesPage() {
                     if (checked) updateField("status", "active");
                   }}
                 />
-                <span><strong>{text("同时创建登录用户", "Create a login user at the same time")}</strong><small id="employee-create-user-hint">{text("使用同一姓名和邮箱，创建关联用户并发送一次性邀请。", "Use the same name and email to create a linked user and send a one-time invitation.")}</small></span>
+                <span><strong>{text(zhCN.pagesEmployeesPage.createALoginUserAtTheSameTime, "Create a login user at the same time")}</strong><small id="employee-create-user-hint">{text(zhCN.pagesEmployeesPage.useTheSameNameAndEmailToCreateA, "Use the same name and email to create a linked user and send a one-time invitation.")}</small></span>
               </label>
               {createUser && (
                 <div className="employee-user-role">
-                  <label htmlFor="employee-user-role">{text("用户角色", "User role")}</label>
+                  <label htmlFor="employee-user-role">{text(zhCN.pagesEmployeesPage.userRole, "User role")}</label>
                   <select
                     id="employee-user-role"
                     value={userRole}
@@ -532,20 +533,20 @@ export function EmployeesPage() {
                   >
                     {roles.data?.map((role) => <option key={role.id} value={role.name}>{roleLabel(role, text)}</option>)}
                   </select>
-                  {roles.isPending && <small>{text("正在加载可用角色…", "Loading available roles…")}</small>}
+                  {roles.isPending && <small>{text(zhCN.pagesEmployeesPage.loadingAvailableRoles, "Loading available roles…")}</small>}
                   {roles.isError && (
                     <div className="employee-user-role-recovery">
-                      <small className="field-error">{text("角色加载失败；也可取消勾选，只创建员工。", "Roles could not be loaded. You can clear the checkbox to create only the employee.")}</small>
+                      <small className="field-error">{text(zhCN.pagesEmployeesPage.rolesCouldNotBeLoadedYouCanClearThe, "Roles could not be loaded. You can clear the checkbox to create only the employee.")}</small>
                       <button className="text-action" type="button" disabled={roles.isFetching} onClick={() => void roles.refetch()}>
-                        {roles.isFetching ? text("正在重试…", "Retrying…") : text("重试加载角色", "Retry loading roles")}
+                        {roles.isFetching ? text(zhCN.pagesEmployeesPage.retrying, "Retrying…") : text(zhCN.pagesEmployeesPage.retryLoadingRoles, "Retry loading roles")}
                       </button>
                     </div>
                   )}
                   {!roles.isPending && !roles.isError && roles.data?.length === 0 && (
-                    <small className="field-error">{text("当前工作空间没有可用角色；取消勾选后仍可只创建员工。", "This workspace has no available roles. Clear the checkbox to create only the employee.")}</small>
+                    <small className="field-error">{text(zhCN.pagesEmployeesPage.thisWorkspaceHasNoAvailableRolesClearTheCheckbox, "This workspace has no available roles. Clear the checkbox to create only the employee.")}</small>
                   )}
                   {!roles.isPending && !roles.isError && Boolean(roles.data?.length) && (
-                    <small>{text("员工接受邀请后，以所选角色进入管理控制台。", "After accepting the invitation, the employee enters the workspace console with the selected role.")}</small>
+                    <small>{text(zhCN.pagesEmployeesPage.afterAcceptingTheInvitationTheEmployeeEntersTheWorkspace, "After accepting the invitation, the employee enters the workspace console with the selected role.")}</small>
                   )}
                 </div>
               )}

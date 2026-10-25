@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_bundles.json').read_text(encoding="utf-8"))
+
+
 import io
 import json
 import re
@@ -68,7 +75,7 @@ def bundle_skill_names(archive: zipfile.ZipFile) -> set[str]:
 def test_bundle_contents_follow_capabilities(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     archive = bundle_zip(client, service, user_id)
@@ -127,7 +134,7 @@ def test_untargeted_skills_keep_reaching_everyone_who_passes_the_gate(client: Te
     before — capability alone decides."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     make_skill(client, service, "acme-open")                                  # ungated
@@ -161,7 +168,7 @@ def test_targeted_skill_reaches_only_its_audience(client: TestClient) -> None:
 def test_role_audience_covers_everyone_currently_in_that_role(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "销售"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F04B061471B1FD16']}, headers=service).json()["data"]["id"]
     seller = invite(client, service, "seller@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-by-role", mode="targeted")
@@ -177,7 +184,7 @@ def test_audience_narrows_but_never_grants_past_the_capability_gate(client: Test
     """
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "li@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-privileged", capability="timesheet.advance", mode="targeted")
@@ -193,7 +200,7 @@ def test_service_key_is_not_subject_to_audience(client: TestClient) -> None:
     capability gate."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "某人"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_61EDB99C5B5ED0F5']}, headers=service).json()["data"]["id"]
     someone = invite(client, service, "someone@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-targeted-elsewhere", mode="targeted")
@@ -210,7 +217,7 @@ def test_manifest_tracks_audience_changes_so_sync_picks_them_up(client: TestClie
     through — so 'installed on next sync' needs no sync-side change."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "同步"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_DCFE516D1114E14F']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "sync@bundle-co.com", "member", emp)
     key = client.post(
         "/api/v1/tenant/api-keys", json={"label": "agent", "user_id": user_id}, headers=service
@@ -265,7 +272,7 @@ def test_audience_preview_flags_people_who_could_not_run_it(client: TestClient) 
     needs to know that rather than wonder why the agent stayed silent."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "li@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-privileged", capability="timesheet.advance", mode="targeted")
@@ -282,7 +289,7 @@ def test_audience_preview_flags_people_who_could_not_run_it(client: TestClient) 
 def test_assignment_is_idempotent_and_removable_and_audited(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小张"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_84FA59AC87EDC647']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "zhang@bundle-co.com", "member", emp)
     make_skill(client, service, "acme-idem", mode="targeted")
 
@@ -330,7 +337,7 @@ def test_assignment_rejects_subjects_that_do_not_exist(client: TestClient) -> No
 def test_bundle_rotation_kills_previous_key(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小李"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "li@bundle-co.com", "member", employee_id)
 
     first = bundle_zip(client, service, user_id)
@@ -383,8 +390,8 @@ def test_custom_capability_gates_custom_skill(client: TestClient) -> None:
         headers=service,
     )
 
-    e1 = client.post("/api/v1/employees", json={"name": "张伟"}, headers=service).json()["data"]["id"]
-    e2 = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    e1 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A3A0BAFD0BEED44D']}, headers=service).json()["data"]["id"]
+    e2 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     vendor_id = invite(client, service, "vendor@partner.com", "vendor", e1)
     member_id = invite(client, service, "wang@bundle-co.com", "member", e2)
 
@@ -449,9 +456,9 @@ def test_scoped_system_capability_gates_custom_skill_by_object_type(client: Test
         headers=service,
     )
 
-    e1 = client.post("/api/v1/employees", json={"name": "日报员"}, headers=service).json()["data"]["id"]
-    e2 = client.post("/api/v1/employees", json={"name": "周报员"}, headers=service).json()["data"]["id"]
-    e3 = client.post("/api/v1/employees", json={"name": "全权员"}, headers=service).json()["data"]["id"]
+    e1 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_C7DD519C17BDD714']}, headers=service).json()["data"]["id"]
+    e2 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_177E128B55F48DA3']}, headers=service).json()["data"]["id"]
+    e3 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_43D92F3F097E70C2']}, headers=service).json()["data"]["id"]
     daily_id = invite(client, service, "daily@bundle-co.com", "daily_only", e1)
     weekly_id = invite(client, service, "weekly@bundle-co.com", "weekly_only", e2)
     any_id = invite(client, service, "any@bundle-co.com", "any_type", e3)
@@ -470,12 +477,12 @@ def test_scoped_system_capability_gates_custom_skill_by_object_type(client: Test
     ).json()["data"]["plain_text_api_key"]
     assert client.post(
         "/api/v1/business-objects",
-        json={"object_type": "daily_report", "title": "今日日报", "payload": {}},
+        json={"object_type": "daily_report", "title": _ZH_TEXT['TEXT_097E5ECEA7653C0C'], "payload": {}},
         headers={"X-API-Key": daily_key},
     ).status_code == 201
     assert client.post(
         "/api/v1/business-objects",
-        json={"object_type": "weekly_report", "title": "本周周报", "payload": {}},
+        json={"object_type": "weekly_report", "title": _ZH_TEXT['TEXT_A2D1FB2454CC758E'], "payload": {}},
         headers={"X-API-Key": daily_key},
     ).status_code == 403
 
@@ -501,8 +508,8 @@ def test_summary_skill_gated_by_business_object_summarize(client: TestClient) ->
         headers=service,
     )
 
-    e1 = client.post("/api/v1/employees", json={"name": "李经理"}, headers=service).json()["data"]["id"]
-    e2 = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    e1 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_1979FF6F68D2DA81']}, headers=service).json()["data"]["id"]
+    e2 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     manager_id = invite(client, service, "manager@bundle-co.com", "manager", e1)
     member_id = invite(client, service, "wang@bundle-co.com", "member", e2)
 
@@ -518,7 +525,7 @@ def test_summary_skill_gated_by_business_object_summarize(client: TestClient) ->
 def test_self_service_manifest_and_sync(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     archive = bundle_zip(client, service, user_id)
@@ -594,10 +601,10 @@ def test_two_employers_install_side_by_side(client: TestClient) -> None:
     silently destroys the first, and the agent cannot tell whose timesheet it
     is filling."""
     first = provision_tenant(client)["service"]
-    second = register_tenant(client, "Starbridge 咨询", "starbridge-consulting.com")
+    second = register_tenant(client, _ZH_TEXT['TEXT_1A1813EACFF4B2EA'], "starbridge-consulting.com")
 
-    e1 = client.post("/api/v1/employees", json={"name": "小王"}, headers=first).json()["data"]["id"]
-    e2 = client.post("/api/v1/employees", json={"name": "小王"}, headers=second).json()["data"]["id"]
+    e1 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=first).json()["data"]["id"]
+    e2 = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=second).json()["data"]["id"]
     u1 = invite(client, first, "wang@bundle-co.com", "member", e1)
     u2 = invite(client, second, "wang@starbridge-consulting.com", "member", e2)
 
@@ -662,7 +669,7 @@ def test_cross_references_between_skills_are_rewritten(client: TestClient) -> No
         },
         headers=service,
     )
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     body = skill_md(bundle_zip(client, service, user_id), "team-playbook")
@@ -687,7 +694,7 @@ def test_frontmatter_name_matches_installed_directory(client: TestClient) -> Non
         json={"name": "team-wiki", "files": {"SKILL.md": "---\nname: team-wiki\ndescription: wiki\n---\nx\n"}},
         headers=service,
     )
-    employee_id = client.post("/api/v1/employees", json={"name": "小名"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_B6D6BE7E406115AB']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "ming@bundle-co.com", "member", employee_id)
 
     archive = bundle_zip(client, service, user_id)
@@ -711,7 +718,7 @@ def test_common_word_custom_skill_does_not_corrupt_other_skills(client: TestClie
         json={"name": "report", "files": {"SKILL.md": "---\nname: report\ndescription: house report\n---\nbody\n"}},
         headers=service,
     )
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     submit = skill_md(bundle_zip(client, service, user_id), "oryh-timesheet-submit")
@@ -733,7 +740,7 @@ def test_custom_skill_name_colliding_with_a_product_base_is_disambiguated(client
         json={"name": "my-work", "files": {"SKILL.md": "---\nname: my-work\ndescription: custom\n---\nx\n"}},
         headers=service,
     )
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang@bundle-co.com", "member", employee_id)
 
     archive = bundle_zip(client, service, user_id)
@@ -825,7 +832,7 @@ def test_browser_session_still_cannot_mint_a_bundle(client: TestClient) -> None:
 def test_bundle_requires_management_capabilities(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wang2@bundle-co.com", "member", employee_id)
     member_key = client.post(
         "/api/v1/tenant/api-keys", json={"label": "m", "user_id": user_id}, headers=service
@@ -844,7 +851,7 @@ def test_skill_brand_rebrands_outbound_bundles_only(client: TestClient) -> None:
 
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小品"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_665FFBB24C8180E1']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "brand@bundle-co.com", "member", employee_id)
 
     # baseline under the default brand: capture the sync keys
@@ -897,8 +904,8 @@ def test_skill_brand_rebrands_outbound_bundles_only(client: TestClient) -> None:
         # the ride-along connect skill is fully branded too…
         connect_md = archive.read("calwbiz-connect/SKILL.md").decode()
         assert connect_md.splitlines()[1] == "name: calwbiz-connect"
-        assert "连接 calwbiz" in connect_md
-        assert "连接 oryh" not in connect_md
+        assert _ZH_TEXT['TEXT_D8C684A6B69E5970'] in connect_md
+        assert _ZH_TEXT['TEXT_3EFB2BB3F61AD9F8'] not in connect_md
         # …while identifiers and the real domain stay untouched
         api_ref = archive.read("calwbiz-connect/references/api.md").decode()
         assert "https://oryh.ai/web/device" in api_ref
@@ -916,7 +923,7 @@ def test_skill_brand_rebrands_outbound_bundles_only(client: TestClient) -> None:
         assert all(name.startswith("calwbiz-connect/") for name in connect.namelist())
         public_md = connect.read("calwbiz-connect/SKILL.md").decode()
         assert public_md.splitlines()[1] == "name: calwbiz-connect"
-        assert "连接 calwbiz" in public_md
+        assert _ZH_TEXT['TEXT_D8C684A6B69E5970'] in public_md
     finally:
         app_settings.skill_brand = original
 
@@ -1001,7 +1008,7 @@ def test_reach_view_agrees_with_the_bundle_it_describes(client: TestClient) -> N
     """
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小周"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_BA0936A106615582']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "zhou@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-open")
@@ -1019,7 +1026,7 @@ def test_reach_view_names_the_reason_and_the_way_out(client: TestClient) -> None
     that skill" is answerable only by deriving the capability matrix by hand."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小吴"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_B36E0725D122880B']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "wu@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-open")
@@ -1058,7 +1065,7 @@ def test_reach_names_both_reasons_when_a_skill_fails_both_axes(client: TestClien
     """
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小赵"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_28996CD67EF89DD7']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "zhao@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-both", capability="timesheet.advance", mode="targeted")
@@ -1080,7 +1087,7 @@ def test_role_reach_answers_for_the_role_not_its_current_members(client: TestCli
     role view must say so."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小孙"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_E637F776439DA323']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "sun@bundle-co.com", "member", emp)
 
     make_skill(client, service, "acme-personal", mode="targeted")
@@ -1105,7 +1112,7 @@ def test_an_agent_can_ask_why_it_lacks_a_skill_without_being_an_admin(
     admin. Their own agent must be able to answer with its own user key."""
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小钱"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_B16AD4AA1CEA99C7']}, headers=service).json()["data"]["id"]
     user_id = invite(client, service, "qian@bundle-co.com", "member", emp)
     make_skill(client, service, "acme-gated", capability="timesheet.advance")
 
@@ -1148,8 +1155,8 @@ def test_a_member_cannot_sweep_the_whole_audit_trail(client: TestClient) -> None
     """
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小陈"}, headers=service).json()["data"]["id"]
-    other_emp = client.post("/api/v1/employees", json={"name": "小孙"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_095826BB2A9F284B']}, headers=service).json()["data"]["id"]
+    other_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_E637F776439DA323']}, headers=service).json()["data"]["id"]
     me = invite(client, service, "chen@bundle-co.com", "member", emp)
     colleague = invite(client, service, "sun@bundle-co.com", "member", other_emp)
 
@@ -1180,13 +1187,13 @@ def test_a_member_still_reads_their_own_trail_and_a_named_record(client: TestCli
     """
     ctx = provision_tenant(client)
     service = ctx["service"]
-    emp = client.post("/api/v1/employees", json={"name": "小陈"}, headers=service).json()["data"]["id"]
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_095826BB2A9F284B']}, headers=service).json()["data"]["id"]
     me = invite(client, service, "chen@bundle-co.com", "member", emp)
     mine = user_key(client, service, me)
 
     obj = client.post(
         "/api/v1/business-objects",
-        json={"object_type": "daily_report", "title": "周一日报", "payload": {}},
+        json={"object_type": "daily_report", "title": _ZH_TEXT['TEXT_904E8BEB5F3D20D5'], "payload": {}},
         headers=mine,
     )
     assert obj.status_code == 201, obj.text
@@ -1210,11 +1217,11 @@ def test_a_member_still_reads_their_own_trail_and_a_named_record(client: TestCli
 
 
 def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClient) -> None:
-    """The incident: an HR person asked their agent to 做7月份员工工资单, and it
+    """The incident: an HR person asked their agent to prepare July employee payslips, and it
     filed the wrong kind of record.
 
-    The payroll skill was not at fault — its description says 生成工资条, its
-    triggers include "生成 7 月份的工资条", its body says a payslip is a
+    The payroll skill was not at fault — its description says generate payslips, its
+    triggers include "generate July payslips", its body says a payslip is a
     `direction=payroll` invoice. It was never handed over, because the tenant's
     HR role holds no payroll verb. And the bundle described only what it
     contained, which reads as a complete account of the workspace and is not
@@ -1228,7 +1235,7 @@ def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClie
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "任嘉"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A9DCFDBA43896F8C']}, headers=service
     ).json()["data"]["id"]
     # the shipped `member` baseline holds no payroll verb, which is exactly the
     # position a tenant-authored `hr_admin` was in
@@ -1245,9 +1252,9 @@ def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClie
     payroll = withheld["oryh-payroll"]
     assert payroll["required_capability"] == "payroll.manage"
     assert "missing_capability" in payroll["reasons"]
-    # the sentence the agent matches 工资单 against — a bare name would leave it
+    # the sentence the agent matches payslip against — a bare name would leave it
     # unable to connect the request to anything
-    assert "工资条" in (payroll["description"] or ""), payroll["description"]
+    assert _ZH_TEXT['TEXT_0480B1210B0C2344'] in (payroll["description"] or ""), payroll["description"]
     # who could grant it, so the person asks the right admin
     assert "admin" in payroll["granted_by_roles"]
 
@@ -1258,7 +1265,7 @@ def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClie
 
     # A plain member is withheld most of the catalog, so the README carries
     # excerpts — but the excerpt has to keep the words that make a request for
-    # 工资条 find this entry. Truncating past them would leave a tidy list that
+    # payslip find this entry. Truncating past them would leave a tidy list that
     # matches nothing, which is the original failure with better formatting.
     #
     # The description is English prose now, with the Chinese trigger terms kept
@@ -1266,7 +1273,7 @@ def test_the_bundle_says_what_this_person_is_not_equipped_to_do(client: TestClie
     # what this asserts, not the phrase the description happened to use before.
     entry = readme[readme.index("- **oryh-payroll**"):]
     entry = entry[: entry.index("\n- **")]
-    assert "工资条" in entry, entry
+    assert _ZH_TEXT['TEXT_0480B1210B0C2344'] in entry, entry
     # …and the full text is still one file away
     assert len(payroll["description"]) > len(entry)
     assert payroll["description"].endswith(".")
@@ -1290,11 +1297,11 @@ def test_a_bundle_that_withholds_nothing_says_nothing(client: TestClient) -> Non
 def test_reach_carries_the_description_an_agent_matches_on(client: TestClient) -> None:
     """`/my/skills/reach` is the live version of the same answer. It reported a
     name and a title — "Oryh Payroll" — which is a label, not something a
-    request for 工资单 connects to."""
+    request for payslip connects to."""
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "任嘉"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A9DCFDBA43896F8C']}, headers=service
     ).json()["data"]["id"]
     user_id = invite(client, service, "hr2@bundle-co.com", "member", employee_id)
 
@@ -1305,7 +1312,7 @@ def test_reach_carries_the_description_an_agent_matches_on(client: TestClient) -
     reach = client.get("/api/v1/my/skills/reach", headers={"X-API-Key": key})
     assert reach.status_code == 200, reach.text
     withheld = {item["name"]: item for item in reach.json()["data"]["withheld"]}
-    assert "工资条" in (withheld["oryh-payroll"]["description"] or "")
+    assert _ZH_TEXT['TEXT_0480B1210B0C2344'] in (withheld["oryh-payroll"]["description"] or "")
 
 
 def test_every_skill_states_a_complete_api_base_url(client: TestClient) -> None:
@@ -1318,7 +1325,7 @@ def test_every_skill_states_a_complete_api_base_url(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "路由"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_B9670C85A4AB939E']}, headers=service
     ).json()["data"]["id"]
     user_id = invite(client, service, "router@bundle-co.com", "member", employee_id)
 
@@ -1361,7 +1368,7 @@ def test_identity_block_separates_the_site_from_the_api(client: TestClient) -> N
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "清单"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_188BC79127E86650']}, headers=service
     ).json()["data"]["id"]
     user_id = invite(client, service, "manifest@bundle-co.com", "member", employee_id)
     archive = bundle_zip(client, service, user_id)
@@ -1392,7 +1399,7 @@ def test_the_deployment_is_named_beside_the_tenant_not_inside_it(client: TestCli
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "环境"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_904DD029C768820D']}, headers=service
     ).json()["data"]["id"]
     user_id = invite(client, service, "env@bundle-co.com", "member", employee_id)
 
@@ -1413,7 +1420,7 @@ def test_the_deployment_is_named_beside_the_tenant_not_inside_it(client: TestCli
 
 
 def test_the_approval_skills_say_a_role_change_is_not_a_person_change() -> None:
-    """One user held two roles — flow admin and 总经理 — and the agent read its
+    """One user held two roles — flow admin and general manager — and the agent read its
     own earlier admin calls as evidence that somebody else was now present,
     refusing a legitimate approval as service impersonation. Identity comes from
     the credential, not from tool history, and every skill that records an
@@ -1439,7 +1446,7 @@ def test_the_approval_skills_say_a_role_change_is_not_a_person_change() -> None:
     # the open-core export, so a flat count would be a silent pass there and an
     # over-strict failure here; `oryh-approve` ships in both.
     assert "oryh-approve" in wants_it
-    # Derived, not a literal: this said "7" and the eighth family (请假) made it
+    # Derived, not a literal: this said "7" and the eighth family (leave) made it
     # wrong. One flow skill per hosted-drivable family, all of them or — in the
     # open-core export, which withholds the family — none.
     from app.core.entity_types import HOSTED_DRIVABLE_ENTITY_TYPES

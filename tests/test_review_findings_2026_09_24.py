@@ -10,6 +10,13 @@ over by a different request; a minted key was kept in plaintext for replay.
 """
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_review_findings_2026_09_24.json').read_text(encoding="utf-8"))
+
+
 import hashlib
 import uuid
 from datetime import timedelta
@@ -37,14 +44,14 @@ def office():
 
 def test_contract_children_follow_the_sides_the_reader_holds(office) -> None:
     client, admin, make = office["client"], office["admin"], office["make"]
-    vendor = make("vendors", name="代工厂")["id"]
-    customer = make("customers", name="市一医院")["id"]
-    product = make("products", name="阀门")["id"]
-    buying = make("contracts", title="采购合同", contract_type="oem", vendor_id=vendor, total_amount=1000)
-    selling = make("contracts", title="销售合同", contract_type="sales", customer_id=customer, total_amount=2000)
+    vendor = make("vendors", name=_ZH_TEXT['TEXT_5454492007E14168'])["id"]
+    customer = make("customers", name=_ZH_TEXT['TEXT_85DED9E803B8D55E'])["id"]
+    product = make("products", name=_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])["id"]
+    buying = make("contracts", title=_ZH_TEXT['TEXT_CD8B37686CC46A06'], contract_type="oem", vendor_id=vendor, total_amount=1000)
+    selling = make("contracts", title=_ZH_TEXT['TEXT_079C4CE02F7DFB13'], contract_type="sales", customer_id=customer, total_amount=2000)
     for contract in (buying, selling):
         make("contract-items", contract_id=contract["id"], product_id=product, quantity=1, unit_price=10)
-        make("contract-terms", contract_id=contract["id"], term_type="payment_terms", title="付款", content="30 天")
+        make("contract-terms", contract_id=contract["id"], term_type="payment_terms", title=_ZH_TEXT['TEXT_6F0546DE73D1C9B0'], content=_ZH_TEXT['TEXT_84AD2952A3089CE7'])
     seller = invite_member(client, admin, "seller", ["contract.manage:sales"])
     for collection in ("contract-items", "contract-terms"):
         rows = client.get(f"/api/v1/{collection}", headers=seller).json()["data"]
@@ -55,14 +62,14 @@ def test_contract_children_follow_the_sides_the_reader_holds(office) -> None:
 
 def test_the_approval_target_alias_runs_the_business_object_rules(office) -> None:
     client, admin, make = office["client"], office["admin"], office["make"]
-    customer = make("customers", name="买家")["id"]
-    account = make("billing-accounts", name="积分", unit_type="points", unit="point", customer_id=customer)
+    customer = make("customers", name=_ZH_TEXT['TEXT_6D6A63F93C43899E'])["id"]
+    account = make("billing-accounts", name=_ZH_TEXT['TEXT_10939F5486458E14'], unit_type="points", unit="point", customer_id=customer)
     defined = client.post("/api/v1/object-type-definitions", headers=admin, json={
         "object_type": "points_grant", "state_machine": {
             "initial": "approved", "states": ["approved"], "transitions": {"approved": []},
             "account_effect": {"reason": "earned", "state": "approved"}}})
     assert defined.status_code == 201, defined.text
-    grant = make("approval-targets", target_type="points_grant", title="送 100 分", status="approved",
+    grant = make("approval-targets", target_type="points_grant", title=_ZH_TEXT['TEXT_37ACBBECE62174DA'], status="approved",
                  payload={"lines": [{"billing_account_id": account["id"], "amount": 100.0}]})
     assert grant["target_type"] == "points_grant", "the alias answers in its own vocabulary"
     posted = client.post(f"/api/v1/business-objects/{grant['id']}/post-entries", headers=admin)
@@ -76,21 +83,21 @@ def test_the_approval_target_alias_runs_the_business_object_rules(office) -> Non
     # a todo naming the row by its old alias is retired when the row is deleted
     memo = client.post("/api/v1/object-type-definitions", headers=admin, json={"object_type": "memo", "json_schema": {}})
     assert memo.status_code == 201
-    note = make("approval-targets", target_type="memo", title="便签")
-    emp = make("employees", name="小李")["id"]
-    todo = make("todos", employee_id=emp, entity_type="approval_target", entity_id=note["id"], title="看一眼")
+    note = make("approval-targets", target_type="memo", title=_ZH_TEXT['TEXT_E3C5F4C93FEBD398'])
+    emp = make("employees", name=_ZH_TEXT['TEXT_3FA37BBC8A2C8B5E'])["id"]
+    todo = make("todos", employee_id=emp, entity_type="approval_target", entity_id=note["id"], title=_ZH_TEXT['TEXT_A07A59C375767053'])
     assert client.delete(f"/api/v1/approval-targets/{note['id']}", headers=admin).status_code == 204
     assert client.get(f"/api/v1/todos/{todo['id']}", headers=admin).json()["data"]["status"] == "cancelled"
 
 
 def test_a_billing_account_detail_names_the_charged_order(office) -> None:
     client, admin, make = office["client"], office["admin"], office["make"]
-    customer = make("customers", name="挂账客户")["id"]
-    account = make("billing-accounts", name="挂账户", unit_type="currency", unit="CNY",
+    customer = make("customers", name=_ZH_TEXT['TEXT_19C941BF907926A2'])["id"]
+    account = make("billing-accounts", name=_ZH_TEXT['TEXT_B338DE32F9506D3E'], unit_type="currency", unit="CNY",
                    customer_id=customer, credit_limit=10000)
-    emp = make("employees", name="销售")["id"]
-    order = make("sales-orders", employee_id=emp, customer_id=customer, title="挂账单", order_no="SO-CHARGED-1",
-                 billing_account_id=account["id"], items=[{"product_name_snapshot": "货", "quantity": 2, "unit_price": 50}])
+    emp = make("employees", name=_ZH_TEXT['TEXT_F04B061471B1FD16'])["id"]
+    order = make("sales-orders", employee_id=emp, customer_id=customer, title=_ZH_TEXT['TEXT_16CA6480E10E3FEB'], order_no="SO-CHARGED-1",
+                 billing_account_id=account["id"], items=[{"product_name_snapshot": _ZH_TEXT['TEXT_5D22F54725862D51'], "quantity": 2, "unit_price": 50}])
     detail = client.get(f"/api/v1/billing-accounts/{account['id']}/detail", headers=admin)
     assert detail.status_code == 200, detail.text
     charged = {row["id"]: row for row in detail.json()["data"]["charged_orders"]}
@@ -101,7 +108,7 @@ def test_a_billing_account_detail_names_the_charged_order(office) -> None:
 
 def test_a_shared_customers_brief_shows_only_what_the_reader_may_list(office) -> None:
     client, admin, make = office["client"], office["admin"], office["make"]
-    customer = make("customers", name="共享客户")["id"]
+    customer = make("customers", name=_ZH_TEXT['TEXT_176DEDEED7EF4B18'])["id"]
     alice_emp, bob_emp = make("employees", name="Alice")["id"], make("employees", name="Bob")["id"]
     alice = invite_member(client, admin, "alice", ["order.submit_own", "crm.own"], employee_id=alice_emp)
     bob = invite_member(client, admin, "bob", ["order.submit_own", "crm.own"], employee_id=bob_emp)
@@ -148,11 +155,11 @@ def test_a_minted_key_is_completed_but_never_replayed(office) -> None:
 
 def test_duplicate_employee_and_resource_codes_are_refused_in_tests_as_in_production(office) -> None:
     client, admin, make = office["client"], office["admin"], office["make"]
-    make("employees", name="甲", employee_code="E-001")
-    dup = client.post("/api/v1/employees", json={"name": "乙", "employee_code": "E-001"}, headers=admin)
+    make("employees", name=_ZH_TEXT['TEXT_33E3580C093111E1'], employee_code="E-001")
+    dup = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_71530D4C49F12C48'], "employee_code": "E-001"}, headers=admin)
     assert dup.status_code in (409, 422), dup.text
-    make("resources", name="会议室 A", code="R-1", resource_type="room")
-    dup = client.post("/api/v1/resources", json={"name": "会议室 B", "code": "R-1", "resource_type": "room"}, headers=admin)
+    make("resources", name=_ZH_TEXT['TEXT_E63C63911C20D7CD'], code="R-1", resource_type="room")
+    dup = client.post("/api/v1/resources", json={"name": _ZH_TEXT['TEXT_C5FDDCBBE0A6A17E'], "code": "R-1", "resource_type": "room"}, headers=admin)
     assert dup.status_code in (409, 422), dup.text
 
 
@@ -160,7 +167,7 @@ def test_the_shipment_desk_deletes_its_own_shipments() -> None:
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Freight Co", email="admin@freight.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        product = client.post("/api/v1/products", json={"name": "货"}, headers=admin).json()["data"]["id"]
+        product = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_5D22F54725862D51']}, headers=admin).json()["data"]["id"]
         desk = invite_member(client, admin, "desk", ["shipment.manage"])
         parcel = client.post("/api/v1/shipments", headers=desk, json={
             "direction": "outbound", "items": [{"product_id": product, "quantity": 1}]})

@@ -11,6 +11,13 @@ with root access.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_standalone_bootstrap.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -68,7 +75,7 @@ def test_first_boot_creates_the_workspace_and_second_boot_creates_nothing() -> N
 def test_supplied_password_is_used_and_never_echoed(monkeypatch) -> None:
     monkeypatch.setattr(settings, "standalone_admin_password", "operator-chose-this1")
     monkeypatch.setattr(settings, "standalone_admin_email", "boss@internal.example")
-    monkeypatch.setattr(settings, "standalone_company_name", "内部部署公司")
+    monkeypatch.setattr(settings, "standalone_company_name", _ZH_TEXT['TEXT_1B6F38ED4F6F8223'])
 
     with make_stack() as (client, engine):
         from sqlalchemy.orm import Session
@@ -76,7 +83,7 @@ def test_supplied_password_is_used_and_never_echoed(monkeypatch) -> None:
         with Session(engine) as db:
             created = ensure_standalone_tenant(db)
             assert created is not None
-            assert created["company_name"] == "内部部署公司"
+            assert created["company_name"] == _ZH_TEXT['TEXT_1B6F38ED4F6F8223']
             # a password the operator supplied is presumed known — the one-time
             # printout must not repeat it
             assert created["admin_password"] is None

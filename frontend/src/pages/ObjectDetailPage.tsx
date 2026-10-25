@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
@@ -47,9 +48,9 @@ export function ObjectDetailPage() {
     return (
       <section className="data-panel object-invalid-detail" role="alert">
         <span className="eyebrow">Invalid object</span>
-        <h2>{text("无法识别这条对象链接", "This object link is not valid")}</h2>
-        <p>{text("对象实体类型或记录 ID 不完整，请返回对象目录重新选择。", "The object entity type or record ID is incomplete. Return to the object directory and choose again.")}</p>
-        <Link className="button" to="/objects">{text("返回业务对象", "Back to business objects")}</Link>
+        <h2>{text(zhCN.pagesObjectDetailPage.thisObjectLinkIsNotValid, "This object link is not valid")}</h2>
+        <p>{text(zhCN.pagesObjectDetailPage.theObjectEntityTypeOrRecordIDIsIncomplete, "The object entity type or record ID is incomplete. Return to the object directory and choose again.")}</p>
+        <Link className="button" to="/objects">{text(zhCN.pagesObjectDetailPage.backToBusinessObjects, "Back to business objects")}</Link>
       </section>
     );
   }
@@ -65,9 +66,9 @@ export function ObjectDetailPage() {
     <div className="object-detail-page" data-testid="object-detail-page">
       <header className="object-detail-intro">
         <div>
-          <Link className="object-back-link" to={backTo}>{text("← 返回对象记录", "← Back to object records")}</Link>
+          <Link className="object-back-link" to={backTo}>{text(zhCN.pagesObjectDetailPage.backToObjectRecords, "← Back to object records")}</Link>
           <span className="eyebrow">Object trace</span>
-          <h2>{detail.data?.heading || text("正在加载对象…", "Loading object…")}</h2>
+          <h2>{detail.data?.heading || text(zhCN.pagesObjectDetailPage.loadingObject, "Loading object…")}</h2>
           <p><code>{validEntityType}</code><span>·</span><code>{decodedRecordId}</code></p>
         </div>
       </header>
@@ -81,24 +82,24 @@ export function ObjectDetailPage() {
         onRetry={() => void detail.refetch()}
       >
         {detail.data && <div className="object-detail-stack">
-          <section className="object-detail-summary" aria-label={text("对象摘要", "Object summary")}>
-            <div><span>{text("当前状态", "Current status")}</span><ObjectStatus status={recordStatus(detail.data)} translate={detail.data.entityKind === "builtin"} /></div>
-            <div><span>{text("对象类型", "Object type")}</span><strong>{detail.data.objectType}</strong><small>{detail.data.entityKind === "builtin" ? text("内建实体", "Built-in entity") : text("自定义对象", "Custom object")}</small></div>
-            <div><span>{text("负责人 / 创建者", "Owner / Creator")}</span><strong>{recordOwner(detail.data)}</strong></div>
-            <div><span>{text("最近更新", "Last updated")}</span><strong>{recordUpdated(detail.data, language)}</strong></div>
+          <section className="object-detail-summary" aria-label={text(zhCN.pagesObjectDetailPage.objectSummary, "Object summary")}>
+            <div><span>{text(zhCN.pagesObjectDetailPage.currentStatus, "Current status")}</span><ObjectStatus status={recordStatus(detail.data)} translate={detail.data.entityKind === "builtin"} /></div>
+            <div><span>{text(zhCN.pagesObjectDetailPage.objectType, "Object type")}</span><strong>{detail.data.objectType}</strong><small>{detail.data.entityKind === "builtin" ? text(zhCN.pagesObjectDetailPage.builtInEntity, "Built-in entity") : text(zhCN.pagesObjectDetailPage.customObject, "Custom object")}</small></div>
+            <div><span>{text(zhCN.pagesObjectDetailPage.ownerCreator, "Owner / Creator")}</span><strong>{recordOwner(detail.data)}</strong></div>
+            <div><span>{text(zhCN.pagesObjectDetailPage.lastUpdated, "Last updated")}</span><strong>{recordUpdated(detail.data, language)}</strong></div>
           </section>
 
           {detail.data.issues.length > 0 && <section className="object-detail-issues" role="status">
-            <strong>{text("部分关联信息未能加载", "Some related information could not be loaded")}</strong>
-            <p>{text("主记录仍可查看；以下区块显示为空不代表业务数据不存在。", "The primary record is still available. Empty sections below do not necessarily mean the business data is missing.")}</p>
+            <strong>{text(zhCN.pagesObjectDetailPage.someRelatedInformationCouldNotBeLoaded, "Some related information could not be loaded")}</strong>
+            <p>{text(zhCN.pagesObjectDetailPage.thePrimaryRecordIsStillAvailableEmptySectionsBelow, "The primary record is still available. Empty sections below do not necessarily mean the business data is missing.")}</p>
             <ul>{detail.data.issues.map((issue) => {
               const labels: Record<string, string> = {
-                "业务规则": text("业务规则", "Business rules"),
-                "审批记录": text("审批记录", "Approval history"),
-                "待办": text("待办", "Todos"),
-                "审计轨迹": text("审计轨迹", "Audit trail"),
-                "关联对象": text("关联对象", "Related objects"),
-                "人员名称": text("人员名称", "Display names"),
+                [zhCN.pagesObjectDetailPage.businessRules]: text(zhCN.pagesObjectDetailPage.businessRules, "Business rules"),
+                [zhCN.pagesObjectDetailPage.approvalHistory]: text(zhCN.pagesObjectDetailPage.approvalHistory, "Approval history"),
+                [zhCN.pagesObjectDetailPage.todos]: text(zhCN.pagesObjectDetailPage.todos, "Todos"),
+                [zhCN.pagesObjectDetailPage.auditTrail]: text(zhCN.pagesObjectDetailPage.auditTrail, "Audit trail"),
+                [zhCN.pagesObjectDetailPage.relatedObjects]: text(zhCN.pagesObjectDetailPage.relatedObjects, "Related objects"),
+                [zhCN.pagesObjectDetailPage.displayNames]: text(zhCN.pagesObjectDetailPage.displayNames, "Display names"),
               };
               return <li key={`${issue.section}:${issue.message}`}><b>{labels[issue.section] || issue.section}</b>{text("：", ": ")}{issue.message}</li>;
             })}</ul>

@@ -53,6 +53,30 @@ def test_a_users_manage_holder_cannot_build_or_widen_a_role_past_itself(shop) ->
         "the administrator still may"
 
 
+def test_a_users_manage_holder_cannot_narrow_a_role_wider_than_itself(shop) -> None:
+    """Narrowing a role demotes everyone on it at once — the same act as
+    demoting each of them (review 2026-10-22, N1)."""
+    c, desk, admin = shop["client"], shop["desk"], shop["admin"]
+    wide = DESK + ["keys.manage"]
+    made = c.post("/api/v1/roles", headers=admin, json={"name": "access_desk", "title": "Access", "permissions": wide})
+    assert made.status_code == 201, made.text
+
+    narrowed = c.patch("/api/v1/roles/access_desk", headers=desk, json={"permissions": ["inventory.manage"]})
+    assert narrowed.status_code == 403, narrowed.text
+    assert "keys.manage" in narrowed.text
+    assert c.patch("/api/v1/roles/access_desk", headers=desk, json={"title": "x"}).status_code == 403, \
+        "a wider role is the administrator's, whatever the field"
+    roles = c.get("/api/v1/roles", headers=admin).json()["data"]
+    assert sorted(next(r for r in roles if r["name"] == "access_desk")["permissions"]) == sorted(wide), "nothing moved"
+
+    picker = c.post("/api/v1/roles", headers=desk, json={"name": "picker", "title": "Picker", "permissions": ["inventory.manage"]})
+    assert picker.status_code == 201, picker.text
+    assert c.patch("/api/v1/roles/picker", headers=desk, json={"permissions": ["order.submit_own"]}).status_code == 200, \
+        "a role within its own reach is still the desk's"
+    assert c.patch("/api/v1/roles/access_desk", headers=admin, json={"permissions": ["inventory.manage"]}).status_code == 200, \
+        "the administrator still may"
+
+
 def test_moving_a_person_into_admin_is_the_same_grant(shop) -> None:
     c, desk, admin = shop["client"], shop["desk"], shop["admin"]
     colleague = _invite(c, admin, "stock_desk", "colleague@ladder.example").json()["data"]

@@ -18,6 +18,7 @@ from app.core.legacy_usage import legacy_tenant_successor
 from app.core.security import hash_token
 from app.db.session import get_db
 from app.models import Tenant, User, UserSession
+from app.locales.zh_CN.web import MESSAGES as CHINESE_WEB_MESSAGES
 from app.schemas import (
     AcceptInvitationRequest,
     LoginRequest,
@@ -25,6 +26,7 @@ from app.schemas import (
 
 router = APIRouter(prefix="/web")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.globals["zh_web"] = CHINESE_WEB_MESSAGES
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 

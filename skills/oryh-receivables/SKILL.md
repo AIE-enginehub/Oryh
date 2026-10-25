@@ -1,6 +1,6 @@
 ---
 name: oryh-receivables
-description: Use when accounts receivable bills a customer and collects — 给客户开票 from an order or free-standing, 登记收款, 核销 money against invoices (and reverse a wrong match), chase overdue, refund a sales return. Not for filing the order (oryh-order-submit), the supplier side (oryh-payables) or approving anything.
+description: Use when accounts receivable bills a customer and collects — invoice the customer from an order or free-standing, record a receipt, allocate receipts against invoices (and reverse a wrong match), chase overdue, refund a sales return. Not for filing the order (oryh-order-submit), the supplier side (oryh-payables) or approving anything.
 required_capability: invoice.manage:sales
 ---
 
@@ -272,3 +272,6 @@ policy decision: confirm with the principal, never take it on your own reading.
 
 - [references/api.md](references/api.md): every endpoint, the settlement contract, and
   the guards with the exact conditions that raise them.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

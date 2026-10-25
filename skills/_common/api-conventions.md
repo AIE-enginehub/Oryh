@@ -5,8 +5,12 @@
 > is not in it does not exist.
 > <!-- only: bundle -->
 > If your runtime runs shell commands, one call
-> is one command — `python3 scripts/oryh_request.py GET /todos status=open`,
-> in this skill's own directory — not a script written per request.
+> is one helper invocation, using the loaded skill's directory to resolve
+> its script. Resolve the absolute path from the `SKILL.md` you just read:
+> `python3 /absolute/skill-dir/scripts/oryh_request.py GET /todos status=open`.
+> The shell starts in the runtime working directory, which is not necessarily
+> the skill directory; a previous call's `cd` does not establish a later
+> call's directory. Use the resolved absolute helper path on every request.
 > <!-- /only -->
 > <!-- only: mcp -->
 > Every call is one `oryh_request` tool call — `{"method", "path",
@@ -75,6 +79,21 @@
 >   add a new one. Every document with lines has one: timesheets, expense
 >   claims (header fields too), invoices, quotations, orders, purchase
 >   requests and orders, contracts, recipes, picklists, shipments, deals.
+> - **Request bodies and shell results.** Use a structured body in the request
+>   tool. In a shell runtime, short literal JSON is fine; for long notes or
+>   comments containing quotes/newlines, serialize a data object with
+>   `json.dumps` into a local UTF-8 JSON file, then invoke the existing helper
+>   with `--json @/absolute/body.json` as a separate command. Use the actual
+>   absolute file path for both writing the file and reading it; neither the
+>   helper nor its body file is relative to the runtime working directory. Do not concatenate JSON
+>   fragments or interpolate prose into shell commands. The body file holds
+>   business fields only; authentication stays in the configured credential.
+>   A local JSON parse error occurs before the HTTP write: fix serialization
+>   and send the same intended fact, rather than adding a second decision.
+>   Read API envelopes as JSON (`data`/`meta`), not through text/grep pipelines
+>   whose no-match exit can mask an empty result. A nonzero shell exit with
+>   no output establishes neither success nor an empty API list; inspect the
+>   command/error and recover the request outcome before reporting a fact.
 > - **Retries.** Every write (POST, PATCH, PUT, DELETE) takes an
 >   `Idempotency-Key` header — a token you choose for that one act, a UUID
 >   will do. Send it on every write; if the answer never arrives, send the

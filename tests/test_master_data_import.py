@@ -8,6 +8,13 @@ spreadsheet never blanks out fields it simply does not carry.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_master_data_import.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 
@@ -35,8 +42,8 @@ def test_bulk_import_creates_then_upserts_idempotently(client: TestClient) -> No
     which is what makes "just re-run it after fixing a row" safe advice."""
     headers = provision(client)
     rows = [
-        {"product_code": "P-001", "name": "内窥镜镜头", "unit": "个", "list_price": 1200.00},
-        {"product_code": "P-002", "name": "光源模块", "unit": "台", "list_price": 8600.50},
+        {"product_code": "P-001", "name": _ZH_TEXT['TEXT_C7005F6AFFA067C1'], "unit": _ZH_TEXT['TEXT_3A116815BC9DA10D'], "list_price": 1200.00},
+        {"product_code": "P-002", "name": _ZH_TEXT['TEXT_0A307701BE8A1769'], "unit": _ZH_TEXT['TEXT_991363A244F032C7'], "list_price": 8600.50},
     ]
 
     first = upsert(client, headers, rows)
@@ -65,29 +72,29 @@ def test_partial_spreadsheet_does_not_blank_curated_fields(client: TestClient) -
     upsert(
         client,
         headers,
-        [{"product_code": "P-100", "name": "手术台", "spec": "标准型 2.1m", "unit": "台", "list_price": 30000}],
+        [{"product_code": "P-100", "name": _ZH_TEXT['TEXT_396C795FDCCBE2FB'], "spec": _ZH_TEXT['TEXT_8B1BFAE473319761'], "unit": _ZH_TEXT['TEXT_991363A244F032C7'], "list_price": 30000}],
     )
 
-    upsert(client, headers, [{"product_code": "P-100", "name": "手术台", "list_price": 27500}])
+    upsert(client, headers, [{"product_code": "P-100", "name": _ZH_TEXT['TEXT_396C795FDCCBE2FB'], "list_price": 27500}])
 
     product = [p for p in list_products(client, headers) if p["product_code"] == "P-100"][0]
     assert product["list_price"] == 27500
-    assert product["spec"] == "标准型 2.1m"
-    assert product["unit"] == "台"
+    assert product["spec"] == _ZH_TEXT['TEXT_8B1BFAE473319761']
+    assert product["unit"] == _ZH_TEXT['TEXT_991363A244F032C7']
 
 
 def test_dry_run_previews_exactly_and_writes_nothing(client: TestClient) -> None:
     """The preview is produced by the write path itself, so what the agent
     shows the person cannot drift from what committing would do."""
     headers = provision(client)
-    upsert(client, headers, [{"product_code": "P-200", "name": "旧名", "list_price": 100}])
+    upsert(client, headers, [{"product_code": "P-200", "name": _ZH_TEXT['TEXT_7E54EE2705F707CD'], "list_price": 100}])
 
     preview = upsert(
         client,
         headers,
         [
-            {"product_code": "P-200", "name": "新名", "list_price": 150},
-            {"product_code": "P-201", "name": "新产品", "list_price": 90},
+            {"product_code": "P-200", "name": _ZH_TEXT['TEXT_1BE0BF02458C8BA1'], "list_price": 150},
+            {"product_code": "P-201", "name": _ZH_TEXT['TEXT_A84A4D92CA2E98C8'], "list_price": 90},
         ],
         dry_run=True,
     )
@@ -99,15 +106,15 @@ def test_dry_run_previews_exactly_and_writes_nothing(client: TestClient) -> None
     # nothing moved
     products = list_products(client, headers)
     assert len(products) == 1
-    assert products[0]["name"] == "旧名"
+    assert products[0]["name"] == _ZH_TEXT['TEXT_7E54EE2705F707CD']
 
     # and committing for real produces the same counts the preview promised
     real = upsert(
         client,
         headers,
         [
-            {"product_code": "P-200", "name": "新名", "list_price": 150},
-            {"product_code": "P-201", "name": "新产品", "list_price": 90},
+            {"product_code": "P-200", "name": _ZH_TEXT['TEXT_1BE0BF02458C8BA1'], "list_price": 150},
+            {"product_code": "P-201", "name": _ZH_TEXT['TEXT_A84A4D92CA2E98C8'], "list_price": 90},
         ],
     )
     assert real["summary"]["created"] == preview["summary"]["created"]
@@ -118,7 +125,7 @@ def test_blank_code_is_rejected_and_never_invented(client: TestClient) -> None:
     headers = provision(client)
     response = client.post(
         "/api/v1/products/bulk",
-        json={"rows": [{"product_code": "   ", "name": "无编码"}]},
+        json={"rows": [{"product_code": "   ", "name": _ZH_TEXT['TEXT_C9B09ED0E611861A']}]},
         headers=headers,
     )
     # min_length=1 catches an empty string at the schema; whitespace-only is
@@ -139,8 +146,8 @@ def test_duplicate_code_within_one_batch_is_an_error(client: TestClient) -> None
         client,
         headers,
         [
-            {"product_code": "P-300", "name": "第一行", "list_price": 10},
-            {"product_code": "P-300", "name": "第二行", "list_price": 20},
+            {"product_code": "P-300", "name": _ZH_TEXT['TEXT_5E9D0EDE025B4748'], "list_price": 10},
+            {"product_code": "P-300", "name": _ZH_TEXT['TEXT_7B13FE1D57888893'], "list_price": 20},
         ],
     )
     assert data["applied"] is False
@@ -154,9 +161,9 @@ def test_duplicate_code_within_one_batch_is_an_error(client: TestClient) -> None
 def test_on_error_abort_writes_nothing_while_skip_imports_the_rest(client: TestClient) -> None:
     headers = provision(client)
     rows = [
-        {"product_code": "P-400", "name": "好行一"},
-        {"product_code": "P-400", "name": "重复行"},
-        {"product_code": "P-401", "name": "好行二"},
+        {"product_code": "P-400", "name": _ZH_TEXT['TEXT_871ACEB4A4940004']},
+        {"product_code": "P-400", "name": _ZH_TEXT['TEXT_9408C85548203E7E']},
+        {"product_code": "P-401", "name": _ZH_TEXT['TEXT_58F052291E8DECBA']},
     ]
 
     aborted = upsert(client, headers, rows)
@@ -172,8 +179,8 @@ def test_on_error_abort_writes_nothing_while_skip_imports_the_rest(client: TestC
 
 def test_code_is_trimmed_so_stray_whitespace_is_not_a_second_product(client: TestClient) -> None:
     headers = provision(client)
-    upsert(client, headers, [{"product_code": "P-500", "name": "产品"}])
-    again = upsert(client, headers, [{"product_code": "  P-500  ", "name": "产品"}])
+    upsert(client, headers, [{"product_code": "P-500", "name": _ZH_TEXT['TEXT_AEA82737CC01867D']}])
+    again = upsert(client, headers, [{"product_code": "  P-500  ", "name": _ZH_TEXT['TEXT_AEA82737CC01867D']}])
     assert again["summary"]["unchanged"] == 1
     assert len(list_products(client, headers)) == 1
 
@@ -182,11 +189,11 @@ def test_reimporting_an_archived_code_revives_it(client: TestClient) -> None:
     """Archived rows keep their code, so a re-import updates the original
     instead of leaving a second product beside it."""
     headers = provision(client)
-    upsert(client, headers, [{"product_code": "P-600", "name": "停用品"}])
+    upsert(client, headers, [{"product_code": "P-600", "name": _ZH_TEXT['TEXT_A5A97A2105431276']}])
     product_id = list_products(client, headers)[0]["id"]
     assert client.delete(f"/api/v1/products/{product_id}", headers=headers).status_code == 204
 
-    data = upsert(client, headers, [{"product_code": "P-600", "name": "复活品", "status": "active"}])
+    data = upsert(client, headers, [{"product_code": "P-600", "name": _ZH_TEXT['TEXT_40B8E62B84A06445'], "status": "active"}])
     assert data["summary"]["updated"] == 1
     products = list_products(client, headers)
     assert len(products) == 1
@@ -200,7 +207,7 @@ def test_bulk_import_requires_master_data_manage(client: TestClient) -> None:
 
     denied = client.post(
         "/api/v1/products/bulk",
-        json={"rows": [{"product_code": "X-1", "name": "越权"}]},
+        json={"rows": [{"product_code": "X-1", "name": _ZH_TEXT['TEXT_D4BD682AF531F1B1']}]},
         headers=reader,
     )
     assert denied.status_code == 403
@@ -213,8 +220,8 @@ def test_vendors_and_customers_share_the_same_contract(client: TestClient) -> No
         "/api/v1/vendors/bulk",
         json={
             "rows": [
-                {"vendor_code": "V-001", "name": "华东医疗器械", "tax_id": "91310000MA1K3"},
-                {"vendor_code": "V-002", "name": "南方光学"},
+                {"vendor_code": "V-001", "name": _ZH_TEXT['TEXT_B61BD2B509D29104'], "tax_id": "91310000MA1K3"},
+                {"vendor_code": "V-002", "name": _ZH_TEXT['TEXT_BFE0AE452A279646']},
             ]
         },
         headers=headers,
@@ -226,7 +233,7 @@ def test_vendors_and_customers_share_the_same_contract(client: TestClient) -> No
         "/api/v1/customers/bulk",
         json={
             "rows": [
-                {"customer_code": "C-001", "name": "市第一医院", "address": "上海市黄浦区"},
+                {"customer_code": "C-001", "name": _ZH_TEXT['TEXT_B6F9F6281C5CEB6E'], "address": _ZH_TEXT['TEXT_552E00AC7C491BC9']},
             ],
             "dry_run": True,
         },
@@ -241,16 +248,16 @@ def test_single_create_reports_a_duplicate_code_as_conflict(client: TestClient) 
     """The unique index must surface as a 409 the caller can act on, never as
     an unhandled integrity error."""
     headers = provision(client)
-    upsert(client, headers, [{"product_code": "P-700", "name": "已存在"}])
+    upsert(client, headers, [{"product_code": "P-700", "name": _ZH_TEXT['TEXT_E8B1268C1E3610F2']}])
 
     clash = client.post(
-        "/api/v1/products", json={"name": "重复编码", "product_code": "P-700"}, headers=headers
+        "/api/v1/products", json={"name": _ZH_TEXT['TEXT_0121909D1410B5D1'], "product_code": "P-700"}, headers=headers
     )
     assert clash.status_code == 409, clash.text
     assert "P-700" in clash.json()["detail"]
 
     other = client.post(
-        "/api/v1/products", json={"name": "另一个", "product_code": "P-701"}, headers=headers
+        "/api/v1/products", json={"name": _ZH_TEXT['TEXT_5E3B84F8874FBCE8'], "product_code": "P-701"}, headers=headers
     )
     assert other.status_code == 201
     rename = client.patch(
@@ -276,8 +283,8 @@ def test_import_is_audited_once_with_a_uuid_entity_id(client: TestClient) -> Non
         client,
         headers,
         [
-            {"product_code": "A-1", "name": "甲"},
-            {"product_code": "A-2", "name": "乙"},
+            {"product_code": "A-1", "name": _ZH_TEXT['TEXT_33E3580C093111E1']},
+            {"product_code": "A-2", "name": _ZH_TEXT['TEXT_71530D4C49F12C48']},
         ],
     )
 
@@ -291,7 +298,7 @@ def test_import_is_audited_once_with_a_uuid_entity_id(client: TestClient) -> Non
     assert entry["detail"]["created"] == 2
 
     # a dry run is not an import and must leave no trail
-    upsert(client, headers, [{"product_code": "A-3", "name": "丙"}], dry_run=True)
+    upsert(client, headers, [{"product_code": "A-3", "name": _ZH_TEXT['TEXT_C680A614513FA8A7']}], dry_run=True)
     after = client.get("/api/v1/audit-logs?action=master_data.imported", headers=headers)
     assert len(after.json()["data"]) == 1
 
@@ -321,7 +328,7 @@ def test_master_data_skill_ships_only_to_authorized_bundles(client: TestClient) 
 
 def test_batch_size_is_bounded(client: TestClient) -> None:
     headers = provision(client)
-    rows = [{"product_code": f"B-{i:04d}", "name": f"产品{i}"} for i in range(501)]
+    rows = [{"product_code": f"B-{i:04d}", "name": f"{_ZH_TEXT['TEXT_AEA82737CC01867D']}{i}"} for i in range(501)]
     response = client.post("/api/v1/products/bulk", json={"rows": rows}, headers=headers)
     assert response.status_code == 422
 
@@ -335,10 +342,10 @@ def test_rerun_is_unchanged_for_prices_floats_cannot_represent(client: TestClien
     mistake, fired by the server's own comparison."""
     headers = provision(client)
     rows = [
-        {"product_code": "P-301", "name": "导管鞘", "list_price": 19.9},
-        {"product_code": "P-302", "name": "缝合线", "list_price": 1234.56},
-        {"product_code": "P-303", "name": "拉钩", "list_price": 0.01},
-        {"product_code": "P-304", "name": "托盘", "list_price": 30000},
+        {"product_code": "P-301", "name": _ZH_TEXT['TEXT_ADFBE6F133AD4366'], "list_price": 19.9},
+        {"product_code": "P-302", "name": _ZH_TEXT['TEXT_1B1AABCF1272E356'], "list_price": 1234.56},
+        {"product_code": "P-303", "name": _ZH_TEXT['TEXT_34141C98D7F98B1A'], "list_price": 0.01},
+        {"product_code": "P-304", "name": _ZH_TEXT['TEXT_F2BCFBB4C9DCE340'], "list_price": 30000},
     ]
     first = upsert(client, headers, rows)
     assert first["summary"]["created"] == 4

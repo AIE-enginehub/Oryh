@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 
@@ -123,7 +124,7 @@ export function ReferencePicker({ id, target, value, required, onChange }: Refer
         aria-controls={listId}
         aria-autocomplete="list"
         required={required}
-        placeholder={text(`搜索${label}…或粘贴 id`, `Search ${label}… or paste an id`)}
+        placeholder={text(zhCN.componentsDataReferencePicker.searchOrPasteAnId(`${label}`), `Search ${label}… or paste an id`)}
         value={open ? keyword : value}
         onFocus={() => { setOpen(true); setKeyword(""); }}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
@@ -138,12 +139,12 @@ export function ReferencePicker({ id, target, value, required, onChange }: Refer
       )}
       {value && picked.isError && <small className="reference-picked muted-value">{value}</small>}
       {value && !open && (
-        <button type="button" className="text-action" onClick={() => onChange("")}>{text("清除", "Clear")}</button>
+        <button type="button" className="text-action" onClick={() => onChange("")}>{text(zhCN.componentsDataReferencePicker.clear, "Clear")}</button>
       )}
       {open && keyword.trim() && (
         <ul id={listId} role="listbox" className="reference-options">
-          {search.isPending && <li className="muted-value">{text("搜索中…", "Searching…")}</li>}
-          {search.data?.length === 0 && <li className="muted-value">{text("没有匹配", "No match")}</li>}
+          {search.isPending && <li className="muted-value">{text(zhCN.componentsDataReferencePicker.searching, "Searching…")}</li>}
+          {search.data?.length === 0 && <li className="muted-value">{text(zhCN.componentsDataReferencePicker.noMatch, "No match")}</li>}
           {(search.data ?? []).map((row) => (
             <li key={String(row.id)} role="option" aria-selected={row.id === value}>
               <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(String(row.id)); setOpen(false); }}>

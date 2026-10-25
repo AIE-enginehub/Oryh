@@ -21,6 +21,13 @@ into a false conflict.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / '../locales/zh-CN/postgres/test_fin_register_reference_uniqueness.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from sqlalchemy import text
 
@@ -54,7 +61,7 @@ def cashier_desk(pg_sessionmaker, pg_schema):
             account = client.post(
                 "/api/v1/fin-accounts",
                 headers=headers,
-                json={"name": "招行基本户", "opening_balance": 1000.0},
+                json={"name": _ZH_TEXT['TEXT_4E7B023A37DB41C8'], "opening_balance": 1000.0},
             ).json()["data"]
             yield {"client": client, "headers": headers, "account": account}
     finally:
@@ -162,7 +169,7 @@ def test_null_references_repeat_and_other_accounts_keep_their_own(
     desk["client"].post("/api/v1/fin-account-transactions",
                         headers=desk["headers"], json=_line(desk))
     other = desk["client"].post(
-        "/api/v1/fin-accounts", headers=desk["headers"], json={"name": "工行户"}
+        "/api/v1/fin-accounts", headers=desk["headers"], json={"name": _ZH_TEXT['TEXT_14F2461F15BDC798']}
     ).json()["data"]
     elsewhere = desk["client"].post(
         "/api/v1/fin-account-transactions",

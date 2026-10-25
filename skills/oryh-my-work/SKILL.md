@@ -1,6 +1,6 @@
 ---
 name: oryh-my-work
-description: Use when a person's agent checks what its principal should do in oryh — on session start, on demand ("我有什么要办的"、"我的todo"), or periodically. Lists open todos, overdue items and in-flight approvals, briefly. Read-mostly; the only write is completing a todo the principal says is done.
+description: Use when a person's agent checks what its principal should do in oryh — on session start, on demand ("what needs my attention", "my todos"), or periodically. Lists open todos, overdue items and in-flight approvals, briefly. Read-mostly; the only write is completing a todo the principal says is done.
 ---
 
 # Oryh My Work
@@ -154,3 +154,6 @@ If the principal confirms an item is done (non-approval todos like follow-ups), 
 ## Reference
 
 - [references/api.md](references/api.md): the exact queries with parameters.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

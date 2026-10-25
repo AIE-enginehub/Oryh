@@ -1,10 +1,10 @@
 """Returns live in the order tables, and the kind picks the machine.
 
-The deciding requirement: 退单跟订单一张表. A sales return is a `sales_orders`
+The deciding requirement: returns share the order table. A sales return is a `sales_orders`
 row with order_kind='return', pointing at the order it reverses through
 `original_order_id` — and one order carrying MANY returns is simply many rows
 naming the same original. What the kind buys is the LIFECYCLE: an e-commerce
-return runs 申请→发出→收到→验货入库→退款 (the shipped `sales_return` machine),
+return runs request→sent→received→inspected stock receipt→refunded (the shipped `sales_return` machine),
 which is not an order's life, and the tenant renames or reshapes either
 machine independently — the same one-sentence customization every builtin has.
 
@@ -18,6 +18,13 @@ against them twice), a return reverses an ORDER (never another return), and
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_order_returns.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant
@@ -28,13 +35,13 @@ def shop():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Shop Co", email="admin@shop.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "店长"},
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                           headers=admin).json()["data"]["id"]
-        cust = client.post("/api/v1/customers", json={"name": "买家"},
+        cust = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']},
                            headers=admin).json()["data"]["id"]
 
         def order(**extra) -> dict:
-            body = {"employee_id": emp, "customer_id": cust, "title": "一单货", **extra}
+            body = {"employee_id": emp, "customer_id": cust, "title": _ZH_TEXT['TEXT_3FEE38AD321D0913'], **extra}
             r = client.post("/api/v1/sales-orders", json=body, headers=admin)
             assert r.status_code == 201, r.text
             return r.json()["data"]
@@ -48,9 +55,9 @@ def test_a_return_links_its_order_and_one_order_takes_many(shop) -> None:
     original = shop["order"](status="signed")
 
     first = shop["order"](order_kind="return", original_order_id=original["id"],
-                          title="第一次退两件")
+                          title=_ZH_TEXT['TEXT_495B86DAA3594C03'])
     second = shop["order"](order_kind="return", original_order_id=original["id"],
-                           title="第二次又退一件")
+                           title=_ZH_TEXT['TEXT_A5EECC0F00AB3932'])
     assert first["order_kind"] == "return" and second["order_kind"] == "return"
     assert first["original_order_id"] == original["id"]
 
@@ -79,18 +86,18 @@ def test_a_return_reverses_an_order_never_another_return(shop) -> None:
 
     chained = client.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": shop["employee"], "customer_id": shop["customer"],
-        "title": "退退单?", "order_kind": "return", "original_order_id": ret["id"]})
+        "title": _ZH_TEXT['TEXT_245B9B74C5CE7B0C'], "order_kind": "return", "original_order_id": ret["id"]})
     assert chained.status_code == 422, chained.text
     assert "itself a" in chained.json()["detail"]
 
     on_an_order = client.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": shop["employee"], "customer_id": shop["customer"],
-        "title": "订单带原单?", "original_order_id": original["id"]})
+        "title": _ZH_TEXT['TEXT_DE2EAD30164972D8'], "original_order_id": original["id"]})
     assert on_an_order.status_code == 422, "original_order_id belongs on returns only"
 
     ghost = client.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": shop["employee"], "customer_id": shop["customer"],
-        "title": "查无此单", "order_kind": "return",
+        "title": _ZH_TEXT['TEXT_4EA296F7C7FC0057'], "order_kind": "return",
         "original_order_id": "00000000-0000-0000-0000-000000000000"})
     assert ghost.status_code == 404
 
@@ -100,7 +107,7 @@ def test_an_orphan_return_is_recordable_and_matched_later(shop) -> None:
     knows which order sent it. Record now, link later — the same doctrine the
     warehouse ledger keeps."""
     client, admin = shop["client"], shop["admin"]
-    orphan = shop["order"](order_kind="return", title="不知道哪单的退货")
+    orphan = shop["order"](order_kind="return", title=_ZH_TEXT['TEXT_F7A2B0F7091D0BBB'])
     assert orphan["original_order_id"] is None
 
     original = shop["order"]()
@@ -116,11 +123,11 @@ def test_an_orphan_return_is_recordable_and_matched_later(shop) -> None:
 
 def test_the_kind_picks_the_machine(shop) -> None:
     """An order and a return in one table, two lifecycles: the return walks
-    申请→发出→收到→验货入库→退款 and the ORDER machine's states are not legal
+    request→sent→received→inspected stock receipt→refunded and the ORDER machine's states are not legal
     on it — without this, one table would have meant one smeared vocabulary,
     which is the mess the kind split exists to prevent."""
     client, admin = shop["client"], shop["admin"]
-    ret = shop["order"](order_kind="return", title="走完整退货流程")
+    ret = shop["order"](order_kind="return", title=_ZH_TEXT['TEXT_D50B69F27DB2CF38'])
 
     for state in ("submitted", "approved", "in_transit", "received", "inspected", "refunded"):
         moved = client.patch(f"/api/v1/sales-orders/{ret['id']}", headers=admin,
@@ -138,11 +145,11 @@ def test_the_kind_picks_the_machine(shop) -> None:
         "the order machine knows nothing of the return's states"
     crossed = client.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": shop["employee"], "customer_id": shop["customer"],
-        "title": "订单不能生在退货状态里", "status": "in_transit"})
+        "title": _ZH_TEXT['TEXT_AC3756A3AAF3E760'], "status": "in_transit"})
     assert crossed.status_code == 422, crossed.text
 
     born_mid_flow = shop["order"](order_kind="return", status="received",
-                                  title="平台同步来的既成事实")
+                                  title=_ZH_TEXT['TEXT_B89627A751D844FB'])
     assert born_mid_flow["status"] == "received", \
         "e-commerce returns arrive as facts — create accepts any state of the RETURN machine"
 
@@ -168,11 +175,11 @@ def test_the_status_vocabulary_follows_the_kind_filter(shop) -> None:
 def test_a_return_never_occupies_credit(shop) -> None:
     client, admin = shop["client"], shop["admin"]
     account = client.post("/api/v1/billing-accounts", headers=admin, json={
-        "name": "买家往来户", "unit_type": "currency", "unit": "CNY",
+        "name": _ZH_TEXT['TEXT_2649DB128C563910'], "unit_type": "currency", "unit": "CNY",
         "customer_id": shop["customer"], "credit_limit": 1000.0}).json()["data"]["id"]
     refused = client.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": shop["employee"], "customer_id": shop["customer"],
-        "title": "退货还想挂账", "order_kind": "return",
+        "title": _ZH_TEXT['TEXT_5B059BEA2BA0ABD9'], "order_kind": "return",
         "billing_account_id": account, "total_amount": 100.0})
     assert refused.status_code == 422, refused.text
     assert "payment document" in refused.json()["detail"], \
@@ -181,16 +188,16 @@ def test_a_return_never_occupies_credit(shop) -> None:
 
 def test_purchase_returns_mirror_the_shape(shop) -> None:
     client, admin = shop["client"], shop["admin"]
-    vendor = client.post("/api/v1/vendors", json={"name": "供应商"},
+    vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_033ED59452549C51']},
                          headers=admin).json()["data"]["id"]
     po = client.post("/api/v1/purchase-orders", headers=admin, json={
-        "vendor_id": vendor, "employee_id": shop["employee"], "title": "进一批货"})
+        "vendor_id": vendor, "employee_id": shop["employee"], "title": _ZH_TEXT['TEXT_3341BA8A2C719C06']})
     assert po.status_code == 201, po.text
     po = po.json()["data"]
     assert po["order_no" if "order_no" in po else "po_number"].startswith("PO-")
 
     ret = client.post("/api/v1/purchase-orders", headers=admin, json={
-        "vendor_id": vendor, "employee_id": shop["employee"], "title": "退给供应商",
+        "vendor_id": vendor, "employee_id": shop["employee"], "title": _ZH_TEXT['TEXT_564FB18FD6A811AB'],
         "order_kind": "return", "original_order_id": po["id"]})
     assert ret.status_code == 201, ret.text
     ret = ret.json()["data"]
@@ -231,7 +238,7 @@ def test_the_tenant_renames_the_return_machine_in_a_sentence(shop) -> None:
                            json={"state_machine": machine}, headers=admin)
     assert renamed.status_code == 200, renamed.text
 
-    ret = shop["order"](order_kind="return", title="用租户自己的词")
+    ret = shop["order"](order_kind="return", title=_ZH_TEXT['TEXT_E0BBDB487EDCB669'])
     submitted = client.post(f"/api/v1/sales-orders/{ret['id']}/submit", json={},
                             headers=admin)
     assert submitted.status_code == 200, submitted.text
@@ -256,7 +263,7 @@ def test_the_side_doors_hold_what_the_front_door_refuses(shop) -> None:
     ret = shop["order"](order_kind="return")
 
     account = client.post("/api/v1/billing-accounts", headers=admin, json={
-        "name": "买家往来户2", "unit_type": "currency", "unit": "CNY",
+        "name": _ZH_TEXT['TEXT_A782E2D7D4C76162'], "unit_type": "currency", "unit": "CNY",
         "customer_id": shop["customer"], "credit_limit": 1000.0}).json()["data"]["id"]
     assert client.patch(f"/api/v1/sales-orders/{ret['id']}", headers=admin,
                         json={"billing_account_id": account}).status_code == 422, \
@@ -268,17 +275,17 @@ def test_the_side_doors_hold_what_the_front_door_refuses(shop) -> None:
 
     billed = client.post("/api/v1/invoices", headers=admin, json={
         "direction": "sales", "employee_id": shop["employee"],
-        "customer_id": shop["customer"], "title": "给退货开发票?",
+        "customer_id": shop["customer"], "title": _ZH_TEXT['TEXT_60D5E5C7B924E0BA'],
         "total_amount": 10.0, "sales_order_id": ret["id"]})
     assert billed.status_code == 422, billed.text
     assert "refund payment" in billed.json()["detail"]
 
-    vendor = client.post("/api/v1/vendors", json={"name": "供应商B"},
+    vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_A6E15F1772EF446C']},
                          headers=admin).json()["data"]["id"]
-    product = client.post("/api/v1/products", json={"name": "货", "product_code": "G-9"},
+    product = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_5D22F54725862D51'], "product_code": "G-9"},
                           headers=admin).json()["data"]["id"]
     po_return = client.post("/api/v1/purchase-orders", headers=admin, json={
-        "vendor_id": vendor, "employee_id": shop["employee"], "title": "退回去",
+        "vendor_id": vendor, "employee_id": shop["employee"], "title": _ZH_TEXT['TEXT_F9EDC0E9EC47966F'],
         "order_kind": "return",
         "items": [{"line_no": 1, "product_id": product, "quantity": 2, "unit_price": 5.0}],
     }).json()["data"]

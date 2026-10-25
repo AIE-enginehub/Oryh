@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { useCreateIntent } from "./useCreateIntent";
 import { useEffect, useId, useState, type FormEvent } from "react";
@@ -30,16 +31,16 @@ export function ListToolbar({ keyword, status, placeholder, createLabel, statusO
   return (
     <div className="list-toolbar">
       <form className="filter-form" role="search" onSubmit={submit}>
-        <label className="sr-only" htmlFor={`${id}-search`}>{text("搜索", "Search")}</label>
+        <label className="sr-only" htmlFor={`${id}-search`}>{text(zhCN.componentsMasterDataListToolbar.search, "Search")}</label>
         <div className="list-search"><MagnifyingGlass size={18} aria-hidden /><input id={`${id}-search`} type="search" value={draftKeyword} placeholder={placeholder} onChange={(event) => setDraftKeyword(event.target.value)} /></div>
-        <label className="sr-only" htmlFor={`${id}-status`}>{text("状态", "Status")}</label>
+        <label className="sr-only" htmlFor={`${id}-status`}>{text(zhCN.componentsMasterDataListToolbar.status, "Status")}</label>
         <select id={`${id}-status`} value={draftStatus} onChange={(event) => { setDraftStatus(event.target.value); onApply({ keyword: draftKeyword.trim(), status: event.target.value }); }}>
-          <option value="">{text("全部状态", "All statuses")}</option>
+          <option value="">{text(zhCN.componentsMasterDataListToolbar.allStatuses, "All statuses")}</option>
           {statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
-        <button className="button" type="submit">{text("筛选", "Filter")}</button>
+        <button className="button" type="submit">{text(zhCN.componentsMasterDataListToolbar.filter, "Filter")}</button>
         {(keyword || status) && (
-          <button className="button quiet" type="button" onClick={() => { setDraftKeyword(""); setDraftStatus(""); onApply({ keyword: "", status: "" }); }}>{text("清除", "Clear")}</button>
+          <button className="button quiet" type="button" onClick={() => { setDraftKeyword(""); setDraftStatus(""); onApply({ keyword: "", status: "" }); }}>{text(zhCN.componentsMasterDataListToolbar.clear, "Clear")}</button>
         )}
       </form>
       <button className="button primary" type="button" onClick={onCreate}><Plus size={17} aria-hidden />{createLabel}</button>

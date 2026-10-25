@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use when HR or compensation sets or changes someone's pay terms, produces payslips (工资条) for a period, and disburses pay (发放工资) matched to each payslip. Not for approving the payout (oryh-payment-approval-flow), reimbursement (oryh-expense-submit) or billing. Requires payroll.manage."
+  ]
+}

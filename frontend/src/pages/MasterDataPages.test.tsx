@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -38,9 +39,9 @@ vi.mock("../api/client", async () => {
 
 const project = {
   id: "project-1",
-  project_name: "云端迁移",
+  project_name: zhCN.pagesMasterDataPages.projectName,
   project_code: "PRJ-001",
-  client: "示例客户",
+  client: zhCN.pagesMasterDataPages.client,
   status: "active",
   start_date: "2026-07-01",
   end_date: null,
@@ -52,7 +53,7 @@ const project = {
 const resource = {
   id: "resource-1",
   resource_type: "meeting_room",
-  name: "海棠会议室",
+  name: zhCN.pagesMasterDataPages.name,
   code: "ROOM-1",
   location: "3F",
   capacity: 8,
@@ -66,10 +67,10 @@ const resource = {
 
 const vendor = {
   id: "vendor-1",
-  name: "北辰服务",
+  name: zhCN.pagesMasterDataPages.name2,
   vendor_code: "VEN-001",
   tax_id: "91310000TEST",
-  contact: "王经理",
+  contact: zhCN.pagesMasterDataPages.contact,
   phone: "13800000000",
   email: "vendor@example.com",
   status: "active",
@@ -80,13 +81,13 @@ const vendor = {
 
 const customer = {
   id: "customer-1",
-  name: "华欣机械",
+  name: zhCN.pagesMasterDataPages.name3,
   customer_code: "CUS-001",
   tax_id: "91310000CUST",
-  contact: "王工",
+  contact: zhCN.pagesMasterDataPages.contact2,
   phone: "13900000000",
   email: "customer@example.com",
-  address: "上海市浦东新区",
+  address: zhCN.pagesMasterDataPages.address,
   status: "active",
   metadata: {},
   created_at: "2026-07-01T00:00:00Z",
@@ -126,38 +127,38 @@ describe("project master data", () => {
     const user = userEvent.setup();
     renderPage(<ProjectsPage />);
 
-    expect(await screen.findByText("云端迁移")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    expect(await screen.findByText(zhCN.pagesMasterDataPages.projectName)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name4 }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
 
-    await user.type(screen.getByRole("searchbox"), "迁移");
-    await user.selectOptions(screen.getByLabelText("状态"), "archived");
-    await user.click(screen.getByRole("button", { name: "筛选" }));
-    await waitFor(() => expect(api.listProjects).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: "迁移", status: "archived" })));
+    await user.type(screen.getByRole("searchbox"), zhCN.pagesMasterDataPages.message);
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesMasterDataPages.state), "archived");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name5 }));
+    await waitFor(() => expect(api.listProjects).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: zhCN.pagesMasterDataPages.message, status: "archived" })));
   });
 
   it("creates, edits and archives through the accessible drawer and confirmation", async () => {
     const user = userEvent.setup();
     renderPage(<ProjectsPage />);
-    await screen.findByText("云端迁移");
+    await screen.findByText(zhCN.pagesMasterDataPages.projectName);
 
-    await user.click(screen.getByRole("button", { name: /新建项目/ }));
-    await user.type(screen.getByLabelText(/项目名称/), "内部升级");
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
-    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(expect.objectContaining({ project_name: "内部升级" })));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name6() }));
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern()), zhCN.pagesMasterDataPages.message3);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name7 }));
+    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith(expect.objectContaining({ project_name: zhCN.pagesMasterDataPages.message3 })));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    const clientInput = screen.getByLabelText("客户名称（文字）");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name8 }));
+    const clientInput = screen.getByLabelText(zhCN.pagesMasterDataPages.customerNameText);
     await user.clear(clientInput);
-    await user.type(clientInput, "新客户");
-    await user.click(screen.getByRole("button", { name: "保存更改" }));
-    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith("project-1", expect.objectContaining({ client: "新客户" })));
+    await user.type(clientInput, zhCN.pagesMasterDataPages.message5);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name9 }));
+    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith("project-1", expect.objectContaining({ client: zhCN.pagesMasterDataPages.message5 })));
 
-    await user.click(screen.getByRole("button", { name: "归档" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name10 }));
     const confirm = screen.getByRole("alertdialog");
-    expect(within(confirm).getByText(/不会删除历史引用/)).toBeInTheDocument();
-    await user.click(within(confirm).getByRole("button", { name: "确认归档" }));
+    expect(within(confirm).getByText(zhCN.pagesMasterDataPages.pattern2())).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: zhCN.pagesMasterDataPages.name11 }));
     await waitFor(() => expect(api.archiveProject).toHaveBeenCalledWith("project-1"));
   });
 
@@ -168,11 +169,11 @@ describe("project master data", () => {
     }));
     const user = userEvent.setup();
     renderPage(<ProjectsPage />);
-    await screen.findByText("云端迁移");
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await screen.findByText(zhCN.pagesMasterDataPages.projectName);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name4 }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
-    await user.click(screen.getByRole("button", { name: "归档" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "确认归档" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name10 }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: zhCN.pagesMasterDataPages.name11 }));
     await waitFor(() => {
       const calls = api.listProjects.mock.calls.map(([filters]) => filters.page);
       expect(calls.at(-1)).toBe(1);
@@ -182,13 +183,13 @@ describe("project master data", () => {
   it("returns to the first page after creating from a later page", async () => {
     const user = userEvent.setup();
     renderPage(<ProjectsPage />);
-    await screen.findByText("云端迁移");
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await screen.findByText(zhCN.pagesMasterDataPages.projectName);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name4 }));
     await waitFor(() => expect(api.listProjects).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
 
-    await user.click(screen.getByRole("button", { name: /新建项目/ }));
-    await user.type(screen.getByLabelText(/项目名称/), "第二页新建");
-    await user.click(screen.getByRole("button", { name: "创建项目" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name6() }));
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern()), zhCN.pagesMasterDataPages.message6);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name7 }));
     await waitFor(() => {
       const calls = api.listProjects.mock.calls.map(([filters]) => filters.page);
       expect(calls.at(-1)).toBe(1);
@@ -196,11 +197,11 @@ describe("project master data", () => {
   });
 
   it("shows a recoverable list error", async () => {
-    api.listProjects.mockRejectedValue(new Error("数据库暂时不可用"));
+    api.listProjects.mockRejectedValue(new Error(zhCN.pagesMasterDataPages.message7));
     renderPage(<ProjectsPage />);
-    expect(await screen.findByText("数据加载失败")).toBeInTheDocument();
-    expect(screen.getByText("数据库暂时不可用")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesMasterDataPages.dataCouldNotBeLoaded)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesMasterDataPages.message7)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name12 })).toBeInTheDocument();
   });
 });
 
@@ -208,17 +209,17 @@ describe("resource booking mode", () => {
   it("requires max quantity for shared resources and sends the shared rule", async () => {
     const user = userEvent.setup();
     renderPage(<ResourcesPage />);
-    await screen.findByText("还没有资源");
+    await screen.findByText(zhCN.pagesMasterDataPages.noResourcesYet);
 
-    await user.click(screen.getByRole("button", { name: /新建资源/ }));
-    await user.type(screen.getByLabelText(/资源名称/), "共享工位");
-    await user.click(screen.getByRole("radio", { name: /共享数量/ }));
-    await user.click(screen.getByRole("button", { name: "创建资源" }));
-    expect(await screen.findByText(/共享资源必须设置/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name13() }));
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern3()), zhCN.pagesMasterDataPages.message10);
+    await user.click(screen.getByRole("radio", { name: zhCN.pagesMasterDataPages.name14() }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name15 }));
+    expect(await screen.findByText(zhCN.pagesMasterDataPages.pattern4())).toBeInTheDocument();
     expect(api.createResource).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText(/最大可预订数量/), "12");
-    await user.click(screen.getByRole("button", { name: "创建资源" }));
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern5()), "12");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name15 }));
     await waitFor(() => expect(api.createResource).toHaveBeenCalledWith(expect.objectContaining({
       booking_mode: "shared",
       max_quantity: 12,
@@ -230,14 +231,14 @@ describe("vendor master data", () => {
   it("renders a vendor and keeps unsupported inactive status out of the form", async () => {
     const user = userEvent.setup();
     renderPage(<VendorsPage />);
-    expect(await screen.findByText("北辰服务")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesMasterDataPages.name2)).toBeInTheDocument();
     expect(screen.getByText("91310000TEST")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /新建供应商/ }));
-    expect(screen.queryByRole("option", { name: "停用" })).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/供应商名称/), "新供应商");
-    await user.click(screen.getByRole("button", { name: "创建供应商" }));
-    await waitFor(() => expect(api.createVendor).toHaveBeenCalledWith(expect.objectContaining({ name: "新供应商" })));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name16() }));
+    expect(screen.queryByRole("option", { name: zhCN.pagesMasterDataPages.name17 })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern6()), zhCN.pagesMasterDataPages.message11);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name18 }));
+    await waitFor(() => expect(api.createVendor).toHaveBeenCalledWith(expect.objectContaining({ name: zhCN.pagesMasterDataPages.message11 })));
   });
 });
 
@@ -245,21 +246,21 @@ describe("customer master data", () => {
   it("renders a customer, edits the address, and creates without an inactive status option", async () => {
     const user = userEvent.setup();
     renderPage(<CustomersPage />);
-    expect(await screen.findByText("华欣机械")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesMasterDataPages.name3)).toBeInTheDocument();
     expect(screen.getByText("91310000CUST")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    expect(screen.getByLabelText("地址")).toHaveValue("上海市浦东新区");
-    const address = screen.getByLabelText("地址");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name8 }));
+    expect(screen.getByLabelText(zhCN.pagesMasterDataPages.address2)).toHaveValue(zhCN.pagesMasterDataPages.address);
+    const address = screen.getByLabelText(zhCN.pagesMasterDataPages.address2);
     await user.clear(address);
-    await user.type(address, "北京市朝阳区");
-    await user.click(screen.getByRole("button", { name: "保存更改" }));
-    await waitFor(() => expect(api.updateCustomer).toHaveBeenCalledWith("customer-1", expect.objectContaining({ address: "北京市朝阳区" })));
+    await user.type(address, zhCN.pagesMasterDataPages.message13);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name9 }));
+    await waitFor(() => expect(api.updateCustomer).toHaveBeenCalledWith("customer-1", expect.objectContaining({ address: zhCN.pagesMasterDataPages.message13 })));
 
-    await user.click(screen.getByRole("button", { name: /新建客户/ }));
-    expect(screen.queryByRole("option", { name: "停用" })).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText(/客户名称/), "新客户");
-    await user.click(screen.getByRole("button", { name: "创建客户" }));
-    await waitFor(() => expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({ name: "新客户", address: null })));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name19() }));
+    expect(screen.queryByRole("option", { name: zhCN.pagesMasterDataPages.name17 })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(zhCN.pagesMasterDataPages.pattern7()), zhCN.pagesMasterDataPages.message5);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesMasterDataPages.name20 }));
+    await waitFor(() => expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({ name: zhCN.pagesMasterDataPages.message5, address: null })));
   });
 });

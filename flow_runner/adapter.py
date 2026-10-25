@@ -183,7 +183,10 @@ class PiAgentAdapter:
             "--no-skills", "--skill", str(skill_path),
             "--no-extensions", "--no-prompt-templates", "--no-context-files",
             # The flow agent's whole job is REST calls (bash/curl) and reading
-            # its own references. It has no business writing to this filesystem.
+            # its own references, so the file-writing tools are off. This is
+            # not isolation: bash can still read and write anything this UID
+            # can, other tenants' bundle directories included. A per-run
+            # sandbox is the open item (review 2026-10-10 R07).
             "-xt", "write,edit",
             # Never trust project-local settings in the run directory.
             "--no-approve",

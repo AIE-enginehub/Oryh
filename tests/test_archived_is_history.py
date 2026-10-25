@@ -12,6 +12,13 @@ them.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_archived_is_history.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -26,7 +33,7 @@ def books():
 
         def account(name: str) -> dict:
             return client.post("/api/v1/fin-accounts", headers=cashier, json={
-                "name": name, "institution": "招商银行", "opening_balance": 100.0,
+                "name": name, "institution": _ZH_TEXT['TEXT_4E721FAE5963494D'], "opening_balance": 100.0,
                 "opening_date": "2026-08-01"}).json()["data"]
 
         def line(account_id: str, amount: float, **extra) -> dict:
@@ -38,15 +45,15 @@ def books():
 
 def test_master_data_lists_answer_with_active_rows_unless_asked(books) -> None:
     client, admin = books["client"], books["admin"]
-    live = client.post("/api/v1/customers", json={"name": "在营客户"}, headers=admin).json()["data"]
-    gone = client.post("/api/v1/customers", json={"name": "误录客户"}, headers=admin).json()["data"]
+    live = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_84B2D2EC0D037588']}, headers=admin).json()["data"]
+    gone = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_E988C1A887FF9969']}, headers=admin).json()["data"]
     assert client.delete(f"/api/v1/customers/{gone['id']}", headers=admin).status_code == 204
 
     names = lambda **params: {r["name"] for r in client.get(  # noqa: E731
         "/api/v1/customers", headers=admin, params=params).json()["data"]}
-    assert names() == {"在营客户"}, "the everyday answer is the live rows"
-    assert names(status="archived") == {"误录客户"}
-    assert names(status="all") == {"在营客户", "误录客户"}
+    assert names() == {_ZH_TEXT['TEXT_84B2D2EC0D037588']}, "the everyday answer is the live rows"
+    assert names(status="archived") == {_ZH_TEXT['TEXT_E988C1A887FF9969']}
+    assert names(status="all") == {_ZH_TEXT['TEXT_84B2D2EC0D037588'], _ZH_TEXT['TEXT_E988C1A887FF9969']}
     assert client.get(f"/api/v1/customers/{gone['id']}", headers=admin).json()["data"]["status"] == "archived", \
         "a direct read still answers — history is kept, not hidden"
     assert live["status"] == "active"
@@ -54,8 +61,8 @@ def test_master_data_lists_answer_with_active_rows_unless_asked(books) -> None:
 
 def test_an_archived_accounts_register_is_history(books) -> None:
     client, cashier = books["client"], books["cashier"]
-    right = books["account"]("招行基本户")
-    wrong = books["account"]("误录的户")
+    right = books["account"](_ZH_TEXT['TEXT_4E7B023A37DB41C8'])
+    wrong = books["account"](_ZH_TEXT['TEXT_FB939A5F3C64B4FE'])
     kept = books["line"](right["id"], 50.0, description="real receipt")
     mistaken = books["line"](wrong["id"], 999.0, description="imported by mistake")
     assert client.delete(f"/api/v1/fin-accounts/{wrong['id']}", headers=cashier).status_code == 204
@@ -65,7 +72,7 @@ def test_an_archived_accounts_register_is_history(books) -> None:
     assert kept["id"] in listed and mistaken["id"] not in listed, \
         "an archived account's lines leave the everyday list with their account"
     accounts = {r["name"] for r in client.get("/api/v1/fin-accounts", headers=cashier).json()["data"]}
-    assert accounts == {"招行基本户"}, "the archived account leaves the account list too"
+    assert accounts == {_ZH_TEXT['TEXT_4E7B023A37DB41C8']}, "the archived account leaves the account list too"
 
     queue = {r["id"] for r in client.get("/api/v1/fin-account-transactions",
                                          params={"unlinked": True}, headers=cashier).json()["data"]}

@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "./client";
@@ -24,15 +25,15 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const todos = [
-  { id: "todo-old", employee_id: "employee-1", entity_type: "project", entity_id: "project-1", title: "准备旧报告", description: "季度复盘", todo_type: "review", status: "open", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-01T00:00:00Z", updated_at: null, completed_at: null, completed_by: null },
-  { id: "todo-new", employee_id: "employee-1", entity_type: "project", entity_id: "project-2", title: "准备新报告", description: "季度复盘", todo_type: "review", status: "open", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-03T00:00:00Z", updated_at: null, completed_at: null, completed_by: null },
-  { id: "todo-done", employee_id: "employee-1", entity_type: "project", entity_id: "project-3", title: "其他事项", description: null, todo_type: null, status: "completed", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-02T00:00:00Z", updated_at: null, completed_at: "2026-07-02T01:00:00Z", completed_by: "user:1" },
+  { id: "todo-old", employee_id: "employee-1", entity_type: "project", entity_id: "project-1", title: zhCN.apiActivity.title, description: zhCN.apiActivity.description, todo_type: "review", status: "open", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-01T00:00:00Z", updated_at: null, completed_at: null, completed_by: null },
+  { id: "todo-new", employee_id: "employee-1", entity_type: "project", entity_id: "project-2", title: zhCN.apiActivity.title2, description: zhCN.apiActivity.description, todo_type: "review", status: "open", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-03T00:00:00Z", updated_at: null, completed_at: null, completed_by: null },
+  { id: "todo-done", employee_id: "employee-1", entity_type: "project", entity_id: "project-3", title: zhCN.apiActivity.title3, description: null, todo_type: null, status: "completed", due_at: null, created_by: null, metadata: {}, created_at: "2026-07-02T00:00:00Z", updated_at: null, completed_at: "2026-07-02T01:00:00Z", completed_by: "user:1" },
 ] as Todo[];
 
 const approvals = [
-  { id: "approval-old", entity_type: "expense_claim", entity_id: "expense-1", round_no: 1, sequence_no: 1, action: "approved", approver_id: "user:old", approver_role: "manager", comment: "预算内", source: "web", metadata: {}, acted_at: "2026-07-01T00:00:00Z", created_at: "2026-07-01T00:00:00Z" },
-  { id: "approval-new", entity_type: "expense_claim", entity_id: "expense-2", round_no: 1, sequence_no: 2, action: "approved", approver_id: "user:new", approver_role: "manager", comment: "预算内，同意", source: "api", metadata: {}, acted_at: "2026-07-03T00:00:00Z", created_at: "2026-07-03T00:00:00Z" },
-  { id: "approval-rejected", entity_type: "purchase_request", entity_id: "purchase-1", round_no: 1, sequence_no: 1, action: "rejected", approver_id: "user:2", approver_role: "finance", comment: "超预算", source: "web", metadata: {}, acted_at: "2026-07-02T00:00:00Z", created_at: "2026-07-02T00:00:00Z" },
+  { id: "approval-old", entity_type: "expense_claim", entity_id: "expense-1", round_no: 1, sequence_no: 1, action: "approved", approver_id: "user:old", approver_role: "manager", comment: zhCN.apiActivity.comment, source: "web", metadata: {}, acted_at: "2026-07-01T00:00:00Z", created_at: "2026-07-01T00:00:00Z" },
+  { id: "approval-new", entity_type: "expense_claim", entity_id: "expense-2", round_no: 1, sequence_no: 2, action: "approved", approver_id: "user:new", approver_role: "manager", comment: zhCN.apiActivity.comment2, source: "api", metadata: {}, acted_at: "2026-07-03T00:00:00Z", created_at: "2026-07-03T00:00:00Z" },
+  { id: "approval-rejected", entity_type: "purchase_request", entity_id: "purchase-1", round_no: 1, sequence_no: 1, action: "rejected", approver_id: "user:2", approver_role: "finance", comment: zhCN.apiActivity.comment3, source: "web", metadata: {}, acted_at: "2026-07-02T00:00:00Z", created_at: "2026-07-02T00:00:00Z" },
 ] as ApprovalRecord[];
 
 afterEach(() => {
@@ -45,7 +46,7 @@ describe("activity API compatibility", () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: todos, meta: { total: 3 } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await listTodos({ page: 2, size: 1, keyword: "报告", status: "open", entity_type: "project", employee_id: "employee-1" });
+    const result = await listTodos({ page: 2, size: 1, keyword: zhCN.apiActivity.keyword, status: "open", entity_type: "project", employee_id: "employee-1" });
 
     expect(fetchMock.mock.calls[0][0]).toContain("/api/v1/todos?");
     expect(fetchMock.mock.calls[0][0]).toContain("page=2");
@@ -80,7 +81,7 @@ describe("activity API compatibility", () => {
           actor_labels: [`user:${userId}`, completerId],
         });
         return Promise.resolve(jsonResponse({
-          data: { employees: { [ownerId]: "Todo Owner", [completerId]: "Manager Mike" }, actors: { [`user:${userId}`]: "租户经理" } },
+          data: { employees: { [ownerId]: "Todo Owner", [completerId]: "Manager Mike" }, actors: { [`user:${userId}`]: zhCN.apiActivity.userUserId } },
           meta: {},
         }));
       }
@@ -97,7 +98,7 @@ describe("activity API compatibility", () => {
 
     await expect(resolveTodoDisplayNames([referencedTodo])).resolves.toEqual({
       employees: { [ownerId]: "Todo Owner", [completerId]: "Manager Mike" },
-      actors: { [`user:${userId}`]: "租户经理" },
+      actors: { [`user:${userId}`]: zhCN.apiActivity.userUserId },
     });
     const resolverHeaders = new Headers((fetchMock.mock.calls[1][1] as RequestInit).headers);
     expect(resolverHeaders.get("X-CSRF-Token")).toBe("todo-names-token");
@@ -106,7 +107,7 @@ describe("activity API compatibility", () => {
   it("locally adapts approval action and keyword filters for a legacy envelope", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ data: approvals, meta: { total: 3 } })));
 
-    const result = await listApprovalRecords({ page: 1, size: 10, keyword: "预算内", action: "approved", entity_type: "expense_claim" });
+    const result = await listApprovalRecords({ page: 1, size: 10, keyword: zhCN.apiActivity.comment, action: "approved", entity_type: "expense_claim" });
 
     expect(result.meta.total).toBe(2);
     expect(result.data.map((record) => record.id)).toEqual(["approval-new", "approval-old"]);

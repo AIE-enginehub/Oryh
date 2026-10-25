@@ -17,6 +17,13 @@ something new, this one should be the test that notices.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_payroll_duty_separation.json').read_text(encoding="utf-8"))
+
+
 import pathlib
 from collections.abc import Generator
 
@@ -91,7 +98,7 @@ def set_pay(client, hr, employee_id: str, amount: float) -> object:
         "/api/v1/pay-histories",
         json={"employee_id": employee_id, "component": "base_salary",
               "effective_from": "2026-07-01", "amount": amount,
-              "period_type": "month", "notes": "入职定薪"},
+              "period_type": "month", "notes": _ZH_TEXT['TEXT_A6E47C2373223A87']},
         headers=hr,
     )
 
@@ -100,10 +107,10 @@ def issue_payslip(client, hr, officer: str, payee: str, amount: float) -> object
     response = client.post(
         "/api/v1/invoices",
         json={"direction": "payroll", "employee_id": officer, "payee_employee_id": payee,
-              "title": "2026年7月工资", "period_start": "2026-07-01", "period_end": "2026-07-31",
+              "title": _ZH_TEXT['TEXT_CFA60C47884F2A61'], "period_start": "2026-07-01", "period_end": "2026-07-31",
               "items": [{"invoice_item_type": "payroll_salary",
-                         "product_name_snapshot": "基本工资", "amount": amount,
-                         "notes": f"月薪 {amount:.2f}"}]},
+                         "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'], "amount": amount,
+                         "notes": f"{_ZH_TEXT['TEXT_48CF7B330DA13ACF']}{amount:.2f}"}]},
         headers=hr,
     )
     if response.status_code == 201:
@@ -125,7 +132,7 @@ def file_payout(client, headers, officer: str, payee: str, amount: float) -> obj
 def test_hr_files_and_submits_the_payout_but_cannot_approve_it(workspace: dict) -> None:
     """The whole point of giving HR `payment.record`: it is the submit half of
     the payment family, and advancement is a separate capability. Grant one
-    without the other and 提交 and 自批 stay different acts — which is what a
+    without the other and submission and self-approval stay different acts — which is what a
     workspace means when it says HR may not pay themselves."""
     client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
     hr, payee = keys["hr_admin"], employees["plain"]
@@ -165,15 +172,15 @@ def test_the_arc_completes_with_no_temporary_grant(workspace: dict) -> None:
     payout_id = file_payout(client, hr, employees["hr_admin"], payee, 15000.0).json()["data"]["id"]
     client.post(f"/api/v1/payments/{payout_id}/submit", headers=hr)
 
-    # 出纳 approves and pays — payment.advance, and no payroll grant needed to
+    # cashier approves and pays — payment.advance, and no payroll grant needed to
     # move money it is the workspace's job to move
     approved = client.patch(f"/api/v1/payments/{payout_id}", json={"status": "approved"}, headers=cashier)
     assert approved.status_code == 200, approved.text
     paid = client.patch(f"/api/v1/payments/{payout_id}", json={"status": "paid"}, headers=cashier)
     assert paid.status_code == 200, paid.text
 
-    # 会计 matches the money to the payslip — a separate capability from
-    # recording it, so 出纳记账 and 会计核销 can be different people
+    # accountant matches the money to the payslip — a separate capability from
+    # recording it, so cashier recording and accountant allocation can be different people
     applied = client.post(
         f"/api/v1/payments/{payout_id}/apply",
         json={"lines": [{"applied_to_type": "invoice", "applied_to_id": slip_id,
@@ -242,7 +249,7 @@ def test_reading_your_own_pay_needs_no_capability_and_so_neither_does_its_skill(
 ) -> None:
     """The distribution half. `oryh-payroll` is gated on `payroll.manage`, so
     everyone below HR received no payroll skill at all — including the person
-    whose own payslip the API would have handed them. An agent asked 我的工资条
+    whose own payslip the API would have handed them. An agent asked my payslip
     then found no payroll tool and fell back to `business_object.write:*`,
     writing salary figures into a custom object with no read gate on it. The
     read skill is ungated because the read is."""
@@ -339,7 +346,7 @@ def test_reconcile_tops_up_an_existing_tenant_without_a_reseed(workspace: dict) 
     stale = [p for p in SEEDED_ROLES["hr_admin"] if p != "payment.record"]
     client.patch("/api/v1/roles/hr_admin", json={"permissions": stale}, headers=root)
 
-    # the fixture tenant stands in for 星桥; REQUIRED is keyed by real slug
+    # The fixture tenant stands in for Starbridge; REQUIRED is keyed by actual slug.
     with client.session_factory() as db:
         slug = db.scalars(select(Tenant.slug)).one()
     monkeypatch = pytest.MonkeyPatch()
@@ -366,11 +373,11 @@ def test_an_approver_sees_the_payout_it_must_decide_on_but_not_the_payslip(
 ) -> None:
     """`payment.advance` counts as handling money. Approving a payout you
     cannot see is not a weaker version of the job, it is none of it — the queue
-    came back empty, so a workflow definition routing 工资发放 through payment
+    came back empty, so a workflow definition routing payroll disbursement through payment
     approval had a step nobody could reach.
 
     The widening stops at the payout. The payslip behind it, with its
-    line-by-line 社保/个税 breakdown, still needs `payroll.read`."""
+    line-by-line social insurance/individual income tax breakdown, still needs `payroll.read`."""
     client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
     hr, payee = keys["hr_admin"], employees["plain"]
     set_pay(client, hr, payee, 15000.0)
@@ -427,7 +434,7 @@ def test_filing_a_payout_already_paid_is_advancing_it(workspace: dict) -> None:
     """Create used to accept any state of the machine, so the submit half could
     skip the approval half by naming the end state up front: HR, holding only
     `payment.record`, created the payout `paid`. Starting past `initial` now
-    takes the grant the walk there would — the 出纳's `payment.advance`."""
+    takes the grant the walk there would — the cashier's `payment.advance`."""
     client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
     hr, cashier, payee = keys["hr_admin"], keys["cashier_lead"], employees["plain"]
     body = {"direction": "outbound", "employee_id": employees["hr_admin"],
@@ -454,7 +461,7 @@ def test_an_inbound_receipt_is_recorded_paid_without_the_advance_grant(workspace
     client, keys, employees, root = (
         workspace["client"], workspace["keys"], workspace["employees"], workspace["root"]
     )
-    customer_id = client.post("/api/v1/customers", json={"name": "星桥客户"},
+    customer_id = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_A074ECA03E4DBF3C']},
                               headers=root).json()["data"]["id"]
     receipt = client.post(
         "/api/v1/payments",
@@ -469,7 +476,7 @@ def test_an_inbound_receipt_is_recorded_paid_without_the_advance_grant(workspace
 def test_a_member_cannot_file_an_expense_claim_already_approved(workspace: dict) -> None:
     """Every family whose advancement is its own grant has the same door."""
     client, keys, employees = workspace["client"], workspace["keys"], workspace["employees"]
-    body = {"employee_id": employees["plain"], "title": "差旅"}
+    body = {"employee_id": employees["plain"], "title": _ZH_TEXT['TEXT_85A7226A9AA6B1DB']}
     approved = client.post("/api/v1/expense-claims", json={**body, "status": "approved"},
                            headers=keys["plain"])
     assert approved.status_code == 403, approved.text

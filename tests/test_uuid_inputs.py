@@ -8,6 +8,13 @@ columns; the gap surfaced as InvalidTextRepresentation instead of an answer.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_uuid_inputs.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers
@@ -26,7 +33,7 @@ def test_a_type_name_in_the_definition_slot_resolves_instead_of_500ing(client: T
         "/api/v1/object-type-definitions",
         json={
             "object_type": "warranty_card",
-            "title": "保修卡",
+            "title": _ZH_TEXT['TEXT_8A90AE4913C1E92E'],
             "json_schema": {"type": "object", "additionalProperties": True},
         },
         headers=headers,
@@ -51,7 +58,7 @@ def test_a_word_in_a_uuid_path_slot_is_404(client: TestClient) -> None:
     cast blew up. Not-a-valid-id and no-such-id are the same answer: 404."""
     headers = provision(client)
     for path in ("/api/v1/employees/principals", "/api/v1/projects/not-a-uuid",
-                 "/api/v1/timesheet-headers/工时"):
+                 _ZH_TEXT['TEXT_8BB976F3FBC3F604']):
         response = client.get(path, headers=headers)
         assert response.status_code == 404, f"{path}: {response.status_code} {response.text}"
 
@@ -67,7 +74,7 @@ def test_a_name_in_a_uuid_query_filter_is_422_naming_the_field(client: TestClien
 
     # the same guard rides list_rows, so every collection behaves alike
     for path in ("/api/v1/timesheet-headers?employee_id=zhangsan",
-                 "/api/v1/sales-orders?customer_id=蓝湾"):
+                 _ZH_TEXT['TEXT_AB4AD092D0001F8D']):
         assert client.get(path, headers=headers).status_code == 422, path
 
 
@@ -77,7 +84,7 @@ def test_products_are_findable_by_their_own_code(client: TestClient) -> None:
     headers = provision(client)
     created = client.post(
         "/api/v1/products",
-        json={"product_code": "E2E-20260801-001", "name": "验收测试产品"},
+        json={"product_code": "E2E-20260801-001", "name": _ZH_TEXT['TEXT_4777AC953AC31864']},
         headers=headers,
     )
     assert created.status_code == 201, created.text

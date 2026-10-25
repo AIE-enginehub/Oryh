@@ -1,6 +1,6 @@
 ---
 name: oryh-payslip
-description: Use when someone wants to READ pay — "我这个月发了多少"、"我的工资条"、"我的社保扣了多少" — or, holding payroll.read, to check a batch of payslips against a payout before approving it. Everyone may read their own pay. Read-only: never sets pay, issues a payslip or moves money.
+description: Use when someone wants to READ pay — "how much was I paid this month", "my payslip", "how much social insurance was deducted" — or, holding payroll.read, to check a batch of payslips against a payout before approving it. Everyone may read their own pay. Read-only: never sets pay, issues a payslip or moves money.
 ---
 
 # Oryh Payslip (read-only)
@@ -138,3 +138,6 @@ So when a read comes back 404 or an empty list:
 
 - [references/api.md](references/api.md): every read path, what each returns
   with and without `payroll.read`, and the exact shape of a payslip line.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

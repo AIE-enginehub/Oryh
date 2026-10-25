@@ -674,6 +674,7 @@ Body:
 | `counterparty_signatory` | string (≤100 chars) | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
+| `customer_id` | string | optional |  |
 | `effective_from` | date | optional |  |
 | `effective_to` | date | optional |  |
 | `employee_id` | string | optional |  |
@@ -681,12 +682,14 @@ Body:
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
+| `side` | `purchase` | `sales` | optional |  |
 | `signed_date` | date | optional |  |
 | `status` | string (≤50 chars) | optional |  |
 | `summary` | string (≤10000 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
 | `total_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
 | `upstream` | object | optional |  |
+| `vendor_id` | string | optional |  |
 
 ## PATCH /object-type-definitions/{definition_id}
 
@@ -1053,6 +1056,7 @@ Body:
 | `our_signatory` | string (≤100 chars) | optional |  |
 | `parent_contract_id` | string | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
+| `side` | `purchase` | `sales` | optional |  |
 | `signed_date` | date | optional |  |
 | `status` | string (≤50 chars) | optional |  |
 | `summary` | string (≤10000 chars) | optional |  |

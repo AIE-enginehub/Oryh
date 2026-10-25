@@ -19,6 +19,13 @@ the behaviour, and the agreement between the model and the DDL that ships.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_todo_cancellation.json').read_text(encoding="utf-8"))
+
+
 import pathlib
 import re
 
@@ -73,16 +80,16 @@ def orphan(client):
     deleted."""
     ctx = provision_tenant(client, company_name="Cancel Co", email="admin@cancel-co.example")
     key = {"X-API-Key": ctx["plain_text_api_key"]}
-    emp = client.post("/api/v1/employees", json={"name": "小张"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_84FA59AC87EDC647']},
                       headers=key).json()["data"]["id"]
-    cust = client.post("/api/v1/customers", json={"name": "客户"},
+    cust = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']},
                        headers=key).json()["data"]["id"]
     inv = client.post("/api/v1/invoices", json={
         "direction": "sales", "employee_id": emp, "customer_id": cust,
-        "title": "货款", "total_amount": 100.0}, headers=key).json()["data"]["id"]
+        "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'], "total_amount": 100.0}, headers=key).json()["data"]["id"]
     todo = client.post("/api/v1/todos", json={
         "employee_id": emp, "entity_type": "invoice", "entity_id": inv,
-        "title": "审批发票", "todo_type": "approval"}, headers=key).json()["data"]["id"]
+        "title": _ZH_TEXT['TEXT_6B0DAAC4275DBE51'], "todo_type": "approval"}, headers=key).json()["data"]["id"]
     return client, key, inv, todo
 
 
@@ -136,7 +143,7 @@ def test_returning_a_document_closes_the_approval_todos_of_that_round(orphan) ->
     returned = client.post("/api/v1/approval-records", json={
         "entity_type": "invoice", "entity_id": inv, "round_no": 1, "sequence_no": 2,
         "action": "returned", "approver_role": "workflow-admin",
-        "comment": "退回修改：项目归属不对",
+        "comment": _ZH_TEXT['TEXT_8F0912E81D559AE1'],
     }, headers=key)
     assert returned.status_code == 201, returned.text
 
@@ -154,11 +161,11 @@ def test_a_return_leaves_work_that_is_not_about_deciding(orphan) -> None:
     # A different person: `todos_open_entity_assignee_uk` reserves one OPEN todo
     # per employee per record, so parallel sign-off works — and so does "the
     # approver is deciding while the submitter still owes an attachment".
-    submitter = client.post("/api/v1/employees", json={"name": "小李"},
+    submitter = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']},
                             headers=key).json()["data"]["id"]
     chore = client.post("/api/v1/todos", json={
         "employee_id": submitter, "entity_type": "invoice", "entity_id": inv,
-        "title": "补发票附件", "todo_type": "task"}, headers=key)
+        "title": _ZH_TEXT['TEXT_E6C9627CB96A7753'], "todo_type": "task"}, headers=key)
     assert chore.status_code == 201, chore.text
     chore = chore.json()["data"]["id"]
     client.post(f"/api/v1/invoices/{inv}/submit", json={}, headers=key)
@@ -196,14 +203,14 @@ def test_editing_a_line_lands_on_the_document_it_changes(orphan) -> None:
     """
     client, key, inv, _todo = orphan
     line = client.post("/api/v1/invoice-items", json={
-        "invoice_id": inv, "product_name_snapshot": "咨询费",
+        "invoice_id": inv, "product_name_snapshot": _ZH_TEXT['TEXT_13D993A5C2AA6DDE'],
         "quantity": 1, "unit_price": 100.0,
     }, headers=key)
     assert line.status_code == 201, line.text
     line_id = line.json()["data"]["id"]
 
     edited = client.patch(f"/api/v1/invoice-items/{line_id}",
-                          json={"product_name_snapshot": "咨询费（改）"}, headers=key)
+                          json={"product_name_snapshot": _ZH_TEXT['TEXT_450E69326D5EF809']}, headers=key)
     assert edited.status_code == 200, edited.text
 
     trail = client.get(
@@ -219,7 +226,7 @@ def test_editing_a_line_lands_on_the_document_it_changes(orphan) -> None:
     # line's numbers do not belong in a log with a wider audience than the
     # document itself
     assert changed["detail"]["fields"] == ["product_name_snapshot"]
-    assert "咨询费（改）" not in str(changed["detail"])
+    assert _ZH_TEXT['TEXT_450E69326D5EF809'] not in str(changed["detail"])
 
 
 def _approver_key(client, key, employee_id: str, email: str) -> dict:
@@ -249,7 +256,7 @@ def test_deciding_a_node_completes_the_deciders_own_todo(orphan) -> None:
 
     decided = client.post("/api/v1/approval-records", json={
         "entity_type": "invoice", "entity_id": inv, "round_no": 1, "sequence_no": 2,
-        "action": "approved", "approver_role": "manager", "comment": "金额与凭证一致",
+        "action": "approved", "approver_role": "manager", "comment": _ZH_TEXT['TEXT_4BE9008B0DB7C431'],
     }, headers=approver)
     assert decided.status_code == 201, decided.text
 
@@ -284,7 +291,7 @@ def test_commenting_settles_nothing_and_leaves_the_todo_open(orphan) -> None:
     client.post(f"/api/v1/invoices/{inv}/submit", json={}, headers=key)
     client.post("/api/v1/approval-records", json={
         "entity_type": "invoice", "entity_id": inv, "round_no": 1, "sequence_no": 2,
-        "action": "commented", "approver_role": "manager", "comment": "第三行的税率存疑",
+        "action": "commented", "approver_role": "manager", "comment": _ZH_TEXT['TEXT_AA5DED5DBBF1FD0C'],
     }, headers=key)
 
     assert client.get(f"/api/v1/todos/{todo}", headers=key).json()["data"]["status"] == "open"
@@ -297,11 +304,11 @@ def test_a_parallel_signers_todo_is_left_alone(orphan) -> None:
     client, key, inv, mine = orphan
     assignee = client.get(f"/api/v1/todos/{mine}", headers=key).json()["data"]["employee_id"]
     approver = _approver_key(client, key, assignee, "zhang2@cancel-co.example")
-    other = client.post("/api/v1/employees", json={"name": "小王"},
+    other = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']},
                         headers=key).json()["data"]["id"]
     theirs = client.post("/api/v1/todos", json={
         "employee_id": other, "entity_type": "invoice", "entity_id": inv,
-        "title": "会签", "todo_type": "approval"}, headers=key)
+        "title": _ZH_TEXT['TEXT_A5DE2E6715C9039E'], "todo_type": "approval"}, headers=key)
     assert theirs.status_code == 201, theirs.text
     theirs = theirs.json()["data"]["id"]
 

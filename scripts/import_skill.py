@@ -14,6 +14,7 @@ refreshed from frontmatter, matching product-skill provisioning behavior).
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -34,6 +35,14 @@ def read_skill_dir(skill_dir: Path) -> dict[str, str]:
     for path in sorted(skill_dir.rglob("*")):
         if path.is_file():
             files[str(path.relative_to(skill_dir))] = path.read_text(encoding="utf-8")
+    # Demo skills keep their existing Chinese delivery text as explicit locale
+    # data while their maintained development instructions remain English.
+    localized = files.get("locales/zh-CN/runtime-files.json")
+    if localized is not None:
+        for name, content in json.loads(localized).items():
+            if name not in files or name.startswith("locales/") or not isinstance(content, str):
+                raise ValueError(f"Invalid localized skill file: {name}")
+            files[name] = content
     if "SKILL.md" not in files:
         raise SystemExit(f"{skill_dir} does not contain SKILL.md")
     return files

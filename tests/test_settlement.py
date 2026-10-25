@@ -1,4 +1,4 @@
-"""核销 — payments, and which documents they settle.
+"""payment allocation — payments, and which documents they settle.
 
 This is the money-correctness file. What must hold:
 
@@ -13,6 +13,13 @@ This is the money-correctness file. What must hold:
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_settlement.json').read_text(encoding="utf-8"))
+
 
 from collections.abc import Generator
 
@@ -39,16 +46,16 @@ def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
     return response.json()["data"]
 
 
-def employee(client: TestClient, name: str = "财务小陈") -> str:
+def employee(client: TestClient, name: str = _ZH_TEXT['TEXT_5C3B5931A936EB6B']) -> str:
     return post(client, "/api/v1/employees", {"name": name})["id"]
 
 
 def customer(client: TestClient) -> dict:
-    return post(client, "/api/v1/customers", {"name": "上海市第一医院"})
+    return post(client, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']})
 
 
 def vendor(client: TestClient) -> dict:
-    return post(client, "/api/v1/vendors", {"name": "戴尔（中国）有限公司"})
+    return post(client, "/api/v1/vendors", {"name": _ZH_TEXT['TEXT_48A8405C94F000EC']})
 
 
 def sales_invoice(client: TestClient, total: float = 10000.0, **overrides) -> dict:
@@ -59,7 +66,7 @@ def sales_invoice(client: TestClient, total: float = 10000.0, **overrides) -> di
         "direction": "sales",
         "employee_id": overrides.pop("employee_id", None) or employee(client),
         "customer_id": overrides.pop("customer_id", None) or customer(client)["id"],
-        "title": "货款",
+        "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'],
         "total_amount": total,
     }
     body.update(overrides)
@@ -98,7 +105,7 @@ def outstanding(client: TestClient, invoice_id: str) -> float:
 
 
 def test_a_partial_receipt_settles_part_of_an_invoice(client: TestClient) -> None:
-    """The headline case: 客户先付一半. Nothing about the invoice's STATUS
+    """The headline case: the customer pays half in advance. Nothing about the invoice's STATUS
     changes — the outstanding balance is derived from the ledger."""
     person = employee(client)
     buyer = customer(client)
@@ -161,7 +168,7 @@ def test_a_payment_cannot_pay_out_more_than_it_holds(client: TestClient) -> None
 
 
 def test_one_receipt_settles_several_invoices(client: TestClient) -> None:
-    """客户一笔钱付几张票 — the ordinary case that makes 核销 a many-to-many."""
+    """one customer payment settles several invoices — the ordinary case that makes payment allocation a many-to-many."""
     person = employee(client)
     buyer = customer(client)
     first = sales_invoice(client, 6000.0, employee_id=person, customer_id=buyer["id"])
@@ -176,14 +183,14 @@ def test_one_receipt_settles_several_invoices(client: TestClient) -> None:
         ],
     )
     assert result["applied_amount"] == 9000.0
-    # what is left is 预收款 — an advance looking for a document
+    # what is left is advance receipt — an advance looking for a document
     assert result["unapplied_amount"] == 1000.0
     assert outstanding(client, first["id"]) == 0.0
     assert outstanding(client, second["id"]) == 0.0
 
 
 def test_an_unapplied_balance_is_the_advance(client: TestClient) -> None:
-    """预收/预付 needs no entity of its own: it is what a payment still holds."""
+    """customer/vendor prepayments needs no entity of its own: it is what a payment still holds."""
     money = receipt(client, 5000.0)
     detail = client.get(f"/api/v1/payments/{money['id']}/detail", headers=HEADERS).json()["data"]
     assert detail["applied_amount"] == 0.0
@@ -207,7 +214,7 @@ def test_a_mistake_is_reversed_by_a_counter_entry(client: TestClient) -> None:
                 "applied_to_type": "invoice",
                 "applied_to_id": invoice["id"],
                 "amount_applied": -10000.0,
-                "note": "认错客户了",
+                "note": _ZH_TEXT['TEXT_9EA9ECDE8E5C202B'],
             }
         ],
     )
@@ -268,7 +275,7 @@ def test_an_inbound_payment_cannot_settle_a_vendor_bill(client: TestClient) -> N
             "direction": "purchase",
             "employee_id": person,
             "vendor_id": supplier["id"],
-            "title": "服务器",
+            "title": _ZH_TEXT['TEXT_2388CBC6A486AF9F'],
             "total_amount": 8000.0,
         },
     )
@@ -400,15 +407,15 @@ def reimbursement_invoice(client: TestClient, claim_id: str) -> dict:
 
 
 def test_a_payment_settles_an_expense_claim(client: TestClient) -> None:
-    """报销付款, paid straight against the claim.
+    """expense reimbursement payment, paid straight against the claim.
 
     The lighter of the two routes a workspace may take: no invoice, fewer
     documents, same money. `tests/test_reimbursement_modes.py` covers the
     other route and the rule that a single claim may not take both.
     """
-    person = employee(client, "出差的小李")
-    cashier = employee(client, "出纳")
-    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": "7月差旅"})
+    person = employee(client, _ZH_TEXT['TEXT_97589E5BCA095858'])
+    cashier = employee(client, _ZH_TEXT['TEXT_6657E4FAF9330E19'])
+    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": _ZH_TEXT['TEXT_FA7CCEC3B8FEF547']})
     post(
         client, "/api/v1/expense-items",
         {"claim_id": claim["id"], "employee_id": person, "expense_date": "2026-07-11", "amount": 480.0},
@@ -610,7 +617,7 @@ def test_a_payment_names_exactly_one_counterparty(client: TestClient) -> None:
 
 
 def test_an_outbound_payment_walks_the_approval_half(client: TestClient) -> None:
-    """付款审批 is the most-approved document there is, so the payment family
+    """payment approval is the most-approved document there is, so the payment family
     keeps the full draft → submitted → approved → paid lifecycle."""
     person = employee(client)
     supplier = vendor(client)
@@ -714,7 +721,7 @@ def test_the_flow_queue_hides_documents_someone_is_already_on(client: TestClient
             "employee_id": person,
             "entity_type": "invoice",
             "entity_id": chased["id"],
-            "title": "催收",
+            "title": _ZH_TEXT['TEXT_EB7EB8F2A9C80B2A'],
         },
     )
 
@@ -725,20 +732,20 @@ def test_the_flow_queue_hides_documents_someone_is_already_on(client: TestClient
 
 
 def test_the_three_way_match_reports_ordered_received_and_billed(client: TestClient) -> None:
-    """采购三单匹配: the server states the three numbers and their gaps; whether
+    """purchase three-way matching: the server states the three numbers and their gaps; whether
     a gap is acceptable is the agent's call against the workflow definition."""
     person = employee(client)
     supplier = vendor(client)
     po = post(
         client, "/api/v1/purchase-orders",
-        {"vendor_id": supplier["id"], "employee_id": person, "title": "服务器采购"},
+        {"vendor_id": supplier["id"], "employee_id": person, "title": _ZH_TEXT['TEXT_26BE086C156BA770']},
     )
     po_line = post(
         client, "/api/v1/purchase-order-items",
         {
             "po_id": po["id"],
             "line_no": 1,
-            "product_name_snapshot": "服务器",
+            "product_name_snapshot": _ZH_TEXT['TEXT_2388CBC6A486AF9F'],
             "quantity": 10,
             "unit_price": 2600.0,
             "amount": 26000.0,
@@ -759,11 +766,11 @@ def test_the_three_way_match_reports_ordered_received_and_billed(client: TestCli
             "direction": "purchase",
             "employee_id": person,
             "vendor_id": supplier["id"],
-            "title": "服务器货款",
+            "title": _ZH_TEXT['TEXT_B898C5B25806E595'],
             "purchase_order_id": po["id"],
             "items": [
                 {
-                    "product_name_snapshot": "服务器",
+                    "product_name_snapshot": _ZH_TEXT['TEXT_2388CBC6A486AF9F'],
                     "quantity": 10,
                     "unit_price": 2600.0,
                     "amount": 26000.0,
@@ -796,11 +803,11 @@ def test_the_match_sums_billing_across_every_invoice_on_the_order(client: TestCl
     supplier = vendor(client)
     po = post(
         client, "/api/v1/purchase-orders",
-        {"vendor_id": supplier["id"], "employee_id": person, "title": "分批开票"},
+        {"vendor_id": supplier["id"], "employee_id": person, "title": _ZH_TEXT['TEXT_14F4A062909B868E']},
     )
     po_line = post(
         client, "/api/v1/purchase-order-items",
-        {"po_id": po["id"], "product_name_snapshot": "服务器", "quantity": 10, "unit_price": 2600.0, "amount": 26000.0},
+        {"po_id": po["id"], "product_name_snapshot": _ZH_TEXT['TEXT_2388CBC6A486AF9F'], "quantity": 10, "unit_price": 2600.0, "amount": 26000.0},
     )
 
     for quantity, amount in ((6, 15600.0), (4, 10400.0)):
@@ -810,11 +817,11 @@ def test_the_match_sums_billing_across_every_invoice_on_the_order(client: TestCl
                 "direction": "purchase",
                 "employee_id": person,
                 "vendor_id": supplier["id"],
-                "title": "分批",
+                "title": _ZH_TEXT['TEXT_80DC2211106BDCDF'],
                 "purchase_order_id": po["id"],
                 "items": [
                     {
-                        "product_name_snapshot": "服务器",
+                        "product_name_snapshot": _ZH_TEXT['TEXT_2388CBC6A486AF9F'],
                         "quantity": quantity,
                         "amount": amount,
                         "purchase_order_item_id": po_line["id"],
@@ -842,12 +849,12 @@ def test_lines_that_match_no_order_line_are_counted_not_hidden(client: TestClien
             "direction": "purchase",
             "employee_id": person,
             "vendor_id": supplier["id"],
-            "title": "含计划外运费",
+            "title": _ZH_TEXT['TEXT_432A6B62D90B13A6'],
             "purchase_order_id": po["id"],
             "items": [
                 {
                     "invoice_item_type": "shipping",
-                    "product_name_snapshot": "运费",
+                    "product_name_snapshot": _ZH_TEXT['TEXT_03B328540B0CEDDA'],
                     "amount": 300.0,
                 }
             ],
@@ -867,11 +874,11 @@ def test_an_invoice_without_an_order_has_no_match_block(client: TestClient) -> N
 
 
 def test_historical_payments_import_unapplied(client: TestClient) -> None:
-    """期初: the money facts import, but what each one settled goes through the
+    """opening balance: the money facts import, but what each one settled goes through the
     guarded apply endpoint — a bulk path into the ledger would be a bulk path
     around the checks that make it trustworthy."""
-    post(client, "/api/v1/employees", {"name": "出纳", "employee_code": "E-CASH"})
-    post(client, "/api/v1/customers", {"name": "上海市第一医院", "customer_code": "C-SH1"})
+    post(client, "/api/v1/employees", {"name": _ZH_TEXT['TEXT_6657E4FAF9330E19'], "employee_code": "E-CASH"})
+    post(client, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC'], "customer_code": "C-SH1"})
     rows = [
         {
             "payment_no": "2025-REC-0001",
@@ -889,7 +896,7 @@ def test_historical_payments_import_unapplied(client: TestClient) -> None:
 
     imported = client.get("/api/v1/payments", headers=HEADERS).json()["data"][0]
     assert imported["payment_no"] == "2025-REC-0001"
-    assert imported["counterparty_name_snapshot"] == "上海市第一医院"
+    assert imported["counterparty_name_snapshot"] == _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']
     assert imported["applied_amount"] == 0.0
 
     rerun = post(client, "/api/v1/payments/bulk", {"rows": rows}, expect=200)
@@ -897,7 +904,7 @@ def test_historical_payments_import_unapplied(client: TestClient) -> None:
 
 
 def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
-    """付款审批 needs both: an approver records a fact against the payment, and
+    """payment approval needs both: an approver records a fact against the payment, and
     the flow agent assigns the todo that got them there."""
     person = employee(client)
     supplier = vendor(client)
@@ -918,7 +925,7 @@ def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
             "employee_id": person,
             "entity_type": "payment",
             "entity_id": payment["id"],
-            "title": "复核收款账号与供应商档案是否一致",
+            "title": _ZH_TEXT['TEXT_6799491327A1CA74'],
         },
     )
     post(
@@ -929,7 +936,7 @@ def test_a_payment_carries_approval_facts_and_todos(client: TestClient) -> None:
             "action": "approved",
             "sequence_no": 2,
             "approver_id": person,
-            "comment": "账号与档案一致",
+            "comment": _ZH_TEXT['TEXT_0E749CA6FD3F77C4'],
         },
     )
 
@@ -998,7 +1005,7 @@ def client_invoice_line(client: TestClient, invoice_id: str) -> str:
     return post(
         client,
         "/api/v1/invoice-items",
-        {"invoice_id": invoice_id, "product_name_snapshot": "货物", "amount": 100.0},
+        {"invoice_id": invoice_id, "product_name_snapshot": _ZH_TEXT['TEXT_0883A49C383F6A0E'], "amount": 100.0},
     )["id"]
 
 
@@ -1039,7 +1046,7 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
     from app.main import app
 
     person = employee(client)
-    cashier = employee(client, "出纳")
+    cashier = employee(client, _ZH_TEXT['TEXT_6657E4FAF9330E19'])
     buyer = customer(client)
 
     invoice = sales_invoice(client, 10000.0, employee_id=person, customer_id=buyer["id"])
@@ -1066,7 +1073,7 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
         [{"applied_to_type": "payment", "applied_to_id": money["id"], "amount_applied": 2000.0}],
     )
     # and an expense claim settled by its own payout
-    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": "差旅"})
+    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": _ZH_TEXT['TEXT_85A7226A9AA6B1DB']})
     post(
         client, "/api/v1/expense-items",
         {"claim_id": claim["id"], "employee_id": person, "expense_date": "2026-07-11", "amount": 800.0},
@@ -1102,7 +1109,7 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
     post(client, f"/api/v1/business-objects/{draw['id']}/post-entries", {}, expect=200)
     loyalty = post(
         client, "/api/v1/billing-accounts",
-        {"name": "会员积分", "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
+        {"name": _ZH_TEXT['TEXT_21FBBD71F0AF184D'], "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
     )
     post(client, "/api/v1/object-type-definitions", {
         "object_type": "acct_earned", "state_machine": {
@@ -1132,7 +1139,7 @@ def test_the_integrity_audits_money_invariants_hold_on_real_settlements(client: 
 
 def billing_account(client: TestClient, **overrides) -> dict:
     body = {
-        "name": "预存款",
+        "name": _ZH_TEXT['TEXT_95AF4B222E0EAE6E'],
         "unit_type": "currency",
         "unit": "CNY",
         "customer_id": overrides.pop("customer_id", None) or customer(client)["id"],
@@ -1142,7 +1149,7 @@ def billing_account(client: TestClient, **overrides) -> dict:
 
 
 def test_a_customer_prepayment_lands_in_their_account(client: TestClient) -> None:
-    """预存: money paid into a standing account rather than against a claim.
+    """deposit: money paid into a standing account rather than against a claim.
     Unlike every other target this one has no ceiling — a deposit is not
     something you can over-settle."""
     person = employee(client)
@@ -1227,7 +1234,7 @@ def test_money_can_never_be_applied_to_a_points_account(client: TestClient) -> N
     buyer = customer(client)
     points = post(
         client, "/api/v1/billing-accounts",
-        {"name": "会员积分", "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
+        {"name": _ZH_TEXT['TEXT_21FBBD71F0AF184D'], "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
     )
     money = receipt(client, 500.0, employee_id=person, customer_id=buyer["id"])
 
@@ -1254,7 +1261,7 @@ def test_a_deposit_can_be_reversed_by_a_counter_entry(client: TestClient) -> Non
     reversed_result = apply(
         client, money["id"],
         [{"applied_to_type": "billing_account", "applied_to_id": account["id"],
-          "amount_applied": -10000.0, "note": "记错账户了"}],
+          "amount_applied": -10000.0, "note": _ZH_TEXT['TEXT_37E622A309A71B8F']}],
     )
     assert reversed_result["applied_amount"] == 0.0
     assert reversed_result["targets"][0]["balance"] == 0.0
@@ -1313,7 +1320,7 @@ def test_a_settled_invoices_total_cannot_be_moved_under_the_ledger(client: TestC
     # fields that are not the money stay editable — a wrong remark is not a
     # reason to void a tax document
     assert client.patch(
-        f"/api/v1/invoices/{invoice['id']}", json={"remarks": "客户要求补充说明"}, headers=HEADERS
+        f"/api/v1/invoices/{invoice['id']}", json={"remarks": _ZH_TEXT['TEXT_92DCE928A3617A48']}, headers=HEADERS
     ).status_code == 200
 
 
@@ -1347,8 +1354,8 @@ def test_a_paid_out_expense_claim_cannot_be_deleted(client: TestClient) -> None:
     paid claim would have deleted cleanly and left a payable whose origin was
     gone. The invoice's existence is what blocks it, settled or not."""
     person = employee(client)
-    cashier = employee(client, "出纳")
-    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": "差旅"})
+    cashier = employee(client, _ZH_TEXT['TEXT_6657E4FAF9330E19'])
+    claim = post(client, "/api/v1/expense-claims", {"employee_id": person, "title": _ZH_TEXT['TEXT_85A7226A9AA6B1DB']})
     post(
         client, "/api/v1/expense-items",
         {"claim_id": claim["id"], "employee_id": person, "expense_date": "2026-07-11", "amount": 800.0},
@@ -1380,7 +1387,7 @@ def test_a_paid_out_expense_claim_cannot_be_deleted(client: TestClient) -> None:
 
 
 def test_recording_and_applying_are_separable_duties(client: TestClient) -> None:
-    """出纳记账 and 会计核销 are different capabilities on purpose."""
+    """cashier recording and accountant allocation are different capabilities on purpose."""
     from app.core.permissions import DEFAULT_ROLE_PERMISSIONS, SYSTEM_CAPABILITY_NAMES
 
     assert "payment.record" in SYSTEM_CAPABILITY_NAMES

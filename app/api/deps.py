@@ -229,6 +229,64 @@ def ensure_may_assign_role(db: Session, actor: "Actor", role_name: str) -> None:
     ensure_grants_within_own(actor, permissions_of_role(db, actor.tenant_id, role_name), what=f"role {role_name!r}")
 
 
+def ensure_may_act_on_user(db: Session, actor: "Actor", user) -> None:
+    """The same rule, read off the person acted on. Demoting, disabling or
+    re-addressing someone, mailing them a reset link, or minting a key or a
+    bundle in their name hands their reach to whoever does it — so outside
+    the administrator, only a person whose role is within the actor's own
+    grants may be acted on (review 2026-10-19, F01)."""
+    if actor.bypasses_permissions or actor.role == "admin":
+        return
+    beyond = grants_beyond(actor.permissions, permissions_of_role(db, actor.tenant_id, user.role))
+    if beyond:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"{user.email} holds what you do not: {', '.join(beyond)} — "
+                "changing their account or credentials is an administrator's"
+            ),
+        )
+
+
+# What a key in someone's name would let its issuer reach past them: access
+# control itself, and the workspace skills every bundle carries — the
+# administrator's agent included — which are instructions, not data
+# (review 2026-10-22, N2).
+ACCESS_CAPABILITIES = ("users.manage", "keys.manage", "skills.manage")
+
+
+def ensure_may_issue_key_for(db: Session, actor: "Actor", user) -> None:
+    """A key desk issues personal keys to the people it equips — that is its
+    job, and the plaintext passes through its hands. What it may not do is
+    mint its way into access control: no key for an administrator, nor for
+    anyone holding a users.manage, keys.manage or skills.manage grant the
+    desk lacks (review 2026-10-19, F01; 2026-10-22, N2)."""
+    if actor.bypasses_permissions or actor.role == "admin":
+        return
+    held = permissions_of_role(db, actor.tenant_id, user.role)
+    access = [grant for grant in held if grant.partition(":")[0] in ACCESS_CAPABILITIES]
+    beyond = grants_beyond(actor.permissions, access)
+    if user.role == "admin" or beyond:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"{user.email} administers access ({', '.join(beyond) or 'admin'}) — "
+                "a key in their name is an administrator's to issue"
+            ),
+        )
+
+
+def ensure_may_issue_service_key(actor: "Actor") -> None:
+    """A workspace service key is never permission-checked, so issuing one
+    is handing out everything; only the administrator does that."""
+    if actor.bypasses_permissions or actor.role == "admin":
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="a workspace service key holds every capability — an administrator issues it",
+    )
+
+
 def authenticate_credential(db: Session, credential: str) -> None:
     """Whether a presented credential still authenticates — the gate the
     idempotency middleware runs before it replays a stored answer. The

@@ -1,3 +1,4 @@
+import { zhCN } from "./locales/zh-CN/console";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -22,9 +23,9 @@ root.render(
   <StrictMode>
     <Suspense
       fallback={(
-        <main className="console-entry-loading" aria-busy="true" aria-label="正在载入 oryh 控制台">
+        <main className="console-entry-loading" aria-busy="true" aria-label={zhCN.main.message}>
           <OryhLogo />
-          <p>正在载入控制台</p>
+          <p>{zhCN.main.message2}</p>
         </main>
       )}
     >

@@ -17,6 +17,13 @@ ask EVERY GET route as the outsider and fail on the first row that leaks.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_shared_read_visibility.json').read_text(encoding="utf-8"))
+
+
 import re
 
 import pytest
@@ -167,7 +174,7 @@ def test_what_is_routed_to_the_outsider_becomes_readable(office) -> None:
     invoice = office["ids"]["purchase_invoice"]
     assert c.get(f"/api/v1/invoices/{invoice}", headers=who).status_code == 404
     todo = c.post("/api/v1/todos", headers=admin, json={
-        "employee_id": office["rep_emp"], "entity_type": "invoice", "entity_id": invoice, "title": "确认对账"})
+        "employee_id": office["rep_emp"], "entity_type": "invoice", "entity_id": invoice, "title": _ZH_TEXT['TEXT_C22608A8E427978E']})
     assert todo.status_code == 201, todo.text
     assert c.get(f"/api/v1/invoices/{invoice}", headers=who).status_code == 200, "a todo on it is the routing"
     assert [r["id"] for r in c.get("/api/v1/invoices", headers=who).json()["data"]] == [invoice]

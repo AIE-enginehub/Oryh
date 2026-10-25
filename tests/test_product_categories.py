@@ -12,6 +12,13 @@ vendor doctrine again.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_product_categories.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -36,37 +43,37 @@ def shelving():
 
 def test_names_are_unique_among_active_siblings_only(shelving) -> None:
     client, admin = shelving["client"], shelving["admin"]
-    valves = shelving["shelf"]("阀门", category_code="CAT-VALVE")
-    fittings = shelving["shelf"]("管件")
+    valves = shelving["shelf"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'], category_code="CAT-VALVE")
+    fittings = shelving["shelf"](_ZH_TEXT['TEXT_09383FB80F52783E'])
 
-    doubled = client.post("/api/v1/product-categories", headers=admin, json={"name": "阀门"})
+    doubled = client.post("/api/v1/product-categories", headers=admin, json={"name": _ZH_TEXT['TEXT_DAAD7816A0D9B63A']})
     assert doubled.status_code == 409, "two live folders with one name at one level"
 
-    ball_a = shelving["shelf"]("配件", parent_id=valves["id"])
-    assert ball_a["parent_name"] == "阀门", "reads say where a shelf sits without a second query"
-    ball_b = shelving["shelf"]("配件", parent_id=fittings["id"])
+    ball_a = shelving["shelf"](_ZH_TEXT['TEXT_2F38ACDABE068067'], parent_id=valves["id"])
+    assert ball_a["parent_name"] == _ZH_TEXT['TEXT_DAAD7816A0D9B63A'], "reads say where a shelf sits without a second query"
+    ball_b = shelving["shelf"](_ZH_TEXT['TEXT_2F38ACDABE068067'], parent_id=fittings["id"])
     assert ball_b["id"] != ball_a["id"], "the same name under two parents is normal shelving"
 
     client.delete(f"/api/v1/product-categories/{ball_a['id']}", headers=admin)
     revived_slot = client.post("/api/v1/product-categories", headers=admin,
-                               json={"name": "配件", "parent_id": valves["id"]})
+                               json={"name": _ZH_TEXT['TEXT_2F38ACDABE068067'], "parent_id": valves["id"]})
     assert revived_slot.status_code == 201, "archiving frees the name — the old row is history"
 
     listed = client.get("/api/v1/product-categories", headers=shelving["member"],
                         params={"root_only": True, "status": "active"})
     assert listed.status_code == 200, "the shelving is master data — everyone reads it"
-    assert {row["name"] for row in listed.json()["data"]} == {"阀门", "管件"}
+    assert {row["name"] for row in listed.json()["data"]} == {_ZH_TEXT['TEXT_DAAD7816A0D9B63A'], _ZH_TEXT['TEXT_09383FB80F52783E']}
 
     refused = client.post("/api/v1/product-categories", headers=shelving["member"],
-                          json={"name": "私货"})
+                          json={"name": _ZH_TEXT['TEXT_8F305F1C07A8DD5D']})
     assert refused.status_code == 403, "shelving is catalog work"
 
 
 def test_the_tree_cannot_fold_into_itself(shelving) -> None:
     client, admin = shelving["client"], shelving["admin"]
-    root = shelving["shelf"]("阀门")
-    child = shelving["shelf"]("球阀", parent_id=root["id"])
-    grandchild = shelving["shelf"]("不锈钢球阀", parent_id=child["id"])
+    root = shelving["shelf"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
+    child = shelving["shelf"](_ZH_TEXT['TEXT_35F56AFD16662659'], parent_id=root["id"])
+    grandchild = shelving["shelf"](_ZH_TEXT['TEXT_F152E7AEF7DA0D3B'], parent_id=child["id"])
 
     own_parent = client.patch(f"/api/v1/product-categories/{root['id']}",
                               headers=admin, json={"parent_id": root["id"]})
@@ -77,25 +84,25 @@ def test_the_tree_cannot_fold_into_itself(shelving) -> None:
 
     client.delete(f"/api/v1/product-categories/{child['id']}", headers=admin)
     onto_archived = client.post("/api/v1/product-categories", headers=admin,
-                                json={"name": "新货架", "parent_id": child["id"]})
+                                json={"name": _ZH_TEXT['TEXT_93AA76C4323698F8'], "parent_id": child["id"]})
     assert onto_archived.status_code == 409, "an archived shelf names its fix: revive first"
 
 
 def test_products_file_onto_active_shelves_only(shelving) -> None:
     client, admin = shelving["client"], shelving["admin"]
-    valves = shelving["shelf"]("阀门")
-    retired = shelving["shelf"]("停产线")
+    valves = shelving["shelf"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
+    retired = shelving["shelf"](_ZH_TEXT['TEXT_A5F3DF067D50B598'])
     client.delete(f"/api/v1/product-categories/{retired['id']}", headers=admin)
 
     onto_archived = client.post("/api/v1/products", headers=admin, json={
-        "name": "老阀门", "category_id": retired["id"]})
+        "name": _ZH_TEXT['TEXT_F55DE9533F7AAE6D'], "category_id": retired["id"]})
     assert onto_archived.status_code == 409
 
     made = client.post("/api/v1/products", headers=admin, json={
-        "name": "工业阀门DN50", "category_id": valves["id"]})
+        "name": _ZH_TEXT['TEXT_383D585EB0B31B8A'], "category_id": valves["id"]})
     assert made.status_code == 201, made.text
     product = made.json()["data"]
-    assert product["category_name"] == "阀门"
+    assert product["category_name"] == _ZH_TEXT['TEXT_DAAD7816A0D9B63A']
 
     filtered = client.get("/api/v1/products", headers=admin,
                           params={"category_id": valves["id"]})
@@ -112,11 +119,11 @@ def test_products_file_onto_active_shelves_only(shelving) -> None:
 
 def test_the_bulk_import_joins_by_code_and_never_invents_a_shelf(shelving) -> None:
     client, admin = shelving["client"], shelving["admin"]
-    shelving["shelf"]("阀门", category_code="CAT-VALVE")
+    shelving["shelf"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'], category_code="CAT-VALVE")
 
     run = client.post("/api/v1/products/bulk", headers=admin, json={"rows": [
-        {"product_code": "P-1", "name": "球阀", "category_code": "CAT-VALVE"},
-        {"product_code": "P-2", "name": "野货", "category_code": "CAT-GHOST"},
+        {"product_code": "P-1", "name": _ZH_TEXT['TEXT_35F56AFD16662659'], "category_code": "CAT-VALVE"},
+        {"product_code": "P-2", "name": _ZH_TEXT['TEXT_7E8371FEE1D514D4'], "category_code": "CAT-GHOST"},
     ], "on_error": "skip"})
     assert run.status_code == 200, run.text
     results = {r["code"]: r for r in run.json()["data"]["results"]}
@@ -126,10 +133,10 @@ def test_the_bulk_import_joins_by_code_and_never_invents_a_shelf(shelving) -> No
 
     filed = client.get("/api/v1/products", headers=admin,
                        params={"keyword": "P-1"}).json()["data"][0]
-    assert filed["category_name"] == "阀门", "category_code joined the row to the tree"
+    assert filed["category_name"] == _ZH_TEXT['TEXT_DAAD7816A0D9B63A'], "category_code joined the row to the tree"
 
     cleared = client.post("/api/v1/products/bulk", headers=admin, json={"rows": [
-        {"product_code": "P-1", "name": "球阀", "category_code": None},
+        {"product_code": "P-1", "name": _ZH_TEXT['TEXT_35F56AFD16662659'], "category_code": None},
     ]})
     assert cleared.status_code == 200, cleared.text
     unfiled = client.get("/api/v1/products", headers=admin,

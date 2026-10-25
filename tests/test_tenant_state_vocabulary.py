@@ -1,6 +1,6 @@
 """State names are the tenant's vocabulary, end to end.
 
-The acceptance case: an admin says "invoice 审批完成后的状态改叫 approved" —
+The acceptance case: an admin says "invoice rename the post-approval state to approved" —
 one PATCH to the builtin machine, with a `roles` entry telling the server
 where its anchor went. Everything the server does with that state follows the
 role: /submit lands on the tenant's word, issued_at stamps on the tenant's
@@ -130,7 +130,7 @@ def test_reimbursement_invoices_arrive_in_the_tenants_word(shop) -> None:
 
 
 def test_documents_are_created_in_the_machines_own_initial(shop) -> None:
-    """"创建时什么状态" — the initial is the machine's, not the schema's."""
+    """"initial state at creation" — the initial is the machine's, not the schema's."""
     saved = shop["save_machine"]("expense_claim", {
         "initial": "open",
         "states": ["open", "filed", "returned", "approved", "rejected", "paid"],

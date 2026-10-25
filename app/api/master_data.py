@@ -1600,8 +1600,8 @@ def _match_phrases(title: str, field_text: str) -> set[str]:
     """What a catalog field and a platform title share, as PHRASES: every
     ASCII word/number both contain, and every maximal run of CJK (two or
     more characters) that appears verbatim in both. Bigram counting (the
-    first cut) let a long compound shared by half the catalog — 医用胶片打印机 —
-    outscore the one word that names the goods (色带), because the compound
+    first cut) let a long compound shared by half the catalog — medical film printer —
+    outscore the one word that names the goods (ribbon), because the compound
     is six bigrams and the word is one. A shared run is one phrase however
     long it is; how much it says is its rarity, weighed by the caller."""
     if not field_text:
@@ -1613,7 +1613,7 @@ def _match_phrases(title: str, field_text: str) -> set[str]:
     for run in re.findall(r"[\u4e00-\u9fff]+", field_text):
         for t_run in title_runs:
             # maximal common substrings of length >= 2 (single characters
-            # say nothing: 机 is in every machine), longest first so a
+            # say nothing: machine is in every machine), longest first so a
             # shorter piece of an already-taken run does not count twice
             found: list[str] = []
             n, m = len(run), len(t_run)
@@ -2696,8 +2696,8 @@ def create_external_product_map(
     # listing may swap BACK to a product it meant before, and closed-window
     # rows for back-dated imports never conflict with the current pairing.
     name_norm = normalize_external_name(payload.external_name)
-    # the spec text is matched the way the title is (E-01): "片幅:11X14" and
-    # "片幅:11x14" are one spec, and a lookup folds the same way
+    # the spec text is matched the way the title is (E-01): "film size:11X14" and
+    # "film size:11x14" are one spec, and a lookup folds the same way
     payload.external_sku_id = normalize_external_name(payload.external_sku_id) or ""
     _require_map_window_authority(actor, payload.effective_from, payload.effective_to)
     if payload.status == "active" and payload.effective_to is None:
@@ -3166,7 +3166,7 @@ def reserve_stock_for_order(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """占货: hold goods for an order. The ONLY way a `reserved` row enters
+    """stock reservation: hold goods for an order. The ONLY way a `reserved` row enters
     the ledger — an availability fact tied to the order it serves, posted
     by the warehouse from the positions it chooses. Each line names a
     position holding goods the order sells and a quantity; a hold that
@@ -3387,8 +3387,8 @@ register(
         response_model=VendorEnvelope,
         id_param="vendor_id",
     ),
-    # the retail identity key, as tax_id is the B2B one — "这个手机号
-    # 是不是老客户" is the question a counter agent actually asks
+    # the retail identity key, as tax_id is the B2B one — "this phone number
+    # is this an existing customer" is the question a counter agent actually asks
     ListResource(
         path="/customers",
         name="list_customers",
@@ -3553,7 +3553,7 @@ register(
         id_param="supplier_product_id",
     ),
     # the reverse lookup this table exists for: the customer's PO says
-    # "货号 KH-3301" and the agent needs to know which product that is
+    # "product code KH-3301" and the agent needs to know which product that is
     ListResource(
         path="/customer-products",
         name="list_customer_products",
@@ -3573,7 +3573,7 @@ register(
         id_param="customer_product_id",
     ),
     # the primary first, then the rest by arrival — the order a person
-    # answering "找谁" actually wants
+    # answering "who to contact" actually wants
     ListResource(
         path="/customer-contacts",
         name="list_customer_contacts",

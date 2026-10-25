@@ -9,6 +9,13 @@ where they become wrong.
 """
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_client_feedback_2026_09.json').read_text(encoding="utf-8"))
+
+
 import base64
 import hashlib
 import re
@@ -139,28 +146,28 @@ def test_documents_and_todos_name_their_person() -> None:
     """2.2 — an agent confirming who filed a timesheet spent three calls and
     111K tokens on a UUID. The name travels with the record, read live."""
     with _office() as (client, admin, employee):
-        emp = employee("王小明")
+        emp = employee(_ZH_TEXT['TEXT_ACF979CC584E1CF9'])
         me = invite_member(client, admin, "ming", MEMBER, employee_id=emp)
         sheet = client.post("/api/v1/timesheet-headers", headers=me, json={
             "employee_id": emp, "period_start": "2026-09-14", "period_end": "2026-09-20"}).json()["data"]
-        assert sheet["employee_name"] == "王小明", "the create's read-back names the person"
-        assert client.get(f"/api/v1/timesheet-headers/{sheet['id']}", headers=me).json()["data"]["employee_name"] == "王小明"
-        assert client.get("/api/v1/timesheet-headers", headers=me).json()["data"][0]["employee_name"] == "王小明"
-        assert client.get(f"/api/v1/timesheet-headers/{sheet['id']}/detail", headers=me).json()["data"]["header"]["employee_name"] == "王小明"
+        assert sheet["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9'], "the create's read-back names the person"
+        assert client.get(f"/api/v1/timesheet-headers/{sheet['id']}", headers=me).json()["data"]["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
+        assert client.get("/api/v1/timesheet-headers", headers=me).json()["data"][0]["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
+        assert client.get(f"/api/v1/timesheet-headers/{sheet['id']}/detail", headers=me).json()["data"]["header"]["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
         todo = client.post("/api/v1/todos", headers=admin, json={
             "employee_id": emp, "entity_type": "timesheet_header", "entity_id": sheet["id"], "title": "look"}).json()["data"]
-        assert todo["employee_name"] == "王小明"
-        assert client.get("/api/v1/todos", headers=me).json()["data"][0]["employee_name"] == "王小明"
+        assert todo["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
+        assert client.get("/api/v1/todos", headers=me).json()["data"][0]["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
         # a renamed person reads under the current name: nothing was stored
-        assert client.patch(f"/api/v1/employees/{emp}", headers=admin, json={"name": "王明"}).status_code == 200
-        assert client.get(f"/api/v1/todos/{todo['id']}", headers=me).json()["data"]["employee_name"] == "王明"
+        assert client.patch(f"/api/v1/employees/{emp}", headers=admin, json={"name": _ZH_TEXT['TEXT_CA806AB6C4A49DA1']}).status_code == 200
+        assert client.get(f"/api/v1/todos/{todo['id']}", headers=me).json()["data"]["employee_name"] == _ZH_TEXT['TEXT_CA806AB6C4A49DA1']
         claim = client.post("/api/v1/expense-claims", headers=me, json={"employee_id": emp, "title": "taxi"}).json()["data"]
-        assert claim["employee_name"] == "王明"
+        assert claim["employee_name"] == _ZH_TEXT['TEXT_CA806AB6C4A49DA1']
         leave = client.post("/api/v1/employee-leaves", headers=admin, json={
             "employee_id": emp, "leave_type": "annual", "from_date": "2026-10-01", "thru_date": "2026-10-01", "duration_days": 1})
-        assert leave.status_code == 201 and leave.json()["data"]["employee_name"] == "王明", leave.text
+        assert leave.status_code == 201 and leave.json()["data"]["employee_name"] == _ZH_TEXT['TEXT_CA806AB6C4A49DA1'], leave.text
         request = client.post("/api/v1/purchase-requests", headers=admin, json={"employee_id": emp, "title": "pens"})
-        assert request.status_code == 201 and request.json()["data"]["employee_name"] == "王明", request.text
+        assert request.status_code == 201 and request.json()["data"]["employee_name"] == _ZH_TEXT['TEXT_CA806AB6C4A49DA1'], request.text
 
 
 def test_order_lines_carry_the_order_number_and_movements_their_product() -> None:

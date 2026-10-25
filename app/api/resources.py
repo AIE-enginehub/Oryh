@@ -173,7 +173,7 @@ def build_resource_availability(
         available_quantity = 1 if available else 0
     else:
         max_quantity = resource.max_quantity or 1
-        booked_quantity = sum(item.quantity for item in overlaps)
+        booked_quantity = peak_concurrent_quantity(overlaps, start_at, end_at)
         available_quantity = max(max_quantity - booked_quantity, 0)
         available = available_quantity > 0
     return ResourceAvailabilityRead(

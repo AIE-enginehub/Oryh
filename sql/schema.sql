@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261015_0099
+-- Alembic revision: 20261019_0100
 --
 
 --
@@ -571,7 +571,10 @@ CREATE TABLE oryh.contracts (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     opportunity_id uuid,
     upstream_jsonb jsonb,
-    CONSTRAINT contracts_one_counterparty_check CHECK (((vendor_id IS NULL) OR (customer_id IS NULL)))
+    side character varying(10) NOT NULL,
+    CONSTRAINT contracts_one_counterparty_check CHECK (((vendor_id IS NULL) OR (customer_id IS NULL))),
+    CONSTRAINT contracts_side_chk CHECK (((side)::text = ANY ((ARRAY['purchase'::character varying, 'sales'::character varying])::text[]))),
+    CONSTRAINT contracts_side_counterparty_chk CHECK (((((side)::text = 'purchase'::text) AND (customer_id IS NULL)) OR (((side)::text = 'sales'::text) AND (vendor_id IS NULL))))
 );
 
 
@@ -2821,14 +2824,6 @@ ALTER TABLE ONLY oryh.customer_relations
 
 
 --
--- Name: customer_relations customer_relations_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
---
-
-ALTER TABLE ONLY oryh.customer_relations
-    ADD CONSTRAINT customer_relations_uk UNIQUE (customer_id, related_customer_id, relation_type, effective_from);
-
-
---
 -- Name: customers customers_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4362,6 +4357,13 @@ CREATE INDEX customer_products_tenant_idx ON oryh.customer_products USING btree 
 
 
 --
+-- Name: customer_relations_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX customer_relations_uk ON oryh.customer_relations USING btree (customer_id, related_customer_id, relation_type, COALESCE(effective_from, '0001-01-01'::date));
+
+
+--
 -- Name: customer_relations_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5654,6 +5656,13 @@ CREATE UNIQUE INDEX products_tenant_code_uq ON oryh.products USING btree (tenant
 --
 
 CREATE INDEX products_tenant_idx ON oryh.products USING btree (tenant_id, status, created_at DESC);
+
+
+--
+-- Name: projects_tenant_opportunity_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX projects_tenant_opportunity_uk ON oryh.projects USING btree (tenant_id, opportunity_id) WHERE (opportunity_id IS NOT NULL);
 
 
 --

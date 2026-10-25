@@ -103,7 +103,7 @@ ADMIN_ONLY_READS: tuple[tuple[str, str], ...] = (
     # what reaches nobody — the exact machinery this audit closed to members
     ("GET", "/api/v1/workspace/setup-report"),
     # the bank register is payroll-grade sensitive (cash position, salary
-    # payout lines) — the cashier's capability gates reads too (钱账分离)
+    # payout lines) — the cashier's capability gates reads too (separation of payment documents and bank-register duties)
     ("GET", "/api/v1/fin-accounts"),
     ("GET", "/api/v1/fin-account-transactions"),
     # contracts carry the prices negotiated with a factory or a customer —

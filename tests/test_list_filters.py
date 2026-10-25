@@ -10,6 +10,13 @@ skills' contracts are generated from.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_list_filters.json').read_text(encoding="utf-8"))
+
+
 import json
 import pathlib
 
@@ -26,8 +33,8 @@ def shop():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Filter Co", email="admin@filter.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
         product = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP-1"}, headers=admin).json()["data"]["id"]
         yield {"client": client, "admin": admin, "employee": emp, "customer": customer, "product": product}
 
@@ -71,10 +78,10 @@ def test_the_ledger_reads_by_effective_date(shop) -> None:
 def test_documents_cut_by_their_own_dates_and_references(shop) -> None:
     c, admin = shop["client"], shop["admin"]
     early = c.post("/api/v1/invoices", headers=admin, json={
-        "direction": "sales", "employee_id": shop["employee"], "customer_id": shop["customer"], "title": "早",
+        "direction": "sales", "employee_id": shop["employee"], "customer_id": shop["customer"], "title": _ZH_TEXT['TEXT_E7C7FB50F3DB8408'],
         "invoice_date": "2026-01-10", "due_date": "2026-02-10", "total_amount": 100}).json()["data"]
     late = c.post("/api/v1/invoices", headers=admin, json={
-        "direction": "sales", "employee_id": shop["employee"], "customer_id": shop["customer"], "title": "晚",
+        "direction": "sales", "employee_id": shop["employee"], "customer_id": shop["customer"], "title": _ZH_TEXT['TEXT_1917A52C057AAD5C'],
         "invoice_date": "2026-06-10", "due_date": "2026-07-10", "total_amount": 100, "currency": "USD"}).json()["data"]
     by_due = c.get("/api/v1/invoices", headers=admin, params={"due_date_from": "2026-03-01", "due_date_thru": "2026-12-31"}).json()["data"]
     assert [i["id"] for i in by_due] == [late["id"]]

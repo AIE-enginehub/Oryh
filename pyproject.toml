@@ -35,7 +35,7 @@ include = ["app*"]
 app = ["web/templates/*.html"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "workbuddy/tests"]
 # Only `app*` is installed, so `scripts/` is importable from a test run but not
 # from an installed package. test_frontend_contract.py exports the console
 # contract through the same code the developer runs, rather than restating it.

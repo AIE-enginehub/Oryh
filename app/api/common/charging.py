@@ -65,7 +65,7 @@ from app.api.common.core import (
 # integrity audit making a forgotten one visible.
 #
 # Why this window matters: between order and invoice — an e-commerce wait, a
-# walk-in customer's 缺货 two-day gap, a toB delivery months out — the same
+# walk-in customer's out-of-stock two-day gap, a toB delivery months out — the same
 # balance must not be spendable twice. That is the double-spend charging
 # exists to refuse.
 
@@ -417,7 +417,7 @@ def ensure_invoice_not_duplicated(
     """The duplicate-booking control: one tax invoice number may only be booked
     once per tenant.
 
-    For 进项 the check spans BOTH places such an invoice can land — an expense
+    For purchase invoices the check spans BOTH places such an invoice can land — an expense
     item and a vendor bill — because the expensive mistake is precisely the one
     a single-table check misses: the same receipt reimbursed to an employee and
     then paid again against the supplier's own invoice. Sales-side numbers are

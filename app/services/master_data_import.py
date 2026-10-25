@@ -9,7 +9,7 @@ What the server owns and what it does NOT own is the whole design. The server
 owns identity and idempotency: the code is the key, an existing code updates,
 a new code creates, and running the same import twice changes nothing the
 second time. It does NOT own the spreadsheet: which column held the code,
-whether 单价 meant list_price, what to do about a row whose code is blank —
+whether unit price meant list_price, what to do about a row whose code is blank —
 that is judgment about a human artifact, and it belongs to the agent talking
 to the person who has the file open.
 """
@@ -41,7 +41,7 @@ COLUMN_ALIASES = {"metadata": "metadata_jsonb"}
 # as (column, type-option family). Same doctrine the nested price rows already
 # follow: a value the tenant's catalog does not hold is the ROW's error, taken
 # back to the person, never a vocabulary entry the import invents on their
-# behalf. A spreadsheet column of 客户分类 is exactly where that would be
+# behalf. A spreadsheet column of customer category is exactly where that would be
 # tempting — every unfamiliar word in it looks like a new segment.
 TYPE_OPTION_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
     "customer": (("customer_type", "customer_type"),),

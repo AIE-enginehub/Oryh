@@ -15,6 +15,13 @@ retry path, which is the reason the coupling was worth making at all.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_atomic_round_transition.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -25,9 +32,9 @@ from conftest import make_client, provision_tenant
 def flow(client: TestClient):
     ctx = provision_tenant(client, company_name="Round Co", email="admin@round-co.example")
     key = {"X-API-Key": ctx["plain_text_api_key"]}
-    submitter = client.post("/api/v1/employees", json={"name": "提交人"},
+    submitter = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_973F2EB1ED93D1BA']},
                             headers=key).json()["data"]["id"]
-    approver = client.post("/api/v1/employees", json={"name": "审批人"},
+    approver = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']},
                            headers=key).json()["data"]["id"]
     header = client.post("/api/v1/timesheet-headers", json={
         "employee_id": submitter, "period_start": "2026-08-03", "period_end": "2026-08-09",
@@ -56,10 +63,10 @@ def test_a_return_is_one_call_carrying_all_three_facts(flow) -> None:
     response = flow["client"].post("/api/v1/approval-records", json={
         "entity_type": "timesheet_header", "entity_id": flow["header"],
         "round_no": 1, "sequence_no": 2, "action": "returned",
-        "comment": "项目编号缺失",
+        "comment": _ZH_TEXT['TEXT_267741CF276487BB'],
         "document_status": "returned",
-        "handoff": {"employee_id": flow["submitter"], "title": "修改工时",
-                    "description": "项目编号缺失", "todo_type": "rework"},
+        "handoff": {"employee_id": flow["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
+                    "description": _ZH_TEXT['TEXT_267741CF276487BB'], "todo_type": "rework"},
     }, headers=flow["key"])
     assert response.status_code == 201, response.text
 
@@ -67,7 +74,7 @@ def test_a_return_is_one_call_carrying_all_three_facts(flow) -> None:
     rework = todos_on(flow, todo_type="rework", status="open")
     assert len(rework) == 1
     assert rework[0]["employee_id"] == flow["submitter"]
-    assert rework[0]["description"] == "项目编号缺失"
+    assert rework[0]["description"] == _ZH_TEXT['TEXT_267741CF276487BB']
 
 
 def test_the_handoff_survives_the_returned_sweep(flow) -> None:
@@ -75,7 +82,7 @@ def test_the_handoff_survives_the_returned_sweep(flow) -> None:
     the same call must not be swept with them — it belongs to the new round."""
     flow["client"].post("/api/v1/todos", json={
         "employee_id": flow["approver"], "entity_type": "timesheet_header",
-        "entity_id": flow["header"], "title": "审批工时", "todo_type": "approval",
+        "entity_id": flow["header"], "title": _ZH_TEXT['TEXT_5C2029336A093863'], "todo_type": "approval",
         "metadata": {"round_no": 1, "sequence_no": 2},
     }, headers=flow["key"])
 
@@ -83,7 +90,7 @@ def test_the_handoff_survives_the_returned_sweep(flow) -> None:
         "entity_type": "timesheet_header", "entity_id": flow["header"],
         "round_no": 1, "sequence_no": 2, "action": "returned",
         "document_status": "returned",
-        "handoff": {"employee_id": flow["submitter"], "title": "修改工时",
+        "handoff": {"employee_id": flow["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
                     "todo_type": "rework"},
     }, headers=flow["key"])
 
@@ -106,7 +113,7 @@ def test_a_retry_finishes_a_transition_that_stopped_halfway(flow) -> None:
     retried = flow["client"].post("/api/v1/approval-records", json={
         **body,
         "document_status": "returned",
-        "handoff": {"employee_id": flow["submitter"], "title": "修改工时",
+        "handoff": {"employee_id": flow["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
                     "todo_type": "rework"},
     }, headers=flow["key"])
     assert retried.status_code == 201, retried.text
@@ -119,7 +126,7 @@ def test_repeating_the_whole_call_makes_no_second_todo(flow) -> None:
         "entity_type": "timesheet_header", "entity_id": flow["header"],
         "round_no": 1, "sequence_no": 2, "action": "returned",
         "document_status": "returned",
-        "handoff": {"employee_id": flow["submitter"], "title": "修改工时",
+        "handoff": {"employee_id": flow["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
                     "todo_type": "rework"},
     }
     assert flow["client"].post("/api/v1/approval-records", json=body,
@@ -154,7 +161,7 @@ def test_an_unknown_employee_is_refused_and_takes_the_fact_with_it(flow) -> None
         "round_no": 1, "sequence_no": 2, "action": "returned",
         "document_status": "returned",
         "handoff": {"employee_id": "00000000000000000000000000000000",
-                    "title": "修改工时", "todo_type": "rework"},
+                    "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'], "todo_type": "rework"},
     }, headers=flow["key"])
     assert response.status_code == 404, response.text
 
@@ -178,7 +185,7 @@ def test_the_three_separate_calls_still_work(flow) -> None:
                                 headers=flow["key"]).status_code == 200
     assert flow["client"].post("/api/v1/todos", json={
         "employee_id": flow["submitter"], "entity_type": "timesheet_header",
-        "entity_id": flow["header"], "title": "修改工时", "todo_type": "rework",
+        "entity_id": flow["header"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'], "todo_type": "rework",
     }, headers=flow["key"]).status_code == 201
 
     assert status_of(flow) == "returned"
@@ -191,10 +198,10 @@ def test_a_tenant_defined_target_moves_the_same_way() -> None:
     with make_client() as client:
         ctx = provision_tenant(client, company_name="Proj Co", email="admin@proj-co.example")
         key = {"X-API-Key": ctx["plain_text_api_key"]}
-        approver = client.post("/api/v1/employees", json={"name": "审批人"},
+        approver = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']},
                                headers=key).json()["data"]["id"]
         target = client.post("/api/v1/approval-targets", json={
-            "target_type": "合同", "title": "年度框架协议",
+            "target_type": _ZH_TEXT['TEXT_06C891807EE3FEEC'], "title": _ZH_TEXT['TEXT_0280114223CDD685'],
         }, headers=key)
         assert target.status_code == 201, target.text
         target_id = target.json()["data"]["id"]
@@ -203,7 +210,7 @@ def test_a_tenant_defined_target_moves_the_same_way() -> None:
             "entity_type": "approval_target", "entity_id": target_id,
             "round_no": 1, "sequence_no": 1, "action": "submitted",
             "document_status": "in_review",
-            "handoff": {"employee_id": approver, "title": "审阅合同",
+            "handoff": {"employee_id": approver, "title": _ZH_TEXT['TEXT_1C28067DB190C38F'],
                         "todo_type": "approval"},
         }, headers=key)
         assert response.status_code == 201, response.text
@@ -213,13 +220,13 @@ def test_a_tenant_defined_target_moves_the_same_way() -> None:
         todos = client.get(
             f"/api/v1/todos?entity_type=approval_target&entity_id={target_id}", headers=key
         ).json()["data"]
-        assert [t["title"] for t in todos if t["status"] == "open"] == ["审阅合同"]
+        assert [t["title"] for t in todos if t["status"] == "open"] == [_ZH_TEXT['TEXT_1C28067DB190C38F']]
 
         # and the machine still rules for these types too
         refused = client.post("/api/v1/approval-records", json={
             "entity_type": "approval_target", "entity_id": target_id,
             "round_no": 1, "sequence_no": 2, "action": "approved",
-            "document_status": "不是一个状态",
+            "document_status": _ZH_TEXT['TEXT_724CA76F3F8936C5'],
         }, headers=key)
         assert refused.status_code == 422
 
@@ -258,7 +265,7 @@ def test_a_handoff_onto_a_finished_document_is_refused(flow) -> None:
         "entity_type": "timesheet_header", "entity_id": flow["header"],
         "round_no": 1, "sequence_no": 2, "action": "rejected",
         "document_status": "rejected",
-        "handoff": {"employee_id": flow["submitter"], "title": "修改工时",
+        "handoff": {"employee_id": flow["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
                     "todo_type": "rework"},
     }, headers=flow["key"])
     assert response.status_code == 409, response.text

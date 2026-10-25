@@ -1,3 +1,5 @@
+import { zhAttributes } from "../locales/zh-CN/attributes";
+import { zhCN } from "../locales/zh-CN/tests";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -28,9 +30,9 @@ vi.mock("../api/client", async () => {
 const product = {
   id: "product-1",
   product_code: "P-100",
-  name: "轻量夹克",
-  spec: "城市通勤款",
-  unit: "件",
+  name: zhCN.pagesProductsPage.name,
+  spec: zhCN.pagesProductsPage.spec,
+  unit: zhCN.pagesProductsPage.unit,
   list_price: 399,
   currency: "CNY",
   status: "active",
@@ -46,9 +48,9 @@ const sku = {
   product_id: "product-1",
   sku_code: "P-100-GRAY-L",
   variant_attrs: {
-    颜色: "深空灰",
-    尺码序号: 42,
-    包装: { 类型: "礼盒", 件数: 1 },
+    [zhAttributes.color]: zhCN.pagesProductsPage.message,
+    [zhAttributes.sizeSequence]: 42,
+    [zhAttributes.packaging]: { [zhAttributes.packagingType]: zhCN.pagesProductsPage.message2, [zhAttributes.itemCount]: 1 },
   },
   list_price: 429,
   status: "active",
@@ -87,61 +89,61 @@ describe("product catalog", () => {
   it("loads products and applies server-side search, status and pagination", async () => {
     const user = userEvent.setup();
     renderPage();
-    expect(await screen.findByText("轻量夹克")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesProductsPage.name)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name2 }));
     await waitFor(() => expect(api.listProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
-    await user.type(screen.getByRole("searchbox"), "夹克");
-    await user.selectOptions(screen.getByLabelText("状态"), "archived");
-    await user.click(screen.getByRole("button", { name: "筛选" }));
-    await waitFor(() => expect(api.listProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: "夹克", status: "archived" })));
+    await user.type(screen.getByRole("searchbox"), zhCN.pagesProductsPage.message3);
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesProductsPage.state), "archived");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name3 }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: zhCN.pagesProductsPage.message3, status: "archived" })));
   });
 
   it("validates, creates, edits and archives a product while returning to page one", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await screen.findByText(zhCN.pagesProductsPage.name);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name2 }));
     await waitFor(() => expect(api.listProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
 
-    await user.click(screen.getByRole("button", { name: /新建产品/ }));
-    await user.type(screen.getByLabelText(/产品名称/), "旅行风衣");
-    await user.clear(screen.getByLabelText(/币种/));
-    await user.type(screen.getByLabelText(/币种/), "US");
-    await user.type(screen.getByLabelText("参考价格"), "12.345");
-    await user.click(screen.getByRole("button", { name: "创建产品" }));
-    expect(await screen.findByText(/币种必须是三位/)).toBeInTheDocument();
-    await user.clear(screen.getByLabelText(/币种/));
-    await user.type(screen.getByLabelText(/币种/), "USD");
-    await user.click(screen.getByRole("button", { name: "创建产品" }));
-    expect(await screen.findByText(/最多保留两位小数/)).toBeInTheDocument();
-    await user.clear(screen.getByLabelText("参考价格"));
-    await user.type(screen.getByLabelText("参考价格"), "129.90");
-    await user.click(screen.getByRole("button", { name: "创建产品" }));
-    await waitFor(() => expect(api.createProduct).toHaveBeenCalledWith(expect.objectContaining({ name: "旅行风衣", currency: "USD", list_price: 129.9 })));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name4() }));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.pattern()), zhCN.pagesProductsPage.message5);
+    await user.clear(screen.getByLabelText(zhCN.pagesProductsPage.pattern2()));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.pattern2()), "US");
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.referencePrice), "12.345");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name5 }));
+    expect(await screen.findByText(zhCN.pagesProductsPage.pattern3())).toBeInTheDocument();
+    await user.clear(screen.getByLabelText(zhCN.pagesProductsPage.pattern2()));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.pattern2()), "USD");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name5 }));
+    expect(await screen.findByText(zhCN.pagesProductsPage.pattern4())).toBeInTheDocument();
+    await user.clear(screen.getByLabelText(zhCN.pagesProductsPage.referencePrice));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.referencePrice), "129.90");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name5 }));
+    await waitFor(() => expect(api.createProduct).toHaveBeenCalledWith(expect.objectContaining({ name: zhCN.pagesProductsPage.message5, currency: "USD", list_price: 129.9 })));
     await waitFor(() => {
       const calls = api.listProducts.mock.calls.map(([filters]) => filters.page);
       expect(calls.at(-1)).toBe(1);
     });
 
-    await user.click(screen.getByRole("button", { name: "编辑" }));
-    await user.clear(screen.getByLabelText("计量单位"));
-    await user.type(screen.getByLabelText("计量单位"), "套");
-    await user.click(screen.getByRole("button", { name: "保存更改" }));
-    await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith("product-1", expect.objectContaining({ unit: "套" })));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name6 }));
+    await user.clear(screen.getByLabelText(zhCN.pagesProductsPage.unitOfMeasure));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.unitOfMeasure), zhCN.pagesProductsPage.message8);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name7 }));
+    await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith("product-1", expect.objectContaining({ unit: zhCN.pagesProductsPage.message8 })));
 
-    await user.click(screen.getByRole("button", { name: "归档" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name8 }));
     const confirm = screen.getByRole("alertdialog");
-    await user.click(within(confirm).getByRole("button", { name: "确认归档" }));
+    await user.click(within(confirm).getByRole("button", { name: zhCN.pagesProductsPage.name9 }));
     await waitFor(() => expect(api.archiveProduct).toHaveBeenCalledWith("product-1"));
   });
 
   it("shows a recoverable product-list error", async () => {
-    api.listProducts.mockRejectedValue(new Error("目录服务暂时不可用"));
+    api.listProducts.mockRejectedValue(new Error(zhCN.pagesProductsPage.message9));
     renderPage();
-    expect(await screen.findByText("数据加载失败")).toBeInTheDocument();
-    expect(screen.getByText("目录服务暂时不可用")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesProductsPage.dataCouldNotBeLoaded)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesProductsPage.message9)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.pagesProductsPage.name10 })).toBeInTheDocument();
   });
 
   it("returns to the last valid product page when the result set shrinks", async () => {
@@ -152,8 +154,8 @@ describe("product catalog", () => {
     ));
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await screen.findByText(zhCN.pagesProductsPage.name);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name2 }));
     await waitFor(() => expect(api.listProducts).toHaveBeenCalledWith(
       expect.objectContaining({ page: 2 }),
     ));
@@ -169,46 +171,46 @@ describe("product SKU workspace", () => {
   it("filters and manages SKU attributes without losing numeric or object values", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
-    const workspace = await screen.findByRole("region", { name: "SKU 管理" });
+    const workspace = await screen.findByRole("region", { name: zhCN.pagesProductsPage.name11 });
     expect(await within(workspace).findByText("P-100-GRAY-L")).toBeInTheDocument();
-    expect(within(workspace).getByText('包装：{"类型":"礼盒","件数":1}')).toBeInTheDocument();
+    expect(within(workspace).getByText(zhCN.pagesProductsPage.message11)).toBeInTheDocument();
 
-    await user.type(within(workspace).getByLabelText("精确 SKU 编码"), "P-100-GRAY-L");
-    await user.selectOptions(within(workspace).getByLabelText("SKU 状态"), "active");
-    await user.click(within(workspace).getByRole("button", { name: "查询" }));
+    await user.type(within(workspace).getByLabelText(zhCN.pagesProductsPage.exactSKUCode), "P-100-GRAY-L");
+    await user.selectOptions(within(workspace).getByLabelText(zhCN.pagesProductsPage.sKUStatus), "active");
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name12 }));
     await waitFor(() => expect(api.listProductSkus).toHaveBeenCalledWith(expect.objectContaining({ product_id: "product-1", sku_code: "P-100-GRAY-L", status: "active" })));
 
-    await user.click(within(workspace).getByRole("button", { name: "编辑" }));
-    expect(screen.getByLabelText("属性 2 值")).toHaveValue("42");
-    expect(screen.getByLabelText("属性 3 值")).toHaveValue('{"类型":"礼盒","件数":1}');
-    expect(screen.getAllByText("结构化内容")).toHaveLength(2);
-    await user.click(screen.getByRole("button", { name: "保存更改" }));
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name6 }));
+    expect(screen.getByLabelText(zhCN.pagesProductsPage.message14)).toHaveValue("42");
+    expect(screen.getByLabelText(zhCN.pagesProductsPage.message15)).toHaveValue(zhCN.pagesProductsPage.message16);
+    expect(screen.getAllByText(zhCN.pagesProductsPage.structuredContent)).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name7 }));
     await waitFor(() => expect(api.updateProductSku).toHaveBeenCalledWith("sku-1", expect.objectContaining({
       variant_attrs: {
-        颜色: "深空灰",
-        尺码序号: 42,
-        包装: { 类型: "礼盒", 件数: 1 },
+        [zhAttributes.color]: zhCN.pagesProductsPage.message,
+        [zhAttributes.sizeSequence]: 42,
+        [zhAttributes.packaging]: { [zhAttributes.packagingType]: zhCN.pagesProductsPage.message2, [zhAttributes.itemCount]: 1 },
       },
     })));
     expect(api.updateProductSku.mock.calls[0][1]).not.toHaveProperty("product_id");
 
-    await user.click(within(workspace).getByRole("button", { name: "下一页" }));
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name2 }));
     await waitFor(() => expect(api.listProductSkus).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
-    await user.click(within(workspace).getByRole("button", { name: /新建 SKU/ }));
-    await user.type(screen.getByLabelText("SKU 编码"), "P-100-BLUE-M");
-    await user.type(screen.getByLabelText("属性 1 名称"), "颜色");
-    await user.type(screen.getByLabelText("属性 1 值"), "海军蓝");
-    await user.click(screen.getByRole("button", { name: /添加属性/ }));
-    await user.type(screen.getByLabelText("属性 2 名称"), "尺码");
-    await user.type(screen.getByLabelText("属性 2 值"), "M");
-    await user.type(screen.getByLabelText("变体价格"), "419.00");
-    await user.click(screen.getByRole("button", { name: "创建 SKU" }));
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name13() }));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.sKUCode), "P-100-BLUE-M");
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.message19), zhCN.pagesProductsPage.message20);
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.message21), zhCN.pagesProductsPage.message22);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name14() }));
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.message23), zhCN.pagesProductsPage.size);
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.message14), "M");
+    await user.type(screen.getByLabelText(zhCN.pagesProductsPage.variantPrice), "419.00");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesProductsPage.name15 }));
     await waitFor(() => expect(api.createProductSku).toHaveBeenCalledWith(expect.objectContaining({
       product_id: "product-1",
       sku_code: "P-100-BLUE-M",
-      variant_attrs: { 颜色: "海军蓝", 尺码: "M" },
+      variant_attrs: { [zhAttributes.color]: zhCN.pagesProductsPage.message22, [zhAttributes.size]: "M" },
       list_price: 419,
     })));
     await waitFor(() => {
@@ -216,8 +218,8 @@ describe("product SKU workspace", () => {
       expect(calls.at(-1)).toBe(1);
     });
 
-    await user.click(within(workspace).getByRole("button", { name: "归档" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "确认归档" }));
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name8 }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: zhCN.pagesProductsPage.name9 }));
     await waitFor(() => expect(api.archiveProductSku).toHaveBeenCalledWith("sku-1"));
     expect(screen.getByRole("button", { name: "SKU · 1" })).toBeInTheDocument();
   });
@@ -226,40 +228,40 @@ describe("product SKU workspace", () => {
     api.listProductSkus.mockResolvedValue({ data: [], meta: { total: 0, page: 1, page_size: 20, pages: 1 } });
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
-    expect(await screen.findByText("该产品还没有 SKU")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesProductsPage.thisProductHasNoSKUsYet)).toBeInTheDocument();
   });
 
   it("batch-creates a size run and reports both created and skipped values", async () => {
     api.batchCreateProductSkus.mockResolvedValueOnce({
       created: [
-        { ...sku, id: "sku-s", sku_code: "P-100-S", variant_attrs: { 尺码: "S" } },
-        { ...sku, id: "sku-l", sku_code: null, variant_attrs: { 尺码: "L" } },
+        { ...sku, id: "sku-s", sku_code: "P-100-S", variant_attrs: { [zhAttributes.size]: "S" } },
+        { ...sku, id: "sku-l", sku_code: null, variant_attrs: { [zhAttributes.size]: "L" } },
       ],
       skipped: ["M", "XL"],
     });
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
-    const workspace = await screen.findByRole("region", { name: "SKU 管理" });
-    await user.click(within(workspace).getByRole("button", { name: "批量配码" }));
+    const workspace = await screen.findByRole("region", { name: zhCN.pagesProductsPage.name11 });
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name16 }));
     const dialog = screen.getByRole("dialog");
 
-    await user.clear(within(dialog).getByLabelText(/规格值/));
-    await user.click(within(dialog).getByRole("button", { name: "批量创建 SKU" }));
-    expect(await within(dialog).findByText("请至少填写一个规格值。")).toBeInTheDocument();
-    await user.type(within(dialog).getByLabelText(/规格值/), "S, M，L XL");
-    await user.type(within(dialog).getByLabelText("统一变体价格"), "429.90");
-    await user.click(within(dialog).getByRole("button", { name: "批量创建 SKU" }));
+    await user.clear(within(dialog).getByLabelText(zhCN.pagesProductsPage.pattern5()));
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name17 }));
+    expect(await within(dialog).findByText(zhCN.pagesProductsPage.enterAtLeastOneVariantValue)).toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText(zhCN.pagesProductsPage.pattern5()), "S, M，L XL");
+    await user.type(within(dialog).getByLabelText(zhCN.pagesProductsPage.sharedVariantPrice), "429.90");
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name17 }));
 
     await waitFor(() => expect(api.batchCreateProductSkus).toHaveBeenCalledWith("product-1", {
-      dimension: "尺码",
+      dimension: zhCN.pagesProductsPage.size,
       values: ["S", "M", "L", "XL"],
       list_price: 429.9,
     }));
-    expect(await screen.findByText("批量配码完成：已创建 2 个 SKU，跳过 2 个值。")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesProductsPage.message29)).toBeInTheDocument();
     expect(screen.getByText("P-100-S")).toBeInTheDocument();
     expect(screen.getByText("L")).toBeInTheDocument();
     expect(screen.getByText("M")).toBeInTheDocument();
@@ -273,19 +275,19 @@ describe("product SKU workspace", () => {
     }));
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
-    const workspace = await screen.findByRole("region", { name: "SKU 管理" });
-    await user.click(within(workspace).getByRole("button", { name: "批量配码" }));
+    const workspace = await screen.findByRole("region", { name: zhCN.pagesProductsPage.name11 });
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name16 }));
     const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/规格值/), "S M");
-    await user.click(within(dialog).getByRole("button", { name: "批量创建 SKU" }));
+    await user.type(within(dialog).getByLabelText(zhCN.pagesProductsPage.pattern5()), "S M");
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name17 }));
 
-    expect(within(dialog).getByRole("button", { name: "正在保存…" })).toBeDisabled();
-    expect(within(dialog).getByRole("button", { name: "取消" })).toBeDisabled();
-    act(() => rejectBatch(new Error("批量配码服务不可用")));
-    expect(await within(dialog).findByText("批量配码服务不可用")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "批量创建 SKU" })).not.toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name18 })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name19 })).toBeDisabled();
+    act(() => rejectBatch(new Error(zhCN.pagesProductsPage.message30)));
+    expect(await within(dialog).findByText(zhCN.pagesProductsPage.message30)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: zhCN.pagesProductsPage.name17 })).not.toBeDisabled();
   });
 
   it("does not create new SKUs under an archived product", async () => {
@@ -295,15 +297,15 @@ describe("product SKU workspace", () => {
     });
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
 
-    const createButton = await screen.findByRole("button", { name: /新建 SKU/ });
+    const createButton = await screen.findByRole("button", { name: zhCN.pagesProductsPage.name13() });
     expect(createButton).toBeDisabled();
-    expect(createButton).toHaveAttribute("title", "请先将产品恢复为启用状态");
-    const batchButton = screen.getByRole("button", { name: "批量配码" });
+    expect(createButton).toHaveAttribute("title", zhCN.pagesProductsPage.restoreTheProductToActiveFirst);
+    const batchButton = screen.getByRole("button", { name: zhCN.pagesProductsPage.name16 });
     expect(batchButton).toBeDisabled();
-    expect(batchButton).toHaveAttribute("title", "请先将产品恢复为启用状态");
+    expect(batchButton).toHaveAttribute("title", zhCN.pagesProductsPage.restoreTheProductToActiveFirst);
   });
 
   it("returns to the last valid SKU page when variants shrink", async () => {
@@ -314,11 +316,11 @@ describe("product SKU workspace", () => {
     ));
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("轻量夹克");
+    await screen.findByText(zhCN.pagesProductsPage.name);
     await user.click(screen.getByRole("button", { name: "SKU · 1" }));
-    const workspace = await screen.findByRole("region", { name: "SKU 管理" });
+    const workspace = await screen.findByRole("region", { name: zhCN.pagesProductsPage.name11 });
     await within(workspace).findByText("P-100-GRAY-L");
-    await user.click(within(workspace).getByRole("button", { name: "下一页" }));
+    await user.click(within(workspace).getByRole("button", { name: zhCN.pagesProductsPage.name2 }));
     await waitFor(() => expect(api.listProductSkus).toHaveBeenCalledWith(
       expect.objectContaining({ page: 2 }),
     ));

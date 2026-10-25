@@ -6,13 +6,14 @@ through ContractDocument links, each carrying the text an agent extracted
 from that file with its own tools; ContractTerm rows point at the small
 passages that answer the questions people actually ask, tagged by a
 tenant-extensible term type and anchored to the file and page they came
-from. "付款节奏怎样?" is one lookup by term type — the contract's own words,
+from. "what is the payment schedule?" is one lookup by term type — the contract's own words,
 verbatim, with the agent's reading beside them — never a re-read.
 
 One functional grant, `contract.manage`, files, curates and advances (the
 purchase-order shape: signing is a fact the desk records; review before
 signing is the tenant's own todos and approval facts). It is scopable on
-the SIDE derived from the counterparty (`:purchase` / `:sales`), and it
+the contract's SIDE (`:purchase` / `:sales`) — the counterparty's, or the
+one a snapshot-only contract states — and it
 gates READS too: a contract carries the prices negotiated with a factory,
 and belonging to the workspace does not entitle a credential to them.
 """
@@ -20,6 +21,7 @@ and belonging to the workspace does not entitle a credential to them.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -52,8 +54,9 @@ from app.api.common import (
     save_rows,
 )
 from app.api.family_routes import Verb, register_document_verbs
+from app.api.contract_sides import SIDES, of_live_contracts, restrict_to_sides, side_clause, sides_read
 from app.api.parties import copy_parties, parties_of
-from app.api.deps import Actor, get_actor, has_permission, require_permission
+from app.api.deps import Actor, get_actor, require_permission
 from app.db.session import get_db
 from app.models import (
     Attachment,
@@ -96,7 +99,7 @@ from app.schemas import (
     SavedLinesEnvelope,
     ContractItemBase,
 )
-from app.services.state_machines import validate_status_filter
+from app.services.state_machines import editable_states, get_builtin_machine, state_for_role, validate_status_filter
 from app.services.type_options import require_type_option
 
 router = APIRouter()
@@ -104,13 +107,10 @@ router = APIRouter()
 # the contract's originals are its attachments, reachable through it
 register_attachment_source(Contract, ContractDocument, "contract_id")
 
-SIDES = ("purchase", "sales")
-
-
 def _require_reader(actor: Actor) -> list[str]:
     """Reads are gated by the filing capability in ANY scope — the list
     itself then shows only the side(s) the credential holds."""
-    visible = [side for side in SIDES if has_permission(actor, "contract.manage", side)]
+    visible = sides_read(actor)
     if not visible:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -122,24 +122,13 @@ def _require_reader(actor: Actor) -> list[str]:
     return visible
 
 
-def _side_clause(side: str):
-    """Which rows are a side's: purchase contracts name a vendor, sales ones do not."""
-    return Contract.vendor_id.is_not(None) if side == "purchase" else Contract.vendor_id.is_(None)
-
-
-def _restrict_to_sides(stmt, visible: list[str], *, through=None):
-    """Only the sides this credential reads. `through` is a child table's
-    contract column, joined so lines, originals and clauses follow the same
-    rule as the contracts themselves — without it the three child lists
-    answered every side's rows whenever no contract_id was named."""
-    if all(side in visible for side in SIDES):
-        return stmt
-    if through is not None:
-        stmt = stmt.join(Contract, Contract.id == through)
-    for hidden in SIDES:
-        if hidden not in visible:
-            stmt = stmt.where(_side_clause(next(s for s in SIDES if s != hidden)))
-    return stmt
+def _agreement_frozen(db: Session, contract: Contract) -> bool:
+    """Past the machine's editable states — signed, in force, ended. The
+    gate the agreement's own fields and lines already obey; it also holds
+    the clauses' quoted words and the originals (review 2026-10-24,
+    finding 3)."""
+    machine = get_builtin_machine(db, contract.tenant_id, "contract")
+    return contract.status not in editable_states(machine, "contract")
 
 
 def _require_contract_access(db: Session, actor: Actor, contract_id: str) -> Contract:
@@ -227,9 +216,9 @@ def list_contracts(
     stmt = select(Contract).where(Contract.tenant_id == tenant_id)
     if not include_deleted:
         stmt = stmt.where(Contract.deleted_at.is_(None))
-    stmt = _restrict_to_sides(stmt, visible)
+    stmt = restrict_to_sides(stmt, visible)
     if side in SIDES:
-        stmt = stmt.where(_side_clause(side))
+        stmt = stmt.where(side_clause(side))
     return list_rows(
         db, stmt,
         filters={
@@ -251,6 +240,16 @@ def list_contracts(
         read_model=ContractRead,
         extra=extra,
     )
+
+
+def side_of(vendor_id: str | None, customer_id: str | None, stated: str | None) -> str:
+    """A vendor is the purchase side, a customer the sales side; with
+    neither, the side the request states (the schema requires one)."""
+    if vendor_id:
+        return "purchase"
+    if customer_id:
+        return "sales"
+    return stated
 
 
 def _resolve_counterparty(db: Session, tenant_id: str, payload) -> tuple[str | None, str | None, str | None]:
@@ -317,14 +316,14 @@ def create_contract(
     validate_only: bool = False,
 ):
     tenant_id = actor.tenant_id
-    side = "purchase" if payload.vendor_id else "sales"
+    side = side_of(payload.vendor_id, payload.customer_id, payload.side)
     require_permission(actor, "contract.manage", side)
     require_type_option(db, tenant_id, "contract_type", payload.contract_type)
     vendor_id, customer_id, snapshot = _resolve_counterparty(db, tenant_id, payload)
     if payload.employee_id:
         get_scoped_or_404(db, Employee, tenant_id, payload.employee_id)
     if payload.parent_contract_id:
-        get_scoped_or_404(db, Contract, tenant_id, payload.parent_contract_id)
+        _require_parent(db, tenant_id, side, payload.parent_contract_id)
     if payload.opportunity_id:
         get_active_document_or_404(db, Opportunity, tenant_id, payload.opportunity_id)
     if payload.upstream and payload.upstream.attachment_id:
@@ -338,6 +337,7 @@ def create_contract(
         contract_type=payload.contract_type,
         vendor_id=vendor_id,
         customer_id=customer_id,
+        side=side,
         counterparty_name_snapshot=snapshot,
         total_amount=payload.total_amount,
         currency=payload.currency,
@@ -411,6 +411,78 @@ def get_contract(
     return envelope(_contract_read(db, actor.tenant_id, contract, full=True))
 
 
+def _require_parent(db: Session, tenant_id: str, side: str, parent_id: str, child_id: str | None = None) -> Contract:
+    """A supplement or renewal points at a live contract on its own side,
+    and the chain of parents ends: no contract supplements itself, however
+    many steps away (review 2026-10-24, finding 6)."""
+    parent = get_active_document_or_404(db, Contract, tenant_id, parent_id)
+    if parent.side != side:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"contract {parent_id} is a {parent.side} contract — a {side} contract supplements one of its own side",
+        )
+    seen: set[str] = set()
+    current: Contract | None = parent
+    while current is not None and current.id not in seen:
+        if current.id == child_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="a contract cannot supplement itself, directly or through its supplements",
+            )
+        seen.add(current.id)
+        current = db.get(Contract, current.parent_contract_id) if current.parent_contract_id else None
+    return parent
+
+
+def _identify_counterparty(db: Session, actor: Actor, contract: Contract, updates: dict) -> None:
+    """`vendor_id` / `customer_id` / `side` on a PATCH: settable only while
+    the contract names no counterparty, and at any state — linking the
+    vendor a snapshot already described, once it is in master data, or
+    correcting a snapshot-only contract filed on the wrong side, changes
+    who the contract IS for no one. A move across sides needs that side's
+    grant too: the contract is leaving one desk for the other (review
+    2026-10-24, finding 1). Pops the three keys from `updates`."""
+    stated = {key: updates.pop(key) for key in ("vendor_id", "customer_id", "side") if key in updates}
+    if not stated:
+        return
+    if contract.vendor_id or contract.customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "this contract already names its counterparty — a contract for another "
+                "party is another contract"
+            ),
+        )
+    vendor_id, customer_id = stated.get("vendor_id"), stated.get("customer_id")
+    side = side_of(vendor_id, customer_id, stated.get("side") or contract.side)
+    if side != contract.side:
+        require_permission(actor, "contract.manage", side)
+        executing = [
+            model.__tablename__ for model in (PurchaseOrder, SalesOrder, Invoice, Payment)
+            if db.scalar(select(model.id).where(
+                model.tenant_id == actor.tenant_id, model.contract_id == contract.id).limit(1))
+        ]
+        if contract.parent_contract_id or db.scalar(select(Contract.id).where(
+                Contract.tenant_id == actor.tenant_id, Contract.parent_contract_id == contract.id).limit(1)):
+            # a supplement and its parent sit on one side (finding 6)
+            executing.append("supplement links")
+        if executing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"{', '.join(executing)} already execute this contract on the {contract.side} side — "
+                    "point them elsewhere before moving it"
+                ),
+            )
+    if vendor_id:
+        contract.vendor_id, contract.counterparty_name_snapshot = normalize_vendor_context(
+            db, actor.tenant_id, vendor_id, contract.counterparty_name_snapshot)
+    elif customer_id:
+        contract.customer_id, contract.counterparty_name_snapshot = normalize_customer_context(
+            db, actor.tenant_id, customer_id, contract.counterparty_name_snapshot)
+    contract.side = side
+
+
 @router.patch("/contracts/{contract_id}", response_model=ContractEnvelope,
               response_model_exclude_unset=True)
 def update_contract(
@@ -423,15 +495,22 @@ def update_contract(
     contract = _require_contract_access(db, actor, contract_id)
     updates = payload.model_dump(exclude_unset=True)
     status_change = updates.pop("status", None)
+    _identify_counterparty(db, actor, contract, updates)
     if "contract_type" in updates:
         require_type_option(db, tenant_id, "contract_type", updates["contract_type"])
     if updates.get("employee_id"):
         get_scoped_or_404(db, Employee, tenant_id, updates["employee_id"])
     if updates.get("parent_contract_id"):
-        if updates["parent_contract_id"] == contract.id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                                detail="a contract cannot supplement itself")
-        get_scoped_or_404(db, Contract, tenant_id, updates["parent_contract_id"])
+        _require_parent(db, tenant_id, contract.side, updates["parent_contract_id"], contract.id)
+    # judged on the merged row, not the request alone (review 2026-10-24,
+    # finding 5 — the R13/F08 pattern)
+    effective_from = updates.get("effective_from", contract.effective_from)
+    effective_to = updates.get("effective_to", contract.effective_to)
+    if effective_from is not None and effective_to is not None and effective_to < effective_from:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"effective_to {effective_to} must not precede effective_from {effective_from}",
+        )
     if updates.get("opportunity_id"):
         get_active_document_or_404(db, Opportunity, tenant_id, updates["opportunity_id"])
     if "upstream" in updates:
@@ -477,6 +556,43 @@ def get_contract_attachment(
     return serve_document_attachment(db, actor.tenant_id, contract, attachment_id)
 
 
+# A voided or cancelled document never happened. No machine role marks
+# these, so they are matched by the shipped names; a tenant that renames
+# them keeps them out by never reaching them from the anchors below.
+NEVER_HAPPENED = frozenset({"void", "cancelled"})
+
+
+def _states_from(machine: dict, start: str | None) -> frozenset[str]:
+    """`start` and every state reachable from it, minus the ones that
+    never happened. With no `start`, every state past the initial one."""
+    if start is None:
+        reached = set(machine.get("states", ())) - {machine.get("initial")}
+    else:
+        reached, todo = set(), [start]
+        while todo:
+            state = todo.pop()
+            if state not in reached:
+                reached.add(state)
+                todo.extend(machine.get("transitions", {}).get(state, ()))
+    return frozenset(reached - NEVER_HAPPENED)
+
+
+def _counted_states(db: Session, tenant_id: str, object_type: str) -> frozenset[str]:
+    """What counts as having happened under a contract (review 2026-10-24,
+    finding 2): an order from its confirmation on (a draft or one still
+    in approval is not yet ordered), an invoice from its issue on, a
+    payment only in the state where money has moved."""
+    machine = get_builtin_machine(db, tenant_id, object_type)
+    if object_type == "invoice":
+        return _states_from(machine, state_for_role(machine, "invoice", "issued"))
+    if object_type == "payment":
+        return frozenset({state_for_role(machine, "payment", "paid")})
+    if object_type == "sales_order":
+        return _states_from(machine, state_for_role(machine, "sales_order", "confirmed"))
+    # the purchase order's machine names no confirmation role
+    return _states_from(machine, "confirmed" if "confirmed" in machine.get("states", ()) else None)
+
+
 @router.get("/contracts/{contract_id}/execution", response_model=ContractExecutionEnvelope,
             response_model_exclude_unset=True)
 def contract_execution(
@@ -486,30 +602,50 @@ def contract_execution(
 ):
     """What has happened under the contract — orders placed, invoices
     billed, payments moved, contracted vs ordered quantity by product —
-    derived from the documents that point at it, stored nowhere."""
+    derived from the documents that point at it, stored nowhere. Only what
+    happened counts (see `_counted_states`), and money is summed per
+    currency: the contract's own currency in the top-level figures, any
+    other in `other_currencies`, never added together."""
     tenant_id = actor.tenant_id
     contract = _require_contract_access(db, actor, contract_id)
     order_model = PurchaseOrder if contract.side == "purchase" else SalesOrder
-    orders = list(db.scalars(
-        select(order_model).where(
-            order_model.tenant_id == tenant_id,
-            order_model.contract_id == contract.id,
-            order_model.deleted_at.is_(None),
-        )
-    ))
-    invoices = list(db.scalars(
-        select(Invoice).where(
-            Invoice.tenant_id == tenant_id, Invoice.contract_id == contract.id,
-            Invoice.deleted_at.is_(None),
-        )
-    ))
-    payments = list(db.scalars(
-        select(Payment).where(
-            Payment.tenant_id == tenant_id, Payment.contract_id == contract.id,
-            Payment.deleted_at.is_(None),
-        )
-    ))
-    ordered_by_product: dict[str, float] = {}
+
+    def counted(model, object_type: str) -> list:
+        return list(db.scalars(select(model).where(
+            model.tenant_id == tenant_id, model.contract_id == contract.id,
+            model.deleted_at.is_(None),
+            model.status.in_(_counted_states(db, tenant_id, object_type)),
+        )))
+
+    orders = counted(order_model, "purchase_order" if contract.side == "purchase" else "sales_order")
+    invoices = counted(Invoice, "invoice")
+    payments = counted(Payment, "payment")
+
+    by_currency: dict[str, dict] = {}
+
+    def add(currency: str | None, count_key: str, amount_key: str, amount) -> None:
+        bucket = by_currency.setdefault(currency or contract.currency, {
+            "orders": 0, "ordered_amount": Decimal(0), "invoices": 0, "invoiced_amount": Decimal(0),
+            "payments": 0, "paid_amount": Decimal(0)})
+        bucket[count_key] += 1
+        bucket[amount_key] += Decimal(str(amount or 0))
+
+    for order in orders:
+        add(order.currency, "orders", "ordered_amount", order.total_amount)
+    for invoice in invoices:
+        add(invoice.currency, "invoices", "invoiced_amount", invoice.total_amount)
+    for payment in payments:
+        add(payment.currency, "payments", "paid_amount", payment.amount)
+
+    def figures(bucket: dict) -> dict:
+        return {key: float(round(value, 2)) if isinstance(value, Decimal) else value
+                for key, value in bucket.items()}
+
+    own = figures(by_currency.pop(contract.currency, {
+        "orders": 0, "ordered_amount": Decimal(0), "invoices": 0, "invoiced_amount": Decimal(0),
+        "payments": 0, "paid_amount": Decimal(0)}))
+
+    ordered_by_product: dict[str, Decimal] = {}
     if orders:
         # the lines table and its parent column, taken from the family's
         # own relationship so a renamed FK cannot strand this read
@@ -524,30 +660,33 @@ def contract_execution(
                 item_model.product_id.is_not(None),
             ).group_by(item_model.product_id)
         ).all():
-            ordered_by_product[product_id] = float(total or 0)
-    lines = []
+            ordered_by_product[product_id] = Decimal(str(total or 0))
+    # one row per product: two contract lines for the same valve are one
+    # contracted quantity against one ordered quantity
+    contracted: dict[str, dict] = {}
     for item in db.scalars(
         select(ContractItem).options(selectinload(ContractItem.product)).where(
             ContractItem.tenant_id == tenant_id, ContractItem.contract_id == contract.id,
             ContractItem.product_id.is_not(None),
-        )
+        ).order_by(ContractItem.line_no.asc(), ContractItem.created_at.asc())
     ):
-        lines.append({
-            "product_id": item.product_id,
-            "product_name": item.product_name,
-            "contracted_quantity": float(item.quantity) if item.quantity is not None else None,
-            "ordered_quantity": ordered_by_product.get(item.product_id, 0.0),
-        })
+        row = contracted.setdefault(item.product_id, {
+            "product_id": item.product_id, "product_name": item.product_name, "contracted_quantity": None})
+        if item.quantity is not None:
+            row["contracted_quantity"] = (row["contracted_quantity"] or Decimal(0)) + Decimal(str(item.quantity))
+    lines = [
+        {**row,
+         "contracted_quantity": float(row["contracted_quantity"]) if row["contracted_quantity"] is not None else None,
+         "ordered_quantity": float(ordered_by_product.get(product_id, Decimal(0)))}
+        for product_id, row in contracted.items()
+    ]
     return envelope(ContractExecutionRead(
         contract_id=contract.id,
         side=contract.side,
+        currency=contract.currency,
         contracted_amount=float(contract.total_amount) if contract.total_amount is not None else None,
-        orders=len(orders),
-        ordered_amount=round(sum(float(o.total_amount or 0) for o in orders), 2),
-        invoices=len(invoices),
-        invoiced_amount=round(sum(float(i.total_amount or 0) for i in invoices), 2),
-        payments=len(payments),
-        paid_amount=round(sum(float(p.amount or 0) for p in payments), 2),
+        **own,
+        other_currencies=[{"currency": currency, **figures(bucket)} for currency, bucket in sorted(by_currency.items())],
         lines=lines,
     ).model_dump(by_alias=True))
 
@@ -571,7 +710,7 @@ def list_contract_items(
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractItem).options(selectinload(ContractItem.product)).where(ContractItem.tenant_id == actor.tenant_id)
-    stmt = _restrict_to_sides(stmt, visible, through=ContractItem.contract_id)
+    stmt = of_live_contracts(restrict_to_sides(stmt, visible, through=ContractItem.contract_id), ContractItem.contract_id)
     return list_rows(
         db, stmt,
         filters={ContractItem.contract_id: contract_id, ContractItem.product_id: product_id},
@@ -677,8 +816,8 @@ def list_contract_documents(
     db: Annotated[Session, Depends(get_db)],
     contract_id: str | None = None,
     document_type: str | None = None,
-    # searches the extracted text — "翻卷宗", as opposed to the terms'
-    # "翻到那一条"; rows come back with their text when a keyword is given
+    # searches the extracted text — "search the document file", as opposed to the terms'
+    # "find the specific clause"; rows come back with their text when a keyword is given
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
@@ -689,7 +828,7 @@ def list_contract_documents(
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractDocument).where(ContractDocument.tenant_id == actor.tenant_id)
-    stmt = _restrict_to_sides(stmt, visible, through=ContractDocument.contract_id)
+    stmt = of_live_contracts(restrict_to_sides(stmt, visible, through=ContractDocument.contract_id), ContractDocument.contract_id)
     with_text = bool(keyword)
     return list_rows(
         db, stmt,
@@ -768,7 +907,15 @@ def delete_contract_document(
     """Removes the LINK; the attachment store keeps the bytes. Terms that
     pointed at this file keep their words and lose only their page."""
     row = get_scoped_or_404(db, ContractDocument, actor.tenant_id, document_id)
-    _require_contract_access(db, actor, row.contract_id)
+    contract = _require_contract_access(db, actor, row.contract_id)
+    if row.document_type != "draft" and _agreement_frozen(db, contract):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"contract is {contract.status}: its originals stay linked — a wrongly filed file is "
+                "retyped (document_type), and a negotiation draft (document_type draft) may be unlinked"
+            ),
+        )
     for term in db.scalars(
         select(ContractTerm).where(
             ContractTerm.tenant_id == actor.tenant_id, ContractTerm.document_id == row.id
@@ -789,7 +936,7 @@ def list_contract_terms(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
     contract_id: str | None = None,
-    # THE question: "付款节奏怎样?" is term_type=payment_terms on one contract
+    # THE question: "what is the payment schedule?" is term_type=payment_terms on one contract
     term_type: str | None = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
@@ -801,7 +948,7 @@ def list_contract_terms(
     if contract_id:
         _require_contract_access(db, actor, contract_id)
     stmt = select(ContractTerm).where(ContractTerm.tenant_id == actor.tenant_id)
-    stmt = _restrict_to_sides(stmt, visible, through=ContractTerm.contract_id)
+    stmt = of_live_contracts(restrict_to_sides(stmt, visible, through=ContractTerm.contract_id), ContractTerm.contract_id)
     return list_rows(
         db, stmt,
         filters={ContractTerm.contract_id: contract_id, ContractTerm.term_type: term_type},
@@ -856,8 +1003,19 @@ def update_contract_term(
 ):
     tenant_id = actor.tenant_id
     term = get_scoped_or_404(db, ContractTerm, tenant_id, term_id)
-    _require_contract_access(db, actor, term.contract_id)
+    contract = _require_contract_access(db, actor, term.contract_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "content" in updates and updates["content"] != term.content and _agreement_frozen(db, contract):
+        # the reading (summary), the type and the place stay writable; a
+        # quote that was wrong is deleted and the right one filed — two
+        # acts in the trail, not one silent rewrite of what was signed
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"contract is {contract.status}: a clause's content is the signed words — correct the "
+                "reading in summary, or delete this term and file the passage as the original says it"
+            ),
+        )
     if "term_type" in updates:
         require_type_option(db, tenant_id, "contract_term_type", updates["term_type"])
     if "document_id" in updates:

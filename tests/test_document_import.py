@@ -10,6 +10,13 @@ still lands.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_document_import.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -30,16 +37,16 @@ def client() -> Generator[TestClient, None, None]:
 
 def seed_master_data(client: TestClient) -> None:
     assert client.post(
-        "/api/v1/employees", json={"name": "李雷", "employee_code": "E-001"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3A47328A607F3E0A'], "employee_code": "E-001"}, headers=HEADERS
     ).status_code == 201
     assert client.post(
         "/api/v1/customers/bulk",
-        json={"rows": [{"customer_code": "C-001", "name": "华欣机械有限公司"}]},
+        json={"rows": [{"customer_code": "C-001", "name": _ZH_TEXT['TEXT_9E8F97DD54D09A73']}]},
         headers=HEADERS,
     ).status_code == 200
     assert client.post(
         "/api/v1/products/bulk",
-        json={"rows": [{"product_code": "P-001", "name": "四刃立铣刀", "list_price": 120.0}]},
+        json={"rows": [{"product_code": "P-001", "name": _ZH_TEXT['TEXT_91A09CC8E051A11E'], "list_price": 120.0}]},
         headers=HEADERS,
     ).status_code == 200
 
@@ -49,7 +56,7 @@ def quotation_row(**overrides) -> dict:
         "quote_number": "QT-2023-0001",
         "employee_code": "E-001",
         "customer_code": "C-001",
-        "title": "2023年刀具年度报价",
+        "title": _ZH_TEXT['TEXT_1CB114AA6AA349DD'],
         "quote_date": "2023-03-15",
         "status": "accepted",
         "total_amount": 1180.0,
@@ -163,7 +170,7 @@ def test_batch_level_guards(client: TestClient) -> None:
         r["error"] for r in duplicate["results"] if r["outcome"] == "error"
     ][0]
 
-    bad_state = import_quotations(client, [quotation_row(status="没这个状态")])
+    bad_state = import_quotations(client, [quotation_row(status=_ZH_TEXT['TEXT_491804C506F26F10'])])
     assert bad_state["summary"]["failed"] == 1
     assert "not a state" in bad_state["results"][0]["error"]
 
@@ -194,7 +201,7 @@ def test_historical_orders_import_and_link_to_their_quotation(client: TestClient
             "employee_code": "E-001",
             "customer_code": "C-001",
             "source_quote_number": "QT-2023-0001",
-            "title": "2023年首批订单",
+            "title": _ZH_TEXT['TEXT_F2DE84A3C15E0585'],
             "order_date": "2023-04-01",
             "status": "signed",
             "contract_no": "HT-2023-088",
@@ -264,7 +271,7 @@ def test_a_member_key_cannot_backfill_history_under_a_colleagues_name(client: Te
     member could quietly attribute historical quotations to colleagues."""
     seed_master_data(client)
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "韩梅梅", "employee_code": "E-002"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_DA16EE611E35E56F'], "employee_code": "E-002"}, headers=HEADERS
     ).json()["data"]["id"]
     from app.core.permissions import DEFAULT_ROLE_PERMISSIONS
 

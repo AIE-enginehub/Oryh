@@ -20,6 +20,13 @@ deliberately withholds.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_setup_report.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from app.api.common import DOCUMENT_FAMILIES
@@ -90,7 +97,7 @@ def test_staffing_then_defining_walks_a_family_to_ready(office) -> None:
 
     published = client.post("/api/v1/business-rules/publish", headers=admin, json={
         "kind": "approval_flow", "entity_kind": "builtin", "object_type": "expense_claim",
-        "body": "报销直接主管审批,超5000加财务。"})
+        "body": _ZH_TEXT['TEXT_94E4A9EE84992368']})
     assert published.status_code in (200, 201), published.text
     area = office["report"]()["expense_claim"]
     assert area["status"] == "ready"
@@ -105,13 +112,13 @@ def test_staffing_then_defining_walks_a_family_to_ready(office) -> None:
     # a pre-kinds definition that still carries its filing conditions owes a data rule
     client.post("/api/v1/business-rules/publish", headers=admin, json={
         "kind": "approval_flow", "entity_kind": "builtin", "object_type": "expense_claim",
-        "body": "## 提交要求\n票据抬头必须是公司全称。\n\n## 流转规则\n直接主管审批。"})
+        "body": _ZH_TEXT['TEXT_DC63E297B4F255AF']})
     area = office["report"]()["expense_claim"]
     assert area["facts"]["rules"]["expense_claim"]["approval_flow"]["version"] == 2
     assert area["facts"]["rules"]["expense_claim"]["data_rule_missing_but_flow_has_requirements"] is True
     assert "data_rule" in area["next"]
     client.post("/api/v1/business-rules/publish", headers=admin, json={
-        "kind": "data_rule", "entity_kind": "builtin", "object_type": "expense_claim", "body": "票据抬头必须是公司全称。"})
+        "kind": "data_rule", "entity_kind": "builtin", "object_type": "expense_claim", "body": _ZH_TEXT['TEXT_BA399015212605A3']})
     area = office["report"]()["expense_claim"]
     assert area["facts"]["rules"]["expense_claim"]["data_rule_missing_but_flow_has_requirements"] is False
     assert area["next"] == "in use — nothing missing"
@@ -131,12 +138,12 @@ def test_a_functional_family_is_ready_without_a_definition(office) -> None:
 
 def test_kind_split_families_report_both_machines_and_both_counts(office) -> None:
     client, admin = office["client"], office["admin"]
-    emp = client.post("/api/v1/employees", json={"name": "店长"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                       headers=admin).json()["data"]["id"]
     so = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "一单"}).json()["data"]
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA']}).json()["data"]
     client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "退一件", "order_kind": "return",
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_AE98BB01109AA52D'], "order_kind": "return",
         "original_order_id": so["id"]})
     area = office["report"]()["sales_order"]
     assert area["facts"]["documents"] == 1 and area["facts"]["returns"] == 1, (

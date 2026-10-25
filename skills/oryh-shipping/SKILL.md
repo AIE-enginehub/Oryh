@@ -1,6 +1,6 @@
 ---
 name: oryh-shipping
-description: Use when goods leave or arrive as a parcel or a truck in oryh — 销售发货/出库, 退货收件, 采购退货发出 — filing the shipment, walking it, posting it to stock once, closing the 发货 todo. Requires shipment.manage. "出库" IS a shipment, never a ledger row; positions, counts, holds and stock documents are oryh-inventory's.
+description: Use when goods leave or arrive as a parcel or a truck in oryh — sales dispatch/dispatch goods, receive returned goods, ship a purchase return — filing the shipment, walking it, posting it to stock once, closing the shipment todo. Requires shipment.manage. "dispatch goods" IS a shipment, never a ledger row; positions, counts, holds and stock documents are oryh-inventory's.
 required_capability: shipment.manage
 ---
 
@@ -146,3 +146,6 @@ stock document (transfer document), not a shipment — $oryh-inventory posts it.
 ## Reference
 
 - [references/api.md](references/api.md): request templates and the fields each read returns.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

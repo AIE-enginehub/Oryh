@@ -22,7 +22,7 @@ from app.services.provisioning import PRODUCT_SKILLS_DIR, read_skill_dir
 
 DEMO_SKILLS_DIR = PRODUCT_SKILLS_DIR.parent / "demo" / "skills"
 
-# `GET /vendors?tax_id={销售方税号}` — method, path, optional query string.
+# GET /vendors?tax_id={seller_tax_id} — method, path, optional query string.
 REQUEST_LINE = re.compile(
     r"\b(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_\-/{}.]+)(\?[^\s`）)]*)?"
 )
@@ -786,7 +786,7 @@ def test_the_rolodex_is_taught_where_the_catalog_desk_reads() -> None:
 
 
 def test_the_hold_doctrine_is_written_where_the_keeper_reads() -> None:
-    """The reservation's three rules live in prose: 占货 is ATP-only and
+    """The reservation's three rules live in prose: stock reservation is ATP-only and
     names its order, post-stock consumes the hold itself (never release
     what it will), and a cancelled order releases by hand. Losing them
     either double-deducts availability or leaves phantom holds forever."""

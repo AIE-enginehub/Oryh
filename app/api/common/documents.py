@@ -255,7 +255,7 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
     ),
     Invoice: DocumentFamily(
         # invoicing is a finance function like procurement — no owner-own limit
-        # — but unlike the PO it keeps an approval half (开票申请), so filing and
+        # — but unlike the PO it keeps an approval half (invoice request), so filing and
         # advancing are separate grants. The filing capability is checked with
         # the direction as its scope, which is why the routes pass one.
         "invoice", "invoice lines", "invoice",
@@ -417,7 +417,7 @@ def require_machine_state(
     Starting anywhere but `initial` is a status move with no PATCH behind it,
     so it takes the same grant the PATCH would: a family whose advancement is
     a separate capability requires it here too. Without this a member filed
-    `{"status": "approved"}` on their own leave, and a 出纳 holding only
+    `{"status": "approved"}` on their own leave, and a cashier holding only
     `payment.record` created an outbound payment already `paid` — the whole
     approval half skipped at the door. `advance_exempt` is for a document with
     nothing to approve (an inbound receipt: the money already arrived).
@@ -498,7 +498,7 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     returned, voided, replaced, approved, and five rework todos still open in
     somebody's queue months later.
 
-    The server needs no opinion about what 作废 or 已完成 mean to decide this.
+    The server needs no opinion about what void or completed mean to decide this.
     Two statements the tenant's own machine makes are enough: no transition
     leaves the state, and the state is not editable. Nothing can be done to
     the document — not its status, not its content — so nothing anyone was
@@ -508,7 +508,7 @@ def apply_status_change(db: Session, actor: Actor, document, new_status: str) ->
     Both halves are load-bearing. Every shipped machine keeps its terminal
     states out of `editable_states`, but a workspace edits its machines, and a
     terminal-but-editable state is a real place to still have work — an
-    invoice parked in 已作废 whose lines someone is still correcting for the
+    invoice parked in voided whose lines someone is still correcting for the
     record. So the guard asks the machine rather than assuming the shape.
     """
     family = DOCUMENT_FAMILIES[type(document)]

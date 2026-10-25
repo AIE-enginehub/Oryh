@@ -24,6 +24,13 @@ to prevent.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_external_mapping.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 
@@ -38,7 +45,7 @@ def channel():
         t = provision_tenant(client, company_name="Channel Co", email="admin@channel.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
         seq = {"n": 0}
-        for code, name in (("tmall", "天猫"), ("jd", "京东"), ("amazon", "亚马逊")):
+        for code, name in (("tmall", _ZH_TEXT['TEXT_650D7BCACD9B4DDB']), ("jd", _ZH_TEXT['TEXT_81BAF57E05F11276']), ("amazon", _ZH_TEXT['TEXT_6D37FEDA49A46792'])):
             client.post("/api/v1/sales-channels", headers=admin, json={
                 "channel_code": code, "name": name, "channel_kind": "marketplace"})
 
@@ -103,7 +110,7 @@ def test_a_bundle_is_rows_and_an_exact_duplicate_is_a_conflict(channel) -> None:
     listing = {"source": "jd", "external_product_id": "JD-9001"}
     two_cups = client.post("/api/v1/external-product-maps", headers=admin, json={
         **listing, "product_id": channel["product_a"], "quantity": 2,
-        "external_name": "两杯一盖套装"})
+        "external_name": _ZH_TEXT['TEXT_73573ED4AD2A1802']})
     one_lid = client.post("/api/v1/external-product-maps", headers=admin, json={
         **listing, "product_id": channel["product_b"], "quantity": 1})
     assert two_cups.status_code == 201 and one_lid.status_code == 201, \
@@ -249,7 +256,7 @@ def test_a_sku_of_another_product_is_refused(channel) -> None:
 def test_an_order_link_dedups_and_a_split_is_two_rows(channel) -> None:
     client = channel["client"]
     seller = channel["key_holding"]("order.submit_own")
-    first, second = channel["order"]("拆单 part 1"), channel["order"]("拆单 part 2")
+    first, second = channel["order"](_ZH_TEXT['TEXT_7DF5E7C70BEE074F']), channel["order"](_ZH_TEXT['TEXT_A894D6C3CA46D3B4'])
 
     link = {"source": "Tmall", "external_kind": "order",
             "external_no": "TM2026082800101", "entity_type": "sales_order"}
@@ -270,7 +277,7 @@ def test_an_order_link_dedups_and_a_split_is_two_rows(channel) -> None:
     assert first in duplicate.json()["detail"]
     split = client.post("/api/v1/external-document-links", headers=seller,
                         json={**link, "entity_id": second, "split": True})
-    assert split.status_code == 201, "拆单 declared: one platform order, two of ours — two rows"
+    assert split.status_code == 201, _ZH_TEXT['TEXT_C6AAA9D34852BD89']
 
     by_number = client.get("/api/v1/external-document-links",
                            params={"source": "Tmall", "external_no": "TM2026082800101"},
@@ -304,7 +311,7 @@ def test_link_authority_follows_the_document(channel) -> None:
 
     invoice = client.post("/api/v1/invoices", headers=admin, json={
         "direction": "sales", "employee_id": channel["employee"],
-        "customer_id": channel["customer"], "title": "平台结算发票",
+        "customer_id": channel["customer"], "title": _ZH_TEXT['TEXT_C03F53AAA726F122'],
         "total_amount": 10.0, "currency": "CNY"}).json()["data"]["id"]
     refused = client.post("/api/v1/external-document-links", headers=seller, json={
         "source": "tmall", "external_kind": "settlement", "external_no": "ST-1",
@@ -331,7 +338,7 @@ def test_link_authority_follows_the_document(channel) -> None:
         "identifying the parcel later is a LINK on the frozen ledger row, not an edit"
 
     note = client.post("/api/v1/business-objects", headers=admin, json={
-        "object_type": "return_note", "title": "退货单 R-1"}).json()["data"]["id"]
+        "object_type": "return_note", "title": _ZH_TEXT['TEXT_AF391C3A976317AE']}).json()["data"]["id"]
     outsider = client.post("/api/v1/external-document-links", headers=seller, json={
         "source": "tmall", "external_kind": "return", "external_no": "TMR-9",
         "entity_type": "business_object", "entity_id": note})
@@ -381,30 +388,30 @@ def test_a_listing_may_be_keyed_by_its_title_when_the_export_has_no_id(channel) 
     assert nameless.status_code == 422, "a map names the listing by id or by title"
 
     made = client.post("/api/v1/external-product-maps", headers=admin, json={
-        "source": "tmall", "external_name": "保温杯 500ML 樱花粉",
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_7C8E85388AA60E20'],
         "product_id": channel["product_a"], "quantity": 1})
     assert made.status_code == 201, made.text
     row = made.json()["data"]
-    assert row["external_product_id"] == "" and row["external_name_norm"] == "保温杯 500ml 樱花粉"
+    assert row["external_product_id"] == "" and row["external_name_norm"] == _ZH_TEXT['TEXT_56E24D138306B610']
 
     sloppy = client.get("/api/v1/external-product-maps", headers=admin,
-                        params={"source": "Tmall", "external_name": "保温杯　500ml  樱花粉"})
+                        params={"source": "Tmall", "external_name": _ZH_TEXT['TEXT_ABBFCCF5B990C594']})
     assert [r["id"] for r in sloppy.json()["data"]] == [row["id"]], \
         "fullwidth space, case and doubled spaces are one title"
 
     doubled = client.post("/api/v1/external-product-maps", headers=admin, json={
-        "source": "tmall", "external_name": "保温杯 500ml 樱花粉",
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_56E24D138306B610'],
         "product_id": channel["product_a"]})
     assert doubled.status_code == 409, "one open assertion per (title, product)"
     assert row["id"] in doubled.json()["detail"]
 
     bundle_part = client.post("/api/v1/external-product-maps", headers=admin, json={
-        "source": "tmall", "external_name": "保温杯 500ML 樱花粉",
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_7C8E85388AA60E20'],
         "product_id": channel["product_b"], "quantity": 1})
     assert bundle_part.status_code == 201, "a title-keyed bundle is several rows too"
 
     renamed = client.patch(f"/api/v1/external-product-maps/{row['id']}", headers=admin,
-                           json={"external_name": "保温杯 500ML 樱花粉 新款"})
+                           json={"external_name": _ZH_TEXT['TEXT_4A9606519539B67F']})
     assert renamed.status_code == 422, "the title IS the identity here — swap, never bend"
 
 
@@ -414,15 +421,15 @@ def test_an_id_keyed_row_still_answers_by_its_title_snapshot(channel) -> None:
     tomorrow curates one table."""
     admin, client = channel["admin"], channel["client"]
     keyed = client.post("/api/v1/external-product-maps", headers=admin, json={
-        "source": "jd", "external_product_id": "JD-77", "external_name": "两杯一盖套装",
+        "source": "jd", "external_product_id": "JD-77", "external_name": _ZH_TEXT['TEXT_73573ED4AD2A1802'],
         "product_id": channel["product_a"], "quantity": 2}).json()["data"]
     by_title = client.get("/api/v1/external-product-maps", headers=admin,
-                          params={"source": "jd", "external_name": "两杯一盖套装"}).json()["data"]
+                          params={"source": "jd", "external_name": _ZH_TEXT['TEXT_73573ED4AD2A1802']}).json()["data"]
     assert [r["id"] for r in by_title] == [keyed["id"]]
     retitled = client.patch(f"/api/v1/external-product-maps/{keyed['id']}", headers=admin,
-                            json={"external_name": "两杯一盖 套装"})
+                            json={"external_name": _ZH_TEXT['TEXT_EFAD70279D0253CD']})
     assert retitled.status_code == 200, "on an id-keyed row the title is a snapshot, editable"
-    assert retitled.json()["data"]["external_name_norm"] == "两杯一盖 套装"
+    assert retitled.json()["data"]["external_name_norm"] == _ZH_TEXT['TEXT_EFAD70279D0253CD']
     found = client.get("/api/v1/external-product-maps", headers=admin,
-                       params={"source": "jd", "keyword": "套装"}).json()["data"]
+                       params={"source": "jd", "keyword": _ZH_TEXT['TEXT_3B71BDEE11F13A5A']}).json()["data"]
     assert keyed["id"] in {r["id"] for r in found}, "curation searches titles loosely"

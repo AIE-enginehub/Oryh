@@ -4,6 +4,13 @@ parameters) and an agent took the first row as the product it asked for."""
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_query_guard.json').read_text(encoding="utf-8"))
+
+
 from conftest import make_client, provision_tenant
 
 
@@ -11,7 +18,7 @@ def test_a_list_refuses_a_filter_it_does_not_have_and_names_the_ones_it_does() -
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Guard Co", email="admin@guard-co.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        for code, name in (("P-1", "甲"), ("P-2", "乙")):
+        for code, name in (("P-1", _ZH_TEXT['TEXT_33E3580C093111E1']), ("P-2", _ZH_TEXT['TEXT_71530D4C49F12C48'])):
             created = client.post("/api/v1/products", json={"product_code": code, "name": name}, headers=admin)
             assert created.status_code in (200, 201), created.text
 
@@ -32,7 +39,7 @@ def test_writes_and_non_api_routes_are_not_checked_by_the_query_guard() -> None:
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Guard Two", email="admin@guard-two.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        created = client.post("/api/v1/customers", params={"utm": "x"}, json={"name": "市一医院"}, headers=admin)
+        created = client.post("/api/v1/customers", params={"utm": "x"}, json={"name": _ZH_TEXT['TEXT_85DED9E803B8D55E']}, headers=admin)
         assert created.status_code in (200, 201), created.text
         assert client.get("/", params={"utm": "x"}, follow_redirects=False).status_code != 422
 

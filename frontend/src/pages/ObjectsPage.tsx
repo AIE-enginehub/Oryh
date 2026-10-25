@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -41,15 +42,15 @@ function selectionFromParams(kind: string | null, objectType: string): {
 type LocalText = (chinese: string, english: string) => string;
 
 const BUILTIN_TYPE_LABELS: Partial<Record<ObjectEntityType, [string, string]>> = {
-  timesheet_header: ["工时单", "Timesheets"],
-  expense_claim: ["报销单", "Expense claims"],
-  purchase_request: ["采购申请", "Purchase requests"],
-  sales_quotation: ["销售报价", "Sales quotations"],
-  sales_order: ["销售订单", "Sales orders"],
-  invoice: ["发票", "Invoices"],
-  payment: ["收付款", "Payments"],
-  billing_account: ["往来账户", "Billing accounts"],
-  resource_booking: ["资源预订", "Resource bookings"],
+  timesheet_header: [zhCN.pagesObjectsPage.title4, "Timesheets"],
+  expense_claim: [zhCN.pagesObjectsPage.title3, "Expense claims"],
+  purchase_request: [zhCN.pagesObjectsPage.title42, "Purchase requests"],
+  sales_quotation: [zhCN.pagesObjectsPage.title5, "Sales quotations"],
+  sales_order: [zhCN.pagesObjectsPage.title6, "Sales orders"],
+  invoice: [zhCN.pagesObjectsPage.message6, "Invoices"],
+  payment: [zhCN.pagesObjectsPage.message7, "Payments"],
+  billing_account: [zhCN.pagesObjectsPage.message8, "Billing accounts"],
+  resource_booking: [zhCN.pagesObjectsPage.title7, "Resource bookings"],
 };
 
 function typeTitle(type: ObjectTypeSummary, text: LocalText): string {
@@ -59,17 +60,17 @@ function typeTitle(type: ObjectTypeSummary, text: LocalText): string {
 
 function builtinStatusLabel(status: string, text: LocalText): string {
   const labels: Record<string, [string, string]> = {
-    active: ["启用", "Active"], archived: ["已归档", "Archived"], confirmed: ["已确认", "Confirmed"],
-    cancelled: ["已取消", "Cancelled"], draft: ["草稿", "Draft"], submitted: ["已提交", "Submitted"],
-    approved: ["已通过", "Approved"], rejected: ["已拒绝", "Rejected"], returned: ["已退回", "Returned"],
-    sent: ["已发送", "Sent"], accepted: ["已成交", "Accepted"], declined: ["已谢绝", "Declined"],
-    expired: ["已过期", "Expired"], superseded: ["已替代", "Superseded"],
-    open: ["进行中", "Open"], completed: ["已完成", "Completed"],
-    shipped: ["已发货", "Shipped"], signed: ["已签收", "Signed"],
-    in_delivery: ["配送中", "In delivery"], delivered: ["已送达", "Delivered"],
-    issued: ["已开具", "Issued"], paid: ["已付款", "Paid"],
-    written_off: ["已核销坏账", "Written off"], void: ["已作废", "Void"],
-    frozen: ["已冻结", "Frozen"], closed: ["已销户", "Closed"],
+    active: [zhCN.pagesObjectsPage.active, "Active"], archived: [zhCN.pagesObjectsPage.archived, "Archived"], confirmed: [zhCN.pagesObjectsPage.message12, "Confirmed"],
+    cancelled: [zhCN.pagesObjectsPage.message13, "Cancelled"], draft: [zhCN.pagesObjectsPage.draft, "Draft"], submitted: [zhCN.pagesObjectsPage.submitted, "Submitted"],
+    approved: [zhCN.pagesObjectsPage.message16, "Approved"], rejected: [zhCN.pagesObjectsPage.rejected, "Rejected"], returned: [zhCN.pagesObjectsPage.returned, "Returned"],
+    sent: [zhCN.pagesObjectsPage.message19, "Sent"], accepted: [zhCN.pagesObjectsPage.message20, "Accepted"], declined: [zhCN.pagesObjectsPage.message21, "Declined"],
+    expired: [zhCN.pagesObjectsPage.message22, "Expired"], superseded: [zhCN.pagesObjectsPage.superseded, "Superseded"],
+    open: [zhCN.pagesObjectsPage.running, "Open"], completed: [zhCN.pagesObjectsPage.completed, "Completed"],
+    shipped: [zhCN.pagesObjectsPage.message26, "Shipped"], signed: [zhCN.pagesObjectsPage.message27, "Signed"],
+    in_delivery: [zhCN.pagesObjectsPage.message28, "In delivery"], delivered: [zhCN.pagesObjectsPage.message29, "Delivered"],
+    issued: [zhCN.pagesObjectsPage.message30, "Issued"], paid: [zhCN.pagesObjectsPage.message31, "Paid"],
+    written_off: [zhCN.pagesObjectsPage.message32, "Written off"], void: [zhCN.pagesObjectsPage.message33, "Void"],
+    frozen: [zhCN.pagesObjectsPage.message34, "Frozen"], closed: [zhCN.pagesObjectsPage.message35, "Closed"],
   };
   return labels[status] ? text(...labels[status]) : status;
 }
@@ -137,7 +138,7 @@ export function ObjectsPage() {
   const availableTypes = useMemo(() => {
     const types = [...(directory.data?.types ?? [])];
     if (selection && !types.some((type) => type.entityKind === selection.entityKind && type.objectType === objectType)) {
-      types.push(syntheticType(selection.entityKind, objectType, text("此类型来自当前链接，但类型目录中没有对应定义。", "This type came from the current link, but the type directory has no matching definition.")));
+      types.push(syntheticType(selection.entityKind, objectType, text(zhCN.pagesObjectsPage.thisTypeCameFromTheCurrentLinkButThe, "This type came from the current link, but the type directory has no matching definition.")));
     }
     return types;
   }, [directory.data?.types, objectType, selection, text]);
@@ -190,85 +191,85 @@ export function ObjectsPage() {
       <header className="page-intro">
         <div>
           <span className="eyebrow">Object registry</span>
-          <h2>{text("业务对象", "Business objects")}</h2>
-          <p>{text("统一查看工作空间内建单据与自定义对象，并下钻业务规则、审批、待办和审计轨迹。", "Browse built-in records and custom objects in one place, then inspect business rules, approvals, to-dos, and audit history.")}</p>
+          <h2>{text(zhCN.pagesObjectsPage.businessObjects, "Business objects")}</h2>
+          <p>{text(zhCN.pagesObjectsPage.browseBuiltInRecordsAndCustomObjectsInOne, "Browse built-in records and custom objects in one place, then inspect business rules, approvals, to-dos, and audit history.")}</p>
         </div>
       </header>
 
       <div className="object-browser-grid">
-        <aside className="data-panel object-type-panel" aria-label={text("对象类型", "Object types")}>
+        <aside className="data-panel object-type-panel" aria-label={text(zhCN.pagesObjectsPage.objectTypes, "Object types")}>
           <div className="object-type-controls">
             <label className="object-type-search">
-              <span className="sr-only">{text("搜索对象类型", "Search object types")}</span>
-              <input value={typeSearch} onChange={(event) => setTypeSearch(event.target.value)} placeholder={text("搜索对象类型", "Search object types")} />
+              <span className="sr-only">{text(zhCN.pagesObjectsPage.searchObjectTypes, "Search object types")}</span>
+              <input value={typeSearch} onChange={(event) => setTypeSearch(event.target.value)} placeholder={text(zhCN.pagesObjectsPage.searchObjectTypes, "Search object types")} />
             </label>
-            <div className="object-type-filters" aria-label={text("类型筛选", "Type filters")}>
+            <div className="object-type-filters" aria-label={text(zhCN.pagesObjectsPage.typeFilters, "Type filters")}>
               {(["all", "builtin", "business_object", "workflow"] as TypeFilter[]).map((filter) => {
-                const labels: Record<TypeFilter, string> = { all: text("全部", "All"), builtin: text("内建", "Built-in"), business_object: text("自定义", "Custom"), workflow: text("有审批流程", "With approval flow") };
+                const labels: Record<TypeFilter, string> = { all: text(zhCN.pagesObjectsPage.all, "All"), builtin: text(zhCN.pagesObjectsPage.builtIn, "Built-in"), business_object: text(zhCN.pagesObjectsPage.custom, "Custom"), workflow: text(zhCN.pagesObjectsPage.withApprovalFlow, "With approval flow") };
                 return <button className={filter === typeFilter ? "active" : ""} type="button" aria-pressed={filter === typeFilter} onClick={() => setTypeFilter(filter)} key={filter}>{labels[filter]}</button>;
               })}
             </div>
           </div>
 
-          {directory.isPending ? <div className="object-type-state" aria-busy="true"><span className="spinner" />{text("加载类型…", "Loading types…")}</div> :
-            directory.isError ? <div className="object-type-state error-state" role="alert"><strong>{text("类型目录加载失败", "Failed to load the type directory")}</strong><span>{apiErrorMessage(directory.error)}</span><button className="button compact" type="button" onClick={() => void directory.refetch()}>{text("重试", "Retry")}</button></div> :
+          {directory.isPending ? <div className="object-type-state" aria-busy="true"><span className="spinner" />{text(zhCN.pagesObjectsPage.loadingTypes, "Loading types…")}</div> :
+            directory.isError ? <div className="object-type-state error-state" role="alert"><strong>{text(zhCN.pagesObjectsPage.failedToLoadTheTypeDirectory, "Failed to load the type directory")}</strong><span>{apiErrorMessage(directory.error)}</span><button className="button compact" type="button" onClick={() => void directory.refetch()}>{text(zhCN.pagesObjectsPage.retry, "Retry")}</button></div> :
               <div className="object-type-list">
-                {visibleTypes.length === 0 ? <div className="object-type-state"><span className="empty-mark">∅</span>{text("没有匹配的对象类型。", "No matching object types.")}</div> : <>
-                  {visibleTypes.some((type) => type.entityKind === "builtin") && <div className="object-type-group">{text("内建实体", "Built-in entities")}</div>}
+                {visibleTypes.length === 0 ? <div className="object-type-state"><span className="empty-mark">∅</span>{text(zhCN.pagesObjectsPage.noMatchingObjectTypes, "No matching object types.")}</div> : <>
+                  {visibleTypes.some((type) => type.entityKind === "builtin") && <div className="object-type-group">{text(zhCN.pagesObjectsPage.builtInEntities, "Built-in entities")}</div>}
                   {visibleTypes.filter((type) => type.entityKind === "builtin").map((type) => (
                     <button className={`object-type-item ${selectedType === type ? "selected" : ""}`} type="button" aria-pressed={selectedType === type} key={`builtin:${type.objectType}`} onClick={() => chooseType(type)}>
                       <span className="object-type-dot builtin" /><span><strong>{typeTitle(type, text)}</strong><code>{type.objectType}</code></span>
-                      {type.hasWorkflow && <small>{text("流程", "Workflow")}</small>}
+                      {type.hasWorkflow && <small>{text(zhCN.pagesObjectsPage.workflow, "Workflow")}</small>}
                       <b>{type.count}</b>
                     </button>
                   ))}
-                  {visibleTypes.some((type) => type.entityKind === "business_object") && <div className="object-type-group">{text("自定义类型", "Custom types")}</div>}
+                  {visibleTypes.some((type) => type.entityKind === "business_object") && <div className="object-type-group">{text(zhCN.pagesObjectsPage.customTypes, "Custom types")}</div>}
                   {visibleTypes.filter((type) => type.entityKind === "business_object").map((type) => (
                     <button className={`object-type-item ${selectedType === type ? "selected" : ""}`} type="button" aria-pressed={selectedType === type} key={`custom:${type.objectType}`} onClick={() => chooseType(type)}>
                       <span className="object-type-dot custom" /><span><strong>{type.title}</strong><code>{type.objectType}</code></span>
-                      {type.hasWorkflow && <small>{text("流程", "Workflow")}</small>}
+                      {type.hasWorkflow && <small>{text(zhCN.pagesObjectsPage.workflow, "Workflow")}</small>}
                       <b>{type.count}</b>
                     </button>
                   ))}
                 </>}
               </div>}
-          <footer className="object-type-footer">{text(`${builtinCount} 个内建 · ${customCount} 个自定义`, `${builtinCount} built-in · ${customCount} custom`)}</footer>
+          <footer className="object-type-footer">{text(zhCN.pagesObjectsPage.builtInCustom(`${builtinCount}`, `${customCount}`), `${builtinCount} built-in · ${customCount} custom`)}</footer>
         </aside>
 
         <div className="object-record-workspace">
           {!selection ? (
             <section className="data-panel object-placeholder">
               <span className="object-placeholder-mark" aria-hidden="true">◎</span>
-              <h3>{text("选择一个对象类型", "Select an object type")}</h3>
-              <p>{text("从左侧类型目录开始。记录列表仅展示当前工作空间和所选业务类型的内容。", "Start with the type directory on the left. Records show only the current workspace and selected business type.")}</p>
+              <h3>{text(zhCN.pagesObjectsPage.selectAnObjectType, "Select an object type")}</h3>
+              <p>{text(zhCN.pagesObjectsPage.startWithTheTypeDirectoryOnTheLeftRecords, "Start with the type directory on the left. Records show only the current workspace and selected business type.")}</p>
             </section>
           ) : (
-            <section className="data-panel object-record-panel" aria-label={text(`${selectedType ? typeTitle(selectedType, text) : objectType} 记录`, `${selectedType ? typeTitle(selectedType, text) : objectType} records`)}>
+            <section className="data-panel object-record-panel" aria-label={text(zhCN.pagesObjectsPage.records(`${selectedType ? typeTitle(selectedType, text) : objectType}`), `${selectedType ? typeTitle(selectedType, text) : objectType} records`)}>
               <header className="object-workspace-header">
                 <div><span className="eyebrow">{selection.entityKind === "builtin" ? "Built-in entity" : "Business object"}</span><h3>{selectedType ? typeTitle(selectedType, text) : objectType}</h3><code>{objectType}</code></div>
-                <span className="object-record-count">{records.data ? text(`${records.data.meta.total} 条记录`, `${records.data.meta.total} records`) : text("正在统计", "Counting…")}</span>
+                <span className="object-record-count">{records.data ? text(zhCN.pagesObjectsPage.records2(`${records.data.meta.total}`), `${records.data.meta.total} records`) : text(zhCN.pagesObjectsPage.counting, "Counting…")}</span>
               </header>
               <form className="object-filter-bar" onSubmit={submitFilters}>
-                <label><span className="sr-only">{text("搜索记录", "Search records")}</span><input type="search" value={keywordDraft} onChange={(event) => setKeywordDraft(event.target.value)} placeholder={text("搜索标题、ID 或关键字段", "Search title, ID, or key fields")} /></label>
-                <label><span>{text("状态", "Status")}</span><select aria-label={text("状态", "Status")} value={status} onChange={(event) => changeStatus(event.target.value)}>
-                  <option value="">{text("全部状态", "All statuses")}</option>
+                <label><span className="sr-only">{text(zhCN.pagesObjectsPage.searchRecords, "Search records")}</span><input type="search" value={keywordDraft} onChange={(event) => setKeywordDraft(event.target.value)} placeholder={text(zhCN.pagesObjectsPage.searchTitleIDOrKeyFields, "Search title, ID, or key fields")} /></label>
+                <label><span>{text(zhCN.pagesObjectsPage.status, "Status")}</span><select aria-label={text(zhCN.pagesObjectsPage.status, "Status")} value={status} onChange={(event) => changeStatus(event.target.value)}>
+                  <option value="">{text(zhCN.pagesObjectsPage.allStatuses, "All statuses")}</option>
                   {selectedType?.statuses.map((option) => <option value={option} key={option}>{selectedType.entityKind === "builtin" ? builtinStatusLabel(option, text) : option}</option>)}
                   {status && !selectedType?.statuses.includes(status) && <option value={status}>{selectedType?.entityKind === "builtin" ? builtinStatusLabel(status, text) : status}</option>}
                 </select></label>
-                <button className="button" type="submit">{text("筛选", "Filter")}</button>
+                <button className="button" type="submit">{text(zhCN.pagesObjectsPage.filter, "Filter")}</button>
                 {(keyword || status) && <button className="button quiet" type="button" onClick={() => {
                   setKeywordDraft("");
                   setSearchParams({ kind: selection.entityKind, object_type: objectType, page: "1" });
-                }}>{text("清除", "Clear")}</button>}
+                }}>{text(zhCN.pagesObjectsPage.clear, "Clear")}</button>}
               </form>
-              {records.isFetching && !records.isPending && <div className="object-refreshing" role="status">{text("正在更新结果…", "Updating results…")}</div>}
-              {displayNames.isError && <div className="object-refreshing" role="status">{text("名称解析暂时不可用，当前显示记录 ID。", "Name resolution is temporarily unavailable; record IDs are shown instead.")}</div>}
+              {records.isFetching && !records.isPending && <div className="object-refreshing" role="status">{text(zhCN.pagesObjectsPage.updatingResults, "Updating results…")}</div>}
+              {displayNames.isError && <div className="object-refreshing" role="status">{text(zhCN.pagesObjectsPage.nameResolutionIsTemporarilyUnavailableRecordIDsAreShown, "Name resolution is temporarily unavailable; record IDs are shown instead.")}</div>}
               <ListState
                 loading={records.isPending}
                 error={records.isError ? apiErrorMessage(records.error) : null}
                 empty={records.data?.data.length === 0}
-                emptyTitle={text("没有匹配记录", "No matching records")}
-                emptyDescription={text("调整关键词或状态筛选后重试。", "Change the keyword or status filter and try again.")}
+                emptyTitle={text(zhCN.pagesObjectsPage.noMatchingRecords, "No matching records")}
+                emptyDescription={text(zhCN.pagesObjectsPage.changeTheKeywordOrStatusFilterAndTryAgain, "Change the keyword or status filter and try again.")}
                 onRetry={() => void records.refetch()}
               >
                 {records.data && <>

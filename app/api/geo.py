@@ -222,7 +222,7 @@ def get_geo_path(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """The geo and its ancestors, root first — 中国 / 浙江省 / 杭州市."""
+    """The geo and its ancestors, root first — China / Zhejiang / Hangzhou."""
     get_scoped_or_404(db, Geo, tenant_id, geo_id)
     chain = list(reversed(geo_path(db, tenant_id, geo_id)))
     return envelope([GeoRead.model_validate(g).model_dump(by_alias=True) for g in chain], len(chain))

@@ -13,6 +13,13 @@ already crying wolf before a real orphan existed.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_todo_target_visibility.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import provision_tenant
@@ -46,7 +53,7 @@ def test_a_deleted_target_says_so_instead_of_looking_alive(setup) -> None:
     invoice = client.post(
         "/api/v1/invoices",
         json={"direction": "sales", "employee_id": employee["id"],
-              "customer_id": customer["id"], "title": "货款",
+              "customer_id": customer["id"], "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'],
               "total_amount": 5000.0},
         headers=key,
     )
@@ -57,7 +64,7 @@ def test_a_deleted_target_says_so_instead_of_looking_alive(setup) -> None:
         "/api/v1/todos",
         json={
             "employee_id": employee["id"], "entity_type": "invoice",
-            "entity_id": invoice_id, "title": "审批发票", "todo_type": "approval",
+            "entity_id": invoice_id, "title": _ZH_TEXT['TEXT_6B0DAAC4275DBE51'], "todo_type": "approval",
         },
         headers=key,
     )
@@ -95,7 +102,7 @@ def test_a_project_target_is_not_reported_as_missing(setup) -> None:
         "/api/v1/todos",
         json={
             "employee_id": employee["id"], "entity_type": "project",
-            "entity_id": project.json()["data"]["id"], "title": "整理项目资料",
+            "entity_id": project.json()["data"]["id"], "title": _ZH_TEXT['TEXT_4C7F2BD8D166C7EE'],
             "todo_type": "task",
         },
         headers=key,
@@ -114,9 +121,9 @@ def test_an_approval_target_is_not_reported_as_missing(setup) -> None:
     client, key, employee, customer = setup
     created = client.post(
         "/api/v1/approval-targets",
-        json={"target_type": "contract_review", "title": "年度框架协议",
-              "summary": "年度采购框架", "payload": {"no": "C-1"},
-              "source_text": "合同正文"},
+        json={"target_type": "contract_review", "title": _ZH_TEXT['TEXT_0280114223CDD685'],
+              "summary": _ZH_TEXT['TEXT_6C4D2A99BB865549'], "payload": {"no": "C-1"},
+              "source_text": _ZH_TEXT['TEXT_425E95BC216BDA38']},
         headers=key,
     )
     assert created.status_code == 201, created.text
@@ -125,7 +132,7 @@ def test_an_approval_target_is_not_reported_as_missing(setup) -> None:
         "/api/v1/todos",
         json={
             "employee_id": employee["id"], "entity_type": "approval_target",
-            "entity_id": created.json()["data"]["id"], "title": "审阅合同",
+            "entity_id": created.json()["data"]["id"], "title": _ZH_TEXT['TEXT_1C28067DB190C38F'],
             "todo_type": "approval",
         },
         headers=key,
@@ -134,7 +141,7 @@ def test_an_approval_target_is_not_reported_as_missing(setup) -> None:
 
     target = _todo_target(client, key, todo.json()["data"]["id"])
     assert target["missing"] is False
-    assert target["title"] == "年度框架协议"
+    assert target["title"] == _ZH_TEXT['TEXT_0280114223CDD685']
 
 
 def test_creating_a_todo_on_a_deleted_document_is_still_refused(setup) -> None:
@@ -144,7 +151,7 @@ def test_creating_a_todo_on_a_deleted_document_is_still_refused(setup) -> None:
     invoice_id = client.post(
         "/api/v1/invoices",
         json={"direction": "sales", "employee_id": employee["id"],
-              "customer_id": customer["id"], "title": "货款",
+              "customer_id": customer["id"], "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'],
               "total_amount": 5000.0},
         headers=key,
     ).json()["data"]["id"]
@@ -154,7 +161,7 @@ def test_creating_a_todo_on_a_deleted_document_is_still_refused(setup) -> None:
         "/api/v1/todos",
         json={
             "employee_id": employee["id"], "entity_type": "invoice",
-            "entity_id": invoice_id, "title": "审批发票", "todo_type": "approval",
+            "entity_id": invoice_id, "title": _ZH_TEXT['TEXT_6B0DAAC4275DBE51'], "todo_type": "approval",
         },
         headers=key,
     )

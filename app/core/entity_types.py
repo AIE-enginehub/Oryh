@@ -43,10 +43,10 @@ DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
 
 # Machine types that are NOT document families of their own: their rows live
 # inside another family's table, split by that row's `order_kind` column. A
-# sales return IS a `sales_orders` row (退单跟订单一张表 — the deciding
+# sales return IS a `sales_orders` row (returns and orders share one table — the deciding
 # requirement), so a todo or an approval that points at one says
 # `sales_order` and resolves through the same table; only the LIFECYCLE
-# differs, because an e-commerce return runs 申请→发出→收到→验货入库→退款,
+# differs, because an e-commerce return runs requested→dispatched→received→inspection and stocking→refund,
 # which is not an order's life. Each entry maps the split-off machine type to
 # the family whose table holds its rows.
 #

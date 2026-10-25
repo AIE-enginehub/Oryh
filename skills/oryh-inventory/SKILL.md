@@ -1,6 +1,6 @@
 ---
 name: oryh-inventory
-description: Use when a warehouse keeper's agent keeps the stock ledger true in oryh — 库位登记, 盘点导入, 占货/释放, and the stock documents that move goods for reasons no order carries (报损, 调拨, 借用/归还, 生产入库, 杂收). Every ledger row is written by a business act; there is no direct movement write. Requires inventory.manage (which includes shipment.manage — parcels are oryh-shipping). Never creates products (oryh-master-data) or places POs (oryh-purchase-order).
+description: Use when a warehouse keeper's agent keeps the stock ledger true in oryh — record storage positions, import stock counts, stock reservation/release, and the stock documents that move goods for reasons no order carries (write-off, transfer, loan/return, production receipt, miscellaneous receipt). Every ledger row is written by a business act; there is no direct movement write. Requires inventory.manage (which includes shipment.manage — parcels are oryh-shipping). Never creates products (oryh-master-data) or places POs (oryh-purchase-order).
 required_capability: inventory.manage
 ---
 
@@ -347,3 +347,6 @@ responses, none from memory. A person who reads "999 imported" cannot tell a
 ## Reference
 
 - [references/api.md](references/api.md): request templates and the fields each read returns.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

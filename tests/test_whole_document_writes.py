@@ -10,6 +10,13 @@ one constructor on both paths.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_whole_document_writes.json').read_text(encoding="utf-8"))
+
+
 import base64
 
 import pytest
@@ -22,9 +29,9 @@ def desk():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Whole Co", email="admin@whole.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
-        vendor = client.post("/api/v1/vendors", json={"name": "供应商"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
+        vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_033ED59452549C51']}, headers=admin).json()["data"]["id"]
         cup = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP-1", "list_price": 10}, headers=admin).json()["data"]["id"]
         lid = client.post("/api/v1/products", json={"name": "Lid", "product_code": "LID-1", "list_price": 2}, headers=admin).json()["data"]["id"]
         shelf = client.post("/api/v1/inventory-items", headers=admin, json={"product_id": cup, "facility": "main", "initial_quantity": 5}).json()["data"]["id"]
@@ -160,7 +167,7 @@ def test_a_confirmed_order_cannot_be_restated_and_a_draft_can(desk) -> None:
 
 def test_the_owner_gate_holds_on_a_save(desk) -> None:
     c, admin = desk["client"], desk["admin"]
-    other_emp = c.post("/api/v1/employees", json={"name": "别人"}, headers=admin).json()["data"]["id"]
+    other_emp = c.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_EEB0BE5265CA353A']}, headers=admin).json()["data"]["id"]
     rep = invite_member(c, admin, "rep", ["quotation.submit_own"], employee_id=other_emp)
     q = c.post("/api/v1/sales-quotations", headers=admin, json={
         "employee_id": desk["employee"], "title": "q", "customer_id": desk["customer"],

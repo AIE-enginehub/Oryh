@@ -150,7 +150,7 @@ def resolve_item_refs(item, skus_by_id: dict, products_by_id: dict) -> tuple:
 
 def sku_pending_flag(item, products_with_skus: set) -> bool:
     """A variant product quoted/ordered at product level: the SKU decision
-    is still open — surfaced so reviewers see 尺码待定 at a glance."""
+    is still open — surfaced so reviewers see size undecided at a glance."""
     return bool(item.product_id and not item.sku_id and item.product_id in products_with_skus)
 
 

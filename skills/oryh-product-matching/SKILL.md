@@ -1,6 +1,6 @@
 ---
 name: oryh-product-matching
-description: Use when platform listings (天猫/京东/亚马逊 titles, SKU text, listing ids) must be resolved to oryh products — "这些商品对应我们哪个产品". Map first, candidates second, a person confirms, the map remembers. The workspace's own matching rules live in this skill's calibration.
+description: Use when platform listings (Tmall/JD.com/Amazon titles, SKU text, listing ids) must be resolved to oryh products — "which products match these listings". Map first, candidates second, a person confirms, the map remembers. The workspace's own matching rules live in this skill's calibration.
 required_capability: order.submit_own
 ---
 
@@ -221,3 +221,6 @@ PATCH /skills/{skill_ref}          # skill_ref: oryh-product-matching
 ## Reference
 
 - [references/api.md](references/api.md): request templates and the fields each lookup returns.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

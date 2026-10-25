@@ -1,0 +1,3 @@
+{
+  "description": "Use when an approver's agent records ONE approval decision on any oryh document — 审批/驳回/退回 a timesheet, expense, purchase request, quotation, order, payment or invoice (\"审批这张报销单\"、\"退回去重算\"). Reviews what that type demands first. Never changes status or routes; that is the flow agent's."
+}

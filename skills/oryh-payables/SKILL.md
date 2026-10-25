@@ -1,6 +1,6 @@
 ---
 name: oryh-payables
-description: Use when accounts payable books what a supplier billed and pays it — 登记进项发票 against a PO with 三单匹配, file the 付款申请, 核销 payments against bills, settle approved expense claims, record a supplier refund arriving ("戴尔退款到了"). Not the customer side (oryh-receivables) or placing a PO (oryh-purchase-order).
+description: Use when accounts payable books what a supplier billed and pays it — record a supplier invoice against a PO with three-way matching, file the payment request, allocate payments against bills, settle approved expense claims, record a supplier refund arriving ("the Dell refund arrived"). Not the customer side (oryh-receivables) or placing a PO (oryh-purchase-order).
 required_capability: invoice.manage:purchase
 ---
 
@@ -282,3 +282,6 @@ because the invoice arrived.
 
 - [references/api.md](references/api.md): every endpoint, the match block's
   fields, and the guards with the exact conditions that raise them.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

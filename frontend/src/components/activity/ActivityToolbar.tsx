@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useEffect, useState, type FormEvent } from "react";
 import { useI18n } from "../../i18n";
 
@@ -48,20 +49,20 @@ export function ActivityToolbar({
   return (
     <div className="activity-toolbar">
       <form className="activity-filter" role="search" onSubmit={submit}>
-        <label className="sr-only" htmlFor={`${idPrefix}-keyword`}>{text("搜索", "Search")}</label>
+        <label className="sr-only" htmlFor={`${idPrefix}-keyword`}>{text(zhCN.componentsActivityActivityToolbar.search, "Search")}</label>
         <input id={`${idPrefix}-keyword`} type="search" value={draftKeyword} placeholder={keywordPlaceholder} onChange={(event) => setDraftKeyword(event.target.value)} />
         <label className="sr-only" htmlFor={`${idPrefix}-primary`}>{primaryLabel}</label>
         <select id={`${idPrefix}-primary`} value={draftPrimary} onChange={(event) => setDraftPrimary(event.target.value)}>
-          <option value="">{text(`全部${primaryLabel}`, `All ${primaryLabel}`)}</option>
+          <option value="">{text(zhCN.componentsActivityActivityToolbar.all(`${primaryLabel}`), `All ${primaryLabel}`)}</option>
           {primaryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
-        <label className="sr-only" htmlFor={`${idPrefix}-entity`}>{text("对象类型", "Object type")}</label>
+        <label className="sr-only" htmlFor={`${idPrefix}-entity`}>{text(zhCN.componentsActivityActivityToolbar.objectType, "Object type")}</label>
         <select id={`${idPrefix}-entity`} value={draftEntityType} onChange={(event) => setDraftEntityType(event.target.value)}>
-          <option value="">{text("全部对象类型", "All object types")}</option>
+          <option value="">{text(zhCN.componentsActivityActivityToolbar.allObjectTypes, "All object types")}</option>
           {entityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
-        <button className="button" type="submit">{text("筛选", "Filter")}</button>
-        {(keyword || primary || entityType) && <button className="button quiet" type="button" onClick={clear}>{text("清除", "Clear")}</button>}
+        <button className="button" type="submit">{text(zhCN.componentsActivityActivityToolbar.filter, "Filter")}</button>
+        {(keyword || primary || entityType) && <button className="button quiet" type="button" onClick={clear}>{text(zhCN.componentsActivityActivityToolbar.clear, "Clear")}</button>}
       </form>
     </div>
   );

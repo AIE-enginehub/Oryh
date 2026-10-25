@@ -1,6 +1,6 @@
 ---
 name: oryh-skill-sync
-description: Use to check whether this company's installed oryh skills are current — on session start, periodically, or on demand ("更新一下 oryh 技能"). Compares the local manifest with the server's and refreshes this company's bundle when it changed. Touches no business data.
+description: Use to check whether this company's installed oryh skills are current — on session start, periodically, or on demand ("update the oryh skills"). Compares the local manifest with the server's and refreshes this company's bundle when it changed. Touches no business data.
 ---
 
 # Oryh Skill Sync
@@ -206,3 +206,6 @@ different names is precisely the ambiguity the company prefix exists to remove.
 ## Reference
 
 - [references/api.md](references/api.md): the exact endpoints and response shapes.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

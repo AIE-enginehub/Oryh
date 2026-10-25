@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_order.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -30,37 +37,37 @@ def headers_for_tenant(tenant_id: str) -> dict[str, str]:
 
 
 def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
-    payload = {"name": "王强"}
+    payload = {"name": _ZH_TEXT['TEXT_FFBA5BF30E3C0732']}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "employees", **payload)["id"]
 
 
 def create_customer(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "市第一人民医院", "contact": "设备科 周敏", "address": "北京西路 100 号"}
+    payload = {"name": _ZH_TEXT['TEXT_6A8C34B59A64A0AB'], "contact": _ZH_TEXT['TEXT_71F91180F59B1FD4'], "address": _ZH_TEXT['TEXT_515A16C838A701D5']}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "customers", **payload)
 
 
 def create_product(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "JC-800 医用胶片打印机", "spec": "干式激光", "unit": "台", "list_price": 128000.0}
+    payload = {"name": _ZH_TEXT['TEXT_1DA0769388590494'], "spec": _ZH_TEXT['TEXT_359F73B97F815604'], "unit": _ZH_TEXT['TEXT_991363A244F032C7'], "list_price": 128000.0}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "products", **payload)
 
 
 def create_quotation(test_client: TestClient, employee_id: str, **overrides) -> dict:
-    payload = {"employee_id": employee_id, "title": "市一 JC-800 报价"}
+    payload = {"employee_id": employee_id, "title": _ZH_TEXT['TEXT_3E69F94A2C05C531']}
     payload.update(overrides)
     return create(test_client, api_key_headers(), "sales-quotations", **payload)
 
 
 def create_order(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"employee_id": employee_id, "title": "市一 JC-800 订单"}
+    payload = {"employee_id": employee_id, "title": _ZH_TEXT['TEXT_DB7473716E971A13']}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "sales-orders", **payload)
 
 
 def create_item(test_client: TestClient, order_id: str, **overrides) -> dict:
-    payload = {"order_id": order_id, "product_name_snapshot": "配件一批", "quantity": 1}
+    payload = {"order_id": order_id, "product_name_snapshot": _ZH_TEXT['TEXT_F9C3F0E2F2327167'], "quantity": 1}
     payload.update(overrides)
     return create(test_client, api_key_headers(), "sales-order-items", **payload)
 
@@ -72,10 +79,10 @@ def test_order_full_lifecycle_with_stamps(client: TestClient) -> None:
 
     order = create_order(
         client, employee_id, customer_id=customer["id"],
-        ship_to_address="北京西路 100 号", contract_no="HT-2026-001",
+        ship_to_address=_ZH_TEXT['TEXT_515A16C838A701D5'], contract_no="HT-2026-001",
     )
     assert order["order_no"] == "SO-000001"
-    assert order["customer_name_snapshot"] == "市第一人民医院"
+    assert order["customer_name_snapshot"] == _ZH_TEXT['TEXT_6A8C34B59A64A0AB']
     assert order["status"] == "draft"
 
     item = create_item(
@@ -83,7 +90,7 @@ def test_order_full_lifecycle_with_stamps(client: TestClient) -> None:
         quantity=1, unit_price=121600.0, tax_rate=13, line_no=1, promised_date="2026-08-05",
     )
     assert item["list_price_snapshot"] == 128000.0
-    assert item["product_name_snapshot"] == "JC-800 医用胶片打印机"
+    assert item["product_name_snapshot"] == _ZH_TEXT['TEXT_1DA0769388590494']
 
     submitted = client.post(
         f"/api/v1/sales-orders/{order['id']}/submit", json={}, headers=api_key_headers()
@@ -104,7 +111,7 @@ def test_order_full_lifecycle_with_stamps(client: TestClient) -> None:
     assert client.post(
         "/api/v1/todos",
         json={"employee_id": employee_id, "entity_type": "sales_order",
-              "entity_id": order["id"], "title": "确认订单"},
+              "entity_id": order["id"], "title": _ZH_TEXT['TEXT_F6C1322FFBDC91DA']},
         headers=api_key_headers(),
     ).status_code == 201
 
@@ -114,7 +121,7 @@ def test_order_full_lifecycle_with_stamps(client: TestClient) -> None:
     ).status_code == 200
     client.patch(
         f"/api/v1/sales-orders/{order['id']}",
-        json={"logistics_company": "顺丰速运", "logistics_tracking_no": "SF123"},
+        json={"logistics_company": _ZH_TEXT['TEXT_4D7E0C4B39ABEC91'], "logistics_tracking_no": "SF123"},
         headers=api_key_headers(),
     )
     shipped = client.patch(
@@ -193,7 +200,7 @@ def test_order_machine_guards_and_item_locking(client: TestClient) -> None:
     client.post(f"/api/v1/sales-orders/{order['id']}/submit", json={}, headers=api_key_headers())
     assert client.post(
         "/api/v1/sales-order-items",
-        json={"order_id": order["id"], "product_name_snapshot": "追加", "quantity": 1},
+        json={"order_id": order["id"], "product_name_snapshot": _ZH_TEXT['TEXT_D91017C932B5FC75'], "quantity": 1},
         headers=api_key_headers(),
     ).status_code == 409
     assert client.patch(
@@ -268,7 +275,7 @@ def test_order_work_queue_and_tenant_isolation(client: TestClient) -> None:
     client.post(
         "/api/v1/todos",
         json={"employee_id": employee_id, "entity_type": "sales_order",
-              "entity_id": order["id"], "title": "确认订单"},
+              "entity_id": order["id"], "title": _ZH_TEXT['TEXT_F6C1322FFBDC91DA']},
         headers=api_key_headers(),
     )
     assert client.get(
@@ -297,11 +304,11 @@ def test_order_adjustments_shape_the_total(client: TestClient) -> None:
         assert response.status_code == expect, response.text
         return response.json()["data"] if expect == 201 else response.json()
 
-    add({"adjustment_type": "shipping", "amount": 80.0, "description": "运费"})
+    add({"adjustment_type": "shipping", "amount": 80.0, "description": _ZH_TEXT['TEXT_03B328540B0CEDDA']})
     add({"adjustment_type": "discount", "amount": -100.0, "quotation_item_id": None,
-         "order_item_id": line["id"], "description": "年度返利折扣"}, expect=422)  # unknown field rejected
+         "order_item_id": line["id"], "description": _ZH_TEXT['TEXT_3FF8CF25EFDCAC2A']}, expect=422)  # unknown field rejected
     add({"adjustment_type": "discount", "amount": -100.0, "order_item_id": line["id"],
-         "description": "年度返利折扣"})
+         "description": _ZH_TEXT['TEXT_3FF8CF25EFDCAC2A']})
 
     detail = client.get(
         f"/api/v1/sales-orders/{order['id']}/detail", headers=api_key_headers()
@@ -340,7 +347,7 @@ def test_a_quotation_an_order_quotes_becomes_the_frozen_baseline(client: TestCli
     quotation = create_quotation(client, employee_id)
     item = client.post(
         "/api/v1/sales-quotation-items",
-        json={"quotation_id": quotation["id"], "product_name_snapshot": "内窥镜镜头",
+        json={"quotation_id": quotation["id"], "product_name_snapshot": _ZH_TEXT['TEXT_C7005F6AFFA067C1'],
               "quantity": 2, "unit_price": 1200.00},
         headers=api_key_headers(),
     )
@@ -370,7 +377,7 @@ def test_a_quotation_an_order_quotes_becomes_the_frozen_baseline(client: TestCli
     ).status_code == 409
     assert client.post(
         "/api/v1/sales-quotation-items",
-        json={"quotation_id": quotation["id"], "product_name_snapshot": "追加", "quantity": 1},
+        json={"quotation_id": quotation["id"], "product_name_snapshot": _ZH_TEXT['TEXT_D91017C932B5FC75'], "quantity": 1},
         headers=api_key_headers(),
     ).status_code == 409
     assert client.delete(
@@ -458,7 +465,7 @@ def test_drift_names_which_number_each_side_used(client: TestClient) -> None:
     quotation = create_quotation(client, employee_id)
     client.post(
         "/api/v1/sales-quotation-items",
-        json={"quotation_id": quotation["id"], "product_name_snapshot": "镜头",
+        json={"quotation_id": quotation["id"], "product_name_snapshot": _ZH_TEXT['TEXT_BEC5DD6E9068921A'],
               "quantity": 2, "unit_price": 1000.00},
         headers=api_key_headers(),
     )
@@ -506,8 +513,8 @@ def test_a_confirmed_order_the_warehouse_cannot_ship_is_revised_not_edited(clien
     the link is a column the next reader follows, not a remark."""
     employee_id = create_employee(client)
     customer = create_customer(client)
-    order = create_order(client, employee_id, customer_id=customer["id"], ship_to_address="老地址", total_amount=300.0)
-    create_item(client, order["id"], product_name_snapshot="保温杯", quantity=3, unit_price=100.0, line_no=1)
+    order = create_order(client, employee_id, customer_id=customer["id"], ship_to_address=_ZH_TEXT['TEXT_7E822D5A760B71D8'], total_amount=300.0)
+    create_item(client, order["id"], product_name_snapshot=_ZH_TEXT['TEXT_2FA6B65BF08FB482'], quantity=3, unit_price=100.0, line_no=1)
     client.post(
         "/api/v1/sales-order-adjustments",
         json={"order_id": order["id"], "adjustment_type": "shipping", "amount": 12.0},
@@ -537,15 +544,15 @@ def test_a_confirmed_order_the_warehouse_cannot_ship_is_revised_not_edited(clien
 
     revised = client.post(
         f"/api/v1/sales-orders/{order['id']}/revise",
-        json={"reason": "仓库缺货，客户改要 2 个"},
+        json={"reason": _ZH_TEXT['TEXT_C9AA36994A39EA60']},
         headers=api_key_headers(),
     )
     assert revised.status_code == 201, revised.text
     draft = revised.json()["data"]
     assert draft["supersedes_order_id"] == order["id"]
     assert draft["status"] == "draft" and draft["order_no"] != order["order_no"]
-    assert draft["ship_to_address"] == "老地址" and draft["remarks"] == "仓库缺货，客户改要 2 个"
-    assert [(i["product_name_snapshot"], i["quantity"]) for i in draft["items"]] == [("保温杯", 3.0)]
+    assert draft["ship_to_address"] == _ZH_TEXT['TEXT_7E822D5A760B71D8'] and draft["remarks"] == _ZH_TEXT['TEXT_C9AA36994A39EA60']
+    assert [(i["product_name_snapshot"], i["quantity"]) for i in draft["items"]] == [(_ZH_TEXT['TEXT_2FA6B65BF08FB482'], 3.0)]
 
     source = client.get(f"/api/v1/sales-orders/{order['id']}", headers=api_key_headers()).json()["data"]
     assert source["status"] == "cancelled"

@@ -2,13 +2,20 @@
 
 The vocabularies, the capability catalogue and the system emails were Chinese
 everywhere, so the open-core repository seeded an English-speaking company
-with 店铺 and 提交自己的工时. One content locale now decides: explicit
+with store and submit own timesheet. One content locale now decides: explicit
 ORYH_LOCALE, else English on a standalone deployment and Chinese on the
 hosted service. The Chinese tables are the product for its market and stay
 exactly as they were; the English ones must mirror them name for name.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_seed_locale.json').read_text(encoding="utf-8"))
+
 
 import re
 
@@ -18,7 +25,7 @@ from app.core import permissions, type_options
 from app.core.config import settings
 from app.services.emails import outbox, send_work_notification
 
-CJK = re.compile(r"[一-鿿]")
+CJK = re.compile(_ZH_TEXT['TEXT_F808A82F7578DA70'])
 
 
 def test_the_english_vocabulary_mirrors_the_chinese_one_name_for_name() -> None:
@@ -56,7 +63,7 @@ def test_seeding_picks_the_locale(monkeypatch) -> None:
     catalogue = {name: title for name, _, title, _ in permissions.system_capabilities()}
     assert catalogue["timesheet.submit_own"] == "Submit own timesheet"
     monkeypatch.setattr(settings, "locale", "zh")
-    assert type_options.system_type_options()["facility_type"][0][1] == "店铺"
+    assert type_options.system_type_options()["facility_type"][0][1] == _ZH_TEXT['TEXT_7C517652A3A76F14']
     assert permissions.system_capabilities() == permissions.SYSTEM_CAPABILITIES
 
 
@@ -87,6 +94,6 @@ def test_work_notifications_are_written_in_the_locale(monkeypatch) -> None:
     assert mail.subject == "Returned for rework: Timesheet 08/03"
     assert "Handled by: Bob" in mail.body and "hours do not add up" in mail.body and not CJK.search(mail.body)
     monkeypatch.setattr(settings, "locale", "zh")
-    send_work_notification(to="a@x.example", recipient_name="安", event="approved", title="工时", detail=None,
+    send_work_notification(to="a@x.example", recipient_name=_ZH_TEXT['TEXT_77F34A38180F766E'], event="approved", title=_ZH_TEXT['TEXT_B24C8B905CB47750'], detail=None,
                            actor_name=None, link="https://x/console/todos")
-    assert outbox.messages[-1].subject == "你的单据已通过：工时"
+    assert outbox.messages[-1].subject == _ZH_TEXT['TEXT_76DB04A8FAC9B38E']

@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_audit_and_machines.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -397,7 +404,7 @@ def test_new_tenant_gets_product_skills_and_builtin_machine(client: TestClient) 
     ).json()["data"]
     by_type = {d["object_type"]: d for d in definitions}
     # Derived from the registry rather than restated: this list was a literal
-    # and the eighth family (请假) made it wrong without saying anything about
+    # and the eighth family (leave) made it wrong without saying anything about
     # the behaviour under test, which is that EVERY builtin machine provisions.
     from app.services.state_machines import BUILTIN_MACHINES
 
@@ -469,7 +476,7 @@ def test_workflow_definition_versioning(client: TestClient) -> None:
         headers=HEADERS,
     )
     assert definition.status_code == 201, definition.text
-    v1_text = "工时提交后由直属经理审批，通过即 approved。"
+    v1_text = _ZH_TEXT['TEXT_C78FF3B6E8883960']
     response = client.post(
         "/api/v1/business-rules/publish",
         json={"kind": "approval_flow", "entity_kind": "builtin", "object_type": "timesheet_header", "body": v1_text},
@@ -479,7 +486,7 @@ def test_workflow_definition_versioning(client: TestClient) -> None:
     v1 = response.json()["data"]["current"]
     assert v1["version"] == 1 and v1["status"] == "published"
 
-    v2_text = "工时提交后由直属经理审批；超过40小时需财务复核；财务复核可能在改判后再次进行。"
+    v2_text = _ZH_TEXT['TEXT_530B7E1AC5579E20']
     response = client.post(
         "/api/v1/business-rules/publish",
         json={"kind": "approval_flow", "entity_kind": "builtin", "object_type": "timesheet_header", "body": v2_text},
@@ -513,7 +520,7 @@ def test_workflow_definition_versioning(client: TestClient) -> None:
         params={
             "kind": "approval_flow",
             "status": "published",
-            "keyword": "40小时",
+            "keyword": _ZH_TEXT['TEXT_52A7C7B39F6E24AA'],
             "page": 1,
             "size": 1,
         },
@@ -705,7 +712,7 @@ def test_status_filter_guard_covers_every_builtin_document(client: TestClient) -
 
 def test_a_capability_that_reaches_nobody_is_reported() -> None:
     """Three releases shipped a capability that reached nobody who needed it —
-    结算, 工资, 请假 — and each was found days later by a 403 in somebody's
+    settlement, payroll, leave — and each was found days later by a 403 in somebody's
     flow. `provision_system_roles` cannot fix it (a capability missing from a
     role the tenant designed might be a decision, not an omission), but the
     deploy log can say so.
@@ -774,7 +781,7 @@ def test_a_line_change_shows_up_on_the_document_it_belongs_to(client: TestClient
             "employee_id": employee_id,
             "work_date": "2026-06-01",
             "hours": 4,
-            "project_name_snapshot": "素然AIE",
+            "project_name_snapshot": _ZH_TEXT['TEXT_9E41B6CD97911E37'],
         },
         headers=HEADERS,
     )
@@ -783,7 +790,7 @@ def test_a_line_change_shows_up_on_the_document_it_belongs_to(client: TestClient
 
     moved = client.patch(
         f"/api/v1/timesheet-entries/{entry_id}",
-        json={"project_name_snapshot": "销售工作"},
+        json={"project_name_snapshot": _ZH_TEXT['TEXT_F5B1FD843D0F43B5']},
         headers=HEADERS,
     )
     assert moved.status_code == 200, moved.text
@@ -821,19 +828,19 @@ def test_a_machine_change_leaves_both_snapshots_in_the_trail() -> None:
         definition = next(d for d in client.get("/api/v1/object-type-definitions?entity_kind=builtin&object_type=expense_claim",
                                                 headers=admin).json()["data"])
         machine = dict(definition["state_machine"])
-        renamed = {**machine, "states": ["已提交" if s == "submitted" else s for s in machine["states"]],
-                   "roles": {**(machine.get("roles") or {}), "submitted": "已提交"},
-                   "transitions": {("已提交" if k == "submitted" else k): ["已提交" if v == "submitted" else v for v in vs]
+        renamed = {**machine, "states": [_ZH_TEXT['TEXT_BC37A6110A07493F'] if s == "submitted" else s for s in machine["states"]],
+                   "roles": {**(machine.get("roles") or {}), "submitted": _ZH_TEXT['TEXT_BC37A6110A07493F']},
+                   "transitions": {(_ZH_TEXT['TEXT_BC37A6110A07493F'] if k == "submitted" else k): [_ZH_TEXT['TEXT_BC37A6110A07493F'] if v == "submitted" else v for v in vs]
                                    for k, vs in machine["transitions"].items()},
-                   "editable_states": ["已提交" if s == "submitted" else s for s in machine.get("editable_states") or []]}
+                   "editable_states": [_ZH_TEXT['TEXT_BC37A6110A07493F'] if s == "submitted" else s for s in machine.get("editable_states") or []]}
         r = client.patch(f"/api/v1/object-type-definitions/{definition['id']}", headers=admin, json={"state_machine": renamed})
         assert r.status_code == 200, r.text
         trail = client.get("/api/v1/audit-logs?entity_type=object_type_definition&action=rule.machine_changed", headers=admin).json()["data"]
         assert len(trail) == 1
         detail = trail[0]["detail"]
         assert detail["object_type"] == "expense_claim" and detail["version"] == definition["version"] + 1
-        assert "submitted" in detail["before"]["states"] and "已提交" in detail["after"]["states"]
+        assert "submitted" in detail["before"]["states"] and _ZH_TEXT['TEXT_BC37A6110A07493F'] in detail["after"]["states"]
         # a PATCH that does not touch the machine writes no such line
-        client.patch(f"/api/v1/object-type-definitions/{definition['id']}", headers=admin, json={"title": "报销"})
+        client.patch(f"/api/v1/object-type-definitions/{definition['id']}", headers=admin, json={"title": _ZH_TEXT['TEXT_5DFBE843E2E8CE0D']})
         assert len(client.get("/api/v1/audit-logs?entity_type=object_type_definition&action=rule.machine_changed",
                               headers=admin).json()["data"]) == 1

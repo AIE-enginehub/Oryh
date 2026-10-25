@@ -1,4 +1,5 @@
 import catalog from "./data-catalog.json";
+import chineseLabels from "../locales/zh-CN/data-catalog.json";
 import { apiRequestEnvelope, type PaginationMeta } from "./client";
 
 // The data browser's catalogue is generated from the API contract by
@@ -45,7 +46,37 @@ export type CatalogResource = {
 };
 export type CatalogGroup = { key: string; label: [string, string] };
 
-export const dataCatalog = catalog as { groups: CatalogGroup[]; resources: CatalogResource[] };
+type CatalogLabels = {
+  groups: Record<string, string>;
+  resources: Record<string, { label: string; related: Record<string, string> }>;
+};
+
+const englishCatalog = catalog as { groups: CatalogGroup[]; resources: CatalogResource[] };
+const locale = chineseLabels as CatalogLabels;
+function localizedLabel(label: [string, string], chinese?: string): [string, string] {
+  return [chinese ?? label[0], label[1]];
+}
+
+// Restore the original bilingual interface from the generated locale overlay.
+// Group/resource/relationship IDs keep labels stable when catalog order changes.
+export const dataCatalog = {
+  ...englishCatalog,
+  groups: englishCatalog.groups.map((group) => ({
+    ...group,
+    label: localizedLabel(group.label, locale.groups[group.key]),
+  })),
+  resources: englishCatalog.resources.map((resource) => ({
+    ...resource,
+    label: localizedLabel(resource.label, locale.resources[resource.key]?.label),
+    related: resource.related?.map((related) => ({
+      ...related,
+      label: localizedLabel(
+        related.label,
+        locale.resources[resource.key]?.related[`${related.resource}:${related.param}`],
+      ),
+    })),
+  })),
+};
 
 export function findResource(key: string | undefined): CatalogResource | undefined {
   return dataCatalog.resources.find((resource) => resource.key === key);

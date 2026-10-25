@@ -5,11 +5,18 @@ order may be billed, and it never changes afterwards; a tax invoice number may
 only be booked once per workspace — across BOTH an expense item and a vendor
 bill, which is the duplicate-booking hole a single-table check leaves open; a
 header-only invoice with no lines is settleable, because that is how most
-汇总开票 arrive; and `invoice.manage` may be scoped to one direction so 应收
-and 应付 can be different people.
+summary invoicing arrive; and `invoice.manage` may be scoped to one direction so receivables
+and payables can be different people.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_invoice.json').read_text(encoding="utf-8"))
+
 
 from collections.abc import Generator
 
@@ -50,19 +57,19 @@ def scoped_client() -> Generator[tuple[dict, dict], None, None]:
 
 
 def create_employee(client: TestClient, **overrides) -> str:
-    payload = {"name": "财务小陈"}
+    payload = {"name": _ZH_TEXT['TEXT_5C3B5931A936EB6B']}
     payload.update(overrides)
     return create(client, HEADERS, "employees", **payload)["id"]
 
 
 def create_customer(client: TestClient, **overrides) -> dict:
-    payload = {"name": "上海市第一医院", "customer_code": "C-SH1"}
+    payload = {"name": _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC'], "customer_code": "C-SH1"}
     payload.update(overrides)
     return create(client, HEADERS, "customers", **payload)
 
 
 def create_vendor(client: TestClient, **overrides) -> dict:
-    payload = {"name": "戴尔（中国）有限公司", "vendor_code": "V-DELL"}
+    payload = {"name": _ZH_TEXT['TEXT_48A8405C94F000EC'], "vendor_code": "V-DELL"}
     payload.update(overrides)
     return create(client, HEADERS, "vendors", **payload)
 
@@ -72,7 +79,7 @@ def create_invoice(client: TestClient, **overrides) -> dict:
     payload = {
         "direction": "sales",
         "employee_id": employee_id,
-        "title": "2026年7月货款",
+        "title": _ZH_TEXT['TEXT_CB84735CFFFFED69'],
     }
     payload.update(overrides)
     # an invoice has to bill something; tests that are about lines or about a
@@ -90,7 +97,7 @@ def test_a_sales_invoice_takes_a_customer_and_allocates_its_own_number(client: T
     assert invoice["customer_id"] == customer["id"]
     assert invoice["vendor_id"] is None
     # the counterparty name is snapshotted from master data
-    assert invoice["counterparty_name_snapshot"] == "上海市第一医院"
+    assert invoice["counterparty_name_snapshot"] == _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']
     assert invoice["invoice_no"].startswith("INV-")
     assert invoice["status"] == "draft"
     assert invoice["applied_amount"] == 0
@@ -109,7 +116,7 @@ def test_the_direction_decides_which_counterparty_is_legal(client: TestClient) -
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "错方向",
+            "title": _ZH_TEXT['TEXT_47E5BA1F2EB10D23'],
             "vendor_id": vendor["id"],
         },
         headers=HEADERS,
@@ -119,7 +126,7 @@ def test_the_direction_decides_which_counterparty_is_legal(client: TestClient) -
 
     missing = client.post(
         "/api/v1/invoices",
-        json={"direction": "purchase", "employee_id": employee_id, "title": "缺对手方"},
+        json={"direction": "purchase", "employee_id": employee_id, "title": _ZH_TEXT['TEXT_0FE7BC0FA0A1DD17']},
         headers=HEADERS,
     )
     assert missing.status_code == 422
@@ -158,7 +165,7 @@ def test_a_tax_invoice_number_cannot_be_booked_twice(client: TestClient) -> None
         json={
             "direction": "purchase",
             "employee_id": create_employee(client),
-            "title": "重复进项票",
+            "title": _ZH_TEXT['TEXT_DD6BDFDC69533E59'],
             "vendor_id": vendor["id"],
             "tax_invoice_number": "24312000000098765432",
         },
@@ -184,13 +191,13 @@ def test_the_same_number_is_legal_on_the_other_side(client: TestClient) -> None:
 
 
 def test_an_invoice_number_already_reimbursed_cannot_also_be_billed(client: TestClient) -> None:
-    """The expensive duplicate: the same 进项发票 reimbursed to an employee AND
+    """The expensive duplicate: the same purchase tax invoice reimbursed to an employee AND
     paid again against the supplier's own invoice."""
     employee_id = create_employee(client)
     vendor = create_vendor(client)
     claim = client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": employee_id, "title": "7月差旅"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_FA7CCEC3B8FEF547']},
         headers=HEADERS,
     )
     assert claim.status_code == 201, claim.text
@@ -212,7 +219,7 @@ def test_an_invoice_number_already_reimbursed_cannot_also_be_billed(client: Test
         json={
             "direction": "purchase",
             "employee_id": employee_id,
-            "title": "供应商账单",
+            "title": _ZH_TEXT['TEXT_E0D8D1EF87512A21'],
             "vendor_id": vendor["id"],
             "tax_invoice_number": "24312000000055556666",
         },
@@ -232,7 +239,7 @@ def test_the_reverse_direction_of_the_duplicate_check_also_holds(client: TestCli
     )
     claim = client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": employee_id, "title": "8月差旅"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_7E51C244E1B9CD64']},
         headers=HEADERS,
     ).json()["data"]
 
@@ -259,7 +266,7 @@ def test_lines_carry_the_money_and_the_detail_reports_both_totals(client: TestCl
         customer_id=customer["id"],
         items=[
             {
-                "product_name_snapshot": "27寸显示器",
+                "product_name_snapshot": _ZH_TEXT['TEXT_3D7C389C9EA4E117'],
                 "quantity": 3,
                 "unit_price": 3000.0,
                 "tax_rate": 13.0,
@@ -268,13 +275,13 @@ def test_lines_carry_the_money_and_the_detail_reports_both_totals(client: TestCl
             {
                 "invoice_item_type": "shipping",
                 # a pure charge line has no quantity and no unit price
-                "product_name_snapshot": "运费",
+                "product_name_snapshot": _ZH_TEXT['TEXT_03B328540B0CEDDA'],
                 "amount": 300.0,
             },
         ],
     )
     # the create response reads back what landed, line by line
-    assert [item["product_name_snapshot"] for item in invoice["items"]] == ["27寸显示器", "运费"]
+    assert [item["product_name_snapshot"] for item in invoice["items"]] == [_ZH_TEXT['TEXT_3D7C389C9EA4E117'], _ZH_TEXT['TEXT_03B328540B0CEDDA']]
 
     detail = client.get(f"/api/v1/invoices/{invoice['id']}/detail", headers=HEADERS).json()["data"]
     assert detail["computed_total"] == 9300.0
@@ -297,7 +304,7 @@ def test_an_invoice_must_bill_something(client: TestClient) -> None:
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "空单",
+            "title": _ZH_TEXT['TEXT_E51FC8D54643A21C'],
             "customer_id": customer["id"],
         },
         headers=HEADERS,
@@ -309,7 +316,7 @@ def test_an_invoice_must_bill_something(client: TestClient) -> None:
     assert create_invoice(client, customer_id=customer["id"], total_amount=9000.0)
     assert create_invoice(
         client, customer_id=customer["id"],
-        items=[{"product_name_snapshot": "显示器", "quantity": 3, "unit_price": 3000.0}],
+        items=[{"product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'], "quantity": 3, "unit_price": 3000.0}],
     )
 
 
@@ -325,10 +332,10 @@ def test_a_bad_inline_line_rolls_the_whole_invoice_back(client: TestClient) -> N
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "半成品",
+            "title": _ZH_TEXT['TEXT_763F1C2543BDE7D8'],
             "customer_id": customer["id"],
             "items": [
-                {"product_name_snapshot": "显示器", "amount": 3000.0},
+                {"product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'], "amount": 3000.0},
                 # no product and no free-text name — this line cannot stand
                 {"amount": 500.0},
             ],
@@ -348,10 +355,10 @@ def test_an_inline_line_may_not_name_another_invoice(client: TestClient) -> None
         json={
             "direction": "sales",
             "employee_id": create_employee(client),
-            "title": "串单",
+            "title": _ZH_TEXT['TEXT_03B66C02A3B7E409'],
             "customer_id": customer["id"],
             "items": [
-                {"invoice_id": other["id"], "product_name_snapshot": "显示器", "amount": 100.0}
+                {"invoice_id": other["id"], "product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'], "amount": 100.0}
             ],
         },
         headers=HEADERS,
@@ -361,7 +368,7 @@ def test_an_inline_line_may_not_name_another_invoice(client: TestClient) -> None
 
 
 def test_a_declared_header_total_wins_over_the_line_sum(client: TestClient) -> None:
-    """抹零 and 汇总开票 both make the stated total the truth; the line sum stays
+    """rounding adjustment and summary invoicing both make the stated total the truth; the line sum stays
     visible so an agent can judge the gap."""
     customer = create_customer(client)
     invoice = create_invoice(client, customer_id=customer["id"], total_amount=9300.0)
@@ -369,7 +376,7 @@ def test_a_declared_header_total_wins_over_the_line_sum(client: TestClient) -> N
         "/api/v1/invoice-items",
         json={
             "invoice_id": invoice["id"],
-            "product_name_snapshot": "27寸显示器",
+            "product_name_snapshot": _ZH_TEXT['TEXT_3D7C389C9EA4E117'],
             "quantity": 3,
             "unit_price": 3100.0,
         },
@@ -403,7 +410,7 @@ def test_lines_are_frozen_once_the_invoice_leaves_its_editable_states(client: Te
 
     late_line = client.post(
         "/api/v1/invoice-items",
-        json={"invoice_id": invoice["id"], "product_name_snapshot": "追加", "amount": 10.0},
+        json={"invoice_id": invoice["id"], "product_name_snapshot": _ZH_TEXT['TEXT_D91017C932B5FC75'], "amount": 10.0},
         headers=HEADERS,
     )
     assert late_line.status_code == 409
@@ -433,7 +440,7 @@ def test_a_line_may_only_bill_a_line_of_the_order_this_invoice_bills(client: Tes
     order_id = order.json()["data"]["id"]
     order_line = client.post(
         "/api/v1/sales-order-items",
-        json={"order_id": order_id, "product_name_snapshot": "显示器", "quantity": 3, "unit_price": 3000.0},
+        json={"order_id": order_id, "product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'], "quantity": 3, "unit_price": 3000.0},
         headers=HEADERS,
     ).json()["data"]
 
@@ -442,7 +449,7 @@ def test_a_line_may_only_bill_a_line_of_the_order_this_invoice_bills(client: Tes
         "/api/v1/invoice-items",
         json={
             "invoice_id": unlinked["id"],
-            "product_name_snapshot": "显示器",
+            "product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'],
             "amount": 9000.0,
             "sales_order_item_id": order_line["id"],
         },
@@ -459,7 +466,7 @@ def test_a_line_may_only_bill_a_line_of_the_order_this_invoice_bills(client: Tes
         "/api/v1/invoice-items",
         json={
             "invoice_id": linked["id"],
-            "product_name_snapshot": "显示器",
+            "product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'],
             "amount": 9000.0,
             "sales_order_item_id": order_line["id"],
         },
@@ -485,7 +492,7 @@ def test_a_sales_invoice_cannot_bill_a_purchase_order(client: TestClient) -> Non
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "跨方向",
+            "title": _ZH_TEXT['TEXT_5B9BAFB8D1935C25'],
             "customer_id": customer["id"],
             "purchase_order_id": po.json()["data"]["id"],
         },
@@ -518,34 +525,34 @@ def test_an_unknown_status_filter_names_this_workspaces_states(client: TestClien
 
 
 def test_opening_balances_import_by_their_own_numbers(client: TestClient) -> None:
-    """期初应收应付: historical invoices keep their own numbers, arrive already
+    """opening receivables and payables: historical invoices keep their own numbers, arrive already
     issued, and a re-run of the same file changes nothing."""
-    create_employee(client, name="王会计", employee_code="E-王")
+    create_employee(client, name=_ZH_TEXT['TEXT_DD57A46DADEEEAEC'], employee_code=_ZH_TEXT['TEXT_FF6E2F1ACC256C64'])
     create_customer(client, customer_code="C-SH1")
     create_vendor(client, vendor_code="V-DELL")
     rows = [
         {
             "invoice_no": "2025-AR-0001",
             "direction": "sales",
-            "employee_code": "E-王",
+            "employee_code": _ZH_TEXT['TEXT_FF6E2F1ACC256C64'],
             "customer_code": "C-SH1",
-            "title": "2025年12月货款",
+            "title": _ZH_TEXT['TEXT_6A9AFD487777499F'],
             "due_date": "2026-01-31",
             "total_amount": 48000.0,
             "status": "issued",
             "items": [
-                {"line_no": 1, "product_name_snapshot": "监护仪", "quantity": 4, "unit_price": 12000.0},
+                {"line_no": 1, "product_name_snapshot": _ZH_TEXT['TEXT_2CF991FD264FDDEC'], "quantity": 4, "unit_price": 12000.0},
             ],
         },
         {
             "invoice_no": "2025-AP-0007",
             "direction": "purchase",
-            "employee_code": "E-王",
+            "employee_code": _ZH_TEXT['TEXT_FF6E2F1ACC256C64'],
             "vendor_code": "V-DELL",
-            "title": "服务器尾款",
+            "title": _ZH_TEXT['TEXT_971359FAA6E94AC3'],
             "total_amount": 26000.0,
             "status": "issued",
-            "items": [{"invoice_item_type": "goods", "product_name_snapshot": "服务器", "amount": 26000.0}],
+            "items": [{"invoice_item_type": "goods", "product_name_snapshot": _ZH_TEXT['TEXT_2388CBC6A486AF9F'], "amount": 26000.0}],
         },
     ]
 
@@ -572,7 +579,7 @@ def test_opening_balances_import_by_their_own_numbers(client: TestClient) -> Non
 
 
 def test_an_import_row_on_the_wrong_side_is_reported_not_filed(client: TestClient) -> None:
-    create_employee(client, name="王会计", employee_code="E-王")
+    create_employee(client, name=_ZH_TEXT['TEXT_DD57A46DADEEEAEC'], employee_code=_ZH_TEXT['TEXT_FF6E2F1ACC256C64'])
     create_vendor(client, vendor_code="V-DELL")
 
     response = client.post(
@@ -582,9 +589,9 @@ def test_an_import_row_on_the_wrong_side_is_reported_not_filed(client: TestClien
                 {
                     "invoice_no": "2025-AR-0002",
                     "direction": "sales",
-                    "employee_code": "E-王",
+                    "employee_code": _ZH_TEXT['TEXT_FF6E2F1ACC256C64'],
                     "vendor_code": "V-DELL",
-                    "title": "方向搞反了",
+                    "title": _ZH_TEXT['TEXT_0C0ECB2028F297DF'],
                     "status": "issued",
                 }
             ]
@@ -599,20 +606,20 @@ def test_an_import_row_on_the_wrong_side_is_reported_not_filed(client: TestClien
 
 
 def test_invoice_manage_can_be_scoped_to_one_direction(scoped_client: TestClient) -> None:
-    """不相容职务分离: an 应收会计 granted only `invoice.manage:sales` files and
+    """segregation of incompatible duties: an receivables accountant granted only `invoice.manage:sales` files and
     edits sales invoices and cannot touch the purchase side — the scope
     dimension the permission grammar already has, applied to a direction."""
     service, ar_only = scoped_client
-    employee_id = client_post(service, "/api/v1/employees", {"name": "应收会计"})["id"]
-    customer = client_post(service, "/api/v1/customers", {"name": "上海市第一医院"})
-    vendor = client_post(service, "/api/v1/vendors", {"name": "戴尔"})
+    employee_id = client_post(service, "/api/v1/employees", {"name": _ZH_TEXT['TEXT_608D9A36F54BC281']})["id"]
+    customer = client_post(service, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']})
+    vendor = client_post(service, "/api/v1/vendors", {"name": _ZH_TEXT['TEXT_B34AA8E97B2C2454']})
 
     allowed = ar_only["client"].post(
         "/api/v1/invoices",
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "销项",
+            "title": _ZH_TEXT['TEXT_D6C2BC3F90B8B6F9'],
             "customer_id": customer["id"],
             "total_amount": 1000.0,
         },
@@ -625,7 +632,7 @@ def test_invoice_manage_can_be_scoped_to_one_direction(scoped_client: TestClient
         json={
             "direction": "purchase",
             "employee_id": employee_id,
-            "title": "进项",
+            "title": _ZH_TEXT['TEXT_37BCAC2FBC8E0E73'],
             "vendor_id": vendor["id"],
             "total_amount": 1000.0,
         },
@@ -642,7 +649,7 @@ def test_invoice_manage_can_be_scoped_to_one_direction(scoped_client: TestClient
         {
             "direction": "purchase",
             "employee_id": employee_id,
-            "title": "别人的进项",
+            "title": _ZH_TEXT['TEXT_45B58E4FCFBE9BF4'],
             "vendor_id": vendor["id"],
             "total_amount": 1000.0,
         },
@@ -666,7 +673,7 @@ def test_the_type_vocabularies_are_gated_and_extensible(client: TestClient) -> N
         json={
             "direction": "sales",
             "employee_id": employee_id,
-            "title": "未知票种",
+            "title": _ZH_TEXT['TEXT_06EA8BDAF620D076'],
             "customer_id": customer["id"],
             "invoice_type": "made_up",
         },
@@ -677,7 +684,7 @@ def test_the_type_vocabularies_are_gated_and_extensible(client: TestClient) -> N
 
     assert client.post(
         "/api/v1/type-options",
-        json={"family": "invoice_type", "name": "internal_settlement", "title": "内部结算单"},
+        json={"family": "invoice_type", "name": "internal_settlement", "title": _ZH_TEXT['TEXT_B5D4D55A95886E52']},
         headers=HEADERS,
     ).status_code == 201
     accepted = create_invoice(

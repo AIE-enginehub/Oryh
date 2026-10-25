@@ -747,8 +747,8 @@ def get_builtin_object_types(
     """What ORYH already ships, so an agent can tell whether a custom object is
     one of these under another name.
 
-    Asked to "建一个 Product 自定义对象", an agent would define one, and the
-    workspace would end up with two answers to "有多少产品" — the real catalogue
+    Asked to "create a Product custom object", an agent would define one, and the
+    workspace would end up with two answers to "how many products are there" — the real catalogue
     and a shadow of it that no order line, price or inventory row can ever point
     at. Once the shadow has data the two cannot be merged back.
 
@@ -1252,7 +1252,7 @@ def post_business_object_stock(
     The object's type definition carries `stock_effect: {reason, state}`;
     the object's `payload.lines` carry `[{inventory_item_id,
     quantity_on_hand_diff, unit_cost?, description?}]` (signed, so a
-    调拨单 is one document with a minus line and a plus line). Posting
+    stock-transfer document is one document with a minus line and a plus line). Posting
     is allowed only in the declared state — the tenant's approval, in
     their words — and a second call is a 409: the ledger is append-only,
     a correction is a counter-document."""
@@ -1376,7 +1376,7 @@ def post_business_object_entries(
     ledger, once. The type's state machine carries `account_effect:
     {reason, state}`; the object's `payload.lines` carry
     `[{billing_account_id, amount, expires_at?, description?}]` (signed, so
-    a 划转单 is a minus line on one account and a plus line on another).
+    a transfer document is a minus line on one account and a plus line on another).
     Posting is allowed only in the declared state; each account's floor and
     status are checked by the same helper the settlement path uses; the
     poster needs `billing_account.post` for each account's unit type. A
@@ -1875,7 +1875,7 @@ TODO_TARGET_MODELS = {family.object_type: model for model, family in DOCUMENT_FA
 
 
 def _numbered_title(number: str, title: str | None) -> str:
-    """`QT-000009 放射科报价` — unless the title already starts with the number
+    """`QT-000009 radiology quotation` — unless the title already starts with the number
     (F-61: the todo used to read `SO202609001 SO202609001 …`)."""
     text = (title or "").strip()
     if not text or text.startswith(number):

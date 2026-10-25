@@ -1,6 +1,6 @@
 ---
 name: oryh-contracts
-description: Use to file or consult contracts in oryh — record a signed contract ("把这份代工合同录进去"), answer from its clauses ("付款节奏怎样?"、"首付多少?"), record supplements and renewals, link the orders, invoices and payments that execute it. Requires contract.manage, scoped :purchase or :sales.
+description: Use to file or consult contracts in oryh — record a signed contract ("record this manufacturing contract"), answer from its clauses ("what is the payment schedule?", "how much is the deposit?"), record supplements and renewals, link the orders, invoices and payments that execute it. Requires contract.manage, scoped :purchase or :sales.
 required_capability: contract.manage
 ---
 
@@ -37,8 +37,14 @@ of forty pages, and never your memory of them.
   Never answer a contract question from recollection.
 - **The original is never edited.** A supplement, a renewal, a changed
   price is a NEW contract with `parent_contract_id` pointing at the one
-  it modifies, with its own originals and terms. A signed contract's own
-  fields are frozen; the desk's notes (`summary`, `remarks`) are not.
+  it modifies, with its own originals and terms — on the same side; the
+  server refuses a parent on the other side, a deleted one, or a loop. A
+  signed contract's own fields are frozen; the desk's notes (`summary`,
+  `remarks`) are not. Once signed, a term's `content` is frozen too (its
+  `summary`, type and page are not): a quote you got wrong is deleted
+  and the passage filed again as the original says it. Its originals
+  stay linked — only a `draft` file may be unlinked; a mis-typed one is
+  retyped, and later scans are still filed.
 
 ## Required Inputs
 
@@ -55,8 +61,8 @@ oryh:
 1. **Header**: `POST /contracts` with `title`, `contract_type` (the
    tenant's `contract_type` vocabulary: purchase / oem / sales /
    framework / service / nda / …), ONE counterparty (`vendor_id` for the
-   purchase side, `customer_id` for the sales side — the side is derived
-   and is what your scope is checked against), dates, `total_amount`,
+   purchase side, `customer_id` for the sales side — the side follows
+   from it and is what your scope is checked against), dates, `total_amount`,
    signatories, and `items` where the contract lists what is contracted
    (product, quantity, unit price, delivery note). Omit `contract_no` for
    `CT-NNNNNN`. Two more things a header may say: `opportunity_id`, the
@@ -69,6 +75,17 @@ oryh:
    contract document of type `upstream_reference` when the person wants it
    beside the originals). It is a reference: never a contract row, never
    in the list, never summed.
+
+   A counterparty not yet in master data — a new factory, a first-time
+   client — is filed by name: `counterparty_name_snapshot` plus `side`
+   (`"purchase"` when we buy, `"sales"` when we sell). Ask which if the
+   paper does not make it plain; never guess, because the side decides
+   which desk reads the contract. Once the vendor or customer exists,
+   `PATCH /contracts/{id}` with its `vendor_id` / `customer_id` links it
+   — at any status, the snapshot kept — while the contract names no
+   counterparty yet. Moving a snapshot-only contract to the other side
+   (`PATCH {"side": …}`) needs that side's grant too, and is refused once
+   orders, invoices or payments execute it.
 2. **Originals**: for every file the person hands you, `POST /attachments`
    (any format — a PDF, each scanned page, the Word draft) then
    `POST /contract-documents` with `document_type` (signed / draft / annex
@@ -108,7 +125,12 @@ Orders, invoices and payments name the contract they execute
 deposit is an outbound payment with `contract_id` and no invoice to apply
 to ($oryh-payables); `GET /contracts/{id}/execution` derives what has
 happened — ordered, invoiced, paid, contracted vs ordered by product —
-and stores nothing.
+and stores nothing. Only what happened counts: orders from confirmation
+on (a draft or one in approval is not yet ordered), invoices from issue
+on, payments that are paid — nothing voided or cancelled. The figures are
+in the contract's `currency`; anything in another currency is in
+`other_currencies`, summed apart. Report those separately — never add
+them in.
 
 ## What This Skill Never Does
 
@@ -125,3 +147,6 @@ and stores nothing.
 ## Reference
 
 - [references/api.md](references/api.md): endpoints and shapes.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

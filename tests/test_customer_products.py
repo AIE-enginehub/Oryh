@@ -12,6 +12,13 @@ identity is not editable — an agreement does not move to another customer.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_customer_products.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -22,9 +29,9 @@ def desk():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Agree Co", email="admin@agree.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        product = client.post("/api/v1/products", json={"name": "工业阀门DN50"},
+        product = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_383D585EB0B31B8A']},
                               headers=admin).json()["data"]["id"]
-        hospital = client.post("/api/v1/customers", json={"name": "市一医院"},
+        hospital = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_85DED9E803B8D55E']},
                                headers=admin).json()["data"]["id"]
 
         member = invite_member(client, admin, "nobody", [])
@@ -40,7 +47,7 @@ def test_one_agreement_per_pair_that_revives_instead_of_duplicating(desk) -> Non
         "customer_product_code": "KH-3301", "agreed_price": 88.0})
     assert made.status_code == 201, made.text
     agreement = made.json()["data"]
-    assert agreement["customer_name"] == "市一医院", \
+    assert agreement["customer_name"] == _ZH_TEXT['TEXT_85DED9E803B8D55E'], \
         "a list of agreements says whose they are without a query per row"
 
     doubled = client.post("/api/v1/customer-products", headers=admin, json={
@@ -66,9 +73,9 @@ def test_the_customers_own_code_answers_their_purchase_order(desk) -> None:
     client, admin = desk["client"], desk["admin"]
     client.post("/api/v1/customer-products", headers=admin, json={
         "product_id": desk["product"], "customer_id": desk["customer"],
-        "customer_product_code": "KH-3301", "customer_product_name": "阀门（医用）",
+        "customer_product_code": "KH-3301", "customer_product_name": _ZH_TEXT['TEXT_84CEADD219CD289F'],
         "agreed_price": 88.0, "min_order_quantity": 10})
-    other = client.post("/api/v1/products", json={"name": "法兰垫片"},
+    other = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_1BC645B1D4198AC5']},
                         headers=admin).json()["data"]["id"]
     client.post("/api/v1/customer-products", headers=admin, json={
         "product_id": other, "customer_id": desk["customer"],
@@ -80,7 +87,7 @@ def test_the_customers_own_code_answers_their_purchase_order(desk) -> None:
     assert found.status_code == 200, "agreements are master data — everyone reads them"
     rows = found.json()["data"]
     assert [r["product_id"] for r in rows] == [desk["product"]], \
-        "货号 KH-3301 on their PO resolves to exactly our product"
+        _ZH_TEXT['TEXT_203C4070D51C3897']
 
     refused = client.post("/api/v1/customer-products", headers=desk["member"], json={
         "product_id": desk["product"], "customer_id": desk["customer"]})
@@ -97,7 +104,7 @@ def test_the_pair_is_identity_and_ghosts_are_refused(desk) -> None:
 
     made = client.post("/api/v1/customer-products", headers=admin, json={
         "product_id": desk["product"], "customer_id": desk["customer"]}).json()["data"]
-    other = client.post("/api/v1/customers", json={"name": "另一家"},
+    other = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_58CA17D6E03A26A4']},
                         headers=admin).json()["data"]["id"]
     moved = client.patch(f"/api/v1/customer-products/{made['id']}",
                          headers=admin, json={"customer_id": other})
@@ -107,7 +114,7 @@ def test_the_pair_is_identity_and_ghosts_are_refused(desk) -> None:
 
 def test_same_product_different_customers_different_terms(desk) -> None:
     client, admin = desk["client"], desk["admin"]
-    factory = client.post("/api/v1/customers", json={"name": "钢厂"},
+    factory = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_7FEB5082185D6023']},
                           headers=admin).json()["data"]["id"]
     client.post("/api/v1/customer-products", headers=admin, json={
         "product_id": desk["product"], "customer_id": desk["customer"],

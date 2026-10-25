@@ -1,3 +1,4 @@
+import { zhCN } from "./locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect } from "react";
 import {
@@ -112,7 +113,7 @@ function MasterDataBoundary() {
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessMasterData")}</h2>
-        <p>{text("你的角色没有主数据管理权限。若你认为这是配置错误，请联系工作空间管理员。", "Your role does not include master-data access. Contact your workspace administrator if this looks incorrect.")}</p>
+        <p>{text(zhCN.app.yourRoleDoesNotIncludeMasterDataAccessContact, "Your role does not include master-data access. Contact your workspace administrator if this looks incorrect.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -128,7 +129,7 @@ function EmployeesBoundary() {
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessEmployees")}</h2>
-        <p>{text("你的角色没有员工管理权限。若你认为这是配置错误，请联系工作空间管理员。", "Your role does not include employee-management access. Contact your workspace administrator if this looks incorrect.")}</p>
+        <p>{text(zhCN.app.yourRoleDoesNotIncludeEmployeeManagementAccessContact, "Your role does not include employee-management access. Contact your workspace administrator if this looks incorrect.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -144,7 +145,7 @@ function AccessBoundary() {
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessPeopleAndAccess")}</h2>
-        <p>{text("你的角色没有人员与权限管理资格。若你认为这是配置错误，请联系工作空间管理员。", "Your role does not include people-and-access management. Contact your workspace administrator if this looks incorrect.")}</p>
+        <p>{text(zhCN.app.yourRoleDoesNotIncludePeopleAndAccessManagement, "Your role does not include people-and-access management. Contact your workspace administrator if this looks incorrect.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -160,7 +161,7 @@ function TenantConfigurationBoundary() {
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessTenantConfiguration")}</h2>
-        <p>{text("业务类型、流程和整个工作空间的记录仅向管理员开放。", "Business types, workflows, and workspace-wide records are available only to administrators.")}</p>
+        <p>{text(zhCN.app.businessTypesWorkflowsAndWorkspaceWideRecordsAreAvailable, "Business types, workflows, and workspace-wide records are available only to administrators.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -176,7 +177,7 @@ function ObjectConfigurationBoundary() {
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessObjectConfiguration")}</h2>
-        <p>{text("你的角色没有业务类型或流程设置权限。请联系工作空间管理员。", "Your role does not include business-type or workflow settings. Contact your workspace administrator.")}</p>
+        <p>{text(zhCN.app.yourRoleDoesNotIncludeBusinessTypeOrWorkflow, "Your role does not include business-type or workflow settings. Contact your workspace administrator.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -192,7 +193,7 @@ function CapabilityBoundary({ capability, title }: { capability: string; title: 
       <section className="panel access-denied" role="alert">
         <span className="eyebrow">{t("insufficientPermission")}</span>
         <h2>{t("accessPrefix")}{title}</h2>
-        <p>{text("你的角色没有此项管理权限。若你认为这是配置错误，请联系工作空间管理员。", "Your role does not include this management permission. Contact your workspace administrator if this looks incorrect.")}</p>
+        <p>{text(zhCN.app.yourRoleDoesNotIncludeThisManagementPermissionContact, "Your role does not include this management permission. Contact your workspace administrator if this looks incorrect.")}</p>
         <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
       </section>
     );
@@ -271,10 +272,10 @@ function ConsoleRoutes() {
         </Route>
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />
-        <Route element={<CapabilityBoundary capability="skills.manage" title={text("技能管理", "skill management")} />}>
+        <Route element={<CapabilityBoundary capability="skills.manage" title={text(zhCN.app.skillManagement, "skill management")} />}>
           <Route path="/skills" element={<SkillsPage />} />
         </Route>
-        <Route element={<CapabilityBoundary capability="keys.manage" title={text("访问凭证管理", "access credential management")} />}>
+        <Route element={<CapabilityBoundary capability="keys.manage" title={text(zhCN.app.accessCredentialManagement, "access credential management")} />}>
           <Route path="/api-keys" element={<ApiKeysPage />} />
           {/* Same gate as the credential it turns on and off: whoever may manage
               keys may decide whether ORYH's agent runs here. */}

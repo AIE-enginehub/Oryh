@@ -22,6 +22,13 @@ refusal names the other route rather than the rule.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_reimbursement_modes.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -201,7 +208,7 @@ def test_the_admin_switches_the_mode_in_one_sentence(shop) -> None:
         return r.json()["data"]
 
     # the admin's first ruling: the light route
-    direct = "报销审批通过后直接核销报销单，不开 reimbursement 发票。"
+    direct = _ZH_TEXT['TEXT_6EB5C2EF5D3CEED0']
     first = set_mode(direct)
     assert first["kind"] == "product", "one sentence must not fork the skill"
 
@@ -215,7 +222,7 @@ def test_the_admin_switches_the_mode_in_one_sentence(shop) -> None:
     assert '"Workspace calibration" section at the bottom of this skill' in rendered
 
     # the company grows a ledger; the admin changes their mind in one sentence
-    billed = "报销一律先开 reimbursement 发票，付款核销发票。"
+    billed = _ZH_TEXT['TEXT_04648FBBD59D8DB5']
     second = set_mode(billed)
     assert second["version"] == first["version"] + 1, (
         "the version bump is the stale signal — without it every installed "

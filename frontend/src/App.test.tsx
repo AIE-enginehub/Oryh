@@ -1,3 +1,4 @@
+import { zhCN } from "./locales/zh-CN/tests";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -49,8 +50,8 @@ describe("tenant console shell", () => {
 
     renderApp();
 
-    await screen.findByRole("heading", { name: "登录工作空间" });
-    await user.selectOptions(screen.getByRole("combobox", { name: "语言" }), "en");
+    await screen.findByRole("heading", { name: zhCN.app.name });
+    await user.selectOptions(screen.getByRole("combobox", { name: zhCN.app.name2 }), "en");
 
     expect(screen.getByRole("heading", { name: "Sign in to your workspace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open console" })).toBeInTheDocument();
@@ -87,7 +88,7 @@ describe("tenant console shell", () => {
     expect(await screen.findByRole("heading", { name: "Workspace overview" })).toBeInTheDocument();
     expect(screen.getByText("Active users")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Everyday data" })).toBeInTheDocument();
-    expect(screen.queryByText("租户运行概况")).not.toBeInTheDocument();
+    expect(screen.queryByText(zhCN.app.message)).not.toBeInTheDocument();
   });
 
   it("offers the connector download on the dashboard of a member with no admin capabilities", async () => {
@@ -114,13 +115,13 @@ describe("tenant console shell", () => {
 
     renderApp();
 
-    expect(await screen.findByRole("heading", { name: "把你的 Agent 接入 Oryh" })).toBeInTheDocument();
-    const download = screen.getByRole("link", { name: /下载 Agent 连接 Skill/ });
+    expect(await screen.findByRole("heading", { name: zhCN.app.name3 })).toBeInTheDocument();
+    const download = screen.getByRole("link", { name: zhCN.app.name4() });
     expect(download).toHaveAttribute("href", "/api/v1/connect-skill");
     expect(download).toHaveAttribute("download");
-    expect(screen.getByRole("link", { name: "查看安装说明" })).toHaveAttribute("href", "/web/connect");
+    expect(screen.getByRole("link", { name: zhCN.app.name5 })).toHaveAttribute("href", "/web/connect");
     // a plain member sees no management shortcuts, so the download must not be gated behind one
-    expect(screen.queryByRole("link", { name: /用户与邀请/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: zhCN.app.name6() })).not.toBeInTheDocument();
   });
 
   it("redirects an unauthenticated browser session to login", async () => {
@@ -131,13 +132,13 @@ describe("tenant console shell", () => {
 
     renderApp();
 
-    expect(await screen.findByRole("heading", { name: "登录工作空间" })).toBeInTheDocument();
-    const connectorDownload = screen.getByRole("link", { name: "下载 Agent 连接 Skill" });
+    expect(await screen.findByRole("heading", { name: zhCN.app.name })).toBeInTheDocument();
+    const connectorDownload = screen.getByRole("link", { name: zhCN.app.name7 });
     expect(connectorDownload).toHaveAttribute("href", "/api/v1/connect-skill");
     expect(connectorDownload).toHaveAttribute("download");
     expect(screen.queryByText(/PostgreSQL/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "忘记密码？" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "使用旧版登录" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.app.name10 })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: zhCN.app.name11 })).not.toBeInTheDocument();
   });
 
   it("requests a private password-reset email from the login page", async () => {
@@ -152,12 +153,12 @@ describe("tenant console shell", () => {
 
     renderApp("/login?mode=reset");
 
-    expect(screen.getByRole("heading", { name: "重置密码" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("密码")).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText("企业邮箱"), "alice@acme.example");
-    await user.click(screen.getByRole("button", { name: "发送重置链接" }));
+    expect(screen.getByRole("heading", { name: zhCN.app.name12 })).toBeInTheDocument();
+    expect(screen.queryByLabelText(zhCN.app.message2)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(zhCN.app.message3), "alice@acme.example");
+    await user.click(screen.getByRole("button", { name: zhCN.app.name13 }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("如果该邮箱对应可用账号");
+    expect(await screen.findByRole("status")).toHaveTextContent(zhCN.app.message4);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/auth/password-reset-email",
       expect.objectContaining({
@@ -165,8 +166,8 @@ describe("tenant console shell", () => {
         body: JSON.stringify({ email: "alice@acme.example" }),
       }),
     );
-    await user.click(screen.getByRole("button", { name: "返回登录" }));
-    expect(screen.getByRole("heading", { name: "登录工作空间" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: zhCN.app.name14 }));
+    expect(screen.getByRole("heading", { name: zhCN.app.name })).toBeInTheDocument();
   });
 
   it("renders an authenticated unknown route as a real not-found page", async () => {
@@ -185,8 +186,8 @@ describe("tenant console shell", () => {
 
     renderApp("/objects/report/123/extra?source=bookmark");
 
-    expect(await screen.findByRole("heading", { name: "页面不存在", level: 2 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "页面不存在", level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name15, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: zhCN.app.name15, level: 1 })).toBeInTheDocument();
     expect(screen.getByText("/objects/report/123/extra?source=bookmark")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/console/dashboard", expect.anything());
@@ -221,12 +222,12 @@ describe("tenant console shell", () => {
     const user = userEvent.setup();
 
     renderApp("/missing/report?source=invite&attempt=2");
-    await screen.findByRole("heading", { name: "登录工作空间" });
-    await user.type(screen.getByLabelText("企业邮箱"), "return@acme.example");
-    await user.type(screen.getByLabelText("密码"), "password-1");
-    await user.click(screen.getByRole("button", { name: "进入控制台" }));
+    await screen.findByRole("heading", { name: zhCN.app.name });
+    await user.type(screen.getByLabelText(zhCN.app.message3), "return@acme.example");
+    await user.type(screen.getByLabelText(zhCN.app.message2), "password-1");
+    await user.click(screen.getByRole("button", { name: zhCN.app.name16 }));
 
-    expect(await screen.findByRole("heading", { name: "页面不存在", level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name15, level: 2 })).toBeInTheDocument();
     expect(screen.getByText("/missing/report?source=invite&attempt=2")).toBeInTheDocument();
     expect(bootstrapCalls).toBe(2);
   });
@@ -286,7 +287,7 @@ describe("tenant console shell", () => {
 
     renderApp("/projects");
 
-    expect(await screen.findByRole("heading", { name: "无法访问主数据管理" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name17 })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -311,7 +312,7 @@ describe("tenant console shell", () => {
 
     renderApp("/projects");
 
-    expect(await screen.findByRole("heading", { name: "项目资料" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name18 })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith("/api/v1/projects?"))).toBe(true);
   });
 
@@ -333,7 +334,7 @@ describe("tenant console shell", () => {
 
     renderApp("/employees");
 
-    expect(await screen.findByRole("heading", { name: "无法访问员工管理" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name19 })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -356,7 +357,7 @@ describe("tenant console shell", () => {
     renderApp("/users");
 
     expect(
-      await screen.findByRole("heading", { name: "无法访问身份与权限管理" }),
+      await screen.findByRole("heading", { name: zhCN.app.name20 }),
     ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -385,7 +386,7 @@ describe("tenant console shell", () => {
 
     renderApp("/employees");
 
-    expect(await screen.findByRole("heading", { name: "员工档案" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name21 })).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([path]) => String(path).startsWith("/api/v1/employees?"))).toBe(true);
   });
 
@@ -411,8 +412,8 @@ describe("tenant console shell", () => {
     renderApp("/object-types");
 
     expect(await screen.findByTestId("object-types-page")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "发布规则" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "定义类型" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.app.name22 })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: zhCN.app.name23 })).not.toBeInTheDocument();
   });
 
   it("blocks access-credential management without keys.manage even for a customized admin role", async () => {
@@ -431,7 +432,7 @@ describe("tenant console shell", () => {
 
     renderApp("/api-keys");
 
-    expect(await screen.findByRole("heading", { name: "无法访问访问凭证管理" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: zhCN.app.name24 })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

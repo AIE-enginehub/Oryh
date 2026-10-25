@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useRecordNotice } from "../components/master-data/RecordNotice";
 import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -97,11 +98,11 @@ export function CustomersPage() {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!form.name.trim()) {
-      setValidationError(text("客户名称不能为空。", "Customer name is required."));
+      setValidationError(text(zhCN.pagesCustomersPage.customerNameIsRequired, "Customer name is required."));
       return;
     }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setValidationError(text("请输入有效的联系邮箱。", "Enter a valid contact email."));
+      setValidationError(text(zhCN.pagesCustomersPage.enterAValidContactEmail, "Enter a valid contact email."));
       return;
     }
     setValidationError(null);
@@ -124,16 +125,16 @@ export function CustomersPage() {
   return (
     <div className="master-data-page" data-testid="customers-page">
       <header className="page-intro">
-        <div><span className="eyebrow">Customer registry</span><h2>{text("客户资料", "Customers")}</h2><p>{text("集中维护客户、税号与联系人，支持销售报价与开票流程准确匹配。", "Maintain customers, tax IDs, and contacts for accurate sales-quotation and invoicing workflows.")}</p></div>
+        <div><span className="eyebrow">Customer registry</span><h2>{text(zhCN.pagesCustomersPage.customers, "Customers")}</h2><p>{text(zhCN.pagesCustomersPage.maintainCustomersTaxIDsAndContactsForAccurateSales, "Maintain customers, tax IDs, and contacts for accurate sales-quotation and invoicing workflows.")}</p></div>
       </header>
       {notice}
-      <section className="data-panel" aria-label={text("客户列表", "Customer list")}>
+      <section className="data-panel" aria-label={text(zhCN.pagesCustomersPage.customerList, "Customer list")}>
         <ListToolbar
           keyword={keyword}
           status={status}
-          placeholder={text("按客户名称搜索", "Search customer names")}
-          createLabel={text("新建客户", "New customer")}
-          statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
+          placeholder={text(zhCN.pagesCustomersPage.searchCustomerNames, "Search customer names")}
+          createLabel={text(zhCN.pagesCustomersPage.newCustomer, "New customer")}
+          statusOptions={[{ value: "active", label: text(zhCN.pagesCustomersPage.active, "Active") }, { value: "archived", label: text(zhCN.pagesCustomersPage.archived, "Archived") }]}
           onCreate={openCreate}
           onApply={applyFilters}
         />
@@ -141,20 +142,20 @@ export function CustomersPage() {
           loading={customers.isPending}
           error={customers.isError ? apiErrorMessage(customers.error) : null}
           empty={Boolean(result && result.data.length === 0)}
-          emptyTitle={keyword || status ? text("没有匹配的客户", "No matching customers") : text("还没有客户", "No customers yet")}
-          emptyDescription={keyword || status ? text("尝试调整搜索词或状态筛选。", "Try changing your search or status filter.") : text("新建客户后，代理可据此匹配报价和开票记录。", "Create a customer so agents can match quotations and invoicing records.")}
+          emptyTitle={keyword || status ? text(zhCN.pagesCustomersPage.noMatchingCustomers, "No matching customers") : text(zhCN.pagesCustomersPage.noCustomersYet, "No customers yet")}
+          emptyDescription={keyword || status ? text(zhCN.pagesCustomersPage.tryChangingYourSearchOrStatusFilter, "Try changing your search or status filter.") : text(zhCN.pagesCustomersPage.createACustomerSoAgentsCanMatchQuotationsAnd, "Create a customer so agents can match quotations and invoicing records.")}
           onRetry={() => void customers.refetch()}
         >
           {result && <>
             <div className="table-scroll"><table className="data-table">
-              <thead><tr><th>{text("客户", "Customer")}</th><th>{text("税号", "Tax ID")}</th><th>{text("联系人", "Contact")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+              <thead><tr><th>{text(zhCN.pagesCustomersPage.customer, "Customer")}</th><th>{text(zhCN.pagesCustomersPage.taxID, "Tax ID")}</th><th>{text(zhCN.pagesCustomersPage.contact, "Contact")}</th><th>{text(zhCN.pagesCustomersPage.status, "Status")}</th><th><span className="sr-only">{text(zhCN.pagesCustomersPage.actions, "Actions")}</span></th></tr></thead>
               <tbody>{result.data.map((customer) => (
                 <tr key={customer.id}>
-                  <td><button className="record-name" type="button" onClick={() => openEdit(customer)}>{customer.name}</button><small>{customer.customer_code || text("未设置编号", "No code")}</small></td>
+                  <td><button className="record-name" type="button" onClick={() => openEdit(customer)}>{customer.name}</button><small>{customer.customer_code || text(zhCN.pagesCustomersPage.noCode, "No code")}</small></td>
                   <td className="mono-cell">{customer.tax_id || <span className="muted-value">—</span>}</td>
-                  <td><span>{customer.contact || <span className="muted-value">—</span>}</span><small>{customer.email || customer.phone || text("未设置联系方式", "No contact details")}</small></td>
+                  <td><span>{customer.contact || <span className="muted-value">—</span>}</span><small>{customer.email || customer.phone || text(zhCN.pagesCustomersPage.noContactDetails, "No contact details")}</small></td>
                   <td><StatusBadge status={customer.status} /></td>
-                  <td className="row-actions"><button className="text-action" type="button" onClick={() => openEdit(customer)}>{text("编辑", "Edit")}</button>{customer.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archive.reset(); setArchiving(customer); }}>{text("归档", "Archive")}</button>}</td>
+                  <td className="row-actions"><button className="text-action" type="button" onClick={() => openEdit(customer)}>{text(zhCN.pagesCustomersPage.edit, "Edit")}</button>{customer.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archive.reset(); setArchiving(customer); }}>{text(zhCN.pagesCustomersPage.archive, "Archive")}</button>}</td>
                 </tr>
               ))}</tbody>
             </table></div>
@@ -165,29 +166,29 @@ export function CustomersPage() {
 
       <Drawer
         open={editing !== undefined}
-        title={editing ? text("编辑客户", "Edit customer") : text("新建客户", "New customer")}
-        description={editing ? text(`更新 ${editing.name} 的主数据。`, `Update master data for ${editing.name}.`) : text("登记可供报价和开票流程引用的客户。", "Register a customer for quotation and invoicing workflows.")}
-        submitLabel={editing ? text("保存更改", "Save changes") : text("创建客户", "Create customer")}
+        title={editing ? text(zhCN.pagesCustomersPage.editCustomer, "Edit customer") : text(zhCN.pagesCustomersPage.newCustomer, "New customer")}
+        description={editing ? text(zhCN.pagesCustomersPage.updateMasterDataFor(`${editing.name}`), `Update master data for ${editing.name}.`) : text(zhCN.pagesCustomersPage.registerACustomerForQuotationAndInvoicingWorkflows, "Register a customer for quotation and invoicing workflows.")}
+        submitLabel={editing ? text(zhCN.pagesCustomersPage.saveChanges, "Save changes") : text(zhCN.pagesCustomersPage.createCustomer, "Create customer")}
         busy={save.isPending}
         error={validationError || (save.isError ? apiErrorMessage(save.error) : null)}
         onClose={() => !save.isPending && setEditing(undefined)}
         onSubmit={submit}
       >
         <div className="field-grid">
-          <div className="field span-2"><label htmlFor="customer-name">{text("客户名称", "Customer name")} <b>*</b></label><input id="customer-name" required maxLength={200} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
-          <div className="field"><label htmlFor="customer-code">{text("客户编号", "Customer code")}</label><input id="customer-code" maxLength={64} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></div>
-          <div className="field"><label htmlFor="customer-status">{text("状态", "Status")}</label><select id="customer-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as CustomerForm["status"] })}><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option></select></div>
-          <div className="field span-2"><label htmlFor="customer-tax">{text("税号 / 统一社会信用代码", "Tax ID / registration number")}</label><input id="customer-tax" maxLength={64} value={form.taxId} onChange={(event) => setForm({ ...form, taxId: event.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="customer-contact">{text("联系人", "Contact")}</label><input id="customer-contact" maxLength={200} value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} /></div>
-          <div className="field"><label htmlFor="customer-phone">{text("电话", "Phone")}</label><input id="customer-phone" type="tel" maxLength={50} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></div>
-          <div className="field"><label htmlFor="customer-email">{text("邮箱", "Email")}</label><input id="customer-email" type="email" maxLength={320} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="customer-address">{text("地址", "Address")}</label><input id="customer-address" maxLength={500} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="customer-name">{text(zhCN.pagesCustomersPage.customerName, "Customer name")} <b>*</b></label><input id="customer-name" required maxLength={200} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
+          <div className="field"><label htmlFor="customer-code">{text(zhCN.pagesCustomersPage.customerCode, "Customer code")}</label><input id="customer-code" maxLength={64} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></div>
+          <div className="field"><label htmlFor="customer-status">{text(zhCN.pagesCustomersPage.status, "Status")}</label><select id="customer-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as CustomerForm["status"] })}><option value="active">{text(zhCN.pagesCustomersPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesCustomersPage.archived, "Archived")}</option></select></div>
+          <div className="field span-2"><label htmlFor="customer-tax">{text(zhCN.pagesCustomersPage.taxIDRegistrationNumber, "Tax ID / registration number")}</label><input id="customer-tax" maxLength={64} value={form.taxId} onChange={(event) => setForm({ ...form, taxId: event.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="customer-contact">{text(zhCN.pagesCustomersPage.contact, "Contact")}</label><input id="customer-contact" maxLength={200} value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} /></div>
+          <div className="field"><label htmlFor="customer-phone">{text(zhCN.pagesCustomersPage.phone, "Phone")}</label><input id="customer-phone" type="tel" maxLength={50} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></div>
+          <div className="field"><label htmlFor="customer-email">{text(zhCN.pagesCustomersPage.email, "Email")}</label><input id="customer-email" type="email" maxLength={320} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="customer-address">{text(zhCN.pagesCustomersPage.address, "Address")}</label><input id="customer-address" maxLength={500} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></div>
         </div>
       </Drawer>
       <ConfirmDialog
         open={Boolean(archiving)}
-        title={text(`归档“${archiving?.name ?? ""}”？`, `Archive “${archiving?.name ?? ""}”?`)}
-        description={text("归档后不会删除历史报价或开票引用，但新流程不应再选择该客户。", "Archiving preserves historical quotation and invoicing references, but new workflows should not select this customer.")}
+        title={text(zhCN.pagesCustomersPage.archive2(`${archiving?.name ?? ""}`), `Archive “${archiving?.name ?? ""}”?`)}
+        description={text(zhCN.pagesCustomersPage.archivingPreservesHistoricalQuotationAndInvoicingReferencesButNew, "Archiving preserves historical quotation and invoicing references, but new workflows should not select this customer.")}
         busy={archive.isPending}
         error={archive.isError ? apiErrorMessage(archive.error) : null}
         onCancel={() => !archive.isPending && setArchiving(null)}

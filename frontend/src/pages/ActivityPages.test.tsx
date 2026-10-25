@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -29,8 +30,8 @@ const todo = {
   employee_id: "employee-1",
   entity_type: "expense_claim",
   entity_id: "expense-1",
-  title: "补充报销票据",
-  description: "请上传清晰发票",
+  title: zhCN.pagesActivityPages.title,
+  description: zhCN.pagesActivityPages.description,
   todo_type: "document",
   status: "open",
   due_at: "2026-07-20T09:00:00Z",
@@ -51,7 +52,7 @@ const approval = {
   action: "approved",
   approver_id: "user:finance",
   approver_role: "finance_manager",
-  comment: "票据齐全，同意报销",
+  comment: zhCN.pagesActivityPages.comment,
   source: "web",
   metadata: {},
   acted_at: "2026-07-11T09:30:00Z",
@@ -90,8 +91,8 @@ beforeEach(() => {
     meta: { total: 1, page: 1, page_size: 20, pages: 1 },
   });
   api.resolveTodoDisplayNames.mockResolvedValue({
-    employees: { "employee-1": "王琳" },
-    actors: { "user:manager": "租户经理" },
+    employees: { "employee-1": zhCN.pagesActivityPages.employee1 },
+    actors: { "user:manager": zhCN.pagesActivityPages.userManager },
   });
   api.listApprovalRecords.mockImplementation(({ page = 1 }: { page?: number }) => Promise.resolve({
     data: [approval],
@@ -99,7 +100,7 @@ beforeEach(() => {
   }));
   api.resolveApprovalDisplayNames.mockResolvedValue({
     employees: {},
-    actors: { "user:finance": "财务负责人" },
+    actors: { "user:finance": zhCN.pagesActivityPages.userFinance },
   });
 });
 
@@ -109,23 +110,23 @@ describe("todo activity page", () => {
   it("scopes members, sends filters/pages, and completes an owned todo", async () => {
     const user = userEvent.setup();
     renderPage("todos");
-    expect(await screen.findByText("补充报销票据")).toBeInTheDocument();
-    expect(await screen.findByText("我 · 王琳")).toBeInTheDocument();
-    expect(await screen.findByText("租户经理")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.title)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.message)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.userManager)).toBeInTheDocument();
     expect(api.listTodos).toHaveBeenCalledWith(expect.objectContaining({ employee_id: "employee-1" }));
 
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name }));
     await waitFor(() => expect(api.listTodos).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
-    await user.type(screen.getByRole("searchbox"), "票据");
-    await user.selectOptions(screen.getByLabelText("状态"), "open");
-    await user.selectOptions(screen.getByLabelText("对象类型"), "expense_claim");
-    await user.click(screen.getByRole("button", { name: "筛选" }));
-    await waitFor(() => expect(api.listTodos).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: "票据", status: "open", entity_type: "expense_claim" })));
+    await user.type(screen.getByRole("searchbox"), zhCN.pagesActivityPages.receipt);
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesActivityPages.state), "open");
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesActivityPages.objectType), "expense_claim");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name2 }));
+    await waitFor(() => expect(api.listTodos).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: zhCN.pagesActivityPages.receipt, status: "open", entity_type: "expense_claim" })));
 
-    await user.click(screen.getByRole("button", { name: "完成“补充报销票据”" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name3 }));
     const confirm = screen.getByRole("alertdialog");
-    expect(within(confirm).getByText(/写入审计记录/)).toBeInTheDocument();
-    await user.click(within(confirm).getByRole("button", { name: "确认完成" }));
+    expect(within(confirm).getByText(zhCN.pagesActivityPages.pattern())).toBeInTheDocument();
+    await user.click(within(confirm).getByRole("button", { name: zhCN.pagesActivityPages.name4 }));
     await waitFor(() => expect(api.completeTodo).toHaveBeenCalledWith("todo-1"));
   });
 
@@ -136,13 +137,13 @@ describe("todo activity page", () => {
       permissions: ["todos.complete_own", "tenant.act_for_any_employee"],
       employeeId: "employee-admin",
     });
-    expect(await screen.findByText("补充报销票据")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.title)).toBeInTheDocument();
     expect(api.listTodoEmployeeOptions).toHaveBeenCalledWith(undefined);
 
-    await user.type(screen.getByLabelText("查找负责人"), "Manager");
-    await user.click(screen.getByRole("button", { name: "搜索员工" }));
+    await user.type(screen.getByLabelText(zhCN.pagesActivityPages.findAssignee), "Manager");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name5 }));
     await waitFor(() => expect(api.listTodoEmployeeOptions).toHaveBeenCalledWith("Manager"));
-    await user.selectOptions(screen.getByLabelText("负责人筛选"), "employee-2");
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesActivityPages.assigneeFilter), "employee-2");
     await waitFor(() => expect(api.listTodos).toHaveBeenCalledWith(expect.objectContaining({
       page: 1,
       employee_id: "employee-2",
@@ -156,8 +157,8 @@ describe("todo activity page", () => {
       meta: { total: 1, page: 1, page_size: 20, pages: 1 },
     });
     const resolved = renderPage("todos");
-    expect(await screen.findByText("租户经理")).toBeInTheDocument();
-    expect(screen.getByText("王琳")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.userManager)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.employee1)).toBeInTheDocument();
     expect(api.resolveTodoDisplayNames).toHaveBeenCalledWith([
       expect.objectContaining({ employee_id: "employee-1", created_by: "user:manager", completed_by: "employee-1" }),
     ]);
@@ -165,43 +166,43 @@ describe("todo activity page", () => {
 
     api.resolveTodoDisplayNames.mockRejectedValueOnce(new Error("resolver unavailable"));
     renderPage("todos");
-    expect(await screen.findByText(/名称解析暂时不可用/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.pattern2())).toBeInTheDocument();
     expect(screen.getByText("user:manager")).toBeInTheDocument();
   });
 
   it("shows read-only and missing-employee restrictions without hiding facts", async () => {
     const first = renderPage("todos", { permissions: [] });
-    expect(await screen.findByText("当前为只读模式")).toBeInTheDocument();
-    await screen.findByText("补充报销票据");
-    expect(screen.getByRole("button", { name: "完成“补充报销票据”" })).toBeDisabled();
+    expect(await screen.findByText(zhCN.pagesActivityPages.readOnlyMode)).toBeInTheDocument();
+    await screen.findByText(zhCN.pagesActivityPages.title);
+    expect(screen.getByRole("button", { name: zhCN.pagesActivityPages.name3 })).toBeDisabled();
     first.unmount();
 
     api.listTodos.mockClear();
     renderPage("todos", { permissions: [], employeeId: null });
-    expect(await screen.findByText("账号尚未关联员工档案")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.noEmployeeProfileIsLinkedToThisAccount)).toBeInTheDocument();
     expect(api.listTodos).not.toHaveBeenCalled();
   });
 
   it("handles loading, empty, errors, and forbidden access", async () => {
     api.listTodos.mockReturnValueOnce(new Promise(() => {}));
     const pending = renderPage("todos");
-    expect(screen.getByText("正在加载数据…")).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.loadingData)).toBeInTheDocument();
     pending.unmount();
 
     api.listTodos.mockResolvedValueOnce({ data: [], meta: { total: 0, page: 1, page_size: 20, pages: 1 } });
     const empty = renderPage("todos");
-    expect(await screen.findByText("当前没有待办")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.noToDosYet)).toBeInTheDocument();
     empty.unmount();
 
-    api.listTodos.mockRejectedValueOnce(new Error("待办服务暂时不可用"));
+    api.listTodos.mockRejectedValueOnce(new Error(zhCN.pagesActivityPages.message11));
     const failed = renderPage("todos");
-    expect(await screen.findByText("数据加载失败")).toBeInTheDocument();
-    expect(screen.getByText("待办服务暂时不可用")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.dataCouldNotBeLoaded)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.message11)).toBeInTheDocument();
     failed.unmount();
 
     api.listTodos.mockRejectedValueOnce(new ApiError(403, "forbidden"));
     renderPage("todos");
-    expect(await screen.findByText("无法访问待办")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.cannotAccessToDos)).toBeInTheDocument();
   });
 });
 
@@ -209,21 +210,21 @@ describe("approval records page", () => {
   it("filters and pages immutable approval facts", async () => {
     const user = userEvent.setup();
     renderPage("approvals");
-    expect(await screen.findByText("票据齐全，同意报销")).toBeInTheDocument();
-    expect(await screen.findByText("财务负责人")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.comment)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.userFinance)).toBeInTheDocument();
     expect(screen.getByText("user:finance")).toBeInTheDocument();
     expect(api.resolveApprovalDisplayNames).toHaveBeenCalledWith([
       expect.objectContaining({ approver_id: "user:finance" }),
     ]);
-    expect(screen.getByText("只读审计视图")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /编辑|删除|归档/ })).not.toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.readOnlyAuditView)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: zhCN.pagesActivityPages.name6() })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name }));
     await waitFor(() => expect(api.listApprovalRecords).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
     await user.type(screen.getByRole("searchbox"), "finance");
-    await user.selectOptions(screen.getByLabelText("动作"), "approved");
-    await user.selectOptions(screen.getByLabelText("对象类型"), "expense_claim");
-    await user.click(screen.getByRole("button", { name: "筛选" }));
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesActivityPages.action), "approved");
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesActivityPages.objectType), "expense_claim");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesActivityPages.name2 }));
     await waitFor(() => expect(api.listApprovalRecords).toHaveBeenCalledWith(expect.objectContaining({ page: 1, keyword: "finance", action: "approved", entity_type: "expense_claim" })));
   });
 
@@ -231,29 +232,29 @@ describe("approval records page", () => {
     api.resolveApprovalDisplayNames.mockRejectedValueOnce(new Error("resolver unavailable"));
     renderPage("approvals");
 
-    expect(await screen.findByText(/操作者名称解析暂时不可用/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.pattern3())).toBeInTheDocument();
     expect(screen.getByText("user:finance")).toBeInTheDocument();
   });
 
   it("shows approval loading, empty, error, and forbidden states", async () => {
     api.listApprovalRecords.mockReturnValueOnce(new Promise(() => {}));
     const pending = renderPage("approvals");
-    expect(screen.getByText("正在加载数据…")).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.loadingData)).toBeInTheDocument();
     pending.unmount();
 
     api.listApprovalRecords.mockResolvedValueOnce({ data: [], meta: { total: 0, page: 1, page_size: 20, pages: 1 } });
     const empty = renderPage("approvals");
-    expect(await screen.findByText("还没有审批记录")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.noApprovalRecordsYet)).toBeInTheDocument();
     empty.unmount();
 
-    api.listApprovalRecords.mockRejectedValueOnce(new Error("审批服务暂时不可用"));
+    api.listApprovalRecords.mockRejectedValueOnce(new Error(zhCN.pagesActivityPages.message17));
     const failed = renderPage("approvals");
-    expect(await screen.findByText("数据加载失败")).toBeInTheDocument();
-    expect(screen.getByText("审批服务暂时不可用")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.dataCouldNotBeLoaded)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesActivityPages.message17)).toBeInTheDocument();
     failed.unmount();
 
     api.listApprovalRecords.mockRejectedValueOnce(new ApiError(403, "forbidden"));
     renderPage("approvals");
-    expect(await screen.findByText("无法访问审批记录")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesActivityPages.cannotAccessApprovalRecords)).toBeInTheDocument();
   });
 });

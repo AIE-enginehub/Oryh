@@ -40,27 +40,27 @@ do its one job. Everything else on this page is English.
 
 | Field | Commonly appears as |
 |---|---|
-| `product_code` | 物料号 · 料号 · 编码 · 编号 · 产品编码 · 存货编码 · 商品编码 · Item Code · SKU · Part No. |
-| `name` | 品名 · 名称 · 产品名称 · 商品名称 · 存货名称 · Description |
-| `spec` | 规格 · 型号 · 规格型号 · 规格/型号 · Spec · Model |
-| `unit` | 单位 · 计量单位 · 基本单位 · UOM |
-| `list_price` | 单价 · 售价 · 标准售价 · 目录价 · 参考价 · 含税单价 · 不含税单价 · List Price |
-| `vendor_code` | 供应商编码 · 供应商代码 · Vendor Code |
-| `supplier_product_code` | 供应商货号 · 供应商型号 · 厂家型号 · 厂家货号 |
-| `last_price` | 采购价 · 进价 · 最近采购价 · 供货价 |
-| `lead_time_days` | 交期 · 货期 · 交货天数 · 供货周期 |
-| `min_order_quantity` | 起订量 · 最小起订量 · MOQ |
-| `customer_code` | 客户编码 · 客户代码 · 往来单位编码 · 会员号 · 会员卡号 · Customer Code |
-| `customer_type` | 客户类型 · 客户分类 · 客户性质 · 客户级别 · 渠道类型 |
-| `customer_kind` | 单位性质 · 客户属性（只当它真在说"个人/单位"时；见下） |
-| `quantity` | 库存数量 · 实盘数量 · 结存数量 · 在库数量 · 账面数量 |
-| `facility` | 仓库 · 库房 · 存放仓库 · 仓 |
-| `lot_id` | 批号 · 批次 · 生产批号 · Lot No. |
-| `expire_date` | 效期 · 有效期 · 有效期至 · 失效日期 |
-| `tax_id` | 税号 · 纳税人识别号 · 统一社会信用代码 |
-| `contact` | 联系人 · 业务员 · 对接人 |
-| `phone` | 电话 · 联系电话 · 手机 |
-| `address` | 地址 · 收货地址 · 通讯地址 |
+| `product_code` | Product code, item code, material code, SKU |
+| `name` | Product or customer/vendor name |
+| `spec` | Specification, model |
+| `unit` | Unit |
+| `list_price` | List price, sales price |
+| `vendor_code` | Supplier code |
+| `supplier_product_code` | Supplier Product Code |
+| `last_price` | Last Price |
+| `lead_time_days` | Lead Time Days |
+| `min_order_quantity` | Min Order Quantity |
+| `customer_code` | Customer code |
+| `customer_type` | Customer Type |
+| `customer_kind` | Customer Kind |
+| `quantity` | Quantity |
+| `facility` | Facility |
+| `lot_id` | Lot Id |
+| `expire_date` | Expire Date |
+| `tax_id` | Tax identifier, registration number |
+| `contact` | Contact person, account representative |
+| `phone` | Phone, mobile |
+| `address` | Address, shipping address |
 
 ### Price columns deserve a question of their own
 
@@ -122,3 +122,6 @@ Is the tax-inclusive price the right catalog price? (There is also a
 ```
 
 Then dry-run, and report the counts before writing anything for real.
+
+For Chinese source columns, read the [localized header aliases](../locales/zh-CN/spreadsheet-headers.json)
+before proposing a column map. These are recognition examples, not permission to guess missing fields.

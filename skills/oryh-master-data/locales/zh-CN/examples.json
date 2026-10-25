@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map (\"天猫这个商品对应我们哪个货\"). Dry run before writing. Requires master_data.manage; other skills only read it. Also customer contacts (the rolodex), geos and territories."
+  ]
+}

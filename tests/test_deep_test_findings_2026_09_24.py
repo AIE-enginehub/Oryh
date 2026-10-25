@@ -13,6 +13,13 @@ cross-currency register link is refused rather than modelled.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_deep_test_findings_2026_09_24.json').read_text(encoding="utf-8"))
+
+
 import re
 from pathlib import Path
 
@@ -35,7 +42,7 @@ def office():
 
         def invoice(customer: str, amount: float = 100.0, submit: bool = True, **fields) -> dict:
             row = create(client, admin, "invoices", direction="sales", employee_id=emp, customer_id=customer,
-                         title="发票", items=[{"product_name_snapshot": "Ribbon", "quantity": 1, "unit_price": amount}],
+                         title=_ZH_TEXT['TEXT_A1523656593909D2'], items=[{"product_name_snapshot": "Ribbon", "quantity": 1, "unit_price": amount}],
                          **fields)
             if submit:
                 r = client.post(f"/api/v1/invoices/{row['id']}/submit", headers=admin)
@@ -53,7 +60,7 @@ def office():
                 "lines": [{"applied_to_type": target_type, "applied_to_id": target_id, "amount_applied": amount}]})
 
         def order(items: list[dict], confirm: bool = True) -> dict:
-            row = create(client, admin, "sales-orders", employee_id=emp, customer_id=customer_a, title="订单", items=items)
+            row = create(client, admin, "sales-orders", employee_id=emp, customer_id=customer_a, title=_ZH_TEXT['TEXT_3D5436EA23D2E9A2'], items=items)
             if confirm:
                 assert client.post(f"/api/v1/sales-orders/{row['id']}/submit", headers=admin).status_code == 200
                 r = client.patch(f"/api/v1/sales-orders/{row['id']}", headers=admin, json={"status": "confirmed"})
@@ -84,7 +91,7 @@ def test_f1_a_settled_invoice_keeps_its_money(office) -> None:
     detail = c.get(f"/api/v1/invoices/{inv['id']}/detail", headers=admin).json()["data"]
     assert detail["applied_amount"] == 100 and detail["outstanding_amount"] == 0
     # a note is not money
-    assert c.patch(f"/api/v1/invoices/{inv['id']}", headers=admin, json={"remarks": "对账完成"}).status_code == 200
+    assert c.patch(f"/api/v1/invoices/{inv['id']}", headers=admin, json={"remarks": _ZH_TEXT['TEXT_6BB13D8C917D7E7E']}).status_code == 200
 
 
 def test_f2_a_settled_payment_keeps_its_party_until_reversed(office) -> None:
@@ -205,7 +212,7 @@ def test_f7_a_hold_names_a_real_line_of_this_order(office) -> None:
 
 def test_f5_a_register_keeps_one_currency(office) -> None:
     c, admin = office["client"], office["admin"]
-    account = create(c, admin, "fin-accounts", name="基本户", currency="CNY", opening_balance=100.0,
+    account = create(c, admin, "fin-accounts", name=_ZH_TEXT['TEXT_54FFF038A132BA8D'], currency="CNY", opening_balance=100.0,
                      opening_date="2026-09-01")
     usd = office["payment"](office["customer_a"], amount=10, currency="USD")
     cny = office["payment"](office["customer_a"], amount=10)
@@ -217,7 +224,7 @@ def test_f5_a_register_keeps_one_currency(office) -> None:
     restated = c.patch(f"/api/v1/fin-accounts/{account['id']}", headers=admin, json={"currency": "EUR"})
     assert restated.status_code == 409, restated.text
     assert c.get(f"/api/v1/fin-accounts/{account['id']}", headers=admin).json()["data"]["currency"] == "CNY"
-    empty = create(c, admin, "fin-accounts", name="新户")
+    empty = create(c, admin, "fin-accounts", name=_ZH_TEXT['TEXT_EA75FA2D19C20FF9'])
     assert c.patch(f"/api/v1/fin-accounts/{empty['id']}", headers=admin, json={"currency": "EUR"}).status_code == 200, \
         "an account with no money and no lines may still choose its currency"
 

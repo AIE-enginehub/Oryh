@@ -143,7 +143,7 @@ Resulting skill (skeleton — note the granularity rule in action: this is the s
 ```markdown
 ---
 name: acme-quote
-description: Use when a salesperson's AI agent works a customer deal at any stage — an enquiry pasted from chat or a screenshot, quoting, following up — 询价、报价、跟进, "帮XX报价", "这个型号多少钱". Resolves codes read-only with a correction-confirm gate, then quotes via oryh-quotation-submit. Requires quotation.submit_own.
+description: Use when a salesperson's AI agent works a customer deal at any stage — an enquiry pasted from chat or a screenshot, quoting, following up — requesting a price, quotation, follow up, "quote for customer XX", "what does this model cost". Resolves codes read-only with a correction-confirm gate, then quotes via oryh-quotation-submit. Requires quotation.submit_own.
 required_capability: quotation.submit_own
 ---
 # Acme Quote

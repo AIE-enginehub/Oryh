@@ -1,6 +1,6 @@
-"""制度的读取门禁 — the second gated read in this API, after pay.
+"""Policy read access — the second gated read in this API, after pay.
 
-The handbook and the 薪酬管理办法 live in the same table and want opposite
+The handbook and the compensation policy live in the same table and want opposite
 things. So the gate has three jobs and is only worth what its weakest one is:
 
 - an INTERNAL policy is readable by anyone here, with no capability at all. A
@@ -9,7 +9,7 @@ things. So the gate has three jobs and is only worth what its weakest one is:
 - a RESTRICTED policy is readable only by whoever holds the capability the row
   names.
 - a DRAFT is readable only by its authors. This is the one people forget: the
-  draft 裁员方案 is more dangerous than the published one, because it says what
+  draft redundancy plan is more dangerous than the published one, because it says what
   is coming before anyone has decided.
 
 Every path is checked from both sides, and the counts are checked too — how
@@ -17,6 +17,13 @@ many restricted policies exist is itself worth hiding.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_policy_visibility.json').read_text(encoding="utf-8"))
+
 
 from collections.abc import Generator
 
@@ -34,7 +41,7 @@ def workspace() -> Generator[dict, None, None]:
     """One tenant, four documents, three credentials:
 
     - `hr`       the tenant service key (bypasses permissions by design)
-    - `manager`  holds `payroll.read` only — sees the restricted 薪酬管理办法
+    - `manager`  holds `payroll.read` only — sees the restricted compensation policy
     - `staff`    holds nothing relevant — sees the handbook and nothing else
     """
     with make_client([]) as client:
@@ -58,14 +65,14 @@ def workspace() -> Generator[dict, None, None]:
                 ).json()["data"]["current"]
             return made
 
-        handbook = make("HR-001", "员工手册", "hr",
+        handbook = make("HR-001", _ZH_TEXT['TEXT_29DB8FCC1CCF1A6A'], "hr",
                         rules_json={"leave": {"annual_days": 10}})
         # the figures ride the document, so gating the document gates them
-        pay_rules = make("PAY-001", "薪酬管理办法", "payroll",
+        pay_rules = make("PAY-001", _ZH_TEXT['TEXT_6EB14D5B59109360'], "payroll",
                          visibility="restricted", required_capability="payroll.read",
                          rules_json={"bonus": {"pool_rate": 0.15}})
-        layoffs = make("HR-900", "组织调整方案", "hr", publish=False)
-        repealed = make("FIN-OLD", "旧差旅标准", "expense")
+        layoffs = make("HR-900", _ZH_TEXT['TEXT_5D96C765DDD96D1D'], "hr", publish=False)
+        repealed = make("FIN-OLD", _ZH_TEXT['TEXT_07EC8AB5CDDD8083'], "expense")
         client.post(f"/api/v1/business-rules/{repealed['id']}/repeal", json={}, headers=hr)
 
         yield {
@@ -86,7 +93,7 @@ def test_the_handbook_is_readable_without_any_capability(workspace: dict) -> Non
     assert "HR-001" in codes(client, staff)
     detail = client.get(f"/api/v1/business-rules/{workspace['handbook']['id']}", headers=staff)
     assert detail.status_code == 200
-    assert detail.json()["data"]["body"].startswith("# 员工手册")
+    assert detail.json()["data"]["body"].startswith(_ZH_TEXT['TEXT_43EE074329335B51'])
 
 
 def test_a_restricted_policy_needs_the_capability_it_names(workspace: dict) -> None:
@@ -94,7 +101,7 @@ def test_a_restricted_policy_needs_the_capability_it_names(workspace: dict) -> N
     assert "PAY-001" in codes(client, workspace["manager"])
     assert "PAY-001" not in codes(client, workspace["staff"])
 
-    # 404 rather than 403 — that a 薪酬管理办法 exists is part of what it hides
+    # 404 rather than 403 — that a compensation policy exists is part of what it hides
     assert client.get(
         f"/api/v1/business-rules/{workspace['pay_rules']['id']}", headers=workspace["staff"]
     ).status_code == 404
@@ -104,7 +111,7 @@ def test_a_restricted_policy_needs_the_capability_it_names(workspace: dict) -> N
 
 
 def test_a_draft_is_invisible_to_everyone_but_its_authors(workspace: dict) -> None:
-    """The draft 组织调整方案 says what is coming before anyone has decided."""
+    """The draft reorganization plan says what is coming before anyone has decided."""
     client = workspace["client"]
     for headers in (workspace["staff"], workspace["manager"]):
         assert "HR-900" not in codes(client, headers)
@@ -138,7 +145,7 @@ def test_what_governed_a_date_is_readable_by_whoever_could_read_it_then(workspac
 
 def test_the_figures_are_gated_with_the_document_that_carries_them(workspace: dict) -> None:
     """`rules_json` rides the policy row, so there is no separate surface to
-    gate — and no way to read a restricted 薪酬管理办法 one number at a time,
+    gate — and no way to read a restricted compensation policy one number at a time,
     which a rule table would have offered."""
     client = workspace["client"]
 
@@ -172,7 +179,7 @@ def test_writing_a_policy_needs_the_capability(workspace: dict) -> None:
     client, staff = workspace["client"], workspace["staff"]
     refused = client.post(
         "/api/v1/business-rules",
-        json={"kind": "policy", "code": "X-1", "category": "hr", "title": "自封的制度", "body": "x"},
+        json={"kind": "policy", "code": "X-1", "category": "hr", "title": _ZH_TEXT['TEXT_578622B572E27C8C'], "body": "x"},
         headers=staff,
     )
     assert refused.status_code == 403
@@ -181,7 +188,7 @@ def test_writing_a_policy_needs_the_capability(workspace: dict) -> None:
     # and publishing is a separate grant from drafting
     made = client.post(
         "/api/v1/business-rules",
-        json={"kind": "policy", "code": "X-2", "category": "hr", "title": "草稿", "body": "x"},
+        json={"kind": "policy", "code": "X-2", "category": "hr", "title": _ZH_TEXT['TEXT_2A2FD29BD27A6EB9'], "body": "x"},
         headers=workspace["hr"],
     ).json()["data"]
     assert client.post(
@@ -211,7 +218,7 @@ def test_a_published_policy_can_be_closed_without_being_repealed(workspace: dict
     rescoped = client.post(
         f"/api/v1/business-rules/{handbook['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read",
-              "note": "含调薪区间，误发全员"},
+              "note": _ZH_TEXT['TEXT_E17B02791DF3F195']},
         headers=hr,
     )
     assert rescoped.status_code == 200, rescoped.text
@@ -249,7 +256,7 @@ def test_a_superseded_version_is_closable_after_the_fact(workspace: dict) -> Non
     client, hr, staff = workspace["client"], workspace["hr"], workspace["staff"]
     v2 = client.post(
         "/api/v1/business-rules",
-        json={"kind": "policy", "code": "HR-001", "category": "hr", "title": "员工手册 v2", "body": "# v2"},
+        json={"kind": "policy", "code": "HR-001", "category": "hr", "title": _ZH_TEXT['TEXT_8FC1004561AFA499'], "body": "# v2"},
         headers=hr,
     ).json()["data"]
     client.post(f"/api/v1/business-rules/{v2['id']}/publish",
@@ -291,7 +298,7 @@ def test_rescoping_is_a_publisher_act_and_is_audited(workspace: dict) -> None:
     client.post(
         f"/api/v1/business-rules/{workspace['handbook']['id']}/visibility",
         json={"visibility": "restricted", "required_capability": "payroll.read",
-              "note": "误发全员"},
+              "note": _ZH_TEXT['TEXT_9C021C58A04B9471']},
         headers=hr,
     )
     trail = client.get("/api/v1/audit-logs?action=policy.visibility_changed",
@@ -300,7 +307,7 @@ def test_rescoping_is_a_publisher_act_and_is_audited(workspace: dict) -> None:
     detail = trail["data"][0]["detail"]
     assert detail["from"]["visibility"] == "internal"
     assert detail["to"] == {"visibility": "restricted", "required_capability": "payroll.read"}
-    assert detail["note"] == "误发全员"
+    assert detail["note"] == _ZH_TEXT['TEXT_9C021C58A04B9471']
 
 
 def test_a_restricted_rescope_must_still_name_its_capability(workspace: dict) -> None:
@@ -329,7 +336,7 @@ def test_every_policy_lifecycle_act_leaves_a_trail(workspace: dict) -> None:
 
     drafted = client.post(
         "/api/v1/business-rules",
-        json={"code": "AUD-1", "category": "hr", "title": "审计用", "body": "# t"},
+        json={"code": "AUD-1", "category": "hr", "title": _ZH_TEXT['TEXT_3E7D87804AF60EE8'], "body": "# t"},
         headers=hr,
     ).json()["data"]
     client.post(f"/api/v1/business-rules/{drafted['id']}/publish",

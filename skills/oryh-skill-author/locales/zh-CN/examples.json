@@ -1,0 +1,8 @@
+{
+  "SKILL.md": [
+    "description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds (\"报销超过5000财务也要审\"、\"采购先经主管再到采购部\") — by publishing or amending the approval flow, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage."
+  ],
+  "references/authoring-guide.md": [
+    "description: Use when a salesperson's AI agent works a customer deal at any stage — an enquiry pasted from chat or a screenshot, quoting, following up — 询价、报价、跟进, \"帮XX报价\", \"这个型号多少钱\". Resolves codes read-only with a correction-confirm gate, then quotes via oryh-quotation-submit. Requires quotation.submit_own."
+  ]
+}

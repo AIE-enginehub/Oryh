@@ -1,0 +1,3 @@
+{
+  "description": "Use when a tenant administrator's agent introduces a NEW workspace (\"刚开通,从哪开始？\"、\"帮我初始化\"、\"给我做个开通向导\") or audits where setup stands (\"我们还缺什么配置\"). Reads the setup report, interviews the admin, hands each step to the owning skill and re-reads the report to verify. Requires users.manage."
+}

@@ -1,6 +1,6 @@
 ---
 name: oryh-purchase-order
-description: Use when procurement places, maintains or receives against purchase orders in oryh — 下采购单/向供应商订货 from approved requests, 收货 with or without a warehouse, close or cancel. A PO names a specific vendor. Not for filing the requisition (oryh-purchase-submit) or approving it (oryh-approve).
+description: Use when procurement places, maintains or receives against purchase orders in oryh — place purchase orders/order from suppliers from approved requests, receipt with or without a warehouse, close or cancel. A PO names a specific vendor. Not for filing the requisition (oryh-purchase-submit) or approving it (oryh-approve).
 required_capability: purchase_order.manage
 ---
 
@@ -179,3 +179,6 @@ product. What is different is what you bring to the order:
 
 - [references/api.md](references/api.md): all endpoints, the receive
   contract, and the purchase-against-order chain.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

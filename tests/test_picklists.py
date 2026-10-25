@@ -13,6 +13,13 @@ prose — no flag exists here to test, on purpose.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_picklists.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -26,12 +33,12 @@ def warehouse():
 
         keeper = invite_member(client, admin, "keeper", ["inventory.manage"])
 
-        emp = client.post("/api/v1/employees", json={"name": "店长"},
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                           headers=admin).json()["data"]["id"]
-        cust = client.post("/api/v1/customers", json={"name": "买家"},
+        cust = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']},
                            headers=admin).json()["data"]["id"]
         main = client.post("/api/v1/facilities", headers=admin, json={
-            "name": "主仓", "facility_type": "warehouse"}).json()["data"]["id"]
+            "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "warehouse"}).json()["data"]["id"]
         cup = client.post("/api/v1/products", json={"name": "Cup"},
                           headers=admin).json()["data"]["id"]
         lid = client.post("/api/v1/products", json={"name": "Lid"},
@@ -44,7 +51,7 @@ def warehouse():
         }).json()["data"]
 
         order = client.post("/api/v1/sales-orders", headers=admin, json={
-            "employee_id": emp, "customer_id": cust, "title": "两杯一盖"}).json()["data"]
+            "employee_id": emp, "customer_id": cust, "title": _ZH_TEXT['TEXT_3CE4C3CE424924D9']}).json()["data"]
 
         yield {"client": client, "admin": admin, "keeper": keeper, "facility": main,
                "cup": cup, "lid": lid, "cup_pos": cup_pos, "lid_pos": lid_pos,
@@ -55,11 +62,11 @@ def test_a_pick_line_names_a_position_that_holds_its_product(warehouse) -> None:
     client, keeper = warehouse["client"], warehouse["keeper"]
     assert warehouse["cup_pos"]["facility_id"] == warehouse["facility"], \
         "the registry pointer rides the position"
-    assert warehouse["cup_pos"]["facility"] == "主仓", \
+    assert warehouse["cup_pos"]["facility"] == _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], \
         "the registered name backfilled the identity string"
 
     mismatch = client.post("/api/v1/inventory-items", headers=keeper, json={
-        "product_id": warehouse["cup"], "facility": "别处",
+        "product_id": warehouse["cup"], "facility": _ZH_TEXT['TEXT_3A1610DE52504ACD'],
         "facility_id": warehouse["facility"]})
     assert mismatch.status_code == 422, "the string and the pointer may not disagree at birth"
 
@@ -84,7 +91,7 @@ def test_the_run_walks_its_machine_and_freezes_when_picked(warehouse) -> None:
     assert made.status_code == 201, made.text
     run = made.json()["data"]
     assert run["picklist_no"].startswith("PL-") and run["status"] == "draft"
-    assert run["facility_name"] == "主仓"
+    assert run["facility_name"] == _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C']
     line = run["items"][0]
 
     client.patch(f"/api/v1/picklists/{run['id']}", headers=keeper, json={"status": "picking"})
@@ -128,7 +135,7 @@ def test_pick_pack_ship_closes_one_coherent_story(warehouse) -> None:
     client.patch(f"/api/v1/picklists/{run['id']}", headers=keeper, json={"status": "picked"})
 
     other_order = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": order["employee_id"], "title": "别的单"}).json()["data"]
+        "employee_id": order["employee_id"], "title": _ZH_TEXT['TEXT_765A0D7D72816236']}).json()["data"]
     crossed = client.post("/api/v1/shipments", headers=keeper, json={
         "direction": "outbound", "sales_order_id": other_order["id"],
         "picklist_id": run["id"]})

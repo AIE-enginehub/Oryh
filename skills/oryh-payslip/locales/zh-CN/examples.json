@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use when someone wants to READ pay — \"我这个月发了多少\"、\"我的工资条\"、\"我的社保扣了多少\" — or, holding payroll.read, to check a batch of payslips against a payout before approving it. Everyone may read their own pay. Read-only: never sets pay, issues a payslip or moves money."
+  ]
+}

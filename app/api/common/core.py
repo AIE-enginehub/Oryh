@@ -274,7 +274,7 @@ def list_rows(
         stmt = extra.apply(stmt)
     if keyword:
         # Every word the caller typed must land in some searchable column:
-        # "华东 二期" finds "华东医院信息化二期", where a single substring
+        # "East China phase two" finds "East China Hospital IT phase two", where a single substring
         # would not. An agent that misses on the first try goes looking —
         # other spellings, the whole list — and the person waits; a query
         # that forgives word order and gaps makes the first try the last.
@@ -375,7 +375,7 @@ class DocumentFamily:
     advance_permission: str | None = None   # None = filing capability covers advancement
     # doc -> the scope its filing capability is checked with, for families whose
     # verb is scopable (invoice.manage:sales). Without it the shared helpers
-    # would check the bare verb and refuse an 应收会计 holding only :sales.
+    # would check the bare verb and refuse an accounts-receivable accountant holding only :sales.
     permission_scope: object | None = None
     owner_checked: bool = True  # personal documents enforce the member-own limit
     attributed_delete: bool = True          # deleted_by / delete_reason columns exist
@@ -385,7 +385,7 @@ class DocumentFamily:
     lock_scope: str | None = None
     # doc -> the machine key for THIS row, for families whose one table holds
     # more than one lifecycle: `order_kind` splits orders from returns, and a
-    # return runs a return's machine (申请→发出→收到→验货入库→退款), not an
+    # return runs a return's machine (requested→dispatched→received→inspection and stocking→refund), not an
     # order's. None = the family's single object_type, which is every other
     # family. Only MACHINE lookups branch on this; entity references, hosted
     # write scopes and audits stay keyed on the table's own object_type,

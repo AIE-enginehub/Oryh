@@ -15,6 +15,13 @@ instead.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_approval_acted_at.json').read_text(encoding="utf-8"))
+
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -28,7 +35,7 @@ def node(client):
     ctx = provision_tenant(client, company_name="Acted Co", email="admin@acted-co.example")
     key = {"X-API-Key": ctx["plain_text_api_key"]}
     owner = client.post(
-        "/api/v1/employees", json={"name": "王小明"}, headers=key
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_ACF979CC584E1CF9']}, headers=key
     ).json()["data"]["id"]
     header = client.post(
         "/api/v1/timesheet-headers",

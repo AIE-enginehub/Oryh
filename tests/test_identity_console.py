@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_identity_console.json').read_text(encoding="utf-8"))
+
+
 from uuid import uuid4
 
 import pytest
@@ -372,12 +379,12 @@ def test_tenant_password_reset_email_keeps_access_until_the_link_is_accepted(
     assert first_data["user"]["id"] == user_id
     assert first_data["email_sent"] is True
     assert "reset_url" not in first_data
-    assert "重置" in outbox.messages[-1].subject or "Reset" in outbox.messages[-1].subject
+    assert _ZH_TEXT['TEXT_CB5D682BAC3D1A2D'] in outbox.messages[-1].subject or "Reset" in outbox.messages[-1].subject
     assert (
         f"https://console.oryh.test/web/invitations/accept?mode=reset&token={first_token}"
         in outbox.messages[-1].body
     )
-    assert "60 分钟" in outbox.messages[-1].body or "60 minutes" in outbox.messages[-1].body
+    assert _ZH_TEXT['TEXT_BF6201684E5B7EFF'] in outbox.messages[-1].body or "60 minutes" in outbox.messages[-1].body
     assert "member-old-pass" not in outbox.messages[-1].body
 
     # Re-sending rotates the token. Neither send changes the current password

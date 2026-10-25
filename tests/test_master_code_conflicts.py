@@ -10,6 +10,13 @@ as Internal Server Error.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_master_code_conflicts.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers
@@ -23,7 +30,7 @@ def test_duplicate_project_code_is_409_even_against_an_archived_twin(client: Tes
     headers = provision(client)
     first = client.post(
         "/api/v1/projects",
-        json={"project_code": "PW-E2E-0-0", "project_name": "第一期"},
+        json={"project_code": "PW-E2E-0-0", "project_name": _ZH_TEXT['TEXT_D2309630A5433715']},
         headers=headers,
     )
     assert first.status_code == 201, first.text
@@ -32,7 +39,7 @@ def test_duplicate_project_code_is_409_even_against_an_archived_twin(client: Tes
     # live twin: refused with the holder named
     duplicate = client.post(
         "/api/v1/projects",
-        json={"project_code": "PW-E2E-0-0", "project_name": "撞码"},
+        json={"project_code": "PW-E2E-0-0", "project_name": _ZH_TEXT['TEXT_E380AD5527A0930B']},
         headers=headers,
     )
     assert duplicate.status_code == 409, duplicate.text
@@ -45,7 +52,7 @@ def test_duplicate_project_code_is_409_even_against_an_archived_twin(client: Tes
     assert archived.status_code == 204, archived.text
     again = client.post(
         "/api/v1/projects",
-        json={"project_code": "PW-E2E-0-0", "project_name": "归档后再建"},
+        json={"project_code": "PW-E2E-0-0", "project_name": _ZH_TEXT['TEXT_7230C37FBFC7BB24']},
         headers=headers,
     )
     assert again.status_code == 409, again.text
@@ -55,7 +62,7 @@ def test_duplicate_project_code_is_409_even_against_an_archived_twin(client: Tes
     # a different code sails through
     ok = client.post(
         "/api/v1/projects",
-        json={"project_code": "PW-E2E-0-1", "project_name": "换码"},
+        json={"project_code": "PW-E2E-0-1", "project_name": _ZH_TEXT['TEXT_E209A9EB18C4AA36']},
         headers=headers,
     )
     assert ok.status_code == 201, ok.text
@@ -65,12 +72,12 @@ def test_updating_into_a_taken_code_is_409(client: TestClient) -> None:
     headers = provision(client)
     client.post(
         "/api/v1/projects",
-        json={"project_code": "P-A", "project_name": "甲"},
+        json={"project_code": "P-A", "project_name": _ZH_TEXT['TEXT_33E3580C093111E1']},
         headers=headers,
     )
     second = client.post(
         "/api/v1/projects",
-        json={"project_code": "P-B", "project_name": "乙"},
+        json={"project_code": "P-B", "project_name": _ZH_TEXT['TEXT_71530D4C49F12C48']},
         headers=headers,
     ).json()["data"]
 
@@ -88,9 +95,9 @@ def test_every_coded_master_family_refuses_duplicates_the_same_way(client: TestC
     partial unique indexes were declared but nothing caught the violation."""
     headers = provision(client)
     for path, body in (
-        ("/api/v1/vendors", {"vendor_code": "V-01", "name": "供应商"}),
-        ("/api/v1/customers", {"customer_code": "C-01", "name": "客户"}),
-        ("/api/v1/products", {"product_code": "P-01", "name": "产品"}),
+        ("/api/v1/vendors", {"vendor_code": "V-01", "name": _ZH_TEXT['TEXT_033ED59452549C51']}),
+        ("/api/v1/customers", {"customer_code": "C-01", "name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']}),
+        ("/api/v1/products", {"product_code": "P-01", "name": _ZH_TEXT['TEXT_AEA82737CC01867D']}),
     ):
         first = client.post(path, json=body, headers=headers)
         assert first.status_code == 201, f"{path}: {first.text}"

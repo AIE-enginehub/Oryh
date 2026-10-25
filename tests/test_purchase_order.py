@@ -3,11 +3,18 @@
 What must hold: the vendor is required (a PO without a counterparty is not a
 document), one capability (`purchase_order.manage`) drives filing AND
 advancement, receiving records facts (received_quantity + inventory ledger)
-without moving status, and the 按单采购 chain is visible from both ends —
+without moving status, and the procure-to-order chain is visible from both ends —
 the PO line names its request line, the request detail names its PO lines.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_purchase_order.json').read_text(encoding="utf-8"))
+
 
 from collections.abc import Generator
 
@@ -28,25 +35,25 @@ def client() -> Generator[TestClient, None, None]:
 
 
 def create_employee(client: TestClient, **overrides) -> str:
-    payload = {"name": "采购员小赵"}
+    payload = {"name": _ZH_TEXT['TEXT_F723B433489EA960']}
     payload.update(overrides)
     return create(client, HEADERS, "employees", **payload)["id"]
 
 
 def create_vendor(client: TestClient, **overrides) -> dict:
-    payload = {"name": "戴尔（中国）有限公司", "vendor_code": "V-DELL"}
+    payload = {"name": _ZH_TEXT['TEXT_48A8405C94F000EC'], "vendor_code": "V-DELL"}
     payload.update(overrides)
     return create(client, HEADERS, "vendors", **payload)
 
 
 def create_product(client: TestClient, **overrides) -> dict:
-    payload = {"name": "27寸显示器", "product_code": "PRD-MON", "unit": "台", "list_price": 3199.0}
+    payload = {"name": _ZH_TEXT['TEXT_3D7C389C9EA4E117'], "product_code": "PRD-MON", "unit": _ZH_TEXT['TEXT_991363A244F032C7'], "list_price": 3199.0}
     payload.update(overrides)
     return create(client, HEADERS, "products", **payload)
 
 
 def create_po(client: TestClient, vendor_id: str, employee_id: str, **overrides) -> dict:
-    payload = {"vendor_id": vendor_id, "employee_id": employee_id, "title": "显示器采购"}
+    payload = {"vendor_id": vendor_id, "employee_id": employee_id, "title": _ZH_TEXT['TEXT_394855C196DA2A70']}
     payload.update(overrides)
     return create(client, HEADERS, "purchase-orders", **payload)
 
@@ -65,7 +72,7 @@ def test_po_lifecycle_numbering_and_machine(client: TestClient) -> None:
     assert po["po_number"].startswith("PO-")
     assert po["status"] == "draft"
     # snapshot defaults from the vendor when not provided
-    assert po["vendor_name_snapshot"] == "戴尔（中国）有限公司"
+    assert po["vendor_name_snapshot"] == _ZH_TEXT['TEXT_48A8405C94F000EC']
 
     # BYO number for migrated/self-numbered tenants, and the number is unique
     byo = create_po(client, vendor["id"], employee_id, po_number="CG-2019-001")
@@ -106,7 +113,7 @@ def test_po_lifecycle_numbering_and_machine(client: TestClient) -> None:
     )
     assert ghost.status_code == 404
 
-    listed = client.get("/api/v1/purchase-orders?keyword=戴尔", headers=HEADERS).json()["data"]
+    listed = client.get(_ZH_TEXT['TEXT_72F274568163E03D'], headers=HEADERS).json()["data"]
     assert {row["id"] for row in listed} == {po["id"], byo["id"]}
 
 
@@ -118,13 +125,13 @@ def test_po_items_lock_once_the_order_leaves_draft(client: TestClient) -> None:
 
     item = add_po_item(client, po["id"], product_id=product["id"], unit_price=2800.0, line_no=1)
     # product context is normalized from the catalog
-    assert item["product_name_snapshot"] == "27寸显示器"
-    assert item["unit"] == "台"
+    assert item["product_name_snapshot"] == _ZH_TEXT['TEXT_3D7C389C9EA4E117']
+    assert item["unit"] == _ZH_TEXT['TEXT_991363A244F032C7']
 
     client.patch(f"/api/v1/purchase-orders/{po['id']}", json={"status": "submitted"}, headers=HEADERS)
     locked = client.post(
         "/api/v1/purchase-order-items",
-        json={"po_id": po["id"], "quantity": 1, "product_name_snapshot": "加购"},
+        json={"po_id": po["id"], "quantity": 1, "product_name_snapshot": _ZH_TEXT['TEXT_47E827FB4F467936']},
         headers=HEADERS,
     )
     assert locked.status_code == 409
@@ -135,7 +142,7 @@ def test_po_items_lock_once_the_order_leaves_draft(client: TestClient) -> None:
 
 
 def test_procure_to_order_chain_is_visible_from_both_ends(client: TestClient) -> None:
-    """按单采购: the PO line pins the approved request line it fulfils, and
+    """procure-to-order: the PO line pins the approved request line it fulfils, and
     both details surface the chain."""
     vendor = create_vendor(client)
     employee_id = create_employee(client)
@@ -143,7 +150,7 @@ def test_procure_to_order_chain_is_visible_from_both_ends(client: TestClient) ->
 
     request = client.post(
         "/api/v1/purchase-requests",
-        json={"employee_id": employee_id, "title": "客户A专项采购", "request_date": "2026-07-20"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_E7778C135AD52ABB'], "request_date": "2026-07-20"},
         headers=HEADERS,
     ).json()["data"]
     request_line = client.post(
@@ -193,7 +200,7 @@ def test_po_adjustments_use_the_shared_vocabulary_and_shift_the_total(client: Te
     vendor = create_vendor(client)
     employee_id = create_employee(client)
     po = create_po(client, vendor["id"], employee_id)
-    item = add_po_item(client, po["id"], product_name_snapshot="运费杂项", quantity=10, unit_price=100.0)
+    item = add_po_item(client, po["id"], product_name_snapshot=_ZH_TEXT['TEXT_56039016CBA19F6F'], quantity=10, unit_price=100.0)
 
     unknown = client.post(
         "/api/v1/purchase-order-adjustments",
@@ -205,7 +212,7 @@ def test_po_adjustments_use_the_shared_vocabulary_and_shift_the_total(client: Te
 
     discount = client.post(
         "/api/v1/purchase-order-adjustments",
-        json={"po_id": po["id"], "adjustment_type": "discount", "amount": -100.0, "description": "年框返点"},
+        json={"po_id": po["id"], "adjustment_type": "discount", "amount": -100.0, "description": _ZH_TEXT['TEXT_455E0A2B5FC628FB']},
         headers=HEADERS,
     )
     assert discount.status_code == 201, discount.text
@@ -229,12 +236,12 @@ def test_receiving_records_facts_and_lands_in_the_inventory_ledger(client: TestC
     product = create_product(client)
     po = create_po(client, vendor["id"], employee_id)
     stocked = add_po_item(client, po["id"], product_id=product["id"], quantity=10, unit_price=2800.0)
-    direct = add_po_item(client, po["id"], product_name_snapshot="定制支架（直发客户）", quantity=3)
+    direct = add_po_item(client, po["id"], product_name_snapshot=_ZH_TEXT['TEXT_233872E5A999E9A1'], quantity=3)
 
     received = client.post(
         f"/api/v1/purchase-orders/{po['id']}/receive",
         json={"lines": [
-            {"po_item_id": stocked["id"], "quantity": 6, "facility": "上海仓"},
+            {"po_item_id": stocked["id"], "quantity": 6, "facility": _ZH_TEXT['TEXT_607FF3BF07FBB21D']},
             {"po_item_id": direct["id"], "quantity": 3},
         ]},
         headers=HEADERS,
@@ -243,13 +250,13 @@ def test_receiving_records_facts_and_lands_in_the_inventory_ledger(client: TestC
     lines = {row["po_item_id"]: row for row in received.json()["data"]["lines"]}
     assert lines[stocked["id"]]["received_quantity"] == 6.0
     assert lines[stocked["id"]]["inventory_item_id"] is not None
-    # the 直发 line accumulates received_quantity but never touches stock
+    # the direct shipment line accumulates received_quantity but never touches stock
     assert lines[direct["id"]]["received_quantity"] == 3.0
     assert lines[direct["id"]].get("inventory_item_id") is None
 
     position_id = lines[stocked["id"]]["inventory_item_id"]
     position = client.get(f"/api/v1/inventory-items/{position_id}", headers=HEADERS).json()["data"]
-    assert position["facility"] == "上海仓"
+    assert position["facility"] == _ZH_TEXT['TEXT_607FF3BF07FBB21D']
     assert position["quantity_on_hand"] == 6.0
 
     ledger = client.get(
@@ -264,7 +271,7 @@ def test_receiving_records_facts_and_lands_in_the_inventory_ledger(client: TestC
     # a second receipt accumulates — and over-receiving is recorded as stated
     again = client.post(
         f"/api/v1/purchase-orders/{po['id']}/receive",
-        json={"lines": [{"po_item_id": stocked["id"], "quantity": 5, "facility": "上海仓"}]},
+        json={"lines": [{"po_item_id": stocked["id"], "quantity": 5, "facility": _ZH_TEXT['TEXT_607FF3BF07FBB21D']}]},
         headers=HEADERS,
     )
     assert again.status_code == 200
@@ -278,7 +285,7 @@ def test_receiving_records_facts_and_lands_in_the_inventory_ledger(client: TestC
     # a free-text line cannot land in inventory — there is no product to stock
     grounded = client.post(
         f"/api/v1/purchase-orders/{po['id']}/receive",
-        json={"lines": [{"po_item_id": direct["id"], "quantity": 1, "facility": "上海仓"}]},
+        json={"lines": [{"po_item_id": direct["id"], "quantity": 1, "facility": _ZH_TEXT['TEXT_607FF3BF07FBB21D']}]},
         headers=HEADERS,
     )
     assert grounded.status_code == 422
@@ -297,7 +304,7 @@ def test_receiving_updates_last_price_only_on_an_existing_supplier_link(client: 
     vendor = create_vendor(client)
     employee_id = create_employee(client)
     linked = create_product(client)
-    unlinked = create_product(client, name="键盘", product_code="PRD-KBD")
+    unlinked = create_product(client, name=_ZH_TEXT['TEXT_864200BBB241E067'], product_code="PRD-KBD")
     link = client.post(
         "/api/v1/supplier-products",
         json={"product_id": linked["id"], "vendor_id": vendor["id"], "last_price": 2900.0},
@@ -360,7 +367,7 @@ def po_row(**overrides) -> dict:
         "po_number": "CG-2019-042",
         "vendor_code": "V-DELL",
         "employee_code": "E-001",
-        "title": "2019年显示器框架采购",
+        "title": _ZH_TEXT['TEXT_9DE72551C51A7710'],
         "order_date": "2019-03-15",
         "status": "closed",
         "total_amount": 28000.0,
@@ -368,7 +375,7 @@ def po_row(**overrides) -> dict:
             {"line_no": 1, "product_code": "PRD-MON", "quantity": 10, "unit_price": 2800.0, "amount": 28000.0},
         ],
         "adjustments": [
-            {"adjustment_type": "freight", "amount": 200.0, "description": "到付运费"},
+            {"adjustment_type": "freight", "amount": 200.0, "description": _ZH_TEXT['TEXT_F46A85603D0DF334']},
         ],
     }
     row.update(overrides)
@@ -419,7 +426,7 @@ def test_bulk_po_import_upserts_by_number_and_requires_the_vendor(client: TestCl
     [imported] = listed
     assert imported["po_number"] == "CG-2019-042"
     assert imported["status"] == "closed"
-    assert imported["vendor_name_snapshot"] == "戴尔（中国）有限公司"
+    assert imported["vendor_name_snapshot"] == _ZH_TEXT['TEXT_48A8405C94F000EC']
 
     # re-running the same file is a resume: unchanged, not duplicated
     rerun = client.post(
@@ -447,18 +454,18 @@ def test_bulk_po_import_upserts_by_number_and_requires_the_vendor(client: TestCl
 def test_bulk_po_import_keeps_the_printed_vendor_name(client: TestClient) -> None:
     """The snapshot is what the historical document PRINTED. A matched
     vendor_code must not overwrite it with the master-data name of today."""
-    create_vendor(client)  # 现名：戴尔（中国）有限公司
+    create_vendor(client)  # Current legal name: Dell (China)Co., Ltd.
     create_employee(client, employee_code="E-001")
     create_product(client)
 
     applied = client.post(
         "/api/v1/purchase-orders/bulk",
-        json={"rows": [po_row(vendor_name_snapshot="戴尔计算机（中国）有限公司")]},
+        json={"rows": [po_row(vendor_name_snapshot=_ZH_TEXT['TEXT_012399C1D31B1A51'])]},
         headers=HEADERS,
     )
     assert applied.status_code == 200, applied.text
     [imported] = client.get("/api/v1/purchase-orders", headers=HEADERS).json()["data"]
-    assert imported["vendor_name_snapshot"] == "戴尔计算机（中国）有限公司"
+    assert imported["vendor_name_snapshot"] == _ZH_TEXT['TEXT_012399C1D31B1A51']
     # and the row still resolved the vendor id
     vendor_id = client.get("/api/v1/vendors", headers=HEADERS).json()["data"][0]["id"]
     assert imported["vendor_id"] == vendor_id
@@ -475,7 +482,7 @@ def test_a_po_may_be_placed_with_its_lines_in_one_call(client: TestClient) -> No
         client, vendor["id"], employee_id,
         items=[
             {"product_id": product["id"], "quantity": 6, "unit_price": 3199.0, "line_no": 1},
-            {"product_name_snapshot": "线材", "quantity": 20, "line_no": 2},
+            {"product_name_snapshot": _ZH_TEXT['TEXT_04B912A85F097783'], "quantity": 20, "line_no": 2},
         ],
     )
     # the response reads back what landed
@@ -497,9 +504,9 @@ def test_a_bad_inline_po_line_rolls_the_whole_order_back(client: TestClient) -> 
         json={
             "vendor_id": vendor["id"],
             "employee_id": employee_id,
-            "title": "半成品",
+            "title": _ZH_TEXT['TEXT_763F1C2543BDE7D8'],
             "items": [
-                {"product_name_snapshot": "显示器", "quantity": 3},
+                {"product_name_snapshot": _ZH_TEXT['TEXT_1A13EA5910A0C5E6'], "quantity": 3},
                 # neither a catalog product nor a free-text name
                 {"quantity": 1},
             ],

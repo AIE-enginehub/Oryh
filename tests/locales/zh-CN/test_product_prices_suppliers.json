@@ -1,0 +1,17 @@
+{
+  "TEXT_C7005F6AFFA067C1": "内窥镜镜头",
+  "TEXT_B61BD2B509D29104": "华东医疗器械",
+  "TEXT_0A307701BE8A1769": "光源模块",
+  "TEXT_4060F118DEA05D67": "尺码",
+  "TEXT_F5C982AE4094EF29": "小王",
+  "TEXT_ADFBE6F133AD4366": "导管鞘",
+  "TEXT_5D3DAB28A731BD1F": "/api/v1/products?keyword=导管鞘",
+  "TEXT_34141C98D7F98B1A": "拉钩",
+  "TEXT_F2BCFBB4C9DCE340": "托盘",
+  "TEXT_7D8857B30A98B836": "/api/v1/products?keyword=托盘",
+  "TEXT_1B1AABCF1272E356": "缝合线",
+  "TEXT_03D1F94FF456E4BA": "止血钳",
+  "TEXT_C0C4E45486872DEE": "/api/v1/products?keyword=止血钳",
+  "TEXT_88949D0EF051214C": "手术灯",
+  "TEXT_CED0574BF4F285F5": "/api/v1/products?keyword=手术灯"
+}

@@ -12,6 +12,13 @@ primary_image_id so a list can show thumbnails without a query per row.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_product_images.json').read_text(encoding="utf-8"))
+
+
 import base64
 
 import pytest
@@ -36,7 +43,7 @@ def gallery():
 
         curator = desk("curator", ["master_data.manage"])
         member = desk("nobody", [])
-        product = client.post("/api/v1/products", json={"name": "工业阀门"},
+        product = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_31B509285FE3285B']},
                               headers=curator).json()["data"]["id"]
 
         def upload(filename: str, content_type: str, raw: bytes = PNG, headers=None) -> object:
@@ -75,7 +82,7 @@ def test_one_primary_and_the_gallery_order(gallery) -> None:
     c = gallery["upload"]("c.png", "image/png", PNG + b"\n\n").json()["data"]["id"]
     first = gallery["picture"](a, is_primary=True, sort_order=2)
     second = gallery["picture"](b, sort_order=1)
-    third = gallery["picture"](c, is_primary=True, caption="细节")
+    third = gallery["picture"](c, is_primary=True, caption=_ZH_TEXT['TEXT_5CE4ED5694C358FF'])
     assert third["is_primary"]
     rows = client.get("/api/v1/product-images", headers=gallery["member"],
                       params={"product_id": gallery["product"]}).json()["data"]
@@ -105,14 +112,14 @@ def test_bytes_are_read_through_the_product_and_only_its_own(gallery) -> None:
     assert read.status_code == 200, "everyone reads the catalog, so everyone reads its pictures"
     assert read.headers["content-type"].startswith("image/png") and read.content == PNG
 
-    other = client.post("/api/v1/products", json={"name": "别的产品"},
+    other = client.post("/api/v1/products", json={"name": _ZH_TEXT['TEXT_F0B5ADB498F5C76A']},
                         headers=curator).json()["data"]["id"]
     crossed = client.get(f"/api/v1/products/{other}/attachments/{a}/content",
                          headers=gallery["member"])
     assert crossed.status_code == 404, "a real attachment on the wrong product reads as not found"
 
     listed = client.get("/api/v1/products", headers=gallery["member"],
-                        params={"keyword": "工业阀门"}).json()["data"][0]
+                        params={"keyword": _ZH_TEXT['TEXT_31B509285FE3285B']}).json()["data"][0]
     assert listed["primary_image_id"] == image["id"], "lists can show thumbnails without a query per row"
 
     removed = client.delete(f"/api/v1/product-images/{image['id']}", headers=curator)
@@ -140,7 +147,7 @@ def test_a_picture_says_what_kind_it_is(gallery) -> None:
 
     gallery["picture"](hero, is_primary=True, image_type="main")
     gallery["picture"](detail, image_type="detail")
-    design = gallery["picture"](draft, image_type="design", caption="V3 效果图")
+    design = gallery["picture"](draft, image_type="design", caption=_ZH_TEXT['TEXT_7542931B7FF635B9'])
     assert design["content_type"] == "application/pdf", "a PDF design draft belongs in the gallery"
     refused = client.post("/api/v1/product-images", headers=curator, json={
         "product_id": gallery["product"], "attachment_id": sheet, "image_type": "dimension"})

@@ -513,7 +513,7 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
                                where it.invoice_id = i.id and it.deleted_at is null)""",
     ),
     # The sign check the write path enforces, restated over the whole table:
-    # 个税 recorded as +2000 rather than −2000 hands somebody 4000 they are not
+    # individual income tax recorded as +2000 rather than −2000 hands somebody 4000 they are not
     # owed, and nothing downstream would object.
     (
         "every payslip line moves the way its type says it does",
@@ -557,7 +557,7 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
               group by i.id
            ) as slips where net < 0""",
     ),
-    # ---- 规章制度 ---------------------------------------------------------
+    # --- Policies ---
     # A figure an agent applies has to be traceable to a document, a version and
     # a person. These check that the trace has no broken link in it. There is no
     # separate rule table to check — the figures ride `business_rules.rules_json`,
@@ -749,7 +749,7 @@ ADVISORY_CHECKS: tuple[tuple[str, str], ...] = (
                    where i.billing_account_id = a.id and i.deleted_at is null), 0)
               ) > coalesce(a.balance, 0) + coalesce(a.credit_limit, 0) + 0.005""",
     ),
-    # 挂账超 30 天仍未开票的订单 — legitimate for as long as delivery takes,
+    # Orders charged more than 30 days ago but not invoiced can be legitimate while delivery takes time,
     # worth a look once it is old: the cancel-release is the agent's write and
     # this is the detector for a forgotten one.
     (

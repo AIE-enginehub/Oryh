@@ -600,7 +600,7 @@ export interface paths {
          *     An attachment is never a thing you are entitled to because you hold its id.
          *
          *     This route used to be tenant-scoped and nothing else, so any credential in
-         *     the workspace could read a payslip's PDF — 工资条 is an invoice, and its
+         *     the workspace could read a payslip's PDF — payslip is an invoice, and its
          *     attachment is the payslip. `tests/test_payroll_visibility.py` calls payroll
          *     "the first read in this API that belonging to the workspace does not
          *     entitle you to", and warns that a gate is only worth its least covered
@@ -1290,8 +1290,8 @@ export interface paths {
          * @description What ORYH already ships, so an agent can tell whether a custom object is
          *     one of these under another name.
          *
-         *     Asked to "建一个 Product 自定义对象", an agent would define one, and the
-         *     workspace would end up with two answers to "有多少产品" — the real catalogue
+         *     Asked to "create a Product custom object", an agent would define one, and the
+         *     workspace would end up with two answers to "how many products are there" — the real catalogue
          *     and a shadow of it that no order line, price or inventory row can ever point
          *     at. Once the shadow has data the two cannot be merged back.
          *
@@ -1443,7 +1443,7 @@ export interface paths {
          *     ledger, once. The type's state machine carries `account_effect:
          *     {reason, state}`; the object's `payload.lines` carry
          *     `[{billing_account_id, amount, expires_at?, description?}]` (signed, so
-         *     a 划转单 is a minus line on one account and a plus line on another).
+         *     a transfer document is a minus line on one account and a plus line on another).
          *     Posting is allowed only in the declared state; each account's floor and
          *     status are checked by the same helper the settlement path uses; the
          *     poster needs `billing_account.post` for each account's unit type. A
@@ -1471,7 +1471,7 @@ export interface paths {
          *     The object's type definition carries `stock_effect: {reason, state}`;
          *     the object's `payload.lines` carry `[{inventory_item_id,
          *     quantity_on_hand_diff, unit_cost?, description?}]` (signed, so a
-         *     调拨单 is one document with a minus line and a plus line). Posting
+         *     stock-transfer document is one document with a minus line and a plus line). Posting
          *     is allowed only in the declared state — the tenant's approval, in
          *     their words — and a second call is a 409: the ledger is append-only,
          *     a correction is a counter-document.
@@ -2064,7 +2064,10 @@ export interface paths {
          * Contract Execution
          * @description What has happened under the contract — orders placed, invoices
          *     billed, payments moved, contracted vs ordered quantity by product —
-         *     derived from the documents that point at it, stored nowhere.
+         *     derived from the documents that point at it, stored nowhere. Only what
+         *     happened counts (see `_counted_states`), and money is summed per
+         *     currency: the contract's own currency in the top-level figures, any
+         *     other in `other_currencies`, never added together.
          */
         get: operations["contract_execution_api_v1_contracts__contract_id__execution_get"];
         put?: never;
@@ -3368,7 +3371,7 @@ export interface paths {
         };
         /**
          * Get Geo Path
-         * @description The geo and its ancestors, root first — 中国 / 浙江省 / 杭州市.
+         * @description The geo and its ancestors, root first — China / Zhejiang / Hangzhou.
          */
         get: operations["get_geo_path_api_v1_geos__geo_id__path_get"];
         put?: never;
@@ -3516,7 +3519,7 @@ export interface paths {
          *     not against a status: an invoice is outstanding while what it bills exceeds
          *     what has been applied to it. Combined with `direction` and `due_before` it
          *     is the overdue queue — `?direction=sales&outstanding=true&due_before=today`
-         *     is 逾期应收, and the purchase side is what is due to be paid.
+         *     is overdue receivables, and the purchase side is what is due to be paid.
          */
         get: operations["list_invoices_api_v1_invoices_get"];
         put?: never;
@@ -3539,7 +3542,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk Import Invoices
-         * @description Import 期初应收应付 keyed on each invoice's own `invoice_no`.
+         * @description Import opening receivables/payables keyed on each invoice's own `invoice_no`.
          *
          *     Settlement is deliberately not part of a row: how much of an invoice was
          *     already collected is a payment fact, and importing it as a column would
@@ -3592,7 +3595,7 @@ export interface paths {
         };
         /**
          * Get Invoice Attachment
-         * @description The 发票原件 — a customer's PDF, a 增值税发票扫描件.
+         * @description The original invoice — a customer's PDF, a scanned VAT invoice.
          *
          *     Payroll is why this must not be reachable by id alone: a payslip is an
          *     invoice, and its attachment is the payslip.
@@ -3870,7 +3873,7 @@ export interface paths {
          *
          *     202, not 201: nothing is stored, and SMTP acceptance is not delivery. The
          *     response says what was attempted and to whom, so a flow agent can report
-         *     "told 张三" or "李四 has no address on file" rather than guessing.
+         *     "told Zhang San" or "Li Si has no address on file" rather than guessing.
          */
         post: operations["send_notification_api_v1_notifications_post"];
         delete?: never;
@@ -4245,16 +4248,16 @@ export interface paths {
         };
         /**
          * List Payments
-         * @description `unapplied=true` is the 认领队列: money that arrived or went out and has
-         *     not been matched to a document yet. On the inbound side that is 预收款 plus
-         *     every bank line nobody has identified; on the outbound side, 预付款.
+         * @description `unapplied=true` is the unmatched-payment queue: money that arrived or went out and has
+         *     not been matched to a document yet. On the inbound side that is advance receipt plus
+         *     every bank line nobody has identified; on the outbound side, advance payment.
          */
         get: operations["list_payments_api_v1_payments_get"];
         put?: never;
         /**
          * Create Payment
          * @description An outbound payment starts at the machine's `initial` and is walked
-         *     through 付款审批 — creating it further along takes `payment.advance`, the
+         *     through payment approval — creating it further along takes `payment.advance`, the
          *     grant that walk needs. An inbound receipt is money that already arrived,
          *     so a `payment.record` holder creates it directly in whatever state says
          *     so: there is nothing to approve.
@@ -4277,7 +4280,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk Import Payments
-         * @description Import historical收付款 keyed on each payment's own `payment_no`.
+         * @description Import historical receipts and payments keyed on each payment's own `payment_no`.
          *
          *     Imported payments arrive fully unapplied — which invoice each one settled
          *     is recorded through `POST /payments/{id}/apply`, so the over-application,
@@ -4326,7 +4329,7 @@ export interface paths {
         put?: never;
         /**
          * Apply Payment
-         * @description 核销: record which documents this payment settles.
+         * @description Settlement application: record which documents this payment settles.
          *
          *     Facts only, no status magic — the twin of the purchase order's receive
          *     endpoint. Each line appends an immutable ledger row and moves the running
@@ -5070,12 +5073,12 @@ export interface paths {
          * @description Record goods arriving against PO lines. Facts only, no status magic:
          *     received_quantity accumulates on each line, and a line given a `facility`
          *     also lands in the inventory ledger (reason `received`, entity pinned to
-         *     the PO line). No facility = a 直发/零库存 receipt that never touches
+         *     the PO line). No facility = a drop-ship/zero-inventory receipt that never touches
          *     stock. The flow agent moves the PO's status when the facts support it.
          *
          *     Deliberately NOT gated on status: the state names are tenant-editable, so
          *     the server cannot know which of them mean "receivable" — that judgment is
-         *     the agent's. Over-receiving is likewise recorded as stated (超收 is a real
+         *     the agent's. Over-receiving is likewise recorded as stated (over-receipt is a real
          *     thing); flagging it is conversation, not rejection.
          *
          *     A vendor's price becomes their SupplierProduct.last_price when the link
@@ -5692,7 +5695,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve Stock For Order
-         * @description 占货: hold goods for an order. The ONLY way a `reserved` row enters
+         * @description stock reservation: hold goods for an order. The ONLY way a `reserved` row enters
          *     the ledger — an availability fact tied to the order it serves, posted
          *     by the warehouse from the positions it chooses. Each line names a
          *     position holding goods the order sells and a quantity; a hold that
@@ -6893,7 +6896,7 @@ export interface paths {
         put?: never;
         /**
          * Create Type Option
-         * @description Tenant-defined vocabulary entry (经销价、开票服务费…). The first
+         * @description Tenant-defined vocabulary entry (dealer price, invoicing service fee…). The first
          *     customization materializes the shipped catalog as system rows, so the
          *     vocabulary the tenant now owns is complete and editable.
          */
@@ -7703,9 +7706,9 @@ export interface components {
          * @description One shipped collection, and the words that mean it.
          *
          *     `also_called` carries the singular and the handful of synonyms people reach
-         *     for — enough for an agent to recognise "建一个 Product 对象" as this, and
+         *     for — enough for an agent to recognise "create a Product object" as this, and
          *     short enough that it is a hint rather than a claim to have thought of
-         *     everything. Semantic near-misses (`merchandise`, `货品`) are not in here and
+         *     everything. Semantic near-misses (`merchandise`, `goods`) are not in here and
          *     are not meant to be: that is the judgement this endpoint exists to inform,
          *     not to replace.
          */
@@ -7986,7 +7989,7 @@ export interface components {
         /**
          * BulkInvoiceLineRow
          * @description A historical invoice line. Unlike order lines, quantity and price are
-         *     both optional — a 运费 or 折扣 line has neither, and a 汇总开票 line carries
+         *     both optional — a freight or discount line has neither, and a summary invoice line carries
          *     an amount alone.
          */
         BulkInvoiceLineRow: {
@@ -8026,13 +8029,13 @@ export interface components {
         };
         /**
          * BulkInvoiceRow
-         * @description One historical invoice — 期初应收应付, the open bills a company carries
+         * @description One historical invoice — opening receivables/payables, the open bills a company carries
          *     across the switch. The direction decides which counterparty code is
          *     required; an unmatched one is reported per row like everywhere else.
          *
          *     Settlement is NOT imported here: how much of this invoice was already paid
          *     is a payment fact, so it arrives as payments and their applications. An
-         *     invoice imported alone is simply fully outstanding, which is what 期初
+         *     invoice imported alone is simply fully outstanding, which is what opening
          *     balances are.
          */
         BulkInvoiceRow: {
@@ -9198,13 +9201,18 @@ export interface components {
          * ContractExecutionRead
          * @description What has happened under the contract, derived on every call: orders
          *     placed against it, invoices billed, payments moved — never a stored
-         *     progress figure.
+         *     progress figure. Counted: orders from confirmation on, invoices from
+         *     issue on, payments that are paid; nothing voided or cancelled. The
+         *     figures are in the contract's `currency`; documents in any other
+         *     currency are summed apart in `other_currencies`, never added in.
          */
         ContractExecutionRead: {
             /** Contract Id */
             contract_id: string;
             /** Contracted Amount */
             contracted_amount?: number | null;
+            /** Currency */
+            currency: string;
             /** Invoiced Amount */
             invoiced_amount: number;
             /** Invoices */
@@ -9217,6 +9225,10 @@ export interface components {
             ordered_amount: number;
             /** Orders */
             orders: number;
+            /** Other Currencies */
+            other_currencies?: {
+                [key: string]: unknown;
+            }[];
             /** Paid Amount */
             paid_amount: number;
             /** Payments */
@@ -9949,6 +9961,8 @@ export interface components {
             parent_contract_id?: string | null;
             /** Remarks */
             remarks?: string | null;
+            /** Side */
+            side?: ("purchase" | "sales") | null;
             /** Signed Date */
             signed_date?: string | null;
             /** Status */
@@ -10143,7 +10157,7 @@ export interface components {
          * @description One absence. Note what is NOT here: any statement about entitlement.
          *
          *     The server is not told, and does not ask, how many days this person has —
-         *     that follows from the tenant's leave policy applied to their 工龄 and their
+         *     that follows from the tenant's leave policy applied to their length of service and their
          *     other leave, and it is recomputed every time somebody wants to know. A
          *     request that exceeds the allowance is still a legal record of a request;
          *     whether it is granted is the approver's call, informed by the same
@@ -14489,7 +14503,7 @@ export interface components {
         };
         /**
          * InvoiceOrderMatchRead
-         * @description 三单匹配 as facts, not as a verdict. The server reports what was ordered,
+         * @description Three-way matching as facts, not as a verdict. The server reports what was ordered,
          *     what arrived and what has been billed; whether a gap is acceptable is the
          *     agent's judgment against the tenant's workflow definition — a tolerance
          *     baked in here would be business policy in the record layer.
@@ -14673,9 +14687,9 @@ export interface components {
         };
         /**
          * LinkedPurchaseItemRead
-         * @description A purchase line filed to fulfil this order line (按单采购). The
+         * @description A purchase line filed to fulfil this order line (procure-to-order). The
          *     request's status is the supply signal a fulfilment agent reads before
-         *     shipping — a 零库存 order line with no ordered purchase behind it has
+         *     shipping — a zero-inventory order line with no ordered purchase behind it has
          *     nothing to ship.
          */
         LinkedPurchaseItemRead: {
@@ -14693,7 +14707,7 @@ export interface components {
         /**
          * LinkedPurchaseOrderItemRead
          * @description A PO line ordering this request line — with the PO's status and the
-         *     received progress, the two facts 按单采购 traceability runs on.
+         *     received progress, the two facts procure-to-order traceability runs on.
          */
         LinkedPurchaseOrderItemRead: {
             /** Id */
@@ -15659,7 +15673,7 @@ export interface components {
         };
         /**
          * PaymentApplicationRead
-         * @description One 核销 fact. Rows are immutable — a correction is a second row with a
+         * @description One settlement application fact. Rows are immutable — a correction is a second row with a
          *     negative amount, never an edit of this one.
          */
         PaymentApplicationRead: {
@@ -16808,7 +16822,7 @@ export interface components {
         /**
          * PurchaseSalesOrderReferenceRead
          * @description Where a procure-to-order line came from — the fact a purchase
-         *     reviewer routes on (按着订单审采购).
+         *     reviewer routes on (review procurement against the order).
          */
         PurchaseSalesOrderReferenceRead: {
             /** Customer Name Snapshot */
@@ -17002,7 +17016,7 @@ export interface components {
         };
         /**
          * RepealBusinessRuleRequest
-         * @description 废止. `effective_thru` is when it STOPS applying, which is usually today
+         * @description Repeal. `effective_thru` is when it STOPS applying, which is usually today
          *     but need not be — a policy can be repealed retroactively to the day a law
          *     changed.
          */
@@ -17039,7 +17053,7 @@ export interface components {
          *     handbook answerable about what people were told. Who may read it is not the
          *     same kind of fact: it is a standing administrative decision that outlives
          *     the publication and legitimately changes when a department reorganizes, or
-         *     when a rule announced to管理层 becomes company-wide.
+         *     when a rule announced to management becomes company-wide.
          *
          *     Treating the two as one thing left a workspace with no remedy at all for a
          *     policy published to a wider audience than intended: the edit is refused, a
@@ -19259,7 +19273,7 @@ export interface components {
         /**
          * TodoLastApproval
          * @description The newest approval fact on the todo's target — enough for the one-line
-         *     "经理已批，正在财务复核" a briefing needs, without a per-todo detail call.
+         *     "manager approved, finance review in progress" a briefing needs, without a per-todo detail call.
          */
         TodoLastApproval: {
             /** Acted At */
@@ -19703,6 +19717,8 @@ export interface components {
             custom_fields?: {
                 [key: string]: unknown;
             } | null;
+            /** Customer Id */
+            customer_id?: string | null;
             /** Effective From */
             effective_from?: string | null;
             /** Effective To */
@@ -19717,6 +19733,8 @@ export interface components {
             parent_contract_id?: string | null;
             /** Remarks */
             remarks?: string | null;
+            /** Side */
+            side?: ("purchase" | "sales") | null;
             /** Signed Date */
             signed_date?: string | null;
             /** Status */
@@ -19728,6 +19746,8 @@ export interface components {
             /** Total Amount */
             total_amount?: number | null;
             upstream?: components["schemas"]["UpstreamContractReference"] | null;
+            /** Vendor Id */
+            vendor_id?: string | null;
         };
         /** UpdateContractTermRequest */
         UpdateContractTermRequest: {

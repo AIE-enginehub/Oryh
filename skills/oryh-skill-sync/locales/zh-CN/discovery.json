@@ -1,0 +1,3 @@
+{
+  "description": "Use to check whether this company's installed oryh skills are current — on session start, periodically, or on demand (\"更新一下 oryh 技能\"). Compares the local manifest with the server's and refreshes this company's bundle when it changed. Touches no business data."
+}

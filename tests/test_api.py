@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_api.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -60,7 +67,7 @@ def create_approval_target(test_client: TestClient, tenant_id: str = TEST_TENANT
         "title": "Approve Q2 steering committee resolution",
         "summary": "Review the proposed vendor consolidation decision.",
         "payload": {"meeting_code": "M-2026-04-01", "resolution_no": "R-7"},
-        "source_text": "会议决议：同意在 Q2 完成供应商整合。",
+        "source_text": _ZH_TEXT['TEXT_E8AB78DB0BAFB763'],
     }
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "approval-targets", **payload)["id"]
@@ -72,7 +79,7 @@ def create_business_object(test_client: TestClient, tenant_id: str = TEST_TENANT
         "title": "JC printer warranty card WC-1001",
         "summary": "Warranty card submitted by a service provider.",
         "payload": {"printer_serial_no": "PRN-1001", "customer": "City Hospital"},
-        "source_text": "服务商提交 JC 打印机保修卡申请。",
+        "source_text": _ZH_TEXT['TEXT_B0BE40E363ADF8DB'],
         "created_by": "agent-test",
     }
     payload.update(overrides)
@@ -213,7 +220,7 @@ def test_timesheet_flow(client: TestClient) -> None:
     header_id = create_header(
         client,
         employee_id,
-        source_report_text="这周我在 ERP Upgrade 上做了 API 设计，还实现了一部分后端接口。",
+        source_report_text=_ZH_TEXT['TEXT_285C7BD37E3B0993'],
     )
 
     entry_response = client.post(
@@ -595,7 +602,7 @@ def test_exclusive_resource_booking_conflict_and_cancellation(client: TestClient
             "start_at": "2026-04-03T09:00:00Z",
             "end_at": "2026-04-03T10:00:00Z",
             "quantity": 1,
-            "source_text": "订一个周会会议室",
+            "source_text": _ZH_TEXT['TEXT_8FFC86FCF602B990'],
         },
         headers=api_key_headers(),
     )
@@ -713,7 +720,7 @@ def test_timesheet_header_crud_and_filters(client: TestClient) -> None:
     header_id = create_header(
         client,
         employee_id,
-        source_report_text="上周我主要做 Dora 项目的需求梳理和评审。",
+        source_report_text=_ZH_TEXT['TEXT_07A1D3911E9430D9'],
         custom_fields={"source_batch": "batch-1"},
     )
 
@@ -726,7 +733,7 @@ def test_timesheet_header_crud_and_filters(client: TestClient) -> None:
 
     get_response = client.get(f"/api/v1/timesheet-headers/{header_id}", headers=api_key_headers())
     assert get_response.status_code == 200
-    assert "需求梳理" in get_response.json()["data"]["source_report_text"]
+    assert _ZH_TEXT['TEXT_3CF4A4FB41DA0434'] in get_response.json()["data"]["source_report_text"]
     assert get_response.json()["data"]["custom_fields"]["source_batch"] == "batch-1"
 
     # draft -> returned is not a legal transition of the default state machine
@@ -748,14 +755,14 @@ def test_timesheet_header_crud_and_filters(client: TestClient) -> None:
         f"/api/v1/timesheet-headers/{header_id}",
         json={
             "status": "returned",
-            "source_report_text": "更正：上周主要做 Dora 项目评审和 API 对齐。",
+            "source_report_text": _ZH_TEXT['TEXT_47D65053981F28FA'],
             "custom_fields": {"source_batch": "batch-2"},
         },
         headers=api_key_headers(),
     )
     assert patch_response.status_code == 200
     assert patch_response.json()["data"]["status"] == "returned"
-    assert "API 对齐" in patch_response.json()["data"]["source_report_text"]
+    assert _ZH_TEXT['TEXT_AB0CA153B170E44D'] in patch_response.json()["data"]["source_report_text"]
     assert patch_response.json()["data"]["custom_fields"]["source_batch"] == "batch-2"
 
 

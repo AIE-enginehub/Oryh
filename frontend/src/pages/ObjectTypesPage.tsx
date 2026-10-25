@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useOutletContext } from "react-router-dom";
@@ -95,10 +96,10 @@ function parseObject(
   try {
     parsed = JSON.parse(value);
   } catch {
-    throw new Error(localize(`${label}格式不正确。`, `${label} has an invalid format.`));
+    throw new Error(localize(zhCN.pagesObjectTypesPage.hasAnInvalidFormat(`${label}`), `${label} has an invalid format.`));
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error(localize(`${label}必须包含带名称的字段。`, `${label} must contain named fields.`));
+    throw new Error(localize(zhCN.pagesObjectTypesPage.mustContainNamedFields(`${label}`), `${label} must contain named fields.`));
   }
   return parsed as Record<string, unknown>;
 }
@@ -221,8 +222,8 @@ export function ObjectTypesPage() {
 
   const saveType = useMutation({
     mutationFn: async ({ current, draft }: { current: ObjectTypeDefinition | null; draft: TypeForm }) => {
-      const schema = parseObject(draft.schema, text("字段规则", "Field rules"), false, text) ?? {};
-      const stateMachine = parseObject(draft.stateMachine, text("状态流程", "Status flow"), true, text);
+      const schema = parseObject(draft.schema, text(zhCN.pagesObjectTypesPage.fieldRules, "Field rules"), false, text) ?? {};
+      const stateMachine = parseObject(draft.stateMachine, text(zhCN.pagesObjectTypesPage.statusFlow, "Status flow"), true, text);
       const common = {
         title: draft.title.trim() || null,
         description: draft.description.trim() || null,
@@ -302,16 +303,16 @@ export function ObjectTypesPage() {
   const submitType = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editing && !typeDraft.objectType.trim()) {
-      setTypeValidation(text("对象类型不能为空。", "Object type is required."));
+      setTypeValidation(text(zhCN.pagesObjectTypesPage.objectTypeIsRequired, "Object type is required."));
       return;
     }
     if (typeDraft.entityKind === "builtin" && !typeDraft.stateMachine.trim()) {
-      setTypeValidation(text("内置实体必须提供状态机定义。", "Built-in entities require a state-machine definition."));
+      setTypeValidation(text(zhCN.pagesObjectTypesPage.builtInEntitiesRequireAStateMachineDefinition, "Built-in entities require a state-machine definition."));
       return;
     }
     try {
-      parseObject(typeDraft.schema, text("字段规则", "Field rules"), false, text);
-      parseObject(typeDraft.stateMachine, text("状态流程", "Status flow"), true, text);
+      parseObject(typeDraft.schema, text(zhCN.pagesObjectTypesPage.fieldRules, "Field rules"), false, text);
+      parseObject(typeDraft.stateMachine, text(zhCN.pagesObjectTypesPage.statusFlow, "Status flow"), true, text);
     } catch (error) {
       setTypeValidation(apiErrorMessage(error));
       return;
@@ -362,11 +363,11 @@ export function ObjectTypesPage() {
     event.preventDefault();
     if (isPolicy) {
       if (!ruleDraft.code.trim() || !ruleDraft.category || !ruleDraft.title.trim() || !ruleDraft.body.trim()) {
-        setRuleValidation(text("制度需要编号、分类、标题和正文。", "A policy needs a code, a category, a title and its text."));
+        setRuleValidation(text(zhCN.pagesObjectTypesPage.aPolicyNeedsACodeACategoryATitle, "A policy needs a code, a category, a title and its text."));
         return;
       }
     } else if (!ruleDraft.objectType.trim() || !ruleDraft.body.trim()) {
-      setRuleValidation(text("对象类型和规则正文不能为空。", "Object type and rule text are required."));
+      setRuleValidation(text(zhCN.pagesObjectTypesPage.objectTypeAndRuleTextAreRequired, "Object type and rule text are required."));
       return;
     }
     setRuleValidation(null);
@@ -377,30 +378,30 @@ export function ObjectTypesPage() {
     <div className="configuration-page" data-testid="object-types-page">
       <header className="page-intro">
         <div>
-          <span className="eyebrow">{text("对象与规则", "Objects & rules")}</span>
-          <h2>{text("对象类型与业务规则", "Object types & business rules")}</h2>
-          <p>{text("用字段规则约束业务对象，并发布 agent 读取的业务规则：审批流程、数据要求、单据联动。", "Set field rules for business objects and publish the business rules agents read: approval flows, data rules, linkages.")}</p>
+          <span className="eyebrow">{text(zhCN.pagesObjectTypesPage.objectsRules, "Objects & rules")}</span>
+          <h2>{text(zhCN.pagesObjectTypesPage.objectTypesBusinessRules, "Object types & business rules")}</h2>
+          <p>{text(zhCN.pagesObjectTypesPage.setFieldRulesForBusinessObjectsAndPublishThe, "Set field rules for business objects and publish the business rules agents read: approval flows, data rules, linkages.")}</p>
         </div>
         <div className="page-actions">
-          {(canPublishRules || canPublishPolicies) && <button className="button" type="button" onClick={openRule}>{text("发布规则", "Publish rule")}</button>}
-          {canEditTypes && <button className="button primary" type="button" onClick={openCreate}>{text("定义类型", "Define type")}</button>}
+          {(canPublishRules || canPublishPolicies) && <button className="button" type="button" onClick={openRule}>{text(zhCN.pagesObjectTypesPage.publishRule, "Publish rule")}</button>}
+          {canEditTypes && <button className="button primary" type="button" onClick={openCreate}>{text(zhCN.pagesObjectTypesPage.defineType, "Define type")}</button>}
         </div>
       </header>
 
-      {!canEditTypes && !canPublishRules && <aside className="info-banner"><strong>{text("只读配置视图。", "Read-only configuration view.")}</strong><span>{text("当前角色可以审阅定义，但不能修改类型或发布规则。", "The current role can review definitions but cannot modify types or publish rules.")}</span></aside>}
+      {!canEditTypes && !canPublishRules && <aside className="info-banner"><strong>{text(zhCN.pagesObjectTypesPage.readOnlyConfigurationView, "Read-only configuration view.")}</strong><span>{text(zhCN.pagesObjectTypesPage.theCurrentRoleCanReviewDefinitionsButCannotModify, "The current role can review definitions but cannot modify types or publish rules.")}</span></aside>}
 
-      <section className="data-panel" aria-label={text("对象类型定义", "Object type definitions")}>
+      <section className="data-panel" aria-label={text(zhCN.pagesObjectTypesPage.objectTypeDefinitions, "Object type definitions")}>
         <header className="section-bar">
-          <div><strong>{text("类型定义", "Type definitions")}</strong><small>{text("读写时实时校验；归档不会删除历史记录。", "Definitions are validated on read and write; archiving preserves history.")}</small></div>
+          <div><strong>{text(zhCN.pagesObjectTypesPage.typeDefinitions, "Type definitions")}</strong><small>{text(zhCN.pagesObjectTypesPage.definitionsAreValidatedOnReadAndWriteArchivingPreserves, "Definitions are validated on read and write; archiving preserves history.")}</small></div>
           <form className="compact-filters" onSubmit={(event) => { event.preventDefault(); setKeyword(keywordDraft.trim()); setPage(1); }}>
-            <input aria-label={text("搜索对象类型", "Search object types")} placeholder={text("搜索类型或标题", "Search type or title")} value={keywordDraft} onChange={(e) => setKeywordDraft(e.target.value)} />
-            <select aria-label={text("实体种类", "Entity kind")} value={kind} onChange={(e) => { setKind(e.target.value as "" | EntityKind); setPage(1); }}>
-              <option value="">{text("全部种类", "All kinds")}</option><option value="business_object">{text("业务对象", "Business object")}</option><option value="builtin">{text("内置实体", "Built-in entity")}</option>
+            <input aria-label={text(zhCN.pagesObjectTypesPage.searchObjectTypes, "Search object types")} placeholder={text(zhCN.pagesObjectTypesPage.searchTypeOrTitle, "Search type or title")} value={keywordDraft} onChange={(e) => setKeywordDraft(e.target.value)} />
+            <select aria-label={text(zhCN.pagesObjectTypesPage.entityKind, "Entity kind")} value={kind} onChange={(e) => { setKind(e.target.value as "" | EntityKind); setPage(1); }}>
+              <option value="">{text(zhCN.pagesObjectTypesPage.allKinds, "All kinds")}</option><option value="business_object">{text(zhCN.pagesObjectTypesPage.businessObject, "Business object")}</option><option value="builtin">{text(zhCN.pagesObjectTypesPage.builtInEntity, "Built-in entity")}</option>
             </select>
-            <select aria-label={text("类型状态", "Type status")} value={status} onChange={(e) => { setStatus(e.target.value as "" | ObjectTypeStatus); setPage(1); }}>
-              <option value="">{text("全部状态", "All statuses")}</option><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option>
+            <select aria-label={text(zhCN.pagesObjectTypesPage.typeStatus, "Type status")} value={status} onChange={(e) => { setStatus(e.target.value as "" | ObjectTypeStatus); setPage(1); }}>
+              <option value="">{text(zhCN.pagesObjectTypesPage.allStatuses, "All statuses")}</option><option value="active">{text(zhCN.pagesObjectTypesPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesObjectTypesPage.archived, "Archived")}</option>
             </select>
-            <button className="button compact" type="submit">{text("筛选", "Filter")}</button>
+            <button className="button compact" type="submit">{text(zhCN.pagesObjectTypesPage.filter, "Filter")}</button>
           </form>
         </header>
         {changeStatus.isError && <div className="panel-error" role="alert">{apiErrorMessage(changeStatus.error)}</div>}
@@ -408,27 +409,27 @@ export function ObjectTypesPage() {
           loading={definitions.isPending}
           error={definitions.isError ? apiErrorMessage(definitions.error) : null}
           empty={Boolean(definitions.data && definitions.data.data.length === 0)}
-          emptyTitle={text("还没有对象类型", "No object types yet")}
-          emptyDescription={text("创建第一个类型后，可为其配置字段规则与业务规则。", "Create the first type to configure its field rules and business rules.")}
+          emptyTitle={text(zhCN.pagesObjectTypesPage.noObjectTypesYet, "No object types yet")}
+          emptyDescription={text(zhCN.pagesObjectTypesPage.createTheFirstTypeToConfigureItsFieldRules, "Create the first type to configure its field rules and business rules.")}
           onRetry={() => void definitions.refetch()}
         >
           {definitions.data && <>
             <div className="table-scroll"><table className="data-table configuration-table">
-              <thead><tr><th>{text("对象类型", "Object type")}</th><th>{text("种类", "Kind")}</th><th>{text("版本", "Version")}</th><th>{text("状态", "Status")}</th><th>{text("定义", "Definition")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+              <thead><tr><th>{text(zhCN.pagesObjectTypesPage.objectType, "Object type")}</th><th>{text(zhCN.pagesObjectTypesPage.kind, "Kind")}</th><th>{text(zhCN.pagesObjectTypesPage.version, "Version")}</th><th>{text(zhCN.pagesObjectTypesPage.status, "Status")}</th><th>{text(zhCN.pagesObjectTypesPage.definition, "Definition")}</th><th><span className="sr-only">{text(zhCN.pagesObjectTypesPage.actions, "Actions")}</span></th></tr></thead>
               <tbody>{definitions.data.data.map((item) => <tr key={item.id}>
                 <td><strong>{item.title || item.object_type}</strong><small className="mono-cell">{item.object_type}</small></td>
-                <td>{item.entity_kind === "builtin" ? text("内置实体", "Built-in entity") : text("业务对象", "Business object")}</td>
+                <td>{item.entity_kind === "builtin" ? text(zhCN.pagesObjectTypesPage.builtInEntity, "Built-in entity") : text(zhCN.pagesObjectTypesPage.businessObject, "Business object")}</td>
                 <td><span className="version-chip">v{item.version}</span></td>
                 <td><StatusBadge status={item.status} /></td>
-                <td><details><summary>{text("查看详细内容", "View details")}</summary><pre>{JSON.stringify(item.json_schema, null, 2)}</pre></details></td>
+                <td><details><summary>{text(zhCN.pagesObjectTypesPage.viewDetails, "View details")}</summary><pre>{JSON.stringify(item.json_schema, null, 2)}</pre></details></td>
                 <td className="row-actions">
-                  {canEditTypes && <><button className="text-action" type="button" onClick={() => openEdit(item)}>{text("编辑", "Edit")}</button>
+                  {canEditTypes && <><button className="text-action" type="button" onClick={() => openEdit(item)}>{text(zhCN.pagesObjectTypesPage.edit, "Edit")}</button>
                   <button
                     className={`text-action ${item.status === "active" ? "danger-text" : ""}`}
                     type="button"
                     disabled={changeStatus.isPending}
                     onClick={() => changeStatus.mutate({ id: item.id, status: item.status === "active" ? "archived" : "active" })}
-                  >{item.status === "active" ? text("归档", "Archive") : text("恢复", "Restore")}</button></>}
+                  >{item.status === "active" ? text(zhCN.pagesObjectTypesPage.archive, "Archive") : text(zhCN.pagesObjectTypesPage.restore, "Restore")}</button></>}
                 </td>
               </tr>)}</tbody>
             </table></div>
@@ -437,40 +438,40 @@ export function ObjectTypesPage() {
         </ListState>
       </section>
 
-      <section className="data-panel" aria-label={text("业务规则", "Business rules")}>
+      <section className="data-panel" aria-label={text(zhCN.pagesObjectTypesPage.businessRules, "Business rules")}>
         <header className="section-bar">
-          <div><strong>{text("业务规则", "Business rules")}</strong><small>{text("发布新版本会在同一事务里关闭上一版；agent 读取当前生效的版本。草稿可直接发布，生效版本可废止或改可见性，都不改一个字。", "Publishing a new version closes the previous one in the same transaction; agents read the version in force. A draft can be released as it stands, and a version in force repealed or re-scoped — none of it edits a word.")}</small></div>
+          <div><strong>{text(zhCN.pagesObjectTypesPage.businessRules, "Business rules")}</strong><small>{text(zhCN.pagesObjectTypesPage.publishingANewVersionClosesThePreviousOneIn, "Publishing a new version closes the previous one in the same transaction; agents read the version in force. A draft can be released as it stands, and a version in force repealed or re-scoped — none of it edits a word.")}</small></div>
           <div className="compact-filters">
-            <select aria-label={text("规则种类", "Rule kind")} value={ruleKind} onChange={(e) => { setRuleKind(e.target.value as RuleKind); setRulePage(1); }}>
+            <select aria-label={text(zhCN.pagesObjectTypesPage.ruleKind, "Rule kind")} value={ruleKind} onChange={(e) => { setRuleKind(e.target.value as RuleKind); setRulePage(1); }}>
               {RULE_KINDS.map((kind) => <option key={kind} value={kind}>{ruleKindLabel(kind, text)}</option>)}
             </select>
-            <label className="history-toggle"><input type="checkbox" checked={showHistory} onChange={(e) => { setShowHistory(e.target.checked); setRulePage(1); }} />{text("显示历史版本", "Show version history")}</label>
+            <label className="history-toggle"><input type="checkbox" checked={showHistory} onChange={(e) => { setShowHistory(e.target.checked); setRulePage(1); }} />{text(zhCN.pagesObjectTypesPage.showVersionHistory, "Show version history")}</label>
           </div>
         </header>
         <ListState
           loading={rules.isPending}
           error={rules.isError ? apiErrorMessage(rules.error) : null}
           empty={Boolean(rules.data && rules.data.data.length === 0)}
-          emptyTitle={text(`还没有${ruleKindLabel(ruleKind, text)}`, `No ${ruleKindLabel(ruleKind, text).toLocaleLowerCase()} yet`)}
+          emptyTitle={text(zhCN.pagesObjectTypesPage.noYet(`${ruleKindLabel(ruleKind, text)}`), `No ${ruleKindLabel(ruleKind, text).toLocaleLowerCase()} yet`)}
           emptyDescription={ruleKind === "policy"
-            ? text("制度由制度管理员通过 agent 起草并发布。", "Policies are drafted and published by the policy administrators through their agent.")
-            : text("发布后 agent 就按生效版本读取。", "Once published, agents read the version in force.")}
+            ? text(zhCN.pagesObjectTypesPage.policiesAreDraftedAndPublishedByThePolicyAdministrators, "Policies are drafted and published by the policy administrators through their agent.")
+            : text(zhCN.pagesObjectTypesPage.oncePublishedAgentsReadTheVersionInForce, "Once published, agents read the version in force.")}
           onRetry={() => void rules.refetch()}
         >
           {rules.data && <>
             <div className="table-scroll"><table className="data-table configuration-table">
-              <thead><tr><th>{text("适用于", "Applies to")}</th><th>{text("名称", "Name")}</th><th>{text("版本", "Version")}</th><th>{text("状态", "Status")}</th><th>{text("生效", "In force")}</th><th>{text("规则", "Rule")}</th><th>{text("发布人", "Published by")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+              <thead><tr><th>{text(zhCN.pagesObjectTypesPage.appliesTo, "Applies to")}</th><th>{text(zhCN.pagesObjectTypesPage.name, "Name")}</th><th>{text(zhCN.pagesObjectTypesPage.version, "Version")}</th><th>{text(zhCN.pagesObjectTypesPage.status, "Status")}</th><th>{text(zhCN.pagesObjectTypesPage.inForce, "In force")}</th><th>{text(zhCN.pagesObjectTypesPage.rule, "Rule")}</th><th>{text(zhCN.pagesObjectTypesPage.publishedBy, "Published by")}</th><th><span className="sr-only">{text(zhCN.pagesObjectTypesPage.actions, "Actions")}</span></th></tr></thead>
               <tbody>{rules.data.data.map((item) => <tr key={item.id}>
-                <td><strong>{item.object_type ?? item.code}</strong><small>{item.object_type ? (item.entity_kind === "builtin" ? text("内置实体", "Built-in entity") : text("业务对象", "Business object")) : item.category}</small></td>
+                <td><strong>{item.object_type ?? item.code}</strong><small>{item.object_type ? (item.entity_kind === "builtin" ? text(zhCN.pagesObjectTypesPage.builtInEntity, "Built-in entity") : text(zhCN.pagesObjectTypesPage.businessObject, "Business object")) : item.category}</small></td>
                 <td>{item.object_type ? item.name : item.title}</td><td><span className="version-chip">v{item.version}</span></td>
                 <td><StatusBadge status={item.status} /></td>
-                <td>{item.effective_from ?? "—"}{item.effective_thru ? ` ${text("至", "to")} ${item.effective_thru}` : ""}</td>
-                <td><details><summary>{text("查看规则", "View rule")}</summary><pre className="workflow-preview">{item.body}</pre></details></td>
+                <td>{item.effective_from ?? "—"}{item.effective_thru ? zhCN.pagesObjectTypesPage.template4(`${text(zhCN.pagesObjectTypesPage.to, "to")}`, `${item.effective_thru}`) : ""}</td>
+                <td><details><summary>{text(zhCN.pagesObjectTypesPage.viewRule, "View rule")}</summary><pre className="workflow-preview">{item.body}</pre></details></td>
                 <td className="mono-cell">{item.published_by || item.created_by || "—"}</td>
                 <td className="row-actions">
-                  {canActOn(item.kind) && item.status === "draft" && <button className="text-action" type="button" onClick={() => openAct("publish", item)}>{text("发布", "Publish")}</button>}
-                  {canActOn(item.kind) && item.status === "published" && <button className="text-action danger-text" type="button" onClick={() => openAct("repeal", item)}>{text("废止", "Repeal")}</button>}
-                  {canActOn(item.kind) && item.status !== "draft" && <button className="text-action" type="button" onClick={() => openAct("visibility", item)}>{text("可见性", "Visibility")}</button>}
+                  {canActOn(item.kind) && item.status === "draft" && <button className="text-action" type="button" onClick={() => openAct("publish", item)}>{text(zhCN.pagesObjectTypesPage.publish, "Publish")}</button>}
+                  {canActOn(item.kind) && item.status === "published" && <button className="text-action danger-text" type="button" onClick={() => openAct("repeal", item)}>{text(zhCN.pagesObjectTypesPage.repeal, "Repeal")}</button>}
+                  {canActOn(item.kind) && item.status !== "draft" && <button className="text-action" type="button" onClick={() => openAct("visibility", item)}>{text(zhCN.pagesObjectTypesPage.visibility, "Visibility")}</button>}
                 </td>
               </tr>)}</tbody>
             </table></div>
@@ -481,49 +482,49 @@ export function ObjectTypesPage() {
 
       <Drawer
         open={editing !== undefined}
-        title={editing ? text("编辑对象类型", "Edit object type") : text("定义对象类型", "Define object type")}
-        description={editing ? text(`${editing.object_type} · 当前 v${editing.version}`, `${editing.object_type} · current v${editing.version}`) : text("定义对象种类、字段规则与可选状态流程。", "Define the object kind, field rules, and an optional status flow.")}
-        submitLabel={editing ? text("保存定义", "Save definition") : text("创建定义", "Create definition")}
+        title={editing ? text(zhCN.pagesObjectTypesPage.editObjectType, "Edit object type") : text(zhCN.pagesObjectTypesPage.defineObjectType, "Define object type")}
+        description={editing ? text(zhCN.pagesObjectTypesPage.currentV(`${editing.object_type}`, `${editing.version}`), `${editing.object_type} · current v${editing.version}`) : text(zhCN.pagesObjectTypesPage.defineTheObjectKindFieldRulesAndAnOptional, "Define the object kind, field rules, and an optional status flow.")}
+        submitLabel={editing ? text(zhCN.pagesObjectTypesPage.saveDefinition, "Save definition") : text(zhCN.pagesObjectTypesPage.createDefinition, "Create definition")}
         busy={saveType.isPending}
         error={typeValidation || (saveType.isError ? apiErrorMessage(saveType.error) : null)}
         onClose={() => !saveType.isPending && setEditing(undefined)}
         onSubmit={submitType}
       >
         <div className="field-grid">
-          <div className="field"><label htmlFor="type-kind">{text("实体种类", "Entity kind")}</label><select id="type-kind" disabled={Boolean(editing)} value={typeDraft.entityKind} onChange={(e) => setTypeDraft({ ...typeDraft, entityKind: e.target.value as EntityKind })}><option value="business_object">{text("业务对象", "Business object")}</option><option value="builtin">{text("内置实体", "Built-in entity")}</option></select></div>
-          <div className="field"><label htmlFor="type-name">{text("对象类型", "Object type")} <b>*</b></label><input id="type-name" required disabled={Boolean(editing)} maxLength={100} value={typeDraft.objectType} onChange={(e) => setTypeDraft({ ...typeDraft, objectType: e.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="type-title">{text("显示标题", "Display title")}</label><input id="type-title" maxLength={200} value={typeDraft.title} onChange={(e) => setTypeDraft({ ...typeDraft, title: e.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="type-description">{text("说明", "Description")}</label><textarea id="type-description" rows={3} maxLength={2000} value={typeDraft.description} onChange={(e) => setTypeDraft({ ...typeDraft, description: e.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="type-schema">{text("字段规则", "Field rules")} <b>*</b></label><textarea id="type-schema" className="code-editor" rows={12} value={typeDraft.schema} onChange={(e) => setTypeDraft({ ...typeDraft, schema: e.target.value })} /></div>
-          <div className="field span-2"><label htmlFor="type-machine">{text("状态流程", "Status flow")} {typeDraft.entityKind === "builtin" && <b>*</b>}</label><textarea id="type-machine" className="code-editor" rows={9} placeholder={typeDraft.entityKind === "builtin" ? text("内置对象必须填写状态流程设置", "A status flow is required for built-in objects") : text("可选状态流程设置", "Optional status flow")} value={typeDraft.stateMachine} onChange={(e) => setTypeDraft({ ...typeDraft, stateMachine: e.target.value })} /></div>
+          <div className="field"><label htmlFor="type-kind">{text(zhCN.pagesObjectTypesPage.entityKind, "Entity kind")}</label><select id="type-kind" disabled={Boolean(editing)} value={typeDraft.entityKind} onChange={(e) => setTypeDraft({ ...typeDraft, entityKind: e.target.value as EntityKind })}><option value="business_object">{text(zhCN.pagesObjectTypesPage.businessObject, "Business object")}</option><option value="builtin">{text(zhCN.pagesObjectTypesPage.builtInEntity, "Built-in entity")}</option></select></div>
+          <div className="field"><label htmlFor="type-name">{text(zhCN.pagesObjectTypesPage.objectType, "Object type")} <b>*</b></label><input id="type-name" required disabled={Boolean(editing)} maxLength={100} value={typeDraft.objectType} onChange={(e) => setTypeDraft({ ...typeDraft, objectType: e.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="type-title">{text(zhCN.pagesObjectTypesPage.displayTitle, "Display title")}</label><input id="type-title" maxLength={200} value={typeDraft.title} onChange={(e) => setTypeDraft({ ...typeDraft, title: e.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="type-description">{text(zhCN.pagesObjectTypesPage.description, "Description")}</label><textarea id="type-description" rows={3} maxLength={2000} value={typeDraft.description} onChange={(e) => setTypeDraft({ ...typeDraft, description: e.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="type-schema">{text(zhCN.pagesObjectTypesPage.fieldRules, "Field rules")} <b>*</b></label><textarea id="type-schema" className="code-editor" rows={12} value={typeDraft.schema} onChange={(e) => setTypeDraft({ ...typeDraft, schema: e.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="type-machine">{text(zhCN.pagesObjectTypesPage.statusFlow, "Status flow")} {typeDraft.entityKind === "builtin" && <b>*</b>}</label><textarea id="type-machine" className="code-editor" rows={9} placeholder={typeDraft.entityKind === "builtin" ? text(zhCN.pagesObjectTypesPage.aStatusFlowIsRequiredForBuiltInObjects, "A status flow is required for built-in objects") : text(zhCN.pagesObjectTypesPage.optionalStatusFlow, "Optional status flow")} value={typeDraft.stateMachine} onChange={(e) => setTypeDraft({ ...typeDraft, stateMachine: e.target.value })} /></div>
         </div>
       </Drawer>
 
       <Drawer
         open={ruleOpen}
-        title={text("发布业务规则", "Publish business rule")}
-        description={text("发布即生效：新版本开始，上一版在同一事务里关闭；历史版本全部保留。", "Publishing takes effect at once: the new version starts and the previous one closes in the same transaction; every version is kept.")}
-        submitLabel={text("发布新版本", "Publish new version")}
+        title={text(zhCN.pagesObjectTypesPage.publishBusinessRule, "Publish business rule")}
+        description={text(zhCN.pagesObjectTypesPage.publishingTakesEffectAtOnceTheNewVersionStarts, "Publishing takes effect at once: the new version starts and the previous one closes in the same transaction; every version is kept.")}
+        submitLabel={text(zhCN.pagesObjectTypesPage.publishNewVersion, "Publish new version")}
         busy={publish.isPending}
         submitDisabled={!isPolicy && (ruleTargets.isPending || ruleTargets.isError || publishableTargets.length === 0)}
-        error={ruleValidation || (!isPolicy && ruleTargets.isError ? text("对象目录加载失败，请重试后再发布规则。", "The object directory could not be loaded. Retry before publishing the rule.") : publish.isError ? apiErrorMessage(publish.error) : null)}
+        error={ruleValidation || (!isPolicy && ruleTargets.isError ? text(zhCN.pagesObjectTypesPage.theObjectDirectoryCouldNotBeLoadedRetryBefore, "The object directory could not be loaded. Retry before publishing the rule.") : publish.isError ? apiErrorMessage(publish.error) : null)}
         onClose={() => !publish.isPending && setRuleOpen(false)}
         onSubmit={submitRule}
       >
         <div className="field-grid">
-          <div className="field"><label htmlFor="rule-kind">{text("规则种类", "Rule kind")}</label><select id="rule-kind" value={ruleDraft.kind} onChange={(e) => { setRuleDraft({ ...ruleDraft, kind: e.target.value as RuleKind }); setBodyTouched(false); }}>{[...(canPublishRules ? SCOPED_RULE_KINDS : []), ...(canPublishPolicies ? (["policy"] as RuleKind[]) : [])].map((kind) => <option key={kind} value={kind}>{ruleKindLabel(kind, text)}</option>)}</select></div>
+          <div className="field"><label htmlFor="rule-kind">{text(zhCN.pagesObjectTypesPage.ruleKind, "Rule kind")}</label><select id="rule-kind" value={ruleDraft.kind} onChange={(e) => { setRuleDraft({ ...ruleDraft, kind: e.target.value as RuleKind }); setBodyTouched(false); }}>{[...(canPublishRules ? SCOPED_RULE_KINDS : []), ...(canPublishPolicies ? (["policy"] as RuleKind[]) : [])].map((kind) => <option key={kind} value={kind}>{ruleKindLabel(kind, text)}</option>)}</select></div>
           {isPolicy ? <>
-            <div className="field"><label htmlFor="rule-code">{text("制度编号", "Policy code")} <b>*</b></label><input id="rule-code" required maxLength={50} placeholder="HR-001" value={ruleDraft.code} onChange={(e) => { setRuleDraft({ ...ruleDraft, code: e.target.value }); setBodyTouched(false); }} /><small>{text("沿用已有编号即发布它的下一版。", "Reusing a code publishes that policy's next version.")}</small></div>
-            <div className="field"><label htmlFor="rule-category">{text("分类", "Category")} <b>*</b></label><select id="rule-category" required value={ruleDraft.category} onChange={(e) => setRuleDraft({ ...ruleDraft, category: e.target.value })}><option value="">{text("选择分类", "Select a category")}</option>{(categories.data ?? []).filter((c) => c.is_active !== false).map((c) => <option key={c.id} value={c.name}>{c.title || c.name}</option>)}</select></div>
-            <div className="field"><label htmlFor="rule-title">{text("标题", "Title")} <b>*</b></label><input id="rule-title" required maxLength={200} value={ruleDraft.title} onChange={(e) => setRuleDraft({ ...ruleDraft, title: e.target.value })} /></div>
-            <div className="field"><label htmlFor="rule-effective">{text("生效日", "In force from")}</label><input id="rule-effective" type="date" value={ruleDraft.effectiveFrom} onChange={(e) => setRuleDraft({ ...ruleDraft, effectiveFrom: e.target.value })} /><small>{text("留空即今天；上一版在前一天关闭。", "Empty means today; the previous version closes the day before.")}</small></div>
+            <div className="field"><label htmlFor="rule-code">{text(zhCN.pagesObjectTypesPage.policyCode, "Policy code")} <b>*</b></label><input id="rule-code" required maxLength={50} placeholder="HR-001" value={ruleDraft.code} onChange={(e) => { setRuleDraft({ ...ruleDraft, code: e.target.value }); setBodyTouched(false); }} /><small>{text(zhCN.pagesObjectTypesPage.reusingACodePublishesThatPolicySNextVersion, "Reusing a code publishes that policy's next version.")}</small></div>
+            <div className="field"><label htmlFor="rule-category">{text(zhCN.pagesObjectTypesPage.category, "Category")} <b>*</b></label><select id="rule-category" required value={ruleDraft.category} onChange={(e) => setRuleDraft({ ...ruleDraft, category: e.target.value })}><option value="">{text(zhCN.pagesObjectTypesPage.selectACategory, "Select a category")}</option>{(categories.data ?? []).filter((c) => c.is_active !== false).map((c) => <option key={c.id} value={c.name}>{c.title || c.name}</option>)}</select></div>
+            <div className="field"><label htmlFor="rule-title">{text(zhCN.pagesObjectTypesPage.title, "Title")} <b>*</b></label><input id="rule-title" required maxLength={200} value={ruleDraft.title} onChange={(e) => setRuleDraft({ ...ruleDraft, title: e.target.value })} /></div>
+            <div className="field"><label htmlFor="rule-effective">{text(zhCN.pagesObjectTypesPage.inForceFrom, "In force from")}</label><input id="rule-effective" type="date" value={ruleDraft.effectiveFrom} onChange={(e) => setRuleDraft({ ...ruleDraft, effectiveFrom: e.target.value })} /><small>{text(zhCN.pagesObjectTypesPage.emptyMeansTodayThePreviousVersionClosesTheDay, "Empty means today; the previous version closes the day before.")}</small></div>
           </> : <>
-          <div className="field"><label htmlFor="rule-name">{text("规则名称", "Rule name")}</label><input id="rule-name" maxLength={100} value={ruleDraft.name} onChange={(e) => { setRuleDraft({ ...ruleDraft, name: e.target.value }); setBodyTouched(false); }} /></div>
-          <div className="field span-2"><label htmlFor="rule-type">{text("对象类型", "Object type")} <b>*</b></label><select id="rule-type" required disabled={ruleTargets.isPending || ruleTargets.isError} value={ruleDraft.objectType ? `${ruleDraft.entityKind}:${ruleDraft.objectType}` : ""} onChange={(e) => { const selected = publishableTargets.find((target) => `${target.entity_kind}:${target.object_type}` === e.target.value); if (selected) { setRuleDraft({ ...ruleDraft, entityKind: selected.entity_kind, objectType: selected.object_type }); setBodyTouched(false); } }}><option value="">{text("选择已知对象类型", "Select a known object type")}</option><optgroup label={text("内置实体", "Built-in entities")}>{publishableTargets.filter((target) => target.entity_kind === "builtin").map((target) => <option key={`builtin:${target.object_type}`} value={`builtin:${target.object_type}`}>{text(`${target.title || target.object_type}（${target.count} 条）`, `${target.title || target.object_type} (${target.count} records)`)}</option>)}</optgroup><optgroup label={text("业务对象", "Business objects")}>{publishableTargets.filter((target) => target.entity_kind === "business_object").map((target) => <option key={`business_object:${target.object_type}`} value={`business_object:${target.object_type}`}>{text(`${target.title || target.object_type}（${target.count} 条）`, `${target.title || target.object_type} (${target.count} records)`)}</option>)}</optgroup></select>{ruleTargets.isPending && <small>{text("正在加载对象目录…", "Loading object directory…")}</small>}{ruleTargets.isError && <small className="field-error">{text("对象目录不可用。", "Object directory is unavailable.")}<button className="inline-retry" type="button" onClick={() => void ruleTargets.refetch()}>{text("重试", "Retry")}</button></small>}</div>
+          <div className="field"><label htmlFor="rule-name">{text(zhCN.pagesObjectTypesPage.ruleName, "Rule name")}</label><input id="rule-name" maxLength={100} value={ruleDraft.name} onChange={(e) => { setRuleDraft({ ...ruleDraft, name: e.target.value }); setBodyTouched(false); }} /></div>
+          <div className="field span-2"><label htmlFor="rule-type">{text(zhCN.pagesObjectTypesPage.objectType, "Object type")} <b>*</b></label><select id="rule-type" required disabled={ruleTargets.isPending || ruleTargets.isError} value={ruleDraft.objectType ? `${ruleDraft.entityKind}:${ruleDraft.objectType}` : ""} onChange={(e) => { const selected = publishableTargets.find((target) => `${target.entity_kind}:${target.object_type}` === e.target.value); if (selected) { setRuleDraft({ ...ruleDraft, entityKind: selected.entity_kind, objectType: selected.object_type }); setBodyTouched(false); } }}><option value="">{text(zhCN.pagesObjectTypesPage.selectAKnownObjectType, "Select a known object type")}</option><optgroup label={text(zhCN.pagesObjectTypesPage.builtInEntity, "Built-in entities")}>{publishableTargets.filter((target) => target.entity_kind === "builtin").map((target) => <option key={`builtin:${target.object_type}`} value={`builtin:${target.object_type}`}>{text(zhCN.pagesObjectTypesPage.records(`${target.title || target.object_type}`, `${target.count}`), `${target.title || target.object_type} (${target.count} records)`)}</option>)}</optgroup><optgroup label={text(zhCN.pagesObjectTypesPage.businessObject, "Business objects")}>{publishableTargets.filter((target) => target.entity_kind === "business_object").map((target) => <option key={`business_object:${target.object_type}`} value={`business_object:${target.object_type}`}>{text(zhCN.pagesObjectTypesPage.records(`${target.title || target.object_type}`, `${target.count}`), `${target.title || target.object_type} (${target.count} records)`)}</option>)}</optgroup></select>{ruleTargets.isPending && <small>{text(zhCN.pagesObjectTypesPage.loadingObjectDirectory, "Loading object directory…")}</small>}{ruleTargets.isError && <small className="field-error">{text(zhCN.pagesObjectTypesPage.objectDirectoryIsUnavailable, "Object directory is unavailable.")}<button className="inline-retry" type="button" onClick={() => void ruleTargets.refetch()}>{text(zhCN.pagesObjectTypesPage.retry, "Retry")}</button></small>}</div>
           </>}
-          <div className="field span-2"><label htmlFor="rule-body">{text("规则正文", "Rule text")} <b>*</b></label><textarea id="rule-body" className="code-editor" rows={14} required value={ruleDraft.body} onChange={(e) => { setRuleDraft({ ...ruleDraft, body: e.target.value }); setBodyTouched(true); }} placeholder={ruleKindPlaceholder(ruleDraft.kind, text)} /><small>{ruleKindHint(ruleDraft.kind, text)}{currentRule && !currentIsDraft && <> {text(`已载入当前生效的 v${currentRule.version}；发布后成为 v${currentRule.version + 1}。`, `Loaded v${currentRule.version}, now in force; publishing makes it v${currentRule.version + 1}.`)}</>}{currentRule && currentIsDraft && <> {text(`已载入${currentRule.origin === "catalog" ? "出厂" : ""}草稿 v${currentRule.version}（尚未生效）；读一遍，改掉不是你们的句子，发布后即为 v${currentRule.version}。`, `Loaded the ${currentRule.origin === "catalog" ? "seeded " : ""}draft v${currentRule.version} (not in force); read it, change what is not yours, and publishing makes it v${currentRule.version}.`)}</>}</small></div>
-          {diff && currentRule && <div className="field span-2 rule-diff" role="status" aria-label={text("与当前版本的差异", "Difference from the current version")}>
-            <small>{text(`相对${currentIsDraft ? "草稿" : ""} v${currentRule.version}：删去 ${diff.removed.length} 行，新增 ${diff.added.length} 行。`, `Against ${currentIsDraft ? "draft " : ""}v${currentRule.version}: ${diff.removed.length} line(s) removed, ${diff.added.length} added.`)}{replacesEverything && <strong className="field-error"> {text("这会整篇替换当前版本——只是加一条规则的话，请保留原文。", "This replaces the whole current version — to add one rule, keep the existing text.")}</strong>}</small>
+          <div className="field span-2"><label htmlFor="rule-body">{text(zhCN.pagesObjectTypesPage.ruleText, "Rule text")} <b>*</b></label><textarea id="rule-body" className="code-editor" rows={14} required value={ruleDraft.body} onChange={(e) => { setRuleDraft({ ...ruleDraft, body: e.target.value }); setBodyTouched(true); }} placeholder={ruleKindPlaceholder(ruleDraft.kind, text)} /><small>{ruleKindHint(ruleDraft.kind, text)}{currentRule && !currentIsDraft && <> {text(zhCN.pagesObjectTypesPage.loadedVNowInForcePublishingMakesItV(`${currentRule.version}`, `${currentRule.version + 1}`), `Loaded v${currentRule.version}, now in force; publishing makes it v${currentRule.version + 1}.`)}</>}{currentRule && currentIsDraft && <> {text(zhCN.pagesObjectTypesPage.loadedTheDraftVNotInForceReadIt(`${currentRule.origin === "catalog" ? zhCN.pagesObjectTypesPage.message : ""}`, `${currentRule.version}`, `${currentRule.version}`), `Loaded the ${currentRule.origin === "catalog" ? "seeded " : ""}draft v${currentRule.version} (not in force); read it, change what is not yours, and publishing makes it v${currentRule.version}.`)}</>}</small></div>
+          {diff && currentRule && <div className="field span-2 rule-diff" role="status" aria-label={text(zhCN.pagesObjectTypesPage.differenceFromTheCurrentVersion, "Difference from the current version")}>
+            <small>{text(zhCN.pagesObjectTypesPage.againstVLineSRemovedAdded(`${currentIsDraft ? zhCN.pagesObjectTypesPage.draft : ""}`, `${currentRule.version}`, `${diff.removed.length}`, `${diff.added.length}`), `Against ${currentIsDraft ? "draft " : ""}v${currentRule.version}: ${diff.removed.length} line(s) removed, ${diff.added.length} added.`)}{replacesEverything && <strong className="field-error"> {text(zhCN.pagesObjectTypesPage.thisReplacesTheWholeCurrentVersionToAddOne, "This replaces the whole current version — to add one rule, keep the existing text.")}</strong>}</small>
             {diff.removed.length > 0 && <pre className="workflow-preview rule-diff-removed">{diff.removed.map((line) => `- ${line}`).join("\n")}</pre>}
             {diff.added.length > 0 && <pre className="workflow-preview rule-diff-added">{diff.added.map((line) => `+ ${line}`).join("\n")}</pre>}
           </div>}
@@ -532,23 +533,23 @@ export function ObjectTypesPage() {
 
       <Drawer
         open={act !== null}
-        title={act?.action === "publish" ? text("发布草稿", "Publish draft") : act?.action === "repeal" ? text("废止规则", "Repeal rule") : text("更改可见性", "Change visibility")}
+        title={act?.action === "publish" ? text(zhCN.pagesObjectTypesPage.publishDraft, "Publish draft") : act?.action === "repeal" ? text(zhCN.pagesObjectTypesPage.repealRule, "Repeal rule") : text(zhCN.pagesObjectTypesPage.changeVisibility, "Change visibility")}
         description={act ? text(`${ruleKindLabel(act.rule.kind, text)} · ${act.rule.object_type ?? act.rule.code} · v${act.rule.version}`, `${ruleKindLabel(act.rule.kind, text)} · ${act.rule.object_type ?? act.rule.code} · v${act.rule.version}`) : ""}
-        submitLabel={act?.action === "publish" ? text("发布", "Publish") : act?.action === "repeal" ? text("废止", "Repeal") : text("保存可见性", "Save visibility")}
+        submitLabel={act?.action === "publish" ? text(zhCN.pagesObjectTypesPage.publish, "Publish") : act?.action === "repeal" ? text(zhCN.pagesObjectTypesPage.repeal, "Repeal") : text(zhCN.pagesObjectTypesPage.saveVisibility, "Save visibility")}
         busy={perform.isPending}
         error={perform.isError ? apiErrorMessage(perform.error) : null}
         onClose={() => !perform.isPending && setAct(null)}
         onSubmit={submitAct}
       >
         {act && <div className="field-grid">
-          {act.action === "publish" && <div className="field span-2"><label htmlFor="act-effective">{text("生效日", "In force from")}</label><input id="act-effective" type="date" value={act.effectiveFrom} onChange={(e) => setAct({ ...act, effectiveFrom: e.target.value })} /><small>{text("留空即今天；上一版在前一天关闭。发布的是草稿现在的文字——请先读一遍。", "Empty means today; the previous version closes the day before. What publishes is the draft's text as it stands — read it first.")}</small></div>}
-          {act.action === "repeal" && <div className="field span-2"><label htmlFor="act-thru">{text("停止适用日", "Stops applying on")}</label><input id="act-thru" type="date" value={act.effectiveThru} onChange={(e) => setAct({ ...act, effectiveThru: e.target.value })} /><small>{text("留空即今天。废止不是删除：按日期仍可读到它曾经的规定。", "Empty means today. Repealing is not deleting: what it said stays readable by date.")}</small></div>}
+          {act.action === "publish" && <div className="field span-2"><label htmlFor="act-effective">{text(zhCN.pagesObjectTypesPage.inForceFrom, "In force from")}</label><input id="act-effective" type="date" value={act.effectiveFrom} onChange={(e) => setAct({ ...act, effectiveFrom: e.target.value })} /><small>{text(zhCN.pagesObjectTypesPage.emptyMeansTodayThePreviousVersionClosesTheDay2, "Empty means today; the previous version closes the day before. What publishes is the draft's text as it stands — read it first.")}</small></div>}
+          {act.action === "repeal" && <div className="field span-2"><label htmlFor="act-thru">{text(zhCN.pagesObjectTypesPage.stopsApplyingOn, "Stops applying on")}</label><input id="act-thru" type="date" value={act.effectiveThru} onChange={(e) => setAct({ ...act, effectiveThru: e.target.value })} /><small>{text(zhCN.pagesObjectTypesPage.emptyMeansTodayRepealingIsNotDeletingWhatIt, "Empty means today. Repealing is not deleting: what it said stays readable by date.")}</small></div>}
           {act.action === "visibility" && <>
-            <div className="field"><label htmlFor="act-visibility">{text("可见性", "Visibility")}</label><select id="act-visibility" value={act.visibility} onChange={(e) => setAct({ ...act, visibility: e.target.value as "internal" | "restricted" | "public" })}><option value="internal">{text("工作区内可读", "Anyone in the workspace")}</option><option value="restricted">{text("仅持有某能力者可读", "Holders of a capability only")}</option><option value="public">{text("公开", "Public")}</option></select></div>
-            {act.visibility === "restricted" && <div className="field"><label htmlFor="act-capability">{text("所需能力", "Required capability")} <b>*</b></label><input id="act-capability" required placeholder="payroll.read" value={act.requiredCapability} onChange={(e) => setAct({ ...act, requiredCapability: e.target.value })} /></div>}
-            <small className="span-2">{text("只改谁能读，不改一个字；被替代和已废止的版本同样适用。", "Changes who may read it and not a word of it; superseded and repealed versions too.")}</small>
+            <div className="field"><label htmlFor="act-visibility">{text(zhCN.pagesObjectTypesPage.visibility, "Visibility")}</label><select id="act-visibility" value={act.visibility} onChange={(e) => setAct({ ...act, visibility: e.target.value as "internal" | "restricted" | "public" })}><option value="internal">{text(zhCN.pagesObjectTypesPage.anyoneInTheWorkspace, "Anyone in the workspace")}</option><option value="restricted">{text(zhCN.pagesObjectTypesPage.holdersOfACapabilityOnly, "Holders of a capability only")}</option><option value="public">{text(zhCN.pagesObjectTypesPage.public, "Public")}</option></select></div>
+            {act.visibility === "restricted" && <div className="field"><label htmlFor="act-capability">{text(zhCN.pagesObjectTypesPage.requiredCapability, "Required capability")} <b>*</b></label><input id="act-capability" required placeholder="payroll.read" value={act.requiredCapability} onChange={(e) => setAct({ ...act, requiredCapability: e.target.value })} /></div>}
+            <small className="span-2">{text(zhCN.pagesObjectTypesPage.changesWhoMayReadItAndNotAWord, "Changes who may read it and not a word of it; superseded and repealed versions too.")}</small>
           </>}
-          <div className="field span-2"><label htmlFor="act-note">{text("备注", "Note")}</label><input id="act-note" maxLength={500} value={act.note} onChange={(e) => setAct({ ...act, note: e.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="act-note">{text(zhCN.pagesObjectTypesPage.note, "Note")}</label><input id="act-note" maxLength={500} value={act.note} onChange={(e) => setAct({ ...act, note: e.target.value })} /></div>
         </div>}
       </Drawer>
     </div>

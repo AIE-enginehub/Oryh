@@ -1,6 +1,6 @@
 ---
 name: oryh-leave-submit
-description: Use when a person's agent checks their own leave balance or files, amends, withdraws or submits their OWN 请假 in oryh — "我还有几天年假"、"下周三请一天假"、"上午请半天". Computes the balance from the published leave policy. Requester's facts only; approving and routing belong to other roles.
+description: Use when a person's agent checks their own leave balance or files, amends, withdraws or submits their OWN leave in oryh — "how much annual leave do I have", "request one day off next Wednesday", "request a half-day off in the morning". Computes the balance from the published leave policy. Requester's facts only; approving and routing belong to other roles.
 required_capability: leave.submit_own
 ---
 
@@ -141,3 +141,6 @@ POST /employee-leaves
 
 - [references/api.md](references/api.md): every call, the filters that make the
   balance one query, and the states.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

@@ -13,6 +13,13 @@ product map refusing a source nobody registered.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_sales_channels.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -36,25 +43,25 @@ def market():
 
 def test_the_code_is_the_key_and_an_archived_channel_revives(market) -> None:
     client, admin = market["client"], market["admin"]
-    amazon = market["channel"]("  Amazon ", "亚马逊")
+    amazon = market["channel"]("  Amazon ", _ZH_TEXT['TEXT_6D37FEDA49A46792'])
     assert amazon["channel_code"] == "amazon", "the key lowercases like every source"
 
     doubled = client.post("/api/v1/sales-channels", headers=admin, json={
-        "channel_code": "AMAZON", "name": "亚马逊北美", "channel_kind": "marketplace"})
+        "channel_code": "AMAZON", "name": _ZH_TEXT['TEXT_DBA75256129E11E0'], "channel_kind": "marketplace"})
     assert doubled.status_code == 409 and amazon["id"] in doubled.json()["detail"], \
         "one code is one channel — the refusal hands over the row"
 
     same_name = client.post("/api/v1/sales-channels", headers=admin, json={
-        "channel_code": "jd", "name": "亚马逊", "channel_kind": "marketplace"})
+        "channel_code": "jd", "name": _ZH_TEXT['TEXT_6D37FEDA49A46792'], "channel_kind": "marketplace"})
     assert same_name.status_code == 409, "two live channels cannot share a name"
 
     odd_kind = client.post("/api/v1/sales-channels", headers=admin, json={
-        "channel_code": "shop", "name": "小程序", "channel_kind": "telepathy"})
+        "channel_code": "shop", "name": _ZH_TEXT['TEXT_68FBA79B8508F2AB'], "channel_kind": "telepathy"})
     assert odd_kind.status_code == 422, "the kind comes from the tenant's vocabulary"
 
     assert client.delete(f"/api/v1/sales-channels/{amazon['id']}", headers=admin).status_code == 204
     still = client.post("/api/v1/sales-channels", headers=admin, json={
-        "channel_code": "amazon", "name": "亚马逊", "channel_kind": "marketplace"})
+        "channel_code": "amazon", "name": _ZH_TEXT['TEXT_6D37FEDA49A46792'], "channel_kind": "marketplace"})
     assert still.status_code == 409 and amazon["id"] in still.json()["detail"], \
         "archiving does not free the code — the refusal names the row to revive"
     revived = client.patch(f"/api/v1/sales-channels/{amazon['id']}", headers=admin,
@@ -72,7 +79,7 @@ def test_the_code_is_the_key_and_an_archived_channel_revives(market) -> None:
 
 def test_two_stores_hang_under_one_channel(market) -> None:
     client, admin = market["client"], market["admin"]
-    amazon = market["channel"]("amazon", "亚马逊")
+    amazon = market["channel"]("amazon", _ZH_TEXT['TEXT_6D37FEDA49A46792'])
 
     by_code = client.post("/api/v1/stores", headers=admin, json={
         "name": "Amazon US", "channel": "online", "source": "Amazon"})
@@ -81,7 +88,7 @@ def test_two_stores_hang_under_one_channel(market) -> None:
         "name": "Amazon EU", "channel": "online", "sales_channel_id": amazon["id"]})
     assert by_id.status_code == 201, by_id.text
     for store in (by_code.json()["data"], by_id.json()["data"]):
-        assert store["source"] == "amazon" and store["sales_channel_name"] == "亚马逊", \
+        assert store["source"] == "amazon" and store["sales_channel_name"] == _ZH_TEXT['TEXT_6D37FEDA49A46792'], \
             "a store read says its channel by key and by name, no second query"
 
     under = client.get("/api/v1/stores", headers=admin, params={"source": "AMAZON"})

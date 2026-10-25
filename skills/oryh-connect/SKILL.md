@@ -1,6 +1,6 @@
 ---
 name: oryh-connect
-description: Use to connect a person's agent to a company's oryh — first run on a new machine ("连接 oryh"、"登录 oryh"), adding a second employer, or after any oryh skill hits 401. Opens the sign-in page, then installs that company's bundle with a fresh device key. The only oryh skill that works before login.
+description: Use to connect a person's agent to a company's oryh — first run on a new machine ("connect oryh", "sign in oryh"), adding a second employer, or after any oryh skill hits 401. Opens the sign-in page, then installs that company's bundle with a fresh device key. The only oryh skill that works before login.
 ---
 
 # Oryh Connect
@@ -245,3 +245,6 @@ keys live in their own tenant.
 ## Reference
 
 - [references/api.md](references/api.md): exact endpoints and response shapes.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

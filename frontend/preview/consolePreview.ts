@@ -1,3 +1,5 @@
+import { zhAttributes } from "../src/locales/zh-CN/attributes";
+import { zhCN } from "../src/locales/zh-CN/preview";
 import type { Plugin } from "vite";
 import type { IncomingMessage } from "node:http";
 
@@ -29,12 +31,12 @@ const permissions = [
 function samples(): Record<string, Sample[]> {
   return {
     customers: [
-      ["上海远川机电有限公司", "张明", "上海 · 浦东新区"],
-      ["苏州青禾精密制造", "陈悦", "江苏 · 苏州工业园区"],
-      ["杭州知行智能科技", "李安", "浙江 · 杭州滨江区"],
-      ["宁波同源设备有限公司", "周宁", "浙江 · 宁波鄞州区"],
-      ["无锡新原工业设计", "林晓", "江苏 · 无锡新吴区"],
-      ["成都川谷电子科技", "赵青", "四川 · 成都高新区"],
+      [zhCN.previewConsolePreview.message, zhCN.previewConsolePreview.message2, zhCN.previewConsolePreview.message3],
+      [zhCN.previewConsolePreview.message4, zhCN.previewConsolePreview.message5, zhCN.previewConsolePreview.message6],
+      [zhCN.previewConsolePreview.message7, zhCN.previewConsolePreview.message8, zhCN.previewConsolePreview.message9],
+      [zhCN.previewConsolePreview.message10, zhCN.previewConsolePreview.message11, zhCN.previewConsolePreview.message12],
+      [zhCN.previewConsolePreview.message13, zhCN.previewConsolePreview.message14, zhCN.previewConsolePreview.message15],
+      [zhCN.previewConsolePreview.message16, zhCN.previewConsolePreview.message17, zhCN.previewConsolePreview.message18],
     ].map(([name, contact, address], i) =>
       record(`customer-${i + 1}`, {
         name,
@@ -47,81 +49,81 @@ function samples(): Record<string, Sample[]> {
         status: i === 5 ? "archived" : "active",
       }),
     ),
-    vendors: ["昆山合力精工", "上海联泽供应链", "宁波森远材料"].map((name, i) =>
+    vendors: [zhCN.previewConsolePreview.message19, zhCN.previewConsolePreview.message20, zhCN.previewConsolePreview.message21].map((name, i) =>
       record(`vendor-${i + 1}`, {
         name,
         vendor_code: `VEN-00${i + 1}`,
-        contact: ["王工", "陈经理", "郑工"][i],
+        contact: [zhCN.previewConsolePreview.message22, zhCN.previewConsolePreview.message23, zhCN.previewConsolePreview.message24][i],
         email: `vendor${i + 1}@example.com`,
         phone: null,
         tax_id: null,
       }),
     ),
-    projects: ["远川自动化产线升级", "青禾精密零件交付", "知行设备试制"].map(
+    projects: [zhCN.previewConsolePreview.message25, zhCN.previewConsolePreview.message26, zhCN.previewConsolePreview.message27].map(
       (project_name, i) =>
         record(`project-${i + 1}`, {
           project_name,
           project_code: `PRJ-2026-00${i + 1}`,
           client: [
-            "上海远川机电有限公司",
-            "苏州青禾精密制造",
-            "杭州知行智能科技",
+            zhCN.previewConsolePreview.message,
+            zhCN.previewConsolePreview.message4,
+            zhCN.previewConsolePreview.message7,
           ][i],
           start_date: "2026-08-01",
           end_date: "2026-12-31",
         }),
     ),
     products: [
-      "精密定位模组",
-      "工业视觉传感器",
-      "轻型装配支架",
-      "标准连接组件",
+      zhCN.previewConsolePreview.message28,
+      zhCN.previewConsolePreview.message29,
+      zhCN.previewConsolePreview.message30,
+      zhCN.previewConsolePreview.message31,
     ].map((name, i) =>
       record(`product-${i + 1}`, {
         name,
         product_code: `PRD-00${i + 1}`,
         spec: [
-          "行程 200 mm / 精度 0.02 mm",
-          "500 万像素 / 千兆以太网",
-          "铝合金 / 可调式",
-          "不锈钢 / M8",
+          zhCN.previewConsolePreview.message32,
+          zhCN.previewConsolePreview.message33,
+          zhCN.previewConsolePreview.message34,
+          zhCN.previewConsolePreview.message35,
         ][i],
-        unit: "件",
+        unit: zhCN.previewConsolePreview.unit,
         list_price: [2800, 1600, 380, 45][i],
         currency: "CNY",
         has_skus: i === 0,
         sku_count: i === 0 ? 2 : 0,
       }),
     ),
-    "product-skus": ["标准版", "增强版"].map((name, i) =>
+    "product-skus": [zhCN.previewConsolePreview.message36, zhCN.previewConsolePreview.message37].map((name, i) =>
       record(`sku-${i + 1}`, {
         product_id: "product-1",
         sku_code: `PRD-001-${i + 1}`,
-        variant_attrs: { 版本: name },
+        variant_attrs: { [zhAttributes.version]: name },
         list_price: 2800 + i * 600,
       }),
     ),
     resources: [
       record("resource-1", {
-        name: "青禾会议室",
+        name: zhCN.previewConsolePreview.name,
         code: "ROOM-01",
         resource_type: "meeting_room",
-        location: "上海办公室 · 3F",
+        location: zhCN.previewConsolePreview.location,
         capacity: 12,
         booking_mode: "exclusive",
         max_quantity: null,
       }),
       record("resource-2", {
-        name: "便携式检测仪",
+        name: zhCN.previewConsolePreview.name2,
         code: "EQ-01",
         resource_type: "equipment",
-        location: "样品实验室",
+        location: zhCN.previewConsolePreview.location2,
         capacity: null,
         booking_mode: "shared",
         max_quantity: 3,
       }),
     ],
-    employees: ["林晓", "陈悦", "周宁", "李安"].map((name, i) =>
+    employees: [zhCN.previewConsolePreview.message14, zhCN.previewConsolePreview.message5, zhCN.previewConsolePreview.message11, zhCN.previewConsolePreview.message8].map((name, i) =>
       record(`employee-${i + 1}`, {
         name,
         employee_code: `EMP-00${i + 1}`,
@@ -130,7 +132,7 @@ function samples(): Record<string, Sample[]> {
         hire_date: "2026-07-01",
       }),
     ),
-    "auth/users": ["林晓", "陈悦", "周宁", "李安"].map((name, i) =>
+    "auth/users": [zhCN.previewConsolePreview.message14, zhCN.previewConsolePreview.message5, zhCN.previewConsolePreview.message11, zhCN.previewConsolePreview.message8].map((name, i) =>
       record(`user-${i + 1}`, {
         name,
         tenant_id: "preview-tenant",
@@ -145,24 +147,24 @@ function samples(): Record<string, Sample[]> {
       record("role-admin", {
         tenant_id: "preview-tenant",
         name: "admin",
-        title: "管理员",
-        description: "维护企业工作空间、团队权限和业务资料",
+        title: zhCN.previewConsolePreview.title,
+        description: zhCN.previewConsolePreview.description,
         permissions,
         is_system: true,
       }),
       record("role-member", {
         tenant_id: "preview-tenant",
         name: "member",
-        title: "团队成员",
-        description: "查看自己的工作项并完成待办",
+        title: zhCN.previewConsolePreview.title2,
+        description: zhCN.previewConsolePreview.description2,
         permissions: ["todos.complete_own"],
         is_system: true,
       }),
     ],
     todos: [
       record("todo-1", {
-        title: "确认远川项目的报价明细",
-        description: "销售报价已准备，请核对产品规格与交付日期。",
+        title: zhCN.previewConsolePreview.title3,
+        description: zhCN.previewConsolePreview.description3,
         employee_id: "employee-1",
         entity_type: "sales_quotation",
         entity_id: "quote-1",
@@ -171,8 +173,8 @@ function samples(): Record<string, Sample[]> {
         created_by: "user:user-1",
       }),
       record("todo-2", {
-        title: "补充青禾供应商的开票资料",
-        description: "采购前完成供应商信息核对。",
+        title: zhCN.previewConsolePreview.title4,
+        description: zhCN.previewConsolePreview.description4,
         employee_id: "employee-2",
         entity_type: "purchase_request",
         entity_id: "purchase-1",
@@ -181,8 +183,8 @@ function samples(): Record<string, Sample[]> {
         created_by: "user:user-1",
       }),
       record("todo-3", {
-        title: "复核本月样品检测费用",
-        description: "检查费用说明与原始凭证。",
+        title: zhCN.previewConsolePreview.title5,
+        description: zhCN.previewConsolePreview.description5,
         employee_id: "employee-1",
         entity_type: "expense_claim",
         entity_id: "expense-1",
@@ -191,8 +193,8 @@ function samples(): Record<string, Sample[]> {
         created_by: "user:user-2",
       }),
       record("todo-4", {
-        title: "确认知行试制项目里程碑",
-        description: "同步验收范围与项目负责人。",
+        title: zhCN.previewConsolePreview.title6,
+        description: zhCN.previewConsolePreview.description6,
         employee_id: "employee-3",
         entity_type: "project",
         entity_id: "project-3",
@@ -292,7 +294,7 @@ export function consolePreview(): Plugin {
               user: data["auth/users"][0],
               tenant: {
                 id: "preview-tenant",
-                name: "青禾制造 · 示例",
+                name: zhCN.previewConsolePreview.name3,
                 email_domain: "example.com",
               },
               role: "admin",
@@ -365,7 +367,7 @@ export function consolePreview(): Plugin {
             .find((key) => path === key || path.startsWith(`${key}/`));
           if (!collection)
             return fail(
-              "此功能未配置本地样例。Preview data is not configured for this action.",
+              zhCN.previewConsolePreview.message38,
             );
           const id =
             path === collection ? null : path.slice(collection.length + 1);
@@ -425,7 +427,7 @@ export function consolePreview(): Plugin {
           ];
           if (!editable.includes(collection))
             return fail(
-              "本地预览仅支持主数据 CRUD 和完成待办。Preview supports master data CRUD and to-do completion.",
+              zhCN.previewConsolePreview.message39,
               405,
             );
           if (method === "POST" && !id) {
@@ -452,7 +454,7 @@ export function consolePreview(): Plugin {
           }
           return fail("Action unavailable in local preview", 405);
         } catch {
-          return fail("本地样例请求格式无效。Invalid preview request.", 400);
+          return fail(zhCN.previewConsolePreview.message40, 400);
         }
       });
     },

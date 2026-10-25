@@ -11,6 +11,13 @@ all.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_audit_trail.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import provision_tenant
@@ -48,7 +55,7 @@ def test_editing_master_data_records_before_and_after(client, service_headers):
     created = client.post(
         "/api/v1/products",
         headers=service_headers,
-        json={"name": "Bench Lamp", "unit": "件"},
+        json={"name": "Bench Lamp", "unit": _ZH_TEXT['TEXT_7C00255577088EC9']},
     )
     assert created.status_code == 201, created.text
     product_id = created.json()["data"]["id"]
@@ -87,7 +94,7 @@ def test_the_entry_names_the_credential_that_made_the_change(client, service_hea
 def test_a_price_change_is_answerable(client, service_headers):
     """The question the report was really about: who changed this, from what."""
     product = client.post(
-        "/api/v1/products", headers=service_headers, json={"name": "Priced Thing", "unit": "件"}
+        "/api/v1/products", headers=service_headers, json={"name": "Priced Thing", "unit": _ZH_TEXT['TEXT_7C00255577088EC9']}
     )
     product_id = product.json()["data"]["id"]
     price = client.post(

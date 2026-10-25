@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.common import PAGE_SIZE_DOC, envelope, get_scoped_or_404, paginated_envelope, requested_pagination
-from app.api.deps import Actor, as_utc, ensure_may_assign_role, get_actor, require_permission, utc_now
+from app.api.deps import Actor, as_utc, ensure_may_act_on_user, ensure_may_assign_role, get_actor, require_permission, utc_now
 from app.core.browser_auth import (
     clear_browser_auth_cookies,
     require_same_origin,
@@ -607,6 +607,7 @@ def update_user(
     )
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    ensure_may_act_on_user(db, actor, user)
     updates = payload.model_dump(exclude_unset=True)
     # what this person could do BEFORE the change — an access trail is only
     # useful if it says what moved, not merely that something did
@@ -712,6 +713,7 @@ def request_password_reset_email(
     )
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    ensure_may_act_on_user(db, actor, user)
     if user.status != "active" or user.invitation_pending:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -768,6 +770,7 @@ def resend_invitation(
     )
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    ensure_may_act_on_user(db, actor, user)
     recoverable_disabled_invite = user.status == "disabled" and user.invitation_pending
     if user.status != "invited" and not recoverable_disabled_invite:
         raise HTTPException(

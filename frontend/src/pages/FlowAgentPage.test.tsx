@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -91,32 +92,32 @@ describe("FlowAgentPage", () => {
   it("shows what is driven and who signs the writes", async () => {
     page([run({})]);
     expect(await screen.findByText("oryh-timesheet-approval-flow")).toBeInTheDocument();
-    expect(screen.getByText(/ORYH 托管流程代理/)).toBeInTheDocument();
-    expect(screen.getByText("运行中")).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern())).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.running2)).toBeInTheDocument();
   });
 
   it("does not dress a run that moved nothing as a success", async () => {
     // The failure the ledger exists to surface: the agent reported success and
     // the queue did not budge. A green "succeeded" badge here would hide it.
     page([run({ items_advanced: 0, queue_size: 3, detail: { queue_remaining: 3 } })]);
-    expect(await screen.findByText("没有推进")).toBeInTheDocument();
-    expect(screen.getByText(/审批流程指向了不存在的节点/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.movedNothing)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern2())).toBeInTheDocument();
   });
 
   it("reads a capped batch as progress rather than completion", async () => {
     page([run({ items_advanced: 10, queue_size: 200, detail: { queue_remaining: 190, batch_limit: 10 } })]);
-    expect(await screen.findByText("推进 10 单")).toBeInTheDocument();
-    expect(screen.getByText(/仍有 190 单在排队/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.message3)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern3())).toBeInTheDocument();
   });
 
   it("tells an idle service apart from a dead one", async () => {
     page([run({ status: "skipped", queue_size: 0, items_advanced: 0, detail: {} })]);
-    expect(await screen.findByText("无事可做")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.nothingToDo)).toBeInTheDocument();
   });
 
   it("flags a run that opened and never reported back", async () => {
     page([run({ status: "running", finished_at: null, started_at: "2020-01-01T00:00:00Z" })]);
-    expect(await screen.findByText("未回报")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.noReport)).toBeInTheDocument();
   });
 
   it("does not call a subscription running when nothing has run in hours", async () => {
@@ -124,42 +125,42 @@ describe("FlowAgentPage", () => {
     // and a working one rendered identically. Silence is the only evidence a
     // tenant has, and it has to be read.
     page([], [{ ...subscription, last_run_at: "2020-01-01T00:00:00Z" }]);
-    expect(await screen.findByText("未在运行")).toBeInTheDocument();
-    expect(screen.getByText("有流程没有在推进")).toBeInTheDocument();
-    expect(screen.getByText(/推进服务本身可能没有在跑/)).toBeInTheDocument();
-    expect(screen.getByText(/请联系我们/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.notRunning)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.nothingIsDrivingThese)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern4())).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern5())).toBeInTheDocument();
   });
 
   it("tells never-run-yet apart from just-enrolled", async () => {
     page([], [{ ...subscription, last_run_at: null, created_at: new Date().toISOString() }]);
-    expect(await screen.findByText("准备中")).toBeInTheDocument();
-    expect(screen.queryByText("有流程没有在推进")).not.toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.starting)).toBeInTheDocument();
+    expect(screen.queryByText(zhCN.pagesFlowAgentPage.nothingIsDrivingThese)).not.toBeInTheDocument();
 
     cleanup();
     page([], [{ ...subscription, last_run_at: null, created_at: "2026-01-01T00:00:00Z" }]);
-    expect(await screen.findByText("未在运行")).toBeInTheDocument();
-    expect(screen.getByText(/从来没有运行过一次/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.notRunning)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern6())).toBeInTheDocument();
   });
 
   it("surfaces a stopped subscription and what to do about it", async () => {
     page([], [{ ...subscription, parked_at: "2026-07-29T11:00:00Z", parked_reason: "3 run(s) found work and moved nothing", unmoved_runs: 3 }]);
-    expect(await screen.findByText("有流程没有在推进")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.nothingIsDrivingThese)).toBeInTheDocument();
     expect(screen.getByText("3 run(s) found work and moved nothing")).toBeInTheDocument();
-    expect(screen.getByText(/发布下一版规则后会自动恢复/)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern7())).toBeInTheDocument();
 
     api.clearFlowSubscriptionPark.mockResolvedValue({ ...subscription, parked_at: null, parked_reason: null });
-    await userEvent.click(screen.getByRole("button", { name: "重试" }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesFlowAgentPage.name }));
     await waitFor(() => expect(api.clearFlowSubscriptionPark).toHaveBeenCalledWith("sub-1"));
   });
 
   it("warns before switching driving off, and says what stops", async () => {
     page([run({})]);
-    await userEvent.click(await screen.findByRole("button", { name: "关闭" }));
-    expect(screen.getByText(/之后不会再有人自动安排审批/)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesFlowAgentPage.name2 }));
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern8())).toBeInTheDocument();
 
     api.setFlowSubscriptionEnabled.mockResolvedValue({ ...subscription, enabled: false });
     const dialog = screen.getByRole("alertdialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "关闭推进" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: zhCN.pagesFlowAgentPage.name3 }));
     await waitFor(() =>
       expect(api.setFlowSubscriptionEnabled).toHaveBeenCalledWith("sub-1", false),
     );
@@ -171,22 +172,22 @@ describe("FlowAgentPage", () => {
     // about an outage. The truth is a decision, and the page must say whose.
     const stale = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
     page([], [{ ...subscription, last_run_at: stale }], false);
-    expect(await screen.findByText("ORYH 已暂停对贵公司的托管推进")).toBeInTheDocument();
-    expect(screen.getByText("平台已暂停")).toBeInTheDocument();
-    expect(screen.queryByText("有流程没有在推进")).not.toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.oRYHHasPausedHostedDrivingForYourCompany)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pausedByORYH)).toBeInTheDocument();
+    expect(screen.queryByText(zhCN.pagesFlowAgentPage.nothingIsDrivingThese)).not.toBeInTheDocument();
     // enrolment is untouched: the tenant's own switch is still theirs to use
-    expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.pagesFlowAgentPage.name2 })).toBeInTheDocument();
   });
 
   it("does not raise the platform banner over a workspace that is being driven", async () => {
     page([run({})]);
-    expect(await screen.findByText("运行中")).toBeInTheDocument();
-    expect(screen.queryByText("ORYH 已暂停对贵公司的托管推进")).not.toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesFlowAgentPage.running2)).toBeInTheDocument();
+    expect(screen.queryByText(zhCN.pagesFlowAgentPage.oRYHHasPausedHostedDrivingForYourCompany)).not.toBeInTheDocument();
   });
 
   it("says that switching a parked one on clears the stop", async () => {
     page([], [{ ...subscription, enabled: false, parked_at: "2026-07-29T11:00:00Z", parked_reason: "stuck" }]);
-    await userEvent.click(await screen.findByRole("button", { name: "开启" }));
-    expect(screen.getByText(/开启会清除暂停状态/)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesFlowAgentPage.name4 }));
+    expect(screen.getByText(zhCN.pagesFlowAgentPage.pattern9())).toBeInTheDocument();
   });
 });

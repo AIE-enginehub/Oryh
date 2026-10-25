@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_auth.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from app.services.emails import outbox
@@ -101,7 +108,7 @@ def test_invitation_flow_and_member_restrictions(client: TestClient) -> None:
     # Carol's — approvers never patch status; the flow admin (service) does
     response = client.patch(
         f"/api/v1/timesheet-headers/{bob_header_id}",
-        json={"source_report_text": "本周主要做回归测试"},
+        json={"source_report_text": _ZH_TEXT['TEXT_65AB8F0C232464B6']},
         headers=api_key_headers(bob_key),
     )
     assert response.status_code == 200

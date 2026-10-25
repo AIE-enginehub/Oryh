@@ -10,6 +10,13 @@ suite that never provisions).
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_type_options.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 
@@ -21,7 +28,7 @@ def provision(client: TestClient) -> dict[str, str]:
 
 
 def create_product(client: TestClient, headers) -> str:
-    return create(client, headers, "products", product_code="P-001", name="内窥镜镜头")["id"]
+    return create(client, headers, "products", product_code="P-001", name=_ZH_TEXT['TEXT_C7005F6AFFA067C1'])["id"]
 
 
 def options_by_name(client: TestClient, headers, family: str) -> dict[str, dict]:
@@ -47,7 +54,7 @@ def test_custom_price_type_end_to_end(client: TestClient) -> None:
 
     created = client.post(
         "/api/v1/type-options",
-        json={"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"},
+        json={"family": "product_price_type", "name": "dealer_tier2", "title": _ZH_TEXT['TEXT_72751C3A008E7586']},
         headers=headers,
     )
     assert created.status_code == 201, created.text
@@ -56,7 +63,7 @@ def test_custom_price_type_end_to_end(client: TestClient) -> None:
     # collisions and shape
     assert client.post(
         "/api/v1/type-options",
-        json={"family": "product_price_type", "name": "wholesale", "title": "撞系统值"},
+        json={"family": "product_price_type", "name": "wholesale", "title": _ZH_TEXT['TEXT_BAC78049207390FA']},
         headers=headers,
     ).status_code == 409
     assert client.post(
@@ -122,7 +129,7 @@ def test_archiving_a_shipped_value_refuses_new_writes_only(client: TestClient) -
     # lazy catalog materialization (another POST) must NOT revive the archive
     client.post(
         "/api/v1/type-options",
-        json={"family": "product_price_type", "name": "member_price", "title": "会员价"},
+        json={"family": "product_price_type", "name": "member_price", "title": _ZH_TEXT['TEXT_8036C34A11BE8E22']},
         headers=headers,
     )
     assert options_by_name(client, headers, "product_price_type")["competitive"]["status"] == "archived"
@@ -133,32 +140,32 @@ def test_system_wording_is_catalog_owned_custom_is_tenant_owned(client: TestClie
     rows = options_by_name(client, headers, "sales_adjustment_type")
     assert client.patch(
         f"/api/v1/type-options/{rows['tax']['id']}",
-        json={"title": "改系统标题"},
+        json={"title": _ZH_TEXT['TEXT_FEF6B86B5BA76FA9']},
         headers=headers,
     ).status_code == 422
 
     custom = client.post(
         "/api/v1/type-options",
-        json={"family": "sales_adjustment_type", "name": "invoice_fee", "title": "开票服务费"},
+        json={"family": "sales_adjustment_type", "name": "invoice_fee", "title": _ZH_TEXT['TEXT_49C603D2D9B03BAA']},
         headers=headers,
     ).json()["data"]
     renamed = client.patch(
         f"/api/v1/type-options/{custom['id']}",
-        json={"title": "开票手续费", "description": "按张收取"},
+        json={"title": _ZH_TEXT['TEXT_9E1EC496D10792EE'], "description": _ZH_TEXT['TEXT_804B860749D307DA']},
         headers=headers,
     )
     assert renamed.status_code == 200
-    assert renamed.json()["data"]["title"] == "开票手续费"
+    assert renamed.json()["data"]["title"] == _ZH_TEXT['TEXT_9E1EC496D10792EE']
 
 
 def test_custom_adjustment_and_category_and_work_type_flow(client: TestClient) -> None:
     headers = provision(client)
-    employee = client.post("/api/v1/employees", json={"name": "小王"}, headers=headers).json()["data"]["id"]
+    employee = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=headers).json()["data"]["id"]
 
     for family, name, title in [
-        ("sales_adjustment_type", "invoice_fee", "开票服务费"),
-        ("expense_category", "training", "培训费"),
-        ("work_type", "standby", "待命"),
+        ("sales_adjustment_type", "invoice_fee", _ZH_TEXT['TEXT_49C603D2D9B03BAA']),
+        ("expense_category", "training", _ZH_TEXT['TEXT_F38A1EA35F02F1AA']),
+        ("work_type", "standby", _ZH_TEXT['TEXT_1A474C3207ED49F4']),
     ]:
         assert client.post(
             "/api/v1/type-options", json={"family": family, "name": name, "title": title}, headers=headers
@@ -166,7 +173,7 @@ def test_custom_adjustment_and_category_and_work_type_flow(client: TestClient) -
 
     quotation = client.post(
         "/api/v1/sales-quotations",
-        json={"employee_id": employee, "title": "词表报价", "quote_date": "2026-07-26"},
+        json={"employee_id": employee, "title": _ZH_TEXT['TEXT_897F5951E2A4D33A'], "quote_date": "2026-07-26"},
         headers=headers,
     ).json()["data"]
     adjustment = client.post(
@@ -185,7 +192,7 @@ def test_custom_adjustment_and_category_and_work_type_flow(client: TestClient) -
 
     claim = client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": employee, "title": "培训报销", "claim_date": "2026-07-26"},
+        json={"employee_id": employee, "title": _ZH_TEXT['TEXT_7DB8AFBD4428358F'], "claim_date": "2026-07-26"},
         headers=headers,
     ).json()["data"]
     item = client.post(
@@ -220,13 +227,13 @@ def test_bulk_prices_respect_the_vocabulary(client: TestClient) -> None:
     headers = provision(client)
     client.post(
         "/api/v1/type-options",
-        json={"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"},
+        json={"family": "product_price_type", "name": "dealer_tier2", "title": _ZH_TEXT['TEXT_72751C3A008E7586']},
         headers=headers,
     )
     rows = [
-        {"product_code": "P-100", "name": "导管鞘",
+        {"product_code": "P-100", "name": _ZH_TEXT['TEXT_ADFBE6F133AD4366'],
          "prices": [{"price_type": "dealer_tier2", "price": 15.5}]},
-        {"product_code": "P-101", "name": "拉钩",
+        {"product_code": "P-101", "name": _ZH_TEXT['TEXT_34141C98D7F98B1A'],
          "prices": [{"price_type": "mystery", "price": 1.0}]},
     ]
     report = client.post("/api/v1/products/bulk", json={"rows": rows}, headers=headers).json()["data"]
@@ -242,12 +249,12 @@ def test_bulk_prices_respect_the_vocabulary(client: TestClient) -> None:
 
 def test_vocabulary_writes_need_object_types_manage(client: TestClient) -> None:
     headers = provision(client)
-    member = dict(invite_member(client, headers, "li", role="member", email="li@vocab-co.example", employee="小李"))
+    member = dict(invite_member(client, headers, "li", role="member", email="li@vocab-co.example", employee=_ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']))
 
     assert client.get("/api/v1/type-options?family=work_type", headers=member).status_code == 200
     denied = client.post(
         "/api/v1/type-options",
-        json={"family": "work_type", "name": "night_shift", "title": "夜班"},
+        json={"family": "work_type", "name": "night_shift", "title": _ZH_TEXT['TEXT_4301FD0BE2E55865']},
         headers=member,
     )
     assert denied.status_code == 403
@@ -257,7 +264,7 @@ def test_vocabulary_writes_need_object_types_manage(client: TestClient) -> None:
 def test_error_messages_point_at_how_to_define_a_type(client: TestClient) -> None:
     """The agent meets an unknown type in an error, not in a spec — so both
     the single write and the bulk row error must say the vocabulary is
-    extensible, or the agent shoehorns 经销价 into wholesale instead."""
+    extensible, or the agent shoehorns distributor price into wholesale instead."""
     headers = provision(client)
     product_id = create_product(client, headers)
 
@@ -272,7 +279,7 @@ def test_error_messages_point_at_how_to_define_a_type(client: TestClient) -> Non
     bulk = client.post(
         "/api/v1/products/bulk",
         json={"rows": [{
-            "product_code": "P-900", "name": "经销品",
+            "product_code": "P-900", "name": _ZH_TEXT['TEXT_2A5737450D20DB26'],
             "prices": [{"price_type": "dealer_tier2", "price": 880.0}],
         }]},
         headers=headers,
@@ -292,7 +299,7 @@ def audit_entries(client: TestClient, headers, action: str) -> list[dict]:
 def test_every_vocabulary_change_leaves_an_audit_entry(client: TestClient) -> None:
     """A business vocabulary that changes meaning silently is unauditable.
 
-    "渠道价" redefined is a different number in every report that reads it, and
+    "channel price" redefined is a different number in every report that reads it, and
     the only trace used to be the row's `updated_at`: no actor, no old value,
     nothing to answer "who changed what, from what, when". The audit
     report filed this against PATCH; in fact NO type-option operation was
@@ -303,7 +310,7 @@ def test_every_vocabulary_change_leaves_an_audit_entry(client: TestClient) -> No
 
     created = client.post(
         "/api/v1/type-options",
-        json={"family": "product_price_type", "name": "dealer_tier2", "title": "二级经销价"},
+        json={"family": "product_price_type", "name": "dealer_tier2", "title": _ZH_TEXT['TEXT_72751C3A008E7586']},
         headers=headers,
     )
     assert created.status_code == 201, created.text
@@ -317,7 +324,7 @@ def test_every_vocabulary_change_leaves_an_audit_entry(client: TestClient) -> No
 
     patched = client.patch(
         f"/api/v1/type-options/{option_id}",
-        json={"title": "二级渠道价", "description": "二级渠道的成交口径"},
+        json={"title": _ZH_TEXT['TEXT_39AEC6443CB3B4CF'], "description": _ZH_TEXT['TEXT_AAFEFD4AE0300636']},
         headers=headers,
     )
     assert patched.status_code == 200, patched.text
@@ -326,7 +333,7 @@ def test_every_vocabulary_change_leaves_an_audit_entry(client: TestClient) -> No
     assert len(updates) == 1
     changed = updates[0]["detail"]["changed"]
     # the OLD value is the half that makes the trail answerable
-    assert changed["title"] == {"from": "二级经销价", "to": "二级渠道价"}
+    assert changed["title"] == {"from": _ZH_TEXT['TEXT_72751C3A008E7586'], "to": _ZH_TEXT['TEXT_39AEC6443CB3B4CF']}
     assert changed["description"]["from"] is None
     assert set(changed) == {"title", "description"}
 
@@ -340,13 +347,13 @@ def test_a_patch_that_changes_nothing_records_nothing(client: TestClient) -> Non
     headers = provision(client)
     created = client.post(
         "/api/v1/type-options",
-        json={"family": "expense_category", "name": "client_gift", "title": "客户礼品"},
+        json={"family": "expense_category", "name": "client_gift", "title": _ZH_TEXT['TEXT_AB8E5A9ACD4A1D05']},
         headers=headers,
     )
     option_id = created.json()["data"]["id"]
 
     repeated = client.patch(
-        f"/api/v1/type-options/{option_id}", json={"title": "客户礼品"}, headers=headers
+        f"/api/v1/type-options/{option_id}", json={"title": _ZH_TEXT['TEXT_AB8E5A9ACD4A1D05']}, headers=headers
     )
     assert repeated.status_code == 200, repeated.text
     assert audit_entries(client, headers, "type_option.updated") == []

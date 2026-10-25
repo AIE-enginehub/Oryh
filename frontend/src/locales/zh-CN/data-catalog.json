@@ -1,0 +1,429 @@
+{
+  "groups": {
+    "master": "主数据",
+    "sales": "销售",
+    "purchasing": "采购",
+    "inventory": "库存与发运",
+    "finance": "财务",
+    "people": "人事",
+    "crm": "客户关系",
+    "contracts": "合同",
+    "work": "工作与流程",
+    "system": "系统",
+    "other": "其他"
+  },
+  "resources": {
+    "bom-items": {
+      "label": "物料清单行",
+      "related": {}
+    },
+    "bills-of-materials": {
+      "label": "物料清单",
+      "related": {
+        "bom-items:bom_id": "物料行"
+      }
+    },
+    "customer-contacts": {
+      "label": "客户联系人",
+      "related": {}
+    },
+    "customer-products": {
+      "label": "客户产品约定",
+      "related": {}
+    },
+    "customers": {
+      "label": "客户",
+      "related": {
+        "activities:customer_id": "跟进",
+        "events:customer_id": "日程",
+        "communication-events:customer_id": "沟通",
+        "customer-contacts:customer_id": "联系人",
+        "customer-products:customer_id": "产品约定",
+        "sales-orders:customer_id": "订单",
+        "sales-quotations:customer_id": "报价",
+        "invoices:customer_id": "发票",
+        "contracts:customer_id": "合同"
+      }
+    },
+    "external-product-maps": {
+      "label": "外部商品映射",
+      "related": {}
+    },
+    "facilities": {
+      "label": "设施",
+      "related": {}
+    },
+    "geos": {
+      "label": "地理区划",
+      "related": {
+        "geos:parent_geo_id": "下级",
+        "customers:geo_id": "客户",
+        "leads:geo_id": "线索",
+        "territory-geos:geo_id": "所属区域"
+      }
+    },
+    "product-prices": {
+      "label": "价格表",
+      "related": {}
+    },
+    "product-skus": {
+      "label": "产品 SKU",
+      "related": {}
+    },
+    "product-categories": {
+      "label": "产品分类",
+      "related": {}
+    },
+    "product-images": {
+      "label": "产品图片",
+      "related": {}
+    },
+    "products": {
+      "label": "产品",
+      "related": {
+        "product-skus:product_id": "SKU",
+        "product-prices:product_id": "价格",
+        "inventory-items:product_id": "库存",
+        "external-product-maps:product_id": "外部映射",
+        "supplier-products:product_id": "供应商"
+      }
+    },
+    "projects": {
+      "label": "项目",
+      "related": {}
+    },
+    "resources": {
+      "label": "资源",
+      "related": {}
+    },
+    "sales-channels": {
+      "label": "销售渠道",
+      "related": {}
+    },
+    "store-facilities": {
+      "label": "门店设施",
+      "related": {}
+    },
+    "stores": {
+      "label": "门店",
+      "related": {}
+    },
+    "supplier-products": {
+      "label": "供应商产品",
+      "related": {}
+    },
+    "territories": {
+      "label": "销售区域",
+      "related": {
+        "territory-geos:territory_id": "覆盖的地理",
+        "territory-members:territory_id": "成员",
+        "customers:territory_id": "客户",
+        "territories:parent_territory_id": "子区域"
+      }
+    },
+    "territory-geos": {
+      "label": "区域覆盖",
+      "related": {}
+    },
+    "territory-members": {
+      "label": "区域成员",
+      "related": {}
+    },
+    "vendors": {
+      "label": "供应商",
+      "related": {
+        "supplier-products:vendor_id": "供应产品",
+        "purchase-orders:vendor_id": "采购订单",
+        "invoices:vendor_id": "发票"
+      }
+    },
+    "sales-order-adjustments": {
+      "label": "订单调整项",
+      "related": {}
+    },
+    "sales-order-items": {
+      "label": "订单行",
+      "related": {}
+    },
+    "sales-quotation-adjustments": {
+      "label": "报价调整项",
+      "related": {}
+    },
+    "sales-quotation-items": {
+      "label": "报价行",
+      "related": {}
+    },
+    "sales-orders": {
+      "label": "销售订单与退货",
+      "related": {
+        "sales-order-items:order_id": "订单行",
+        "sales-order-adjustments:order_id": "调整项",
+        "invoices:sales_order_id": "发票",
+        "shipments:sales_order_id": "发货单",
+        "purchase-order-items:sales_order_id": "采购链",
+        "sales-orders:original_order_id": "退货",
+        "sales-orders:supersedes_order_id": "替代单"
+      }
+    },
+    "sales-quotations": {
+      "label": "销售报价",
+      "related": {
+        "sales-quotation-items:quotation_id": "报价行",
+        "sales-quotation-adjustments:quotation_id": "调整项",
+        "sales-orders:quotation_id": "成交订单"
+      }
+    },
+    "purchase-order-adjustments": {
+      "label": "采购订单调整项",
+      "related": {}
+    },
+    "purchase-order-items": {
+      "label": "采购订单行",
+      "related": {}
+    },
+    "purchase-orders": {
+      "label": "采购订单",
+      "related": {
+        "purchase-order-items:po_id": "采购行",
+        "purchase-order-adjustments:po_id": "调整项",
+        "invoices:purchase_order_id": "发票"
+      }
+    },
+    "purchase-requests": {
+      "label": "采购申请",
+      "related": {}
+    },
+    "inventory-item-details": {
+      "label": "库存明细",
+      "related": {}
+    },
+    "inventory-items": {
+      "label": "库存位置",
+      "related": {}
+    },
+    "picklist-items": {
+      "label": "拣货单行",
+      "related": {}
+    },
+    "picklists": {
+      "label": "拣货单",
+      "related": {
+        "picklist-items:picklist_id": "拣货行"
+      }
+    },
+    "shipment-items": {
+      "label": "发货单行",
+      "related": {}
+    },
+    "shipments": {
+      "label": "发货单",
+      "related": {
+        "shipment-items:shipment_id": "发货行"
+      }
+    },
+    "fin-account-transactions": {
+      "label": "资金流水",
+      "related": {}
+    },
+    "billing-account-entries": {
+      "label": "账户流水",
+      "related": {}
+    },
+    "billing-accounts": {
+      "label": "账单账户",
+      "related": {
+        "billing-account-entries:billing_account_id": "流水"
+      }
+    },
+    "expense-claims": {
+      "label": "报销单",
+      "related": {}
+    },
+    "fin-accounts": {
+      "label": "资金账户",
+      "related": {
+        "fin-account-transactions:fin_account_id": "流水"
+      }
+    },
+    "invoice-items": {
+      "label": "发票行",
+      "related": {}
+    },
+    "invoices": {
+      "label": "发票与工资条",
+      "related": {
+        "invoice-items:invoice_id": "发票行"
+      }
+    },
+    "payment-applications": {
+      "label": "款项核销",
+      "related": {}
+    },
+    "payments": {
+      "label": "收付款",
+      "related": {
+        "payment-applications:payment_id": "核销"
+      }
+    },
+    "employees": {
+      "label": "员工",
+      "related": {
+        "todos:employee_id": "待办",
+        "timesheet-headers:employee_id": "工时单",
+        "expense-claims:employee_id": "报销",
+        "employee-leaves:employee_id": "请假",
+        "pay-histories:employee_id": "薪酬"
+      }
+    },
+    "employee-leaves": {
+      "label": "请假",
+      "related": {}
+    },
+    "pay-histories": {
+      "label": "薪酬记录",
+      "related": {}
+    },
+    "timesheet-headers": {
+      "label": "工时单",
+      "related": {}
+    },
+    "activities": {
+      "label": "跟进记录",
+      "related": {}
+    },
+    "campaign-members": {
+      "label": "活动成员",
+      "related": {}
+    },
+    "campaigns": {
+      "label": "市场活动",
+      "related": {
+        "campaign-members:campaign_id": "成员",
+        "leads:campaign_id": "线索",
+        "opportunities:campaign_id": "商机",
+        "campaigns:parent_campaign_id": "子活动"
+      }
+    },
+    "communication-events": {
+      "label": "往来沟通",
+      "related": {}
+    },
+    "event-participants": {
+      "label": "日程参与人",
+      "related": {}
+    },
+    "events": {
+      "label": "日程",
+      "related": {
+        "event-participants:event_id": "参与人",
+        "activities:event_id": "记录"
+      }
+    },
+    "leads": {
+      "label": "线索",
+      "related": {
+        "activities:lead_id": "跟进",
+        "events:lead_id": "日程",
+        "communication-events:lead_id": "沟通",
+        "campaign-members:lead_id": "活动",
+        "opportunities:lead_id": "商机"
+      }
+    },
+    "opportunities": {
+      "label": "商机",
+      "related": {
+        "activities:opportunity_id": "跟进",
+        "events:opportunity_id": "日程",
+        "communication-events:opportunity_id": "沟通",
+        "opportunity-items:opportunity_id": "产品行",
+        "opportunity-contacts:opportunity_id": "联系人",
+        "sales-quotations:opportunity_id": "报价",
+        "sales-orders:opportunity_id": "订单"
+      }
+    },
+    "opportunity-contacts": {
+      "label": "商机联系人",
+      "related": {}
+    },
+    "opportunity-items": {
+      "label": "商机产品行",
+      "related": {}
+    },
+    "contract-documents": {
+      "label": "合同文件",
+      "related": {}
+    },
+    "contract-items": {
+      "label": "合同行",
+      "related": {}
+    },
+    "contract-terms": {
+      "label": "合同条款",
+      "related": {}
+    },
+    "contracts": {
+      "label": "合同",
+      "related": {
+        "contract-items:contract_id": "合同行",
+        "contract-terms:contract_id": "条款",
+        "contract-documents:contract_id": "文件"
+      }
+    },
+    "approval-records": {
+      "label": "审批记录",
+      "related": {}
+    },
+    "approval-targets": {
+      "label": "可审批对象",
+      "related": {}
+    },
+    "business-objects": {
+      "label": "自定义对象",
+      "related": {}
+    },
+    "external-document-links": {
+      "label": "外部单号链接",
+      "related": {}
+    },
+    "business-object-links": {
+      "label": "对象关联",
+      "related": {}
+    },
+    "resource-bookings": {
+      "label": "资源预订",
+      "related": {}
+    },
+    "todos": {
+      "label": "待办",
+      "related": {}
+    },
+    "tenant-api-keys": {
+      "label": "API 密钥",
+      "related": {}
+    },
+    "business-rules": {
+      "label": "业务规则",
+      "related": {}
+    },
+    "flow-runs": {
+      "label": "流程代理运行",
+      "related": {}
+    },
+    "flow-subscriptions": {
+      "label": "流程代理订阅",
+      "related": {}
+    },
+    "object-type-definitions": {
+      "label": "对象类型定义",
+      "related": {}
+    },
+    "customer-relations": {
+      "label": "Customer relations",
+      "related": {}
+    },
+    "document-parties": {
+      "label": "Document parties",
+      "related": {}
+    }
+  }
+}

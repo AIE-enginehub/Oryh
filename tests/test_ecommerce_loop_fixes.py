@@ -18,6 +18,13 @@ the order detail says what shipped per line (E-28).
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_ecommerce_loop_fixes.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import invite_member, make_client, provision_tenant
@@ -28,7 +35,7 @@ def shop():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Ecom Co", email="admin@ecom.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        for code, name in (("tmall", "天猫"), ("jd", "京东")):
+        for code, name in (("tmall", _ZH_TEXT['TEXT_650D7BCACD9B4DDB']), ("jd", _ZH_TEXT['TEXT_81BAF57E05F11276'])):
             client.post("/api/v1/sales-channels", headers=admin,
                         json={"channel_code": code, "name": name, "channel_kind": "marketplace"})
 
@@ -36,24 +43,24 @@ def shop():
             return client.post("/api/v1/products", headers=admin,
                                json={"name": name, "product_code": code, **extra}).json()["data"]["id"]
 
-        printers = {code: product(f"{code} {tier}医用胶片打印机", code, list_price=price)
-                    for code, tier, price in (("JC-600", "入门", 88000), ("JC-700", "中端", 128000), ("JC-800", "高端", 198000))}
-        ribbon = product("打印色带", "PT-RIBBON", list_price=380)
+        printers = {code: product(f"{code} {tier}{_ZH_TEXT['TEXT_A518A8C46A312845']}", code, list_price=price)
+                    for code, tier, price in (("JC-600", _ZH_TEXT['TEXT_9F4D8636B82415C3'], 88000), ("JC-700", _ZH_TEXT['TEXT_A7F82FEA1AF99270'], 128000), ("JC-800", _ZH_TEXT['TEXT_F964E258A17BCF37'], 198000))}
+        ribbon = product(_ZH_TEXT['TEXT_60D863633FFEE6BA'], "PT-RIBBON", list_price=380)
         skus = {}
         for size in ("8x10", "11x14", "14x17"):
             skus[size] = client.post("/api/v1/product-skus", headers=admin, json={
-                "product_id": ribbon, "sku_code": f"RB-{size}", "variant_attrs": {"片幅": size},
+                "product_id": ribbon, "sku_code": f"RB-{size}", "variant_attrs": {_ZH_TEXT['TEXT_3E3C1381E289C43F']: size},
             }).json()["data"]["id"]
-        head = product("打印头", "PT-HEAD", list_price=8600)
-        motor = product("走纸电机", "PT-MOTOR", list_price=1200)
+        head = product(_ZH_TEXT['TEXT_AB24582AF2B2BB11'], "PT-HEAD", list_price=8600)
+        motor = product(_ZH_TEXT['TEXT_EABF2BBB6A1D463F'], "PT-MOTOR", list_price=1200)
 
-        seller_emp = client.post("/api/v1/employees", json={"name": "马雪"}, headers=admin).json()["data"]["id"]
-        other_emp = client.post("/api/v1/employees", json={"name": "别人"}, headers=admin).json()["data"]["id"]
+        seller_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_FA6D97D001FB87DC']}, headers=admin).json()["data"]["id"]
+        other_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_EEB0BE5265CA353A']}, headers=admin).json()["data"]["id"]
         seller = invite_member(client, admin, "maxue", ["order.submit_own"], employee_id=seller_emp)
         keeper = invite_member(client, admin, "keeper", ["inventory.manage"])
 
         def order(employee_id: str = seller_emp, **extra) -> dict:
-            body = {"employee_id": employee_id, "customer_name_snapshot": "买家", "title": "平台单", **extra}
+            body = {"employee_id": employee_id, "customer_name_snapshot": _ZH_TEXT['TEXT_6D6A63F93C43899E'], "title": _ZH_TEXT['TEXT_E5FC40746BB3834E'], **extra}
             r = client.post("/api/v1/sales-orders", json=body, headers=admin)
             assert r.status_code == 201, r.text
             return r.json()["data"]
@@ -75,22 +82,22 @@ def shop():
 def test_e06_the_goods_outrank_the_machine_that_shares_its_words(shop) -> None:
     client, admin = shop["client"], shop["admin"]
     rows = client.get("/api/v1/product-matches", headers=admin,
-                      params={"title": "晶诚 医用胶片打印机色带 14x17 干式激光", "limit": 5}).json()["data"]
+                      params={"title": _ZH_TEXT['TEXT_5896C5D384BE2BE4'], "limit": 5}).json()["data"]
     assert rows[0]["id"] == shop["ribbon"], [(r["product_code"], r["match_score"]) for r in rows]
     assert rows[0]["match_score"] > rows[1]["match_score"]
-    assert "色带" in rows[0]["matched_terms"] and "14x17" in rows[0]["matched_terms"]
+    assert _ZH_TEXT['TEXT_3276FDB7927C16A4'] in rows[0]["matched_terms"] and "14x17" in rows[0]["matched_terms"]
     # E-17: the flag is the truth the /products list tells
     assert rows[0]["has_skus"] is True and rows[0]["sku_count"] == 3
     # E-05: the spec token resolves to the variant, not just the product
     assert [sku["sku_code"] for sku in rows[0]["sku_candidates"]] == ["RB-14x17"]
 
     five_rolls = client.get("/api/v1/product-matches", headers=admin,
-                            params={"title": "晶诚 医用胶片打印机色带 5卷装"}).json()["data"]
+                            params={"title": _ZH_TEXT['TEXT_37A83F63E4B7F2F2']}).json()["data"]
     assert five_rolls[0]["id"] == shop["ribbon"]
     assert five_rolls[0]["sku_candidates"] == [], "no spec in the title, no variant named"
 
     part = client.get("/api/v1/product-matches", headers=admin,
-                      params={"title": "医用胶片打印机 走纸电机 替换件"}).json()["data"]
+                      params={"title": _ZH_TEXT['TEXT_7AF7A0D7CBCFB78D']}).json()["data"]
     assert part[0]["id"] == shop["motor"]
 
 
@@ -99,13 +106,13 @@ def test_e06_the_goods_outrank_the_machine_that_shares_its_words(shop) -> None:
 def test_e01_the_spec_text_folds_like_the_title(shop) -> None:
     client, seller = shop["client"], shop["seller"]
     written = client.post("/api/v1/external-product-maps", headers=seller, json={
-        "source": "tmall", "external_name": "晶诚医用胶片 打印色带", "external_sku_id": "片幅:11X14",
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_38C67418CFA5CA9D'], "external_sku_id": _ZH_TEXT['TEXT_C85E9E3D4A34670A'],
         "product_id": shop["ribbon"], "sku_id": shop["skus"]["11x14"], "quantity": 1,
     })
     assert written.status_code == 201, written.text
-    assert written.json()["data"]["external_sku_id"] == "片幅:11x14"
+    assert written.json()["data"]["external_sku_id"] == _ZH_TEXT['TEXT_6FCC8FD6F67C4996']
     hit = client.get("/api/v1/external-product-maps", headers=seller, params={
-        "source": "tmall", "external_name": "晶诚医用胶片　打印色带", "external_sku_id": "片幅:11x14",
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_EFF3AEB28D41D262'], "external_sku_id": _ZH_TEXT['TEXT_6FCC8FD6F67C4996'],
         "at": "2026-09-10",
     }).json()["data"]
     assert [row["sku_id"] for row in hit] == [shop["skus"]["11x14"]]
@@ -114,10 +121,10 @@ def test_e01_the_spec_text_folds_like_the_title(shop) -> None:
 def test_e18_an_id_carrying_export_still_finds_the_title_keyed_row(shop) -> None:
     client, seller = shop["client"], shop["seller"]
     client.post("/api/v1/external-product-maps", headers=seller, json={
-        "source": "jd", "external_name": "JC-600 进纸电机 替换件", "product_id": shop["motor"],
+        "source": "jd", "external_name": _ZH_TEXT['TEXT_0D2F1C18990EF495'], "product_id": shop["motor"],
     })
     by_both = client.get("/api/v1/external-product-maps", headers=seller, params={
-        "source": "jd", "external_product_id": "100045678999", "external_name": "JC-600 进纸电机 替换件",
+        "source": "jd", "external_product_id": "100045678999", "external_name": _ZH_TEXT['TEXT_0D2F1C18990EF495'],
         "at": "2026-09-10",
     }).json()["data"]
     assert [row["product_id"] for row in by_both] == [shop["motor"]]
@@ -130,17 +137,17 @@ def test_e18_an_id_carrying_export_still_finds_the_title_keyed_row(shop) -> None
 def test_e03_the_order_desk_withdraws_its_own_mistake_but_never_dates_a_swap(shop) -> None:
     client, seller, admin = shop["client"], shop["seller"], shop["admin"]
     wrong = client.post("/api/v1/external-product-maps", headers=seller, json={
-        "source": "tmall", "external_name": "通用色带 A4", "product_id": shop["head"],
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_ACC98A9FF875B42E'], "product_id": shop["head"],
     }).json()["data"]
     gone = client.delete(f"/api/v1/external-product-maps/{wrong['id']}", headers=seller)
     assert gone.status_code == 204, gone.text
     dated = client.post("/api/v1/external-product-maps", headers=seller, json={
-        "source": "tmall", "external_name": "通用色带 A4", "product_id": shop["ribbon"],
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_ACC98A9FF875B42E'], "product_id": shop["ribbon"],
         "effective_from": "2026-09-01",
     })
     assert dated.status_code == 403 and "master_data.manage" in dated.json()["detail"]
     swap = client.post("/api/v1/external-product-maps", headers=admin, json={
-        "source": "tmall", "external_name": "通用色带 A4", "product_id": shop["ribbon"],
+        "source": "tmall", "external_name": _ZH_TEXT['TEXT_ACC98A9FF875B42E'], "product_id": shop["ribbon"],
         "effective_from": "2026-09-01",
     }).json()["data"]
     kept = client.delete(f"/api/v1/external-product-maps/{swap['id']}", headers=seller)
@@ -204,16 +211,16 @@ def test_e15_a_hold_and_a_release_stay_within_what_is_there(shop) -> None:
 
 def test_e24_e25_the_store_list_names_its_warehouses_and_a_position_registers_one(shop) -> None:
     client, admin = shop["client"], shop["admin"]
-    facility = client.post("/api/v1/facilities", headers=admin, json={"name": "上海总仓", "facility_type": "warehouse"}).json()["data"]["id"]
+    facility = client.post("/api/v1/facilities", headers=admin, json={"name": _ZH_TEXT['TEXT_596F588B4DF0BE65'], "facility_type": "warehouse"}).json()["data"]["id"]
     store = client.post("/api/v1/stores", headers=admin, json={
-        "name": "晶诚天猫旗舰店", "channel": "online", "source": "tmall"}).json()["data"]["id"]
+        "name": _ZH_TEXT['TEXT_6C8F1124A20827A4'], "channel": "online", "source": "tmall"}).json()["data"]["id"]
     client.post("/api/v1/store-facilities", headers=admin,
                 json={"store_id": store, "facility_id": facility, "priority": 1})
     listed = client.get("/api/v1/stores", headers=admin, params={"source": "tmall"}).json()["data"]
     assert [f["facility_id"] for f in listed[0]["fulfilment_facilities"]] == [facility]
 
     position = client.post("/api/v1/inventory-items", headers=admin, json={
-        "product_id": shop["motor"], "facility": "上海总仓", "initial_quantity": 4,
+        "product_id": shop["motor"], "facility": _ZH_TEXT['TEXT_596F588B4DF0BE65'], "initial_quantity": 4,
     }).json()["data"]
     assert position["facility_id"] is None
     filled = client.patch(f"/api/v1/inventory-items/{position['id']}", headers=admin,

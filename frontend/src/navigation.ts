@@ -1,3 +1,4 @@
+import { zhCN } from "./locales/zh-CN/console";
 import {
   Buildings,
   CalendarBlank,
@@ -47,40 +48,40 @@ export type NavigationGroup = {
 // Route boundaries and server authorization remain the authority for access.
 export const navigation: NavigationGroup[] = [
   {
-    label: ["工作台", "Workspace"],
+    label: [zhCN.navigation.message, "Workspace"],
     items: [
       {
         label: "dashboard",
         href: "/dashboard",
         icon: SquaresFour,
-        description: ["业务概况与常用入口", "Overview and everyday shortcuts"],
+        description: [zhCN.navigation.message2, "Overview and everyday shortcuts"],
       },
       {
         label: "todos",
         href: "/todos",
         icon: CheckSquare,
-        description: ["查看和处理人工待办", "Review and complete to-dos"],
+        description: [zhCN.navigation.message3, "Review and complete to-dos"],
       },
       {
         label: "approvals",
         href: "/approvals",
         icon: ClipboardText,
         description: [
-          "查阅审批意见与处理记录",
+          zhCN.navigation.message4,
           "Review decisions and approval history",
         ],
       },
     ],
   },
   {
-    label: ["业务数据", "Business data"],
+    label: [zhCN.navigation.message5, "Business data"],
     items: [
       {
         label: "businessObjects",
         href: "/objects",
         icon: Files,
         description: [
-          "报价、采购、费用及其他业务单据",
+          zhCN.navigation.message6,
           "Quotations, purchases, expenses and business records",
         ],
         visible: canManageTenantConfiguration,
@@ -90,7 +91,7 @@ export const navigation: NavigationGroup[] = [
         href: "/data",
         icon: Database,
         description: [
-          "按集合查看全部数据，任意筛选、排序与分页",
+          zhCN.navigation.message7,
           "Every collection, with every filter, sort and paging",
         ],
         visible: canManageTenantConfiguration,
@@ -100,10 +101,10 @@ export const navigation: NavigationGroup[] = [
         href: "/customers",
         icon: Buildings,
         description: [
-          "客户资料、联系人与开票信息",
+          zhCN.navigation.message8,
           "Customers, contacts and billing details",
         ],
-        createLabel: ["新建客户", "New customer"],
+        createLabel: [zhCN.navigation.newCustomer, "New customer"],
         visible: canManageMasterData,
       },
       {
@@ -111,10 +112,10 @@ export const navigation: NavigationGroup[] = [
         href: "/products",
         icon: Cube,
         description: [
-          "产品目录、SKU 与规格",
+          zhCN.navigation.message10,
           "Product catalog, SKUs and variants",
         ],
-        createLabel: ["新建产品", "New product"],
+        createLabel: [zhCN.navigation.newProduct, "New product"],
         visible: canManageMasterData,
       },
       {
@@ -122,10 +123,10 @@ export const navigation: NavigationGroup[] = [
         href: "/vendors",
         icon: Storefront,
         description: [
-          "供应商资料与采购联系人",
+          zhCN.navigation.message12,
           "Suppliers and purchasing contacts",
         ],
-        createLabel: ["新建供应商", "New vendor"],
+        createLabel: [zhCN.navigation.newVendor, "New vendor"],
         visible: canManageMasterData,
       },
       {
@@ -133,10 +134,10 @@ export const navigation: NavigationGroup[] = [
         href: "/projects",
         icon: Folders,
         description: [
-          "项目编号、客户与有效期",
+          zhCN.navigation.message14,
           "Projects, clients and active periods",
         ],
-        createLabel: ["新建项目", "New project"],
+        createLabel: [zhCN.navigation.newProject, "New project"],
         visible: canManageMasterData,
       },
       {
@@ -144,26 +145,26 @@ export const navigation: NavigationGroup[] = [
         href: "/resources",
         icon: CalendarBlank,
         description: [
-          "会议室、设备与共享资源",
+          zhCN.navigation.message16,
           "Rooms, equipment and shared resources",
         ],
-        createLabel: ["新建资源", "New resource"],
+        createLabel: [zhCN.navigation.newResource, "New resource"],
         visible: canManageMasterData,
       },
     ],
   },
   {
-    label: ["团队与访问", "Team & access"],
+    label: [zhCN.navigation.message18, "Team & access"],
     items: [
       {
         label: "employees",
         href: "/employees",
         icon: IdentificationCard,
         description: [
-          "员工档案与组织信息",
+          zhCN.navigation.message19,
           "Employee profiles and organization",
         ],
-        createLabel: ["新增员工", "Add employee"],
+        createLabel: [zhCN.navigation.name9, "Add employee"],
         visible: canManageEmployees,
       },
       {
@@ -171,7 +172,7 @@ export const navigation: NavigationGroup[] = [
         href: "/users",
         icon: Users,
         description: [
-          "邀请用户与分配登录权限",
+          zhCN.navigation.message21,
           "Invite users and manage access",
         ],
         visible: canManageAccess,
@@ -181,7 +182,7 @@ export const navigation: NavigationGroup[] = [
         href: "/roles",
         icon: ShieldCheck,
         description: [
-          "角色、权限与技能分配",
+          zhCN.navigation.message22,
           "Roles, permissions and skill access",
         ],
         visible: canManageAccess,
@@ -189,14 +190,14 @@ export const navigation: NavigationGroup[] = [
     ],
   },
   {
-    label: ["设置与自动化", "Settings & automation"],
+    label: [zhCN.navigation.message23, "Settings & automation"],
     items: [
       {
         label: "objectTypes",
         href: "/object-types",
         icon: GearSix,
         description: [
-          "字段定义、状态与业务流程",
+          zhCN.navigation.message24,
           "Fields, states and workflows",
         ],
         visible: canManageObjectConfiguration,
@@ -206,7 +207,7 @@ export const navigation: NavigationGroup[] = [
         href: "/skills",
         icon: UsersThree,
         description: [
-          "管理技能包与分发范围",
+          zhCN.navigation.message25,
           "Manage skills and their audiences",
         ],
         visible: (b) => hasCapability(b, "skills.manage"),
@@ -216,7 +217,7 @@ export const navigation: NavigationGroup[] = [
         href: "/api-keys",
         icon: Key,
         description: [
-          "设备凭证与授权范围",
+          zhCN.navigation.message26,
           "Device credentials and authorization",
         ],
         visible: (b) => hasCapability(b, "keys.manage"),
@@ -226,7 +227,7 @@ export const navigation: NavigationGroup[] = [
         href: "/flow-agent",
         icon: Robot,
         description: [
-          "流程代理的运行与配置",
+          zhCN.navigation.message27,
           "Flow agent operation and configuration",
         ],
         visible: (b) => hasCapability(b, "keys.manage"),

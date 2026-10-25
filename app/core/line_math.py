@@ -2,7 +2,7 @@
 
 A line's amount is quantity × unit_price — computed by the server, stored,
 never asked of the person. Tax is NOT derived: `tax_rate` is a percentage and
-the amount may be tax-inclusive (含税价) or not, which is the tenant's
+the amount may be tax-inclusive (tax-inclusive price) or not, which is the tenant's
 practice, so `tax_amount` stays a stated fact. Raised here as
 HTTP 422 because every caller is a request handler or the bulk importer,
 and the message is the arithmetic the caller got wrong.

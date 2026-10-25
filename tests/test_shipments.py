@@ -17,6 +17,13 @@ files and advances, the purchase-order pattern.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_shipments.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -30,11 +37,11 @@ def dock():
 
         keeper = invite_member(client, admin, "keeper", ["inventory.manage"])
 
-        emp = client.post("/api/v1/employees", json={"name": "店长"},
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                           headers=admin).json()["data"]["id"]
-        cust = client.post("/api/v1/customers", json={"name": "买家"},
+        cust = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']},
                            headers=admin).json()["data"]["id"]
-        vendor = client.post("/api/v1/vendors", json={"name": "供应商"},
+        vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_033ED59452549C51']},
                              headers=admin).json()["data"]["id"]
         product = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP-1"},
                               headers=admin).json()["data"]["id"]
@@ -43,7 +50,7 @@ def dock():
         }).json()["data"]["id"]
 
         def order(**extra) -> dict:
-            body = {"employee_id": emp, "customer_id": cust, "title": "一单", **extra}
+            body = {"employee_id": emp, "customer_id": cust, "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA'], **extra}
             r = client.post("/api/v1/sales-orders", json=body, headers=admin)
             assert r.status_code == 201, r.text
             return r.json()["data"]
@@ -113,7 +120,7 @@ def test_the_direction_matrix_holds(dock) -> None:
 
     po = client.post("/api/v1/purchase-orders", headers=dock["admin"], json={
         "vendor_id": dock["vendor"], "employee_id": dock["employee"],
-        "title": "进货"}).json()["data"]
+        "title": _ZH_TEXT['TEXT_E28310E3CA25E240']}).json()["data"]
     wrong_way = client.post("/api/v1/shipments", headers=keeper, json={
         "direction": "outbound", "purchase_order_id": po["id"]})
     assert wrong_way.status_code == 422
@@ -144,14 +151,14 @@ def test_post_stock_bridges_once_with_provenance(dock) -> None:
         "items": [
             {"product_id": dock["product"], "quantity": 3,
              "inventory_item_id": dock["position"]},
-            {"product_id": dock["product"], "quantity": 2},  # 直发 — no position
+            {"product_id": dock["product"], "quantity": 2},  # direct shipment — no position
         ]}).json()["data"]
 
     posted = client.post(f"/api/v1/shipments/{shipment['id']}/post-stock", headers=keeper)
     assert posted.status_code == 200, posted.text
     outcomes = {line["outcome"] for line in posted.json()["data"]["lines"]}
     assert outcomes == {"posted", "skipped_no_position"}, \
-        "a 直发 line is skipped and SAID to be, never silently absorbed"
+        _ZH_TEXT['TEXT_35C3EBB75CD87D67']
     assert dock["qoh"]() == before - 3, "outbound decrements exactly the positioned line"
 
     movements = client.get("/api/v1/inventory-item-details",
@@ -168,9 +175,9 @@ def test_post_stock_bridges_once_with_provenance(dock) -> None:
 
 
 def test_the_return_loop_closes_through_a_shipment(dock) -> None:
-    """退单收货 end to end: the customer return's parcel is an inbound
+    """receipt of customer returns end to end: the customer return's parcel is an inbound
     shipment linked to the RETURN row; posting it lands the goods back in
-    stock with the return row on the movement — the 验货入库 fact the flow
+    stock with the return row on the movement — the inspected stock receipt fact the flow
     admin advances the return on."""
     client, keeper = dock["client"], dock["keeper"]
     so = dock["order"](status="signed")
@@ -207,7 +214,7 @@ def test_the_segregation_policy_is_a_position_not_a_schema(dock) -> None:
     ret = dock["order"](order_kind="return", original_order_id=so["id"], status="approved")
 
     quarantine = client.post("/api/v1/inventory-items", headers=keeper, json={
-        "product_id": dock["product"], "facility": "退货区"}).json()["data"]["id"]
+        "product_id": dock["product"], "facility": _ZH_TEXT['TEXT_B2C6C22D976AE8DB']}).json()["data"]["id"]
     parcel = client.post("/api/v1/shipments", headers=keeper, json={
         "direction": "inbound", "sales_order_id": ret["id"],
         "items": [{"product_id": dock["product"], "quantity": 2,
@@ -219,7 +226,7 @@ def test_the_segregation_policy_is_a_position_not_a_schema(dock) -> None:
         return float(client.get(f"/api/v1/inventory-items/{item_id}",
                                 headers=keeper).json()["data"]["quantity_on_hand"])
 
-    assert qty(quarantine) == 2, "segregated: the goods sit in 退货区, not the main position"
+    assert qty(quarantine) == 2, _ZH_TEXT['TEXT_FA57D73D69884C63']
 
     traced = client.get("/api/v1/inventory-item-details",
                         params={"sales_order_id": ret["id"]},
@@ -227,15 +234,15 @@ def test_the_segregation_policy_is_a_position_not_a_schema(dock) -> None:
     assert [m["reason"] for m in traced] == ["returned"], \
         "traceability rides the ledger, not the segregation"
 
-    # inspection passed: the transfer 退货区 → main is a stock document the
-    # tenant defined — one 调拨单, a minus line and a plus line, posted once
+    # inspection passed: the transfer returns area → main is a stock document the
+    # tenant defined — one transfer document, a minus line and a plus line, posted once
     main_before = dock["qoh"]()
     client.post("/api/v1/object-type-definitions", headers=admin, json={
-        "object_type": "stock_transfer", "title": "调拨单",
+        "object_type": "stock_transfer", "title": _ZH_TEXT['TEXT_91D9C56C3959C5CC'],
         "state_machine": {"initial": "approved", "states": ["approved"], "transitions": {"approved": []},
                           "stock_effect": {"reason": "transfer", "state": "approved"}}})
     transfer = client.post("/api/v1/business-objects", headers=admin, json={
-        "object_type": "stock_transfer", "title": "验收合格,退货区转主仓", "status": "approved",
+        "object_type": "stock_transfer", "title": _ZH_TEXT['TEXT_6F792EC35D5A6A67'], "status": "approved",
         "payload": {"return_order_id": ret["id"], "lines": [
             {"inventory_item_id": quarantine, "quantity_on_hand_diff": -2},
             {"inventory_item_id": dock["position"], "quantity_on_hand_diff": 2}]}}).json()["data"]
@@ -250,7 +257,7 @@ def test_a_todo_may_point_at_a_shipment(dock) -> None:
         "direction": "outbound"}).json()["data"]
     todo = client.post("/api/v1/todos", headers=admin, json={
         "entity_type": "shipment", "entity_id": shipment["id"],
-        "employee_id": dock["employee"], "title": "打包发货"})
+        "employee_id": dock["employee"], "title": _ZH_TEXT['TEXT_BECA732E76A4EC18']})
     assert todo.status_code == 201, todo.text
 
 

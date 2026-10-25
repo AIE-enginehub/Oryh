@@ -17,6 +17,13 @@ settlement target rather than something each call site remembers.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_settlement_counterparty.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -41,8 +48,8 @@ def shop(client: TestClient):
         return post(f"{path}/{row['id']}/submit", {})
 
     return {"client": client, "headers": headers, "post": post, "filed": filed,
-            "employee": post("/employees", {"name": "李工"})["id"],
-            "other_employee": post("/employees", {"name": "王工"})["id"],
+            "employee": post("/employees", {"name": _ZH_TEXT['TEXT_034D76912F8C734C']})["id"],
+            "other_employee": post("/employees", {"name": _ZH_TEXT['TEXT_2BF61438CAE7EFAF']})["id"],
             "vendor": post("/vendors", {"name": "Hotel Ltd"})["id"],
             "customer": post("/customers", {"name": "Acme"})["id"]}
 

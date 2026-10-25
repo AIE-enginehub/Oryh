@@ -8,6 +8,13 @@ a no-op; details are immutable.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_inventory.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers, create
@@ -17,7 +24,7 @@ def provision(client: TestClient) -> dict[str, str]:
     return admin_headers(client, company_name="Stock Co", email="admin@stock-co.example", password="admin-pass1")
 
 
-def create_product(client: TestClient, headers, code: str, name: str = "内窥镜镜头") -> str:
+def create_product(client: TestClient, headers, code: str, name: str = _ZH_TEXT['TEXT_C7005F6AFFA067C1']) -> str:
     return create(client, headers, "products", product_code=code, name=name)["id"]
 
 
@@ -44,8 +51,8 @@ def test_item_totals_move_only_through_details(client: TestClient) -> None:
 
     created = client.post(
         "/api/v1/inventory-items",
-        json={"product_id": product_id, "facility": "总仓", "initial_quantity": 100,
-              "initial_description": "期初建账"},
+        json={"product_id": product_id, "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "initial_quantity": 100,
+              "initial_description": _ZH_TEXT['TEXT_3773B5A1DDD160D7']},
         headers=headers,
     )
     assert created.status_code == 201, created.text
@@ -123,17 +130,17 @@ def test_one_item_per_stock_position(client: TestClient) -> None:
     headers = provision(client)
     product_id = create_product(client, headers, "P-004")
     first = client.post(
-        "/api/v1/inventory-items", json={"product_id": product_id, "facility": "总仓"}, headers=headers
+        "/api/v1/inventory-items", json={"product_id": product_id, "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F']}, headers=headers
     )
     assert first.status_code == 201
     duplicate = client.post(
-        "/api/v1/inventory-items", json={"product_id": product_id, "facility": "总仓"}, headers=headers
+        "/api/v1/inventory-items", json={"product_id": product_id, "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F']}, headers=headers
     )
     assert duplicate.status_code == 409
     assert first.json()["data"]["id"] in duplicate.json()["detail"]
     # a different facility is a different position
     other = client.post(
-        "/api/v1/inventory-items", json={"product_id": product_id, "facility": "分仓"}, headers=headers
+        "/api/v1/inventory-items", json={"product_id": product_id, "facility": _ZH_TEXT['TEXT_AE9893B10D866BB8']}, headers=headers
     )
     assert other.status_code == 201
 
@@ -143,12 +150,12 @@ def test_one_item_per_stock_position(client: TestClient) -> None:
 
 def test_bulk_import_creates_then_overrides_via_ledger(client: TestClient) -> None:
     headers = provision(client)
-    create_product(client, headers, "P-100", "导管鞘")
-    create_product(client, headers, "P-101", "缝合线")
+    create_product(client, headers, "P-100", _ZH_TEXT['TEXT_ADFBE6F133AD4366'])
+    create_product(client, headers, "P-101", _ZH_TEXT['TEXT_1B1AABCF1272E356'])
 
     rows = [
-        {"product_code": "P-100", "facility": "总仓", "quantity": 120.5},
-        {"product_code": "P-101", "facility": "总仓", "lot_id": "B2026-07", "quantity": 19.9},
+        {"product_code": "P-100", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "quantity": 120.5},
+        {"product_code": "P-101", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "lot_id": "B2026-07", "quantity": 19.9},
     ]
     first = bulk(client, headers, rows)
     assert first["summary"]["created"] == 2
@@ -179,14 +186,14 @@ def test_bulk_import_creates_then_overrides_via_ledger(client: TestClient) -> No
     override = [d for d in ledger if d["reason"] == "import_override"][0]
     assert override["quantity_on_hand_diff"] == -23.5
     assert "120.5" in override["description"] and "97" in override["description"]
-    assert "导入覆盖" in override["description"]
+    assert _ZH_TEXT['TEXT_CB6E8FBE3F900093'] in override["description"]
     # ledger sum still IS the item total
     assert sum(d["quantity_on_hand_diff"] for d in ledger) == item["quantity_on_hand"]
 
 
 def test_bulk_unknown_product_or_sku_is_a_row_error(client: TestClient) -> None:
     headers = provision(client)
-    create_product(client, headers, "P-200", "托盘")
+    create_product(client, headers, "P-200", _ZH_TEXT['TEXT_F2BCFBB4C9DCE340'])
     report = bulk(client, headers, [
         {"product_code": "P-404", "quantity": 10},
         {"product_code": "P-200", "sku_code": "NO-SUCH", "quantity": 5},
@@ -201,10 +208,10 @@ def test_bulk_unknown_product_or_sku_is_a_row_error(client: TestClient) -> None:
 
 def test_bulk_duplicate_position_in_one_batch_is_an_error(client: TestClient) -> None:
     headers = provision(client)
-    create_product(client, headers, "P-300", "手术灯")
+    create_product(client, headers, "P-300", _ZH_TEXT['TEXT_88949D0EF051214C'])
     report = bulk(client, headers, [
-        {"product_code": "P-300", "facility": "总仓", "quantity": 3},
-        {"product_code": "P-300", "facility": "总仓", "quantity": 4},
+        {"product_code": "P-300", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "quantity": 3},
+        {"product_code": "P-300", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "quantity": 4},
     ])
     assert report["summary"]["failed"] == 1
     error = [r for r in report["results"] if r["outcome"] == "error"][0]
@@ -213,7 +220,7 @@ def test_bulk_duplicate_position_in_one_batch_is_an_error(client: TestClient) ->
 
 def test_bulk_dry_run_writes_nothing(client: TestClient) -> None:
     headers = provision(client)
-    create_product(client, headers, "P-400", "止血钳")
+    create_product(client, headers, "P-400", _ZH_TEXT['TEXT_03D1F94FF456E4BA'])
     preview = bulk(client, headers, [{"product_code": "P-400", "quantity": 50}], dry_run=True)
     assert preview["applied"] is False and preview["summary"]["created"] == 1
     assert client.get("/api/v1/inventory-items", headers=headers).json()["data"] == []
@@ -222,16 +229,16 @@ def test_bulk_dry_run_writes_nothing(client: TestClient) -> None:
 
 def test_bulk_sku_level_positions(client: TestClient) -> None:
     headers = provision(client)
-    product_id = create_product(client, headers, "P-500", "圆领T恤")
+    product_id = create_product(client, headers, "P-500", _ZH_TEXT['TEXT_1B49AB0CB89BCCED'])
     sku = client.post(
         "/api/v1/product-skus",
-        json={"product_id": product_id, "sku_code": "P-500-XL", "variant_attrs": {"尺码": "XL"}},
+        json={"product_id": product_id, "sku_code": "P-500-XL", "variant_attrs": {_ZH_TEXT['TEXT_4060F118DEA05D67']: "XL"}},
         headers=headers,
     ).json()["data"]
 
     report = bulk(client, headers, [
-        {"product_code": "P-500", "sku_code": "P-500-XL", "facility": "总仓", "quantity": 40},
-        {"product_code": "P-500", "facility": "总仓", "quantity": 15},  # product-level残余
+        {"product_code": "P-500", "sku_code": "P-500-XL", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "quantity": 40},
+        {"product_code": "P-500", "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "quantity": 15},  # Product-level remainder
     ])
     assert report["summary"]["created"] == 2
     items = client.get(f"/api/v1/inventory-items?product_id={product_id}", headers=headers).json()["data"]
@@ -260,7 +267,7 @@ def test_concurrent_movements_do_not_lose_one_another(stack) -> None:
     product_id = create_product(client, headers, "P-RACE")
     item_id = client.post(
         "/api/v1/inventory-items",
-        json={"product_id": product_id, "facility": "总仓", "initial_quantity": 10},
+        json={"product_id": product_id, "facility": _ZH_TEXT['TEXT_864B9E5CE5752E2F'], "initial_quantity": 10},
         headers=headers,
     ).json()["data"]["id"]
 

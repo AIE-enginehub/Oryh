@@ -15,6 +15,13 @@ Generated only; `tests/test_api_contracts.py` fails when a file drifts.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/sync_skill_api_contracts.json').read_text(encoding="utf-8"))
+
+
 import json
 import re
 import sys
@@ -31,7 +38,7 @@ HEADER = (
 PREFIX = "/api/v1"
 
 REQUEST_LINE = re.compile(r"\b(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_\-/{}.]+)")
-_CJK = re.compile(r"[一-鿿　-〿＀-￯]")
+_CJK = re.compile(_ZH_TEXT['TEXT_61650C040CD0E586'])
 _WS = re.compile(r"\s+")
 
 

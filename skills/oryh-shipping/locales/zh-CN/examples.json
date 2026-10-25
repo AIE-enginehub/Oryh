@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use when goods leave or arrive as a parcel or a truck in oryh — 销售发货/出库, 退货收件, 采购退货发出 — filing the shipment, walking it, posting it to stock once, closing the 发货 todo. Requires shipment.manage. \"出库\" IS a shipment, never a ledger row; positions, counts, holds and stock documents are oryh-inventory's."
+  ]
+}

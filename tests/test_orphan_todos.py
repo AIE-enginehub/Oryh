@@ -15,6 +15,13 @@ reads the workspace's own rules.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_orphan_todos.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -37,18 +44,18 @@ def payroll_round(client: TestClient) -> dict:
     hr = post(client, headers, "/employees", {"name": "HR"})["id"]
     slips = []
     for index in range(5):
-        payee = post(client, headers, "/employees", {"name": f"员工{index}"})["id"]
+        payee = post(client, headers, "/employees", {"name": f"{_ZH_TEXT['TEXT_A1F5D5FCBDC4D510']}{index}"})["id"]
         slip = post(client, headers, "/invoices", {
             "direction": "payroll", "employee_id": hr, "payee_employee_id": payee,
-            "title": f"2026年6月工资 {index}",
+            "title": f"{_ZH_TEXT['TEXT_78E7EC582943B8F1']}{index}",
             "period_start": "2026-06-01", "period_end": "2026-06-30",
             "items": [{"invoice_item_type": "payroll_salary",
-                       "product_name_snapshot": "基本工资", "amount": 10000.0,
-                       "notes": "月薪 10000.00"}],
+                       "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'], "amount": 10000.0,
+                       "notes": _ZH_TEXT['TEXT_3986069436BA2137']}],
         })
         todo = post(client, headers, "/todos", {
             "employee_id": hr, "entity_type": "invoice", "entity_id": slip["id"],
-            "title": f"修改工资条 {index}", "todo_type": "rework",
+            "title": f"{_ZH_TEXT['TEXT_099DF7CF082E5BA6']}{index}", "todo_type": "rework",
         })
         slips.append((slip["id"], todo["id"]))
     return {"client": client, "headers": headers, "hr": hr, "slips": slips}
@@ -108,7 +115,7 @@ def test_the_replacement_document_is_free_to_raise_its_own_todo(payroll_round: d
     client.post(f"/api/v1/invoices/{slip_id}/restore", headers=headers)
     again = client.post("/api/v1/todos", json={
         "employee_id": hr, "entity_type": "invoice", "entity_id": slip_id,
-        "title": "同一单据上的新工作", "todo_type": "rework",
+        "title": _ZH_TEXT['TEXT_541BF597BCC0C662'], "todo_type": "rework",
     }, headers=headers)
     assert again.status_code == 201, again.text
 

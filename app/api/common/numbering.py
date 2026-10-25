@@ -221,7 +221,7 @@ def _run_document_import(*, db: Session, actor: Actor, family: str, payload) -> 
     documents — and audited as ONE event with its counts, like master data."""
     spec = document_import.FAMILIES[family]
     if spec.get("scope_by_direction"):
-        # Invoicing is a function, but scopable: a 期初 file usually carries
+        # Invoicing is a function, but scopable: an opening-balance file usually carries
         # both directions, so the import needs the capability for both rather
         # than one side of it.
         for direction in ("sales", "purchase"):

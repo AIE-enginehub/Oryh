@@ -22,6 +22,8 @@ router.
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 from datetime import date, timedelta
 from types import SimpleNamespace
 from typing import Annotated
@@ -560,8 +562,7 @@ def ensure_pay_term_states_something(payload) -> None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
-                "a rate needs the basis it applies to — 回款额, 毛利, 签约额, "
-                "whatever this workspace calls it"
+                zh_messages.PEOPLE_ENSURE_PAY_TERM_STATES_SOMETHING_DETAIL
             ),
         )
 

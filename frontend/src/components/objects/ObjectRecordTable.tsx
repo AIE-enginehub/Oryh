@@ -1,26 +1,27 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { Link } from "react-router-dom";
 
 import type { ObjectDisplayNames, ObjectListRecord } from "../../api/objects";
 import { useI18n } from "../../i18n";
 
-export // A lookup, not a ternary chain. The chain fell through to "工资条" for
+// A lookup, not a ternary chain. The chain fell through to "payslip" for
 // anything it did not name, so `reimbursement` — added on the server — showed
 // as a payslip in the console: a payable to an employee mislabelled as their
 // pay. A fifth direction is one line here, and an unknown one shows its own
 // key rather than borrowing someone else's meaning.
-function invoiceDirectionLabel(
+export function invoiceDirectionLabel(
   direction: string,
   text: (zh: string, en: string) => string,
 ): string {
   switch (direction) {
     case "sales":
-      return text("销项", "Sales");
+      return text(zhCN.componentsObjectsObjectRecordTable.sales, "Sales");
     case "purchase":
-      return text("进项", "Purchase");
+      return text(zhCN.componentsObjectsObjectRecordTable.purchase, "Purchase");
     case "payroll":
-      return text("工资条", "Payslip");
+      return text(zhCN.componentsObjectsObjectRecordTable.payslip, "Payslip");
     case "reimbursement":
-      return text("报销", "Reimbursement");
+      return text(zhCN.componentsObjectsObjectRecordTable.reimbursement, "Reimbursement");
     default:
       return direction;
   }
@@ -30,30 +31,30 @@ export function ObjectStatus({ status, translate = true }: { status: string; tra
   const { text } = useI18n();
   const token = status.toLocaleLowerCase().replace(/[^a-z0-9_-]/g, "-");
   const labels: Record<string, [string, string]> = {
-    active: ["启用", "Active"],
-    inactive: ["停用", "Inactive"],
-    archived: ["已归档", "Archived"],
-    confirmed: ["已确认", "Confirmed"],
-    cancelled: ["已取消", "Cancelled"],
-    draft: ["草稿", "Draft"],
-    repealed: ["已废止", "Repealed"],
-    submitted: ["已提交", "Submitted"],
-    approved: ["已通过", "Approved"],
-    rejected: ["已拒绝", "Rejected"],
-    returned: ["已退回", "Returned"],
-    sent: ["已发送", "Sent"],
-    accepted: ["已成交", "Accepted"],
-    declined: ["已谢绝", "Declined"],
-    expired: ["已过期", "Expired"],
-    shipped: ["已发货", "Shipped"],
-    signed: ["已签收", "Signed"],
-    in_delivery: ["配送中", "In delivery"],
-    delivered: ["已送达", "Delivered"],
-    open: ["进行中", "Open"],
-    completed: ["已完成", "Completed"],
-    pending: ["待处理", "Pending"],
-    published: ["已发布", "Published"],
-    superseded: ["已替代", "Superseded"],
+    active: [zhCN.componentsObjectsObjectRecordTable.active, "Active"],
+    inactive: [zhCN.componentsObjectsObjectRecordTable.name16, "Inactive"],
+    archived: [zhCN.componentsObjectsObjectRecordTable.archived, "Archived"],
+    confirmed: [zhCN.componentsObjectsObjectRecordTable.message4, "Confirmed"],
+    cancelled: [zhCN.componentsObjectsObjectRecordTable.message5, "Cancelled"],
+    draft: [zhCN.componentsObjectsObjectRecordTable.draft, "Draft"],
+    repealed: [zhCN.componentsObjectsObjectRecordTable.repealed, "Repealed"],
+    submitted: [zhCN.componentsObjectsObjectRecordTable.submitted2, "Submitted"],
+    approved: [zhCN.componentsObjectsObjectRecordTable.message9, "Approved"],
+    rejected: [zhCN.componentsObjectsObjectRecordTable.rejected, "Rejected"],
+    returned: [zhCN.componentsObjectsObjectRecordTable.returned, "Returned"],
+    sent: [zhCN.componentsObjectsObjectRecordTable.message12, "Sent"],
+    accepted: [zhCN.componentsObjectsObjectRecordTable.message13, "Accepted"],
+    declined: [zhCN.componentsObjectsObjectRecordTable.message14, "Declined"],
+    expired: [zhCN.componentsObjectsObjectRecordTable.message15, "Expired"],
+    shipped: [zhCN.componentsObjectsObjectRecordTable.message16, "Shipped"],
+    signed: [zhCN.componentsObjectsObjectRecordTable.message17, "Signed"],
+    in_delivery: [zhCN.componentsObjectsObjectRecordTable.message18, "In delivery"],
+    delivered: [zhCN.componentsObjectsObjectRecordTable.message19, "Delivered"],
+    open: [zhCN.componentsObjectsObjectRecordTable.running, "Open"],
+    completed: [zhCN.componentsObjectsObjectRecordTable.completed, "Completed"],
+    pending: [zhCN.componentsObjectsObjectRecordTable.message22, "Pending"],
+    published: [zhCN.componentsObjectsObjectRecordTable.published, "Published"],
+    superseded: [zhCN.componentsObjectsObjectRecordTable.superseded, "Superseded"],
   };
   return <span className={`object-status ${token}`}>{translate && labels[status] ? text(...labels[status]) : status}</span>;
 }
@@ -110,7 +111,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("员工", "Employee")}</th><th>{text("周期", "Period")}</th><th>{text("状态", "Status")}</th><th>{text("提交时间", "Submitted")}</th><th>{text("更新时间", "Updated")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.employee, "Employee")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.period, "Period")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.submitted, "Submitted")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.updated, "Updated")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
@@ -120,7 +121,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
               <td><ObjectStatus status={record.status} /></td>
               <td>{formatDateTime(record.submitted_at, language)}</td>
               <td>{formatDateTime(record.updated_at, language)}</td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -132,7 +133,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("员工", "Employee")}</th><th>{text("事由", "Reason")}</th><th>{text("报销日期", "Claim date")}</th><th>{text("币种", "Currency")}</th><th>{text("状态", "Status")}</th><th>{text("提交时间", "Submitted")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.employee, "Employee")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.reason, "Reason")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.claimDate, "Claim date")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.currency, "Currency")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.submitted, "Submitted")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
@@ -143,7 +144,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
               <td className="mono-cell">{record.currency}</td>
               <td><ObjectStatus status={record.status} /></td>
               <td>{formatDateTime(record.submitted_at, language)}</td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -155,7 +156,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("申请人", "Requester")}</th><th>{text("事由", "Reason")}</th><th>{text("目标供应商", "Preferred vendor")}</th><th>{text("期望到货", "Needed by")}</th><th>{text("状态", "Status")}</th><th>{text("提交时间", "Submitted")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.requester, "Requester")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.reason, "Reason")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.preferredVendor, "Preferred vendor")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.neededBy, "Needed by")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.submitted, "Submitted")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
@@ -166,7 +167,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
               <td>{formatDate(record.needed_by, language)}</td>
               <td><ObjectStatus status={record.status} /></td>
               <td>{formatDateTime(record.submitted_at, language)}</td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -178,18 +179,18 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("报价单号", "Quote no.")}</th><th>{text("客户", "Customer")}</th><th>{text("事由", "Reason")}</th><th>{text("总额", "Total")}</th><th>{text("有效期至", "Valid until")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.quoteNo, "Quote no.")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.customer, "Customer")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.reason, "Reason")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.total, "Total")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.validUntil, "Valid until")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
             return <tr key={record.id}>
-              <td><strong className="mono-cell">{record.quote_number}</strong>{record.revision_no > 1 && <small>{text(`第 ${record.revision_no} 版`, `Rev ${record.revision_no}`)}</small>}</td>
+              <td><strong className="mono-cell">{record.quote_number}</strong>{record.revision_no > 1 && <small>{text(zhCN.componentsObjectsObjectRecordTable.rev(`${record.revision_no}`), `Rev ${record.revision_no}`)}</small>}</td>
               <td>{record.customer_name_snapshot || "—"}</td>
               <td><strong>{record.title}</strong></td>
               <td>{formatMoney(record.total_amount, record.currency, language)}</td>
               <td>{formatDate(record.valid_until, language)}</td>
               <td><ObjectStatus status={record.status} /></td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -201,18 +202,18 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("订单号", "Order no.")}</th><th>{text("客户", "Customer")}</th><th>{text("金额", "Amount")}</th><th>{text("状态", "Status")}</th><th>{text("承诺交期", "Promised")}</th><th>{text("物流单号", "Tracking no.")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.orderNo, "Order no.")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.customer, "Customer")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.amount, "Amount")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.promised, "Promised")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.trackingNo, "Tracking no.")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
             return <tr key={record.id}>
-              <td><strong className="mono-cell">{record.order_no}</strong>{record.source_quote_number && <small>{text(`报价 ${record.source_quote_number}`, `Quote ${record.source_quote_number}`)}</small>}</td>
+              <td><strong className="mono-cell">{record.order_no}</strong>{record.source_quote_number && <small>{text(zhCN.componentsObjectsObjectRecordTable.quote(`${record.source_quote_number}`), `Quote ${record.source_quote_number}`)}</small>}</td>
               <td>{record.customer_name_snapshot || "—"}</td>
               <td>{formatMoney(record.total_amount, record.currency, language)}</td>
               <td><ObjectStatus status={record.status} /></td>
               <td>{formatDate(record.promised_date, language)}</td>
               <td className="mono-cell">{record.logistics_tracking_no || "—"}</td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -224,7 +225,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("发票号", "Invoice no.")}</th><th>{text("方向", "Direction")}</th><th>{text("往来单位", "Counterparty")}</th><th>{text("金额", "Amount")}</th><th>{text("已核销", "Applied")}</th><th>{text("到期日 / 期间", "Due / period")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.invoiceNo, "Invoice no.")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.direction, "Direction")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.counterparty, "Counterparty")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.amount, "Amount")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.applied, "Applied")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.duePeriod, "Due / period")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
@@ -232,13 +233,13 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
               <td><strong className="mono-cell">{record.invoice_no}</strong>{record.tax_invoice_number && <small className="mono-cell">{record.tax_invoice_number}</small>}</td>
               <td>{invoiceDirectionLabel(record.direction, text)}</td>
               <td>{record.counterparty_name_snapshot || "—"}</td>
-              {/* a payslip declares no total of its own — 实发 is the sum of its
+              {/* a payslip declares no total of its own — net pay is the sum of its
                   lines, so the header has nothing to show here */}
               <td>{record.direction === "payroll" ? "—" : formatMoney(record.total_amount, record.currency, language)}</td>
               <td>{formatMoney(record.applied_amount, record.currency, language)}</td>
               <td>{record.direction === "payroll" ? formatDate(record.period_end, language) : formatDate(record.due_date, language)}</td>
               <td><ObjectStatus status={record.status} /></td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -250,19 +251,19 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("单号", "Payment no.")}</th><th>{text("方向", "Direction")}</th><th>{text("往来单位", "Counterparty")}</th><th>{text("金额", "Amount")}</th><th>{text("未核销", "Unapplied")}</th><th>{text("日期", "Date")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.paymentNo, "Payment no.")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.direction, "Direction")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.counterparty, "Counterparty")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.amount, "Amount")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.unapplied, "Unapplied")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.date, "Date")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
             return <tr key={record.id}>
               <td><strong className="mono-cell">{record.payment_no}</strong>{record.reference_no && <small className="mono-cell">{record.reference_no}</small>}</td>
-              <td>{record.direction === "inbound" ? text("收款", "In") : text("付款", "Out")}</td>
+              <td>{record.direction === "inbound" ? text(zhCN.componentsObjectsObjectRecordTable.in, "In") : text(zhCN.componentsObjectsObjectRecordTable.out, "Out")}</td>
               <td>{record.counterparty_name_snapshot || "—"}</td>
               <td>{formatMoney(record.amount, record.currency, language)}</td>
               <td>{formatMoney(record.amount - record.applied_amount, record.currency, language)}</td>
               <td>{formatDate(record.payment_date, language)}</td>
               <td><ObjectStatus status={record.status} /></td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -274,7 +275,7 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("账户", "Account")}</th><th>{text("归属", "Owner")}</th><th>{text("计量", "Unit")}</th><th>{text("余额", "Balance")}</th><th>{text("可用", "Available")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.account, "Account")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.owner, "Owner")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.unit, "Unit")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.balance, "Balance")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.available, "Available")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
@@ -282,11 +283,11 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
             return <tr key={record.id}>
               <td><strong className="mono-cell">{record.account_code}</strong><small>{record.name}</small></td>
               <td>{record.owner_name_snapshot || "—"}</td>
-              <td>{money ? record.unit : `${record.unit} (${text("积分", "points")})`}</td>
+              <td>{money ? record.unit : zhCN.componentsObjectsObjectRecordTable.template3(`${record.unit}`, `${text(zhCN.componentsObjectsObjectRecordTable.points, "points")}`)}</td>
               <td>{money ? formatMoney(record.balance, record.unit, language) : record.balance}</td>
               <td>{money ? formatMoney(record.available_amount, record.unit, language) : record.available_amount}</td>
               <td><ObjectStatus status={record.status} /></td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -298,18 +299,18 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
     return (
       <div className="table-scroll">
         <table className="data-table object-record-table">
-          <thead><tr><th>{text("标题", "Title")}</th><th>{text("预订人", "Booked by")}</th><th>{text("开始", "Start")}</th><th>{text("结束", "End")}</th><th>{text("数量", "Quantity")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+          <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.title, "Title")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.bookedBy, "Booked by")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.start, "Start")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.end, "End")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.quantity, "Quantity")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
           <tbody>{records.map((item) => {
             if (item.entityType !== entityType) return null;
             const record = item.record;
             return <tr key={record.id}>
-              <td><strong>{record.title}</strong><small>{record.booking_type || text("未分类", "Uncategorized")}</small></td>
+              <td><strong>{record.title}</strong><small>{record.booking_type || text(zhCN.componentsObjectsObjectRecordTable.uncategorized, "Uncategorized")}</small></td>
               <td><strong>{person(record.booked_by_employee_id, employees)}</strong><small className="mono-cell">{record.booked_by_employee_id}</small></td>
               <td>{formatDateTime(record.start_at, language)}</td>
               <td>{formatDateTime(record.end_at, language)}</td>
               <td>{record.quantity}</td>
               <td><ObjectStatus status={record.status} /></td>
-              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+              <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
             </tr>;
           })}</tbody>
         </table>
@@ -320,17 +321,17 @@ export function ObjectRecordTable({ records, objectType, employees, actors }: Ob
   return (
     <div className="table-scroll">
       <table className="data-table object-record-table">
-        <thead><tr><th>{text("标题", "Title")}</th><th>{text("摘要", "Summary")}</th><th>{text("状态", "Status")}</th><th>{text("创建者", "Created by")}</th><th>{text("更新时间", "Updated")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+        <thead><tr><th>{text(zhCN.componentsObjectsObjectRecordTable.title, "Title")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.summary, "Summary")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.status, "Status")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.createdBy, "Created by")}</th><th>{text(zhCN.componentsObjectsObjectRecordTable.updated, "Updated")}</th><th><span className="sr-only">{text(zhCN.componentsObjectsObjectRecordTable.actions, "Actions")}</span></th></tr></thead>
         <tbody>{records.map((item) => {
           if (item.entityType !== "business_object") return null;
           const record = item.record;
           return <tr key={record.id}>
             <td><strong>{record.title}</strong><small className="mono-cell">{record.id}</small></td>
             <td className="object-summary-cell">{record.summary || "—"}</td>
-            <td><ObjectStatus status={record.status} translate={false} />{record.deleted_at && <span className="object-deleted">{text("已删除", "Deleted")}</span>}</td>
+            <td><ObjectStatus status={record.status} translate={false} />{record.deleted_at && <span className="object-deleted">{text(zhCN.componentsObjectsObjectRecordTable.deleted, "Deleted")}</span>}</td>
             <td className="object-actor-cell">{person(record.created_by, actors)}</td>
             <td className="object-date-cell">{formatDateTime(record.updated_at || record.created_at, language)}</td>
-            <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text("查看详情", "View details")}</Link></td>
+            <td className="row-actions"><Link className="text-action" to={detailUrl(item, objectType)}>{text(zhCN.componentsObjectsObjectRecordTable.viewDetails, "View details")}</Link></td>
           </tr>;
         })}</tbody>
       </table>

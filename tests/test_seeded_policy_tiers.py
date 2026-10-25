@@ -1,7 +1,7 @@
 """A tier table we ship must have exactly one answer per person.
 
 A seeded leave policy wrote its seniority bonus as two open-ended floors —
-满 3 年 +2, 满 5 年 +5 — and said nothing about somebody who has passed both.
+3 years adds 2, 5 years adds 5 — and said nothing about somebody who has passed both.
 For an employee with eight years' tenure, taking the highest leaves 0 days and
 adding them up leaves 2. Both readings can quote the policy.
 
@@ -21,6 +21,7 @@ is a property of the text we publish.
 """
 
 from __future__ import annotations
+
 
 import ast
 import pathlib
@@ -93,9 +94,9 @@ def test_a_shipped_tier_table_has_one_answer_per_person(line, field, tiers) -> N
 
 def test_the_starbridge_bonus_is_the_cumulative_reading() -> None:
     """The values, not just the shape. The seed's own comment predicts
-    `应得 12（法定 5 + 司龄 7）`, so the 5-year tier has to carry 7 — the total —
+    `entitlement 12 (statutory 5 + tenure bonus 7)`, so the 5-year tier has to carry 7 — the total —
     now that tiers no longer stack."""
     source = SEED.read_text(encoding="utf-8")
     assert '{"tenure_years_min": 3, "tenure_years_max": 5, "extra_days": 2}' in source
     assert '{"tenure_years_min": 5, "extra_days": 7}' in source
-    assert "应得 12（法定 5 + 司龄 7）" in source
+    assert "entitlement 12 (statutory 5 + tenure bonus 7)" in source

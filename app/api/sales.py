@@ -705,8 +705,8 @@ def revise_sales_quotation(
         db.add(copy)
         copied_items[item.id] = copy
     db.flush()
-    # Adjustments ride along: the negotiation continues from the same 折扣/税/
-    # 运费 facts. Line-pinned ones remap to the copied line; one pinned to a
+    # Adjustments ride along: the negotiation continues from the same discount/tax/
+    # freight facts. Line-pinned ones remap to the copied line; one pinned to a
     # line that was deleted (and so not copied) is orphaned and stays behind.
     adjustments = db.scalars(
         select(SalesQuotationAdjustment).where(
@@ -849,7 +849,7 @@ def get_sales_quotation_detail(
         approval_records=[ApprovalRecordRead.model_validate(record) for record in approvals],
         attachments=[AttachmentRead.model_validate(attachment) for attachment in attachments],
         revisions=[SalesQuotationRead.model_validate(revision) for revision in revisions],
-        # F-38: a condition an approver attached to v1 ("售后 4 小时响应写进合同")
+        # F-38: a condition an approver attached to v1 ("include a four-hour after-sales response time in the contract")
         # must survive into v2 and the order — the prior trail is read here
         prior_approval_records=[
             ApprovalRecordRead.model_validate(record)
@@ -1028,7 +1028,7 @@ def create_sales_order(
     charged_account = None
     if payload.billing_account_id:
         # paying by account: the order OCCUPIES the account's credit from this
-        # moment — the wait between order and invoice (缺货两天,toB 数月) is
+        # moment — the wait between order and invoice (two days out of stock, several months for B2B) is
         # exactly where the same balance must not back two orders
         charged_account = resolve_chargeable_account(
             db, tenant_id, payload.billing_account_id,
@@ -1684,7 +1684,7 @@ def get_sales_order_detail(
     )
     attachments = attachments_for_items(db, tenant_id, items)
     skus_by_id, products_by_id, products_with_skus = load_item_catalog_context(db, tenant_id, items)
-    # 按单采购 supply signal: purchase lines pinned to this order's lines,
+    # procure-to-order supply signal: purchase lines pinned to this order's lines,
     # with their request's status — one read for the whole document
     purchase_by_line = grouped_linked_lines(
         db, tenant_id, PurchaseRequestItem, "sales_order_item_id",

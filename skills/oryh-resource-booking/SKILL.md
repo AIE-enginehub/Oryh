@@ -1,6 +1,6 @@
 ---
 name: oryh-resource-booking
-description: Use to find, book, update, cancel or check availability of shared company resources in oryh — 会议室、设备 and anything managed as resources and resource_bookings ("订个会议室"、"明天下午投影仪有空吗"). Requires booking.own.
+description: Use to find, book, update, cancel or check availability of shared company resources in oryh — meeting rooms, equipment and anything managed as resources and resource_bookings ("book a meeting room", "is the projector available tomorrow afternoon"). Requires booking.own.
 required_capability: booking.own
 ---
 
@@ -189,3 +189,6 @@ For normal booking requests, prefer reusing existing resources instead of creati
 ## References
 
 Load [references/api.md](./references/api.md) when you need the endpoint list, payload templates, or the availability/booking examples.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

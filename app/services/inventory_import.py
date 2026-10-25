@@ -10,6 +10,8 @@ reason `import_override`; the item row is never edited into agreement.
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 from typing import Any
 
 from sqlalchemy import select, update
@@ -218,7 +220,7 @@ def bulk_inventory_upsert(
                 db, item=item,
                 quantity_on_hand_diff=row.quantity,
                 reason="import_initial",
-                description=row.description or f"批量导入建账：数量 {row.quantity}",
+                description=row.description or f'{zh_messages.INVENTORY_IMPORT_TEXT}{row.quantity}',
                 unit_cost=row.unit_cost,
                 created_by=created_by,
             )
@@ -234,7 +236,7 @@ def bulk_inventory_upsert(
         if not same_value(item.quantity_on_hand, row.quantity):
             system = float(item.quantity_on_hand)
             diff = round(float(row.quantity) - system, 2)
-            note = f"导入覆盖：系统数量 {system:g} → 导入数量 {row.quantity:g}（差异 {diff:+g}）"
+            note = f'{zh_messages.INVENTORY_IMPORT_TEXT_2}{system:g}{zh_messages.INVENTORY_IMPORT_TEXT_3}{row.quantity:g}{zh_messages.INVENTORY_IMPORT_TEXT_4}{diff:+g}）'
             if row.description:
                 note = f"{note} {row.description}"
             post_inventory_detail(

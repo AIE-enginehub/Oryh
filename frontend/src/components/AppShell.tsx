@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -57,9 +58,9 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
   const currentPage = currentGroup?.items.find(owns);
   const roleLabel =
     bootstrap.role === "admin"
-      ? text("租户管理员", "Tenant administrator")
+      ? text(zhCN.componentsAppShell.tenantAdministrator, "Tenant administrator")
       : bootstrap.role === "member"
-        ? text("团队成员", "Team member")
+        ? text(zhCN.componentsAppShell.teamMember, "Team member")
         : bootstrap.role;
 
   useFocusTrap(sidebar, narrow && menuOpen);
@@ -116,12 +117,12 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
   return (
     <div className="console-layout">
       <a className="console-skip-link" href="#console-content">
-        {text("跳到主要内容", "Skip to main content")}
+        {text(zhCN.componentsAppShell.skipToMainContent, "Skip to main content")}
       </a>
       {menuOpen && (
         <button
           className="nav-scrim"
-          aria-label={text("关闭导航遮罩", "Close navigation backdrop")}
+          aria-label={text(zhCN.componentsAppShell.closeNavigationBackdrop, "Close navigation backdrop")}
           onClick={() => setMenuOpen(false)}
         />
       )}
@@ -137,7 +138,7 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
         <div className="brand-block">
           <NavLink
             to="/dashboard"
-            aria-label={text("ORYH 工作台", "ORYH workspace")}
+            aria-label={text(zhCN.componentsAppShell.oRYHWorkspace, "ORYH workspace")}
             onClick={() => setMenuOpen(false)}
           >
             <OryhLogo />
@@ -161,7 +162,7 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
             <strong title={bootstrap.tenant.name}>
               {bootstrap.tenant.name}
             </strong>
-            <small>{text("企业工作空间", "Company workspace")}</small>
+            <small>{text(zhCN.componentsAppShell.companyWorkspace, "Company workspace")}</small>
           </div>
         </div>
         <nav className="sidebar-nav" aria-label={t("navigation")}>
@@ -185,12 +186,12 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
           ))}
         </nav>
         <a className="sidebar-help" href="/web/connect">
-          {text("使用指南与智能体接入", "Guide & agent connection")}
+          {text(zhCN.componentsAppShell.guideAgentConnection, "Guide & agent connection")}
           <ArrowSquareOut size={15} aria-hidden />
         </a>
         {logout.isError && (
           <p className="signout-error" role="alert">
-            {text("退出失败，请重试。", "Could not sign out. Please retry.")}
+            {text(zhCN.componentsAppShell.couldNotSignOutPleaseRetry, "Could not sign out. Please retry.")}
           </p>
         )}
         <div className="identity-block">
@@ -239,21 +240,21 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
               className="console-find"
               type="button"
               onClick={() => setCommand("navigate")}
-              aria-label={text("查找页面与功能", "Find pages and actions")}
+              aria-label={text(zhCN.componentsAppShell.findPagesAndActions, "Find pages and actions")}
             >
               <MagnifyingGlass size={17} aria-hidden />
-              <span>{text("查找页面与功能", "Find pages and actions")}</span>
+              <span>{text(zhCN.componentsAppShell.findPagesAndActions, "Find pages and actions")}</span>
               <kbd>⌘ K</kbd>
             </button>
             {canCreate && (
               <button
                 className="button primary console-create"
                 type="button"
-                aria-label={text("新建", "Create")}
+                aria-label={text(zhCN.componentsAppShell.create, "Create")}
                 onClick={() => setCommand("create")}
               >
                 <Plus size={17} aria-hidden />
-                <span>{text("新建", "Create")}</span>
+                <span>{text(zhCN.componentsAppShell.create, "Create")}</span>
               </button>
             )}
             <LanguageSwitcher />
@@ -262,7 +263,7 @@ export function AppShell({ bootstrap, children }: AppShellProps) {
         {import.meta.env.MODE === "preview" && (
           <div className="console-preview-note">
             {text(
-              "本地样例预览 · 操作仅影响内存中的样例数据",
+              zhCN.componentsAppShell.localSamplePreviewChangesOnlyAffectInMemorySample,
               "Local sample preview · Changes only affect in-memory sample data",
             )}
           </div>

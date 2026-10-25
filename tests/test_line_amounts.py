@@ -11,6 +11,13 @@ follows the rule, on create, on PATCH, on `/save`, on bulk import.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_line_amounts.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant
@@ -21,9 +28,9 @@ def desk():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Amount Co", email="admin@amount.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
-        vendor = client.post("/api/v1/vendors", json={"name": "卖家"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
+        vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_D6074D12387BAEA1']}, headers=admin).json()["data"]["id"]
         product = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP"}, headers=admin).json()["data"]["id"]
         yield {"client": client, "admin": admin, "employee": emp, "customer": customer, "vendor": vendor, "product": product}
 
@@ -78,7 +85,7 @@ def test_a_gift_line_is_zero_and_the_lump_sum_survives_without_a_price(desk) -> 
     doc = c.post("/api/v1/sales-orders", headers=admin, json={
         "employee_id": desk["employee"], "customer_id": desk["customer"], "title": "t", "items": [
             {"product_id": desk["product"], "quantity": 1, "unit_price": 99, "is_gift": True},
-            {"product_name_snapshot": "安装服务", "quantity": 1, "amount": 500}]}).json()["data"]
+            {"product_name_snapshot": _ZH_TEXT['TEXT_E87C53E301B7F5FF'], "quantity": 1, "amount": 500}]}).json()["data"]
     gift, service = doc["items"]
     assert gift["amount"] == 0 and service["amount"] == 500
     ungifted = c.patch(f"/api/v1/sales-order-items/{gift['id']}", headers=admin, json={"is_gift": False})
@@ -90,7 +97,7 @@ def test_invoice_lines_compute_amount_and_leave_tax_as_stated(desk) -> None:
     inv = c.post("/api/v1/invoices", headers=admin, json={
         "direction": "sales", "employee_id": desk["employee"], "customer_id": desk["customer"], "title": "inv", "items": [
             {"product_id": desk["product"], "quantity": 10, "unit_price": 100, "tax_rate": 13},
-            # 含税价: the tax is what the invoice says, not amount × rate
+            # tax-inclusive price: the tax is what the invoice says, not amount × rate
             {"product_id": desk["product"], "quantity": 1, "unit_price": 113, "tax_rate": 13, "tax_amount": 13},
         ]})
     assert inv.status_code == 201, inv.text

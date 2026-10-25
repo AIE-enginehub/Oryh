@@ -1,6 +1,6 @@
 ---
 name: oryh-access-admin
-description: Use when an administrator's agent changes who can do what in oryh — grant a capability ("让谢婷也能下采购单"), shape roles, invite or disable people, reissue a bundle or credential. Requires users.manage. Never approves or files documents; never grants more than it holds.
+description: Use when an administrator's agent changes who can do what in oryh — grant a capability ("also allow Xie Ting to place purchase orders"), shape roles, invite or disable people, reissue a bundle or credential. Requires users.manage. Never approves or files documents; never grants more than it holds.
 required_capability: users.manage
 ---
 
@@ -158,6 +158,19 @@ back to the principal.
   anything the principal lacks — `users.manage` on a desk role lets that desk
   bring in its own kind, never an administrator. Say so and hand the request
   to an administrator rather than looking for another route.
+- **Nobody wider than you**: the same rule read off the person. Unless the
+  principal is the system `admin`, changing someone's role, status, email
+  or employee link, mailing them a password reset or a fresh invitation,
+  or generating a bundle in their name is refused (403) when that person's
+  role holds anything the principal lacks — an administrator above all.
+  Editing a role is judged the same way: a role that holds anything the
+  principal lacks is the administrator's to change, since narrowing it
+  demotes everyone on it.
+  A key desk (`keys.manage`) may issue personal keys to the people it
+  equips, but not to an administrator or to anyone holding a `users.manage`
+  / `keys.manage` / `skills.manage` grant the desk lacks — workspace skills
+  reach every bundle, the administrator's included. A workspace service key holds every
+  capability, so only an administrator issues one or switches one back on.
 - **Lockout protection**: the `admin` role cannot lose `users.manage`, and no
   change may leave the tenant without a last active user holding `users.manage`
   (all three paths hit this — editing role permissions, changing a user's role,
@@ -285,3 +298,6 @@ both the server and the audit trail.
 
 - [references/api.md](references/api.md): the capability catalog, read/write
   templates for roles and users, and the message behind every refusal.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

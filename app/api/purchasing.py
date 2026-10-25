@@ -14,6 +14,8 @@ router.
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -387,7 +389,7 @@ def get_purchase_request_detail(
     approvals = document_approvals(db, tenant_id, "purchase_request", request_id)
     attachments = attachments_for_items(db, tenant_id, items)
     skus_by_id, products_by_id, products_with_skus = load_item_catalog_context(db, tenant_id, items)
-    # 按单采购 context: the sales order line (and its order) behind each
+    # procure-to-order context: the sales order line (and its order) behind each
     # pinned purchase line, resolved in two reads for the whole document
     order_lines_by_id, orders_by_id = load_lines_with_parents(
         db, tenant_id, SalesOrderItem, SalesOrder, "order_id",
@@ -874,12 +876,12 @@ def receive_purchase_order(
     """Record goods arriving against PO lines. Facts only, no status magic:
     received_quantity accumulates on each line, and a line given a `facility`
     also lands in the inventory ledger (reason `received`, entity pinned to
-    the PO line). No facility = a 直发/零库存 receipt that never touches
+    the PO line). No facility = a drop-ship/zero-inventory receipt that never touches
     stock. The flow agent moves the PO's status when the facts support it.
 
     Deliberately NOT gated on status: the state names are tenant-editable, so
     the server cannot know which of them mean "receivable" — that judgment is
-    the agent's. Over-receiving is likewise recorded as stated (超收 is a real
+    the agent's. Over-receiving is likewise recorded as stated (over-receipt is a real
     thing); flagging it is conversation, not rejection.
 
     A vendor's price becomes their SupplierProduct.last_price when the link
@@ -939,7 +941,7 @@ def receive_purchase_order(
                 item=position,
                 quantity_on_hand_diff=line.quantity,
                 reason="received",
-                description=f"PO {po.po_number} 收货：{line.quantity}{item.unit or ''}",
+                description=f"PO {po.po_number}{zh_messages.PURCHASING_TEXT}{line.quantity}{item.unit or ''}",
                 # header FK for "every movement this order caused"; the pair
                 # below keeps the LINE, which is the precise cause
                 purchase_order_id=po.id,

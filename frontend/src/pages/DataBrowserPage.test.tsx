@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -58,7 +59,7 @@ describe("DataBrowserPage", () => {
   it("lists every group in the directory", () => {
     renderAt("/data");
     expect(screen.getByTestId("data-directory")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Sales orders|销售订单/ })).toHaveAttribute("href", "/data/sales-orders");
+    expect(screen.getByRole("link", { name: zhCN.pagesDataBrowserPage.name() })).toHaveAttribute("href", "/data/sales-orders");
   });
 
   it("requests the collection with the URL's filters, sorts from the header and pages", async () => {
@@ -79,7 +80,7 @@ describe("DataBrowserPage", () => {
     // the sorted column says so
     expect(screen.getByRole("columnheader", { name: "order_no" })).toHaveAttribute("aria-sort", "descending");
     // the row links to the existing record detail
-    expect(screen.getByRole("link", { name: /Trail|轨迹/ })).toHaveAttribute("href", expect.stringContaining("/objects/sales_order/o-1"));
+    expect(screen.getByRole("link", { name: zhCN.pagesDataBrowserPage.name2() })).toHaveAttribute("href", expect.stringContaining("/objects/sales_order/o-1"));
 
     await userEvent.click(screen.getByRole("button", { name: "status" }));
     await waitFor(() => {
@@ -93,7 +94,7 @@ describe("DataBrowserPage", () => {
   it("shows the restricted state on 403 instead of an error", async () => {
     api.apiRequestEnvelope.mockRejectedValue(new ApiError(403, "forbidden"));
     renderAt("/data/pay-histories");
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/not visible|无权/));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(zhCN.pagesDataBrowserPage.pattern()));
   });
 });
 
@@ -110,24 +111,24 @@ describe("writes are confirmed with the facts they send", () => {
     });
     renderAt("/data/customers");
     await waitFor(() => expect(screen.getByText("Acme")).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("button", { name: /Edit|编辑/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name3() }));
     const name = screen.getByLabelText("name");
     await userEvent.clear(name);
     await userEvent.type(name, "Acme Ltd");
-    await userEvent.click(screen.getByRole("button", { name: /Next: confirm|下一步/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name4() }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent("PATCH /api/v1/customers/c-1");
     expect(dialog).toHaveTextContent("Acme Ltd");
     // untouched fields are not in the preview and not in the body
     expect(dialog).not.toHaveTextContent("91330100");
     expect(api.apiRequestEnvelope.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PATCH")).toHaveLength(0);
-    await userEvent.click(screen.getByRole("button", { name: /Confirm write|确认写入/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name5() }));
     await waitFor(() => {
       const patch = api.apiRequestEnvelope.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PATCH");
       expect(patch?.[0]).toBe("/api/v1/customers/c-1");
       expect(JSON.parse(String((patch?.[1] as RequestInit).body))).toEqual({ name: "Acme Ltd" });
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(/saved|已保存/);
+    expect(await screen.findByRole("status")).toHaveTextContent(zhCN.pagesDataBrowserPage.pattern2());
   });
 
   it("runs a record verb against its own path, and nothing is sent before the confirmation", async () => {
@@ -138,15 +139,15 @@ describe("writes are confirmed with the facts they send", () => {
     );
     renderAt("/data/sales-orders");
     await waitFor(() => expect(screen.getByText("SO-000009")).toBeInTheDocument());
-    await userEvent.click(screen.getByText(/Actions|动作/));
+    await userEvent.click(screen.getByText(zhCN.pagesDataBrowserPage.pattern3()));
     await userEvent.click(screen.getByRole("button", { name: "revise" }));
     await userEvent.type(screen.getByLabelText("reason"), "cannot ship");
-    await userEvent.click(screen.getByRole("button", { name: /Next: confirm|下一步/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name4() }));
     const dialog = await screen.findByRole("alertdialog");
     expect(dialog).toHaveTextContent("POST /api/v1/sales-orders/o-9/revise");
     expect(dialog).toHaveTextContent("cannot ship");
     expect(api.apiRequestEnvelope.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(false);
-    await userEvent.click(screen.getByRole("button", { name: /Confirm write|确认写入/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name5() }));
     await waitFor(() => {
       const post = api.apiRequestEnvelope.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST");
       expect(post?.[0]).toBe("/api/v1/sales-orders/o-9/revise");
@@ -161,10 +162,10 @@ describe("writes are confirmed with the facts they send", () => {
         : { data: { id: "v-1" }, meta: {} }),
     );
     renderAt("/data/vendors");
-    await userEvent.click(await screen.findByRole("button", { name: /Create|新建/ }));
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesDataBrowserPage.name6() }));
     await userEvent.type(screen.getByLabelText(/^name/), "Probe Supplier");
-    await userEvent.click(screen.getByRole("button", { name: /Next: confirm|下一步/ }));
-    await userEvent.click(await screen.findByRole("button", { name: /Confirm write|确认写入/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name4() }));
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesDataBrowserPage.name5() }));
     await waitFor(() => {
       const post = api.apiRequestEnvelope.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST");
       expect(post?.[0]).toBe("/api/v1/vendors");
@@ -180,8 +181,8 @@ describe("writes are confirmed with the facts they send", () => {
     );
     renderAt("/data/customers");
     await waitFor(() => expect(screen.getByText("Beta")).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("button", { name: /Delete|删除/ }));
-    await userEvent.click(await screen.findByRole("button", { name: /Confirm write|确认写入/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name7() }));
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesDataBrowserPage.name5() }));
     expect(await screen.findByRole("alert")).toHaveTextContent("still names this customer");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
@@ -198,7 +199,7 @@ describe("references and related records", () => {
       return Promise.resolve({ data: [], meta: { total: 0, page: 1, page_size: 25, pages: 0 } });
     });
     renderAt("/data/sales-orders");
-    await userEvent.click(await screen.findByRole("button", { name: /Create|新建/ }));
+    await userEvent.click(await screen.findByRole("button", { name: zhCN.pagesDataBrowserPage.name6() }));
     const picker = document.getElementById("data-customer_id") as HTMLInputElement;
     await userEvent.click(picker);
     await userEvent.type(picker, "Seven");
@@ -209,7 +210,7 @@ describe("references and related records", () => {
     expect(searches.map((path) => new URLSearchParams(path.split("?")[1]).get("keyword"))).toContain("Seven");
     expect(searches.every((path) => new URLSearchParams(path.split("?")[1]).get("size") === "8")).toBe(true);
     await userEvent.type(screen.getByLabelText(/^title/), "Picked");
-    await userEvent.click(screen.getByRole("button", { name: /Next: confirm|下一步/ }));
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name4() }));
     expect(await screen.findByRole("alertdialog")).toHaveTextContent("c-7");
   });
 
@@ -220,8 +221,8 @@ describe("references and related records", () => {
     });
     renderAt("/data/sales-orders");
     await waitFor(() => expect(screen.getByText("SO-000003")).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("button", { name: /Detail|详情/ }));
-    const nav = await screen.findByRole("navigation", { name: /Related|相关/ });
+    await userEvent.click(screen.getByRole("button", { name: zhCN.pagesDataBrowserPage.name8() }));
+    const nav = await screen.findByRole("navigation", { name: zhCN.pagesDataBrowserPage.name9() });
     expect(nav.querySelector('a[href="/data/sales-order-items?order_id=o-3"]')).not.toBeNull();
     expect(nav.querySelector('a[href="/data/sales-orders?supersedes_order_id=o-3"]')).not.toBeNull();
   });

@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getObjectDetail, getObjectDirectory, listObjectRecords, type BusinessObject } from "./objects";
@@ -15,8 +16,8 @@ function jsonResponse(data: unknown, meta: Record<string, unknown> = {}): Respon
 const businessObject: BusinessObject = {
   id: "object-1",
   object_type: "contract",
-  title: "年度采购合同",
-  summary: "华东区框架合同",
+  title: zhCN.apiObjects.title,
+  summary: zhCN.apiObjects.summary,
   payload: { region: "east" },
   source_text: null,
   status: "submitted",
@@ -41,7 +42,7 @@ describe("object API", () => {
       objectType: "contract",
       page: 2,
       size: 20,
-      keyword: "框架 合同",
+      keyword: zhCN.apiObjects.keyword,
       status: "submitted",
     })).resolves.toEqual({ data: [{ entityType: "business_object", record: businessObject }], meta });
 
@@ -50,7 +51,7 @@ describe("object API", () => {
     expect(Object.fromEntries(request.searchParams)).toMatchObject({
       page: "2",
       size: "20",
-      keyword: "框架 合同",
+      keyword: zhCN.apiObjects.keyword,
       status: "submitted",
       object_type: "contract",
       include_deleted: "true",
@@ -58,7 +59,7 @@ describe("object API", () => {
   });
 
   it("keeps a bounded local fallback for old servers without page metadata", async () => {
-    const second = { ...businessObject, id: "object-2", title: "差旅申请", summary: null };
+    const second = { ...businessObject, id: "object-2", title: zhCN.apiObjects.title2, summary: null };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([businessObject, second], { total: 2 })));
 
     await expect(listObjectRecords({
@@ -66,7 +67,7 @@ describe("object API", () => {
       objectType: "contract",
       page: 1,
       size: 1,
-      keyword: "合同",
+      keyword: zhCN.apiObjects.keyword2,
     })).resolves.toEqual({
       data: [{ entityType: "business_object", record: businessObject }],
       meta: { total: 1, page: 1, page_size: 1, pages: 1 },
@@ -83,9 +84,9 @@ describe("object API", () => {
         todos: [],
         audit_logs: [],
         object_type_definition: null,
-        rules: [{ id: "rule-1", kind: "approval_flow", code: "approval_flow:business_object:contract:approval", version: 2, entity_kind: "business_object", object_type: "contract", name: "approval", origin: "tenant", category: null, title: "contract 流程定义", summary: null, body: "steps: []", rules_json: null, visibility: "internal", required_capability: null, status: "published", effective_from: "2026-07-03", effective_thru: null, published_at: "2026-07-03T08:00:00Z", published_by: "user:user-1", supersedes_id: null, attachment_id: null, owner_employee_id: null, created_by: "user:user-1", custom_fields: {}, created_at: "2026-07-03T08:00:00Z", updated_at: "2026-07-03T08:00:00Z" }],
+        rules: [{ id: "rule-1", kind: "approval_flow", code: "approval_flow:business_object:contract:approval", version: 2, entity_kind: "business_object", object_type: "contract", name: "approval", origin: "tenant", category: null, title: zhCN.apiObjects.title3, summary: null, body: "steps: []", rules_json: null, visibility: "internal", required_capability: null, status: "published", effective_from: "2026-07-03", effective_thru: null, published_at: "2026-07-03T08:00:00Z", published_by: "user:user-1", supersedes_id: null, attachment_id: null, owner_employee_id: null, created_by: "user:user-1", custom_fields: {}, created_at: "2026-07-03T08:00:00Z", updated_at: "2026-07-03T08:00:00Z" }],
       }));
-      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "租户管理员" } }));
+      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": zhCN.apiObjects.employee1 }, actors: { "user:user-1": zhCN.apiObjects.userUser1 } }));
       throw new Error(`Unexpected URL ${input}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -95,7 +96,7 @@ describe("object API", () => {
     expect(detail.links).toHaveLength(1);
     expect(detail.approvals).toHaveLength(1);
     expect(detail.rules[0]).toMatchObject({ kind: "approval_flow", version: 2, status: "published" });
-    expect(detail.actors["user:user-1"]).toBe("租户管理员");
+    expect(detail.actors["user:user-1"]).toBe(zhCN.apiObjects.userUser1);
     expect(detail.issues).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toContain("/business-objects/object-1/detail?include_deleted=true");
@@ -103,9 +104,9 @@ describe("object API", () => {
 
   it("maps the sales-quotation detail contract into items, totals and the revision chain", async () => {
     const quotation = {
-      id: "quotation-2", employee_id: "employee-1", title: "年度刀具报价", quote_number: "QT-000123",
-      revision_no: 2, revision_of_id: "quotation-1", customer_id: "customer-1", customer_name_snapshot: "华欣机械",
-      contact_name: "王工", contact_phone: null, contact_email: null, quote_date: "2026-07-21", valid_until: "2026-08-20",
+      id: "quotation-2", employee_id: "employee-1", title: zhCN.apiObjects.title4, quote_number: "QT-000123",
+      revision_no: 2, revision_of_id: "quotation-1", customer_id: "customer-1", customer_name_snapshot: zhCN.apiObjects.customerNameSnapshot,
+      contact_name: zhCN.apiObjects.contactName, contact_phone: null, contact_email: null, quote_date: "2026-07-21", valid_until: "2026-08-20",
       currency: "CNY", payment_terms: null, delivery_terms: null, remarks: null, status: "sent",
       submitted_at: "2026-07-21T09:00:00Z", sent_at: "2026-07-22T09:00:00Z", closed_at: null, outcome_note: null,
       project_id: null, source_report_text: null, total_amount: 16800, custom_fields: {},
@@ -117,10 +118,10 @@ describe("object API", () => {
         quotation,
         items: [{
           id: "qline-1", quotation_id: "quotation-2", line_no: 1, product_id: "product-1", sku_id: "sku-1",
-          product_name_snapshot: "四刃立铣刀", spec: null, quantity: 200, unit: "支", unit_price: 85,
-          list_price_snapshot: 94.44, tax_rate: 13, amount: null, is_gift: false, lead_time: "现货",
+          product_name_snapshot: zhCN.apiObjects.productNameSnapshot, spec: null, quantity: 200, unit: zhCN.apiObjects.unit, unit_price: 85,
+          list_price_snapshot: 94.44, tax_rate: 13, amount: null, is_gift: false, lead_time: zhCN.apiObjects.leadTime,
           attachment_id: null, notes: null, custom_fields: {}, created_at: "2026-07-21T08:00:00Z", updated_at: null,
-          product: { id: "product-1", product_code: "MILL-001", name: "四刃立铣刀", spec: "D10", unit: "支", list_price: 94.44 },
+          product: { id: "product-1", product_code: "MILL-001", name: zhCN.apiObjects.productNameSnapshot, spec: "D10", unit: zhCN.apiObjects.unit, list_price: 94.44 },
           sku: { id: "sku-1", product_id: "product-1", sku_code: "MILL-001-D10", variant_attrs: {}, list_price: 94.44 },
           sku_pending: false,
         }],
@@ -134,7 +135,7 @@ describe("object API", () => {
       if (url.pathname === "/api/v1/business-rules") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/todos") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/audit-logs") return Promise.resolve(jsonResponse([]));
-      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "销售经理" } }));
+      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": zhCN.apiObjects.employee1 }, actors: { "user:user-1": zhCN.apiObjects.userUser12 } }));
       throw new Error(`Unexpected URL ${input}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -147,27 +148,27 @@ describe("object API", () => {
     expect(detail.salesQuotationTotals).toEqual({ computedTotal: 17000, unpricedItemCount: 0, pendingSkuCount: 0 });
     expect(detail.revisions).toHaveLength(2);
     expect(detail.approvals).toHaveLength(1);
-    expect(detail.employees["employee-1"]).toBe("王琳");
-    expect(detail.actors["user:user-1"]).toBe("销售经理");
+    expect(detail.employees["employee-1"]).toBe(zhCN.apiObjects.employee1);
+    expect(detail.actors["user:user-1"]).toBe(zhCN.apiObjects.userUser12);
     expect(detail.issues).toEqual([]);
     expect(fetchMock.mock.calls[0][0]).toContain("/sales-quotations/quotation-2/detail?include_deleted=true");
   });
 
   it("maps the sales-order detail contract into items, totals and the won quotation", async () => {
     const order = {
-      id: "order-2", employee_id: "employee-1", title: "年度刀具首单", order_no: "SO-000042",
-      order_date: "2026-07-22", promised_date: "2026-08-05", customer_id: "customer-1", customer_name_snapshot: "华欣机械",
-      contact_name: "王工", contact_phone: null, quotation_id: "quotation-2", source_quote_number: "QT-000123",
+      id: "order-2", employee_id: "employee-1", title: zhCN.apiObjects.title5, order_no: "SO-000042",
+      order_date: "2026-07-22", promised_date: "2026-08-05", customer_id: "customer-1", customer_name_snapshot: zhCN.apiObjects.customerNameSnapshot,
+      contact_name: zhCN.apiObjects.contactName, contact_phone: null, quotation_id: "quotation-2", source_quote_number: "QT-000123",
       contract_no: null, currency: "CNY", payment_terms: null, delivery_terms: null,
-      logistics_company: "顺丰", logistics_tracking_no: "SF1234567890", ship_to_address: null,
+      logistics_company: zhCN.apiObjects.logisticsCompany, logistics_tracking_no: "SF1234567890", ship_to_address: null,
       remarks: null, status: "confirmed", submitted_at: "2026-07-22T09:00:00Z", shipped_at: null, signed_at: null,
       project_id: null, source_report_text: null, total_amount: 16800, custom_fields: {},
       created_at: "2026-07-22T08:00:00Z", updated_at: null,
     };
     const quotation = {
-      id: "quotation-2", employee_id: "employee-1", title: "年度刀具报价", quote_number: "QT-000123",
-      revision_no: 1, revision_of_id: null, customer_id: "customer-1", customer_name_snapshot: "华欣机械",
-      contact_name: "王工", contact_phone: null, contact_email: null, quote_date: "2026-07-18", valid_until: "2026-08-20",
+      id: "quotation-2", employee_id: "employee-1", title: zhCN.apiObjects.title4, quote_number: "QT-000123",
+      revision_no: 1, revision_of_id: null, customer_id: "customer-1", customer_name_snapshot: zhCN.apiObjects.customerNameSnapshot,
+      contact_name: zhCN.apiObjects.contactName, contact_phone: null, contact_email: null, quote_date: "2026-07-18", valid_until: "2026-08-20",
       currency: "CNY", payment_terms: null, delivery_terms: null, remarks: null, status: "accepted",
       submitted_at: null, sent_at: null, closed_at: null, outcome_note: null,
       project_id: null, source_report_text: null, total_amount: 16800, custom_fields: {},
@@ -179,10 +180,10 @@ describe("object API", () => {
         order,
         items: [{
           id: "oline-1", order_id: "order-2", line_no: 1, product_id: "product-1", sku_id: "sku-1",
-          product_name_snapshot: "四刃立铣刀", spec: null, quantity: 200, unit: "支", unit_price: 85,
+          product_name_snapshot: zhCN.apiObjects.productNameSnapshot, spec: null, quantity: 200, unit: zhCN.apiObjects.unit, unit_price: 85,
           list_price_snapshot: 94.44, tax_rate: 13, amount: null, is_gift: false, promised_date: "2026-08-05",
           attachment_id: null, notes: null, custom_fields: {}, created_at: "2026-07-22T08:00:00Z", updated_at: null,
-          product: { id: "product-1", product_code: "MILL-001", name: "四刃立铣刀", spec: "D10", unit: "支", list_price: 94.44 },
+          product: { id: "product-1", product_code: "MILL-001", name: zhCN.apiObjects.productNameSnapshot, spec: "D10", unit: zhCN.apiObjects.unit, list_price: 94.44 },
           sku: { id: "sku-1", product_id: "product-1", sku_code: "MILL-001-D10", variant_attrs: {}, list_price: 94.44 },
           sku_pending: false,
         }],
@@ -196,7 +197,7 @@ describe("object API", () => {
       if (url.pathname === "/api/v1/business-rules") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/todos") return Promise.resolve(jsonResponse([]));
       if (url.pathname === "/api/v1/audit-logs") return Promise.resolve(jsonResponse([]));
-      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": "王琳" }, actors: { "user:user-1": "销售经理" } }));
+      if (url.pathname === "/api/v1/directory/display-names/resolve") return Promise.resolve(jsonResponse({ employees: { "employee-1": zhCN.apiObjects.employee1 }, actors: { "user:user-1": zhCN.apiObjects.userUser12 } }));
       throw new Error(`Unexpected URL ${input}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -210,8 +211,8 @@ describe("object API", () => {
     expect(detail.quotationLink?.quote_number).toBe("QT-000123");
     expect(detail.revisions).toHaveLength(0);
     expect(detail.approvals).toHaveLength(1);
-    expect(detail.employees["employee-1"]).toBe("王琳");
-    expect(detail.actors["user:user-1"]).toBe("销售经理");
+    expect(detail.employees["employee-1"]).toBe(zhCN.apiObjects.employee1);
+    expect(detail.actors["user:user-1"]).toBe(zhCN.apiObjects.userUser12);
     expect(detail.issues).toEqual([]);
     expect(fetchMock.mock.calls[0][0]).toContain("/sales-orders/order-2/detail?include_deleted=true");
   });

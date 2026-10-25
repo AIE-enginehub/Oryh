@@ -14,6 +14,13 @@ decides what to buy and the server stores no plan.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_bom.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -45,12 +52,12 @@ def workshop():
 
 def test_the_manufacturing_role_is_a_closed_axis(workshop) -> None:
     client, admin = workshop["client"], workshop["admin"]
-    plain = client.post("/api/v1/products", headers=admin, json={"name": "杯子"}).json()["data"]
+    plain = client.post("/api/v1/products", headers=admin, json={"name": _ZH_TEXT['TEXT_95F9E8E79208082D']}).json()["data"]
     assert plain["product_type"] == "finished_good", "what a catalog held before it knew the word"
     bent = client.post("/api/v1/products", headers=admin,
-                       json={"name": "怪物", "product_type": "widget"})
+                       json={"name": _ZH_TEXT['TEXT_31567E20345BE2C5'], "product_type": "widget"})
     assert bent.status_code == 422
-    steel = workshop["product"]("钢板", "raw_material")
+    steel = workshop["product"](_ZH_TEXT['TEXT_AA023C3573AB5655'], "raw_material")
     listed = client.get("/api/v1/products", headers=workshop["member"],
                         params={"product_type": "raw_material"}).json()["data"]
     assert [r["id"] for r in listed] == [steel]
@@ -58,9 +65,9 @@ def test_the_manufacturing_role_is_a_closed_axis(workshop) -> None:
 
 def test_a_recipe_is_for_a_made_good_and_made_of_goods(workshop) -> None:
     client, admin = workshop["client"], workshop["admin"]
-    steel = workshop["product"]("钢板", "raw_material")
-    polish = workshop["product"]("抛光服务", "service")
-    valve = workshop["product"]("阀门")
+    steel = workshop["product"](_ZH_TEXT['TEXT_AA023C3573AB5655'], "raw_material")
+    polish = workshop["product"](_ZH_TEXT['TEXT_ECDE34D1064DB7EE'], "service")
+    valve = workshop["product"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
 
     for_a_material = client.post("/api/v1/bills-of-materials", headers=admin, json={
         "product_id": steel, "items": []})
@@ -81,8 +88,8 @@ def test_a_recipe_is_for_a_made_good_and_made_of_goods(workshop) -> None:
 
 def test_one_active_recipe_and_lines_frozen_once_active(workshop) -> None:
     client, admin = workshop["client"], workshop["admin"]
-    steel = workshop["product"]("钢板", "raw_material")
-    valve = workshop["product"]("阀门")
+    steel = workshop["product"](_ZH_TEXT['TEXT_AA023C3573AB5655'], "raw_material")
+    valve = workshop["product"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
     v1 = workshop["bom"](valve, [{"component_product_id": steel, "quantity": 2}],
                          version="v1", status="active")
     frozen = client.post("/api/v1/bom-items", headers=admin, json={
@@ -93,7 +100,7 @@ def test_one_active_recipe_and_lines_frozen_once_active(workshop) -> None:
     assert v2["status"] == "draft"
     added = client.post("/api/v1/bom-items", headers=admin, json={
         "bom_id": v2["id"], "component_product_id": steel, "quantity": 0.5,
-        "description": "垫片料"})
+        "description": _ZH_TEXT['TEXT_8CD59CFA16934E9D']})
     assert added.status_code == 201, "draft lines are open"
 
     activated = client.patch(f"/api/v1/bills-of-materials/{v2['id']}", headers=admin,
@@ -108,9 +115,9 @@ def test_one_active_recipe_and_lines_frozen_once_active(workshop) -> None:
 
 def test_a_recipe_cannot_contain_its_own_ancestor(workshop) -> None:
     client, admin = workshop["client"], workshop["admin"]
-    bolt = workshop["product"]("螺栓", "semi_finished")
-    body = workshop["product"]("阀体", "semi_finished")
-    valve = workshop["product"]("阀门")
+    bolt = workshop["product"](_ZH_TEXT['TEXT_8E0B1C22FC32F747'], "semi_finished")
+    body = workshop["product"](_ZH_TEXT['TEXT_8E0AA465C46CB73D'], "semi_finished")
+    valve = workshop["product"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
     workshop["bom"](valve, [{"component_product_id": body, "quantity": 1}], status="active")
     workshop["bom"](body, [{"component_product_id": bolt, "quantity": 4}], status="active")
     looped = client.post("/api/v1/bills-of-materials", headers=admin, json={
@@ -122,10 +129,10 @@ def test_a_recipe_cannot_contain_its_own_ancestor(workshop) -> None:
 
 def test_explode_derives_the_multilevel_requirement_and_the_shortage(workshop) -> None:
     client, admin = workshop["client"], workshop["admin"]
-    steel = workshop["product"]("钢板", "raw_material")
-    rubber = workshop["product"]("橡胶", "raw_material")
-    body = workshop["product"]("阀体", "semi_finished")
-    valve = workshop["product"]("阀门")
+    steel = workshop["product"](_ZH_TEXT['TEXT_AA023C3573AB5655'], "raw_material")
+    rubber = workshop["product"](_ZH_TEXT['TEXT_E82211D70825DCF1'], "raw_material")
+    body = workshop["product"](_ZH_TEXT['TEXT_8E0AA465C46CB73D'], "semi_finished")
+    valve = workshop["product"](_ZH_TEXT['TEXT_DAAD7816A0D9B63A'])
     # per 10 bodies: 25 kg steel with 4% scrap
     workshop["bom"](body, [{"component_product_id": steel, "quantity": 25, "unit": "kg",
                             "scrap_rate": 4}], output_quantity=10, status="active")

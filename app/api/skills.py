@@ -278,7 +278,7 @@ def update_skill(
         skill.files_jsonb = files
     if "calibration" in updates:
         # Deliberately NOT a fork. Calibration is the tenant's, files are the
-        # catalog's, and a workspace that wants "只列标题" should not thereby
+        # catalog's, and a workspace that wants "list titles only" should not thereby
         # stop receiving every correction shipped afterwards — which is exactly
         # what editing `files` for that costs.
         #

@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/tests";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -36,7 +37,7 @@ const selfUser = {
   id: "user-self",
   tenant_id: "tenant-1",
   email: "admin@acme.example",
-  name: "当前管理员",
+  name: zhCN.pagesUsersPage.name,
   role: "admin",
   employee_id: "employee-1",
   status: "active",
@@ -50,7 +51,7 @@ const invitedUser = {
   id: "user-invited",
   tenant_id: "tenant-1",
   email: "guest@example.com",
-  name: "待加入用户",
+  name: zhCN.pagesUsersPage.name2,
   role: "member",
   employee_id: null,
   status: "invited",
@@ -61,14 +62,14 @@ const invitedUser = {
 } as User;
 
 const roles = [
-  { id: "role-admin", tenant_id: "tenant-1", name: "admin", title: "管理员", description: null, permissions: ["users.manage"], is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: null },
-  { id: "role-member", tenant_id: "tenant-1", name: "member", title: "成员", description: null, permissions: [], is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: null },
-  { id: "role-auditor", tenant_id: "tenant-1", name: "auditor", title: "审计员", description: null, permissions: [], is_system: false, created_at: "2026-01-01T00:00:00Z", updated_at: null },
+  { id: "role-admin", tenant_id: "tenant-1", name: "admin", title: zhCN.pagesUsersPage.title, description: null, permissions: ["users.manage"], is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: null },
+  { id: "role-member", tenant_id: "tenant-1", name: "member", title: zhCN.pagesUsersPage.title2, description: null, permissions: [], is_system: true, created_at: "2026-01-01T00:00:00Z", updated_at: null },
+  { id: "role-auditor", tenant_id: "tenant-1", name: "auditor", title: zhCN.pagesUsersPage.title3, description: null, permissions: [], is_system: false, created_at: "2026-01-01T00:00:00Z", updated_at: null },
 ] as Role[];
 
 const employees = [
-  { id: "employee-1", employee_code: "E-001", name: "当前管理员", email: "admin@acme.example", timezone: "Asia/Shanghai", status: "active", metadata: {}, created_at: "2026-01-01T00:00:00Z", updated_at: null },
-  { id: "employee-2", employee_code: "E-002", name: "受邀员工", email: "new@example.com", timezone: "Asia/Shanghai", status: "active", metadata: {}, created_at: "2026-01-01T00:00:00Z", updated_at: null },
+  { id: "employee-1", employee_code: "E-001", name: zhCN.pagesUsersPage.name, email: "admin@acme.example", timezone: "Asia/Shanghai", status: "active", metadata: {}, created_at: "2026-01-01T00:00:00Z", updated_at: null },
+  { id: "employee-2", employee_code: "E-002", name: zhCN.pagesUsersPage.name3, email: "new@example.com", timezone: "Asia/Shanghai", status: "active", metadata: {}, created_at: "2026-01-01T00:00:00Z", updated_at: null },
 ] as Employee[];
 
 const bootstrap = {
@@ -140,7 +141,7 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     expect(await screen.findByText(/admin@acme\.example/)).toBeInTheDocument();
-    expect(screen.getByText("待加入用户")).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesUsersPage.name2)).toBeInTheDocument();
     await waitFor(() => expect(api.listEmployees).toHaveBeenCalledWith({
       page: 1,
       size: 50,
@@ -148,12 +149,12 @@ describe("tenant users workspace", () => {
     }));
     expect(api.listEmployees.mock.calls.some(([filters]) => filters.page > 1)).toBe(false);
 
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name4 }));
     await waitFor(() => expect(api.listUsers).toHaveBeenCalledWith(expect.objectContaining({ page: 2, size: 20 })));
     await user.type(screen.getByRole("searchbox"), " guest ");
-    await user.selectOptions(screen.getByLabelText("用户状态"), "invited");
-    await user.selectOptions(screen.getByLabelText("用户角色"), "auditor");
-    await user.click(screen.getByRole("button", { name: "筛选" }));
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesUsersPage.userStatus), "invited");
+    await user.selectOptions(screen.getByLabelText(zhCN.pagesUsersPage.userRole), "auditor");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name5 }));
     await waitFor(() => expect(api.listUsers).toHaveBeenCalledWith(expect.objectContaining({
       page: 1,
       keyword: "guest",
@@ -161,47 +162,47 @@ describe("tenant users workspace", () => {
       role: "auditor",
     })));
 
-    await user.click(screen.getByRole("button", { name: /邀请用户/ }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name6() }));
     const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText("查找员工"), " 受邀 ");
-    await user.click(within(dialog).getByRole("button", { name: "搜索员工" }));
+    await user.type(within(dialog).getByLabelText(zhCN.pagesUsersPage.findEmployee), zhCN.pagesUsersPage.message4);
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name7 }));
     await waitFor(() => expect(api.listEmployees).toHaveBeenCalledWith({
       page: 1,
       size: 50,
-      keyword: "受邀",
+      keyword: zhCN.pagesUsersPage.keyword,
     }));
   });
 
   it("validates and sends an invitation, then exposes and copies its one-time URL", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("待加入用户");
-    await user.click(screen.getByRole("button", { name: /邀请用户/ }));
+    await screen.findByText(zhCN.pagesUsersPage.name2);
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name6() }));
     let dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "发送邀请" }));
-    expect(await within(dialog).findByText("邮箱不能为空。")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name8 }));
+    expect(await within(dialog).findByText(zhCN.pagesUsersPage.emailIsRequired)).toBeInTheDocument();
     expect(api.inviteUser).not.toHaveBeenCalled();
 
-    await user.type(within(dialog).getByLabelText(/邮箱/), "new@example.com");
-    await user.type(within(dialog).getByLabelText("姓名"), "新用户");
-    await user.selectOptions(within(dialog).getByLabelText(/角色/), "auditor");
-    await user.selectOptions(within(dialog).getByLabelText("关联员工"), "employee-2");
-    await user.click(within(dialog).getByRole("button", { name: "发送邀请" }));
+    await user.type(within(dialog).getByLabelText(zhCN.pagesUsersPage.pattern()), "new@example.com");
+    await user.type(within(dialog).getByLabelText(zhCN.pagesUsersPage.message6), zhCN.pagesUsersPage.message7);
+    await user.selectOptions(within(dialog).getByLabelText(zhCN.pagesUsersPage.pattern2()), "auditor");
+    await user.selectOptions(within(dialog).getByLabelText(zhCN.pagesUsersPage.linkedEmployee), "employee-2");
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name8 }));
     await waitFor(() => expect(api.inviteUser).toHaveBeenCalledWith({
       email: "new@example.com",
-      name: "新用户",
+      name: zhCN.pagesUsersPage.message7,
       role: "auditor",
       employee_id: "employee-2",
     }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    const link = await screen.findByLabelText("一次性邀请链接");
+    const link = await screen.findByLabelText(zhCN.pagesUsersPage.oneTimeInvitationLink);
     expect(link).toHaveValue("https://app.example/invite/one-time");
-    expect(screen.getByText(/仅在本次响应中显示/)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesUsersPage.pattern3())).toBeInTheDocument();
     const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText");
-    await user.click(screen.getByRole("button", { name: "复制链接" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name9 }));
     expect(clipboardWrite).toHaveBeenCalledWith("https://app.example/invite/one-time");
-    expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.pagesUsersPage.name10 })).toBeInTheDocument();
   });
 
   it("protects the current user's role/status while allowing safe profile updates", async () => {
@@ -210,46 +211,46 @@ describe("tenant users workspace", () => {
     const selfEmail = await screen.findByText(/admin@acme\.example/);
     const selfRow = selfEmail.closest("tr");
     expect(selfRow).not.toBeNull();
-    await user.click(within(selfRow!).getByRole("button", { name: "编辑" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name11 }));
     let dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("正在编辑当前登录用户")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/角色/)).toBeDisabled();
-    expect(within(dialog).getByLabelText("状态")).toBeDisabled();
-    await user.clear(within(dialog).getByLabelText("姓名"));
-    await user.type(within(dialog).getByLabelText("姓名"), "管理员新名");
-    await user.click(within(dialog).getByRole("button", { name: "保存更改" }));
-    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith("user-self", expect.objectContaining({ name: "管理员新名" })));
+    expect(within(dialog).getByText(zhCN.pagesUsersPage.editingTheCurrentUser)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(zhCN.pagesUsersPage.pattern2())).toBeDisabled();
+    expect(within(dialog).getByLabelText(zhCN.pagesUsersPage.state)).toBeDisabled();
+    await user.clear(within(dialog).getByLabelText(zhCN.pagesUsersPage.message6));
+    await user.type(within(dialog).getByLabelText(zhCN.pagesUsersPage.message6), zhCN.pagesUsersPage.message12);
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name12 }));
+    await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith("user-self", expect.objectContaining({ name: zhCN.pagesUsersPage.message12 })));
     const selfPayload = api.updateUser.mock.calls[0][1];
     expect(selfPayload).not.toHaveProperty("role");
     expect(selfPayload).not.toHaveProperty("status");
 
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
     expect(invitedRow).not.toBeNull();
-    await user.click(within(invitedRow!).getByRole("button", { name: "编辑" }));
+    await user.click(within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name11 }));
     dialog = screen.getByRole("dialog");
-    await user.selectOptions(within(dialog).getByLabelText(/角色/), "auditor");
-    expect(within(dialog).queryByRole("option", { name: "已启用" })).not.toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText("状态"), "disabled");
-    await user.selectOptions(within(dialog).getByLabelText("关联员工"), "employee-2");
-    await user.click(within(dialog).getByRole("button", { name: "保存更改" }));
+    await user.selectOptions(within(dialog).getByLabelText(zhCN.pagesUsersPage.pattern2()), "auditor");
+    expect(within(dialog).queryByRole("option", { name: zhCN.pagesUsersPage.name13 })).not.toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText(zhCN.pagesUsersPage.state), "disabled");
+    await user.selectOptions(within(dialog).getByLabelText(zhCN.pagesUsersPage.linkedEmployee), "employee-2");
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name12 }));
     await waitFor(() => expect(api.updateUser).toHaveBeenCalledWith("user-invited", expect.objectContaining({
       role: "auditor",
       status: "disabled",
       employee_id: "employee-2",
     })));
-    expect(screen.queryByRole("button", { name: /删除|归档/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: zhCN.pagesUsersPage.name14() })).not.toBeInTheDocument();
   });
 
   it("reissues an invited user's link without inventing a delete action", async () => {
     const user = userEvent.setup();
     renderPage();
-    const invitedRow = (await screen.findByText("待加入用户")).closest("tr");
+    const invitedRow = (await screen.findByText(zhCN.pagesUsersPage.name2)).closest("tr");
     expect(invitedRow).not.toBeNull();
-    await user.click(within(invitedRow!).getByRole("button", { name: "重发邀请" }));
+    await user.click(within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name15 }));
     await waitFor(() => expect(api.resendInvitation).toHaveBeenCalledWith("user-invited"));
     expect(await screen.findByDisplayValue("https://app.example/invite/reissued")).toBeInTheDocument();
-    expect(screen.getByText(/邀请已重新发送/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /删除|归档/ })).not.toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesUsersPage.pattern4())).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: zhCN.pagesUsersPage.name14() })).not.toBeInTheDocument();
   });
 
   it("confirms and sends a one-time password reset email for an active user", async () => {
@@ -263,30 +264,30 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
     expect(selfRow).not.toBeNull();
     expect(invitedRow).not.toBeNull();
-    expect(within(invitedRow!).queryByRole("button", { name: "发送重置邮件" })).not.toBeInTheDocument();
+    expect(within(invitedRow!).queryByRole("button", { name: zhCN.pagesUsersPage.name16 })).not.toBeInTheDocument();
 
-    await user.click(within(selfRow!).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toHaveTextContent("这是当前登录账号");
-    expect(dialog).toHaveTextContent("当前密码和会话仍有效");
+    expect(dialog).toHaveTextContent(zhCN.pagesUsersPage.message13);
+    expect(dialog).toHaveTextContent(zhCN.pagesUsersPage.message14);
     expect(api.sendPasswordResetEmail).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     expect(api.sendPasswordResetEmail).toHaveBeenCalledWith("user-self");
-    expect(within(dialog).getByRole("button", { name: "正在发送…" })).toBeDisabled();
-    expect(within(dialog).getByRole("button", { name: "取消" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "＋ 邀请用户" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name17 })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name18 })).toBeDisabled();
+    expect(screen.getByRole("button", { name: zhCN.pagesUsersPage.name19 })).toBeDisabled();
 
     completeReset({
       user: selfUser,
       email_sent: true,
     });
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
-    expect(await screen.findByText(/重置密码邮件已发送/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("一次性重置链接")).not.toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesUsersPage.pattern5())).toBeInTheDocument();
+    expect(screen.queryByLabelText(zhCN.pagesUsersPage.oneTimeResetLink)).not.toBeInTheDocument();
   });
 
   it("shows password reset only for active users and reports email delivery failure", async () => {
@@ -294,7 +295,7 @@ describe("tenant users workspace", () => {
       ...invitedUser,
       id: "user-disabled",
       email: "disabled@example.com",
-      name: "停用用户",
+      name: zhCN.pagesUsersPage.name20,
       status: "disabled",
       invitation_pending: false,
       email_verified_at: "2026-01-02T00:00:00Z",
@@ -311,18 +312,18 @@ describe("tenant users workspace", () => {
     renderPage();
 
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
-    const disabledRow = screen.getByText("停用用户").closest("tr");
-    expect(within(selfRow!).getByRole("button", { name: "发送重置邮件" })).toBeInTheDocument();
-    expect(within(invitedRow!).queryByRole("button", { name: "发送重置邮件" })).not.toBeInTheDocument();
-    expect(within(disabledRow!).queryByRole("button", { name: "发送重置邮件" })).not.toBeInTheDocument();
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
+    const disabledRow = screen.getByText(zhCN.pagesUsersPage.name20).closest("tr");
+    expect(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 })).toBeInTheDocument();
+    expect(within(invitedRow!).queryByRole("button", { name: zhCN.pagesUsersPage.name16 })).not.toBeInTheDocument();
+    expect(within(disabledRow!).queryByRole("button", { name: zhCN.pagesUsersPage.name16 })).not.toBeInTheDocument();
 
-    await user.click(within(selfRow!).getByRole("button", { name: "发送重置邮件" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     const notice = await screen.findByRole("alert");
-    expect(notice).toHaveTextContent("重置链接已生成，但邮件未送达");
-    expect(notice).toHaveTextContent("当前密码和会话仍然有效");
-    expect(screen.queryByLabelText("一次性重置链接")).not.toBeInTheDocument();
+    expect(notice).toHaveTextContent(zhCN.pagesUsersPage.resetLinkCreatedButEmailDeliveryFailed);
+    expect(notice).toHaveTextContent(zhCN.pagesUsersPage.message17);
+    expect(screen.queryByLabelText(zhCN.pagesUsersPage.oneTimeResetLink)).not.toBeInTheDocument();
   });
 
   it("distinguishes a rejected reset request from an uncertain delivery result", async () => {
@@ -332,33 +333,33 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
 
-    await user.click(within(invitedRow!).getByRole("button", { name: "重发邀请" }));
-    expect(await screen.findByLabelText("一次性邀请链接")).toHaveValue(
+    await user.click(within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name15 }));
+    expect(await screen.findByLabelText(zhCN.pagesUsersPage.oneTimeInvitationLink)).toHaveValue(
       "https://app.example/invite/reissued",
     );
 
-    await user.click(within(selfRow!).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     let dialog = screen.getByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "发送重置邮件" }));
-    expect(await within(dialog).findByText(/无法发送重置邮件/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
+    expect(await within(dialog).findByText(zhCN.pagesUsersPage.pattern6())).toBeInTheDocument();
     expect(within(dialog).getByText(/only active users/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "取消" }));
-    expect(screen.getByLabelText("一次性邀请链接")).toHaveValue(
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name18 }));
+    expect(screen.getByLabelText(zhCN.pagesUsersPage.oneTimeInvitationLink)).toHaveValue(
       "https://app.example/invite/reissued",
     );
 
     api.sendPasswordResetEmail.mockRejectedValueOnce(new Error("connection closed"));
-    await user.click(within(selfRow!).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     dialog = screen.getByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "发送重置邮件" }));
-    expect(await within(dialog).findByText(/无法确认重置邮件是否送达/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
+    expect(await within(dialog).findByText(zhCN.pagesUsersPage.pattern7())).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name18 }));
 
     const notice = await screen.findByRole("alert");
-    expect(notice).toHaveTextContent("重置邮件结果未能确认");
-    expect(notice).toHaveTextContent("系统可能已生成并发送链接");
+    expect(notice).toHaveTextContent(zhCN.pagesUsersPage.resetEmailOutcomeCouldNotBeConfirmed);
+    expect(notice).toHaveTextContent(zhCN.pagesUsersPage.message19);
   });
 
   it("serializes one-time invitation and password-reset email actions", async () => {
@@ -369,22 +370,22 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
 
-    await user.click(within(invitedRow!).getByRole("button", { name: "重发邀请" }));
-    expect(within(invitedRow!).getByRole("button", { name: "发送中…" })).toBeDisabled();
-    expect(within(selfRow!).getByRole("button", { name: "发送重置邮件" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "＋ 邀请用户" })).toBeDisabled();
+    await user.click(within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name15 }));
+    expect(within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name21 })).toBeDisabled();
+    expect(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 })).toBeDisabled();
+    expect(screen.getByRole("button", { name: zhCN.pagesUsersPage.name19 })).toBeDisabled();
 
     completeResend({
       ...invitedUser,
       invitation_url: "https://app.example/invite/reissued",
     } as InvitationUser);
-    expect(await screen.findByLabelText("一次性邀请链接")).toHaveValue(
+    expect(await screen.findByLabelText(zhCN.pagesUsersPage.oneTimeInvitationLink)).toHaveValue(
       "https://app.example/invite/reissued",
     );
     await waitFor(() => {
-      expect(within(selfRow!).getByRole("button", { name: "发送重置邮件" })).not.toBeDisabled();
+      expect(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 })).not.toBeDisabled();
     });
   });
 
@@ -396,12 +397,12 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    const invitedRow = screen.getByText("待加入用户").closest("tr");
+    const invitedRow = screen.getByText(zhCN.pagesUsersPage.name2).closest("tr");
 
-    await user.click(within(selfRow!).getByRole("button", { name: "发送重置邮件" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name16 }));
     const dialog = screen.getByRole("alertdialog");
-    const confirmReset = within(dialog).getByRole("button", { name: "发送重置邮件" });
-    const backgroundResend = within(invitedRow!).getByRole("button", { name: "重发邀请" });
+    const confirmReset = within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name16 });
+    const backgroundResend = within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name15 });
 
     act(() => {
       backgroundResend.click();
@@ -427,12 +428,12 @@ describe("tenant users workspace", () => {
     }));
     const user = userEvent.setup();
     renderPage();
-    const invitedRow = (await screen.findByText("待加入用户")).closest("tr");
-    await user.click(screen.getByRole("button", { name: /邀请用户/ }));
+    const invitedRow = (await screen.findByText(zhCN.pagesUsersPage.name2)).closest("tr");
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name6() }));
     const dialog = screen.getByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/邮箱/), "new@example.com");
-    const submitInvite = within(dialog).getByRole("button", { name: "发送邀请" });
-    const backgroundResend = within(invitedRow!).getByRole("button", { name: "重发邀请" });
+    await user.type(within(dialog).getByLabelText(zhCN.pagesUsersPage.pattern()), "new@example.com");
+    const submitInvite = within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name8 });
+    const backgroundResend = within(invitedRow!).getByRole("button", { name: zhCN.pagesUsersPage.name15 });
 
     act(() => {
       backgroundResend.click();
@@ -460,14 +461,14 @@ describe("tenant users workspace", () => {
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
     expect(selfRow).not.toBeNull();
 
-    await user.click(within(selfRow!).getByRole("button", { name: "生成 Skill 包" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name22 }));
     const dialog = screen.getByRole("alertdialog");
-    expect(within(dialog).getByText(/旧 Skill 包和旧凭证失效/)).toBeInTheDocument();
+    expect(within(dialog).getByText(zhCN.pagesUsersPage.pattern8())).toBeInTheDocument();
     expect(api.generateUserSkillBundle).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: "更新凭证并下载" }));
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name23 }));
     await waitFor(() => expect(api.generateUserSkillBundle).toHaveBeenCalledWith("user-self"));
-    expect(await screen.findByText(/此前的访问凭证已失效/)).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesUsersPage.pattern9())).toBeInTheDocument();
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(anchorClick).toHaveBeenCalledOnce();
     await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith("blob:skill-bundle"));
@@ -494,7 +495,7 @@ describe("tenant users workspace", () => {
 
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
     expect(selfRow).not.toBeNull();
-    expect(within(selfRow!).queryByRole("button", { name: "生成 Skill 包" })).not.toBeInTheDocument();
+    expect(within(selfRow!).queryByRole("button", { name: zhCN.pagesUsersPage.name22 })).not.toBeInTheDocument();
   });
 
   it("warns that rotation may have happened when bundle delivery is uncertain", async () => {
@@ -502,14 +503,14 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     const selfRow = (await screen.findByText(/admin@acme\.example/)).closest("tr");
-    await user.click(within(selfRow!).getByRole("button", { name: "生成 Skill 包" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "更新凭证并下载" }));
+    await user.click(within(selfRow!).getByRole("button", { name: zhCN.pagesUsersPage.name22 }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: zhCN.pagesUsersPage.name23 }));
 
     const dialog = screen.getByRole("alertdialog");
-    expect(await within(dialog).findByText(/系统可能已经更新访问凭证/)).toBeInTheDocument();
+    expect(await within(dialog).findByText(zhCN.pagesUsersPage.pattern10())).toBeInTheDocument();
     expect(dialog).toHaveTextContent("connection closed");
-    await user.click(within(dialog).getByRole("button", { name: "取消" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("系统可能已经更新访问凭证");
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name18 }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(zhCN.pagesUsersPage.message20);
   });
 
   it("recovers a disabled unverified account through invitation instead of direct activation", async () => {
@@ -521,36 +522,36 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
 
-    const row = (await screen.findByText("待加入用户")).closest("tr");
+    const row = (await screen.findByText(zhCN.pagesUsersPage.name2)).closest("tr");
     expect(row).not.toBeNull();
-    expect(within(row!).getByRole("button", { name: "恢复邀请" })).toBeInTheDocument();
-    await user.click(within(row!).getByRole("button", { name: "编辑" }));
+    expect(within(row!).getByRole("button", { name: zhCN.pagesUsersPage.name24 })).toBeInTheDocument();
+    await user.click(within(row!).getByRole("button", { name: zhCN.pagesUsersPage.name11 }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByLabelText("状态")).toBeDisabled();
-    expect(within(dialog).queryByRole("option", { name: "已启用" })).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/恢复邀请后再激活/)).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "取消" }));
+    expect(within(dialog).getByLabelText(zhCN.pagesUsersPage.state)).toBeDisabled();
+    expect(within(dialog).queryByRole("option", { name: zhCN.pagesUsersPage.name13 })).not.toBeInTheDocument();
+    expect(within(dialog).getByText(zhCN.pagesUsersPage.pattern11())).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: zhCN.pagesUsersPage.name18 }));
 
-    await user.click(within(row!).getByRole("button", { name: "恢复邀请" }));
+    await user.click(within(row!).getByRole("button", { name: zhCN.pagesUsersPage.name24 }));
     await waitFor(() => expect(api.resendInvitation).toHaveBeenCalledWith("user-invited"));
   });
 
   it("shows loading, empty, and recoverable error states", async () => {
     api.listUsers.mockReturnValueOnce(new Promise(() => {}));
     const pending = renderPage();
-    expect(screen.getByText("正在加载数据…")).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesUsersPage.loadingData)).toBeInTheDocument();
     pending.unmount();
 
     api.listUsers.mockResolvedValueOnce({ data: [], meta: { total: 0, page: 1, page_size: 20, pages: 1 } });
     const empty = renderPage();
-    expect(await screen.findByText("还没有用户")).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesUsersPage.noUsersYet)).toBeInTheDocument();
     empty.unmount();
 
-    api.listUsers.mockRejectedValueOnce(new Error("用户目录暂时不可用"));
+    api.listUsers.mockRejectedValueOnce(new Error(zhCN.pagesUsersPage.message23));
     renderPage();
-    expect(await screen.findByText("数据加载失败")).toBeInTheDocument();
-    expect(screen.getByText("用户目录暂时不可用")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(await screen.findByText(zhCN.pagesUsersPage.dataCouldNotBeLoaded)).toBeInTheDocument();
+    expect(screen.getByText(zhCN.pagesUsersPage.message23)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: zhCN.pagesUsersPage.name25 })).toBeInTheDocument();
   });
 
   it("returns to the last valid page when the user directory shrinks", async () => {
@@ -560,7 +561,7 @@ describe("tenant users workspace", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText(/admin@acme\.example/);
-    await user.click(screen.getByRole("button", { name: "下一页" }));
+    await user.click(screen.getByRole("button", { name: zhCN.pagesUsersPage.name4 }));
     await waitFor(() => {
       const pages = api.listUsers.mock.calls.map(([filters]) => filters.page);
       expect(pages.at(-1)).toBe(1);

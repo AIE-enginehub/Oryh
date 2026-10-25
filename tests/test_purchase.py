@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_purchase.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -36,13 +43,13 @@ def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **ove
 
 
 def create_vendor(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "戴尔（中国）有限公司", "tax_id": "91110000600000000D"}
+    payload = {"name": _ZH_TEXT['TEXT_48A8405C94F000EC'], "tax_id": "91110000600000000D"}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "vendors", **payload)
 
 
 def create_product(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "27寸显示器", "spec": "U2723QE 4K", "unit": "台", "list_price": 3199.0}
+    payload = {"name": _ZH_TEXT['TEXT_3D7C389C9EA4E117'], "spec": "U2723QE 4K", "unit": _ZH_TEXT['TEXT_991363A244F032C7'], "list_price": 3199.0}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "products", **payload)
 
@@ -50,7 +57,7 @@ def create_product(test_client: TestClient, tenant_id: str = TEST_TENANT, **over
 def create_request(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {
         "employee_id": employee_id,
-        "title": "研发部显示器采购",
+        "title": _ZH_TEXT['TEXT_1C6367C09C0B995A'],
         "request_date": "2026-07-11",
     }
     payload.update(overrides)
@@ -58,7 +65,7 @@ def create_request(test_client: TestClient, employee_id: str, tenant_id: str = T
 
 
 def create_item(test_client: TestClient, request_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"request_id": request_id, "product_name_snapshot": "人体工学椅", "quantity": 2}
+    payload = {"request_id": request_id, "product_name_snapshot": _ZH_TEXT['TEXT_B31F6EB420364847'], "quantity": 2}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "purchase-request-items", **payload)
 
@@ -68,7 +75,7 @@ def test_product_master_data_crud_and_filters(client: TestClient) -> None:
     assert product["status"] == "active"
     assert product["list_price"] == 3199.0
 
-    by_keyword = client.get("/api/v1/products?keyword=显示器", headers=api_key_headers()).json()["data"]
+    by_keyword = client.get(_ZH_TEXT['TEXT_7C4B386FF7FEC9A9'], headers=api_key_headers()).json()["data"]
     assert [p["id"] for p in by_keyword] == [product["id"]]
 
     updated = client.patch(
@@ -92,26 +99,26 @@ def test_purchase_flow_with_optional_vendor_product_price(client: TestClient) ->
     # vendor known up front: id + snapshot backfill
     request_id = create_request(
         client, employee_id, vendor_id=vendor["id"],
-        source_report_text="要给研发买两台4K显示器和一批线材，显示器找戴尔，线材还没定。",
+        source_report_text=_ZH_TEXT['TEXT_02C91168D85FDA9A'],
         needed_by="2026-07-25",
     )
     header = client.get(f"/api/v1/purchase-requests/{request_id}", headers=api_key_headers()).json()["data"]
     assert header["vendor_id"] == vendor["id"]
-    assert header["vendor_name_snapshot"] == "戴尔（中国）有限公司"
+    assert header["vendor_name_snapshot"] == _ZH_TEXT['TEXT_48A8405C94F000EC']
 
     # line 1: cataloged product with unit price — name/unit backfilled
     priced = create_item(
         client, request_id,
         product_id=product["id"], product_name_snapshot=None, quantity=2, unit_price=2999.0,
     )
-    assert priced["product_name_snapshot"] == "27寸显示器"
-    assert priced["unit"] == "台"
+    assert priced["product_name_snapshot"] == _ZH_TEXT['TEXT_3D7C389C9EA4E117']
+    assert priced["unit"] == _ZH_TEXT['TEXT_991363A244F032C7']
 
     # line 2: free-text item with a lump-sum amount, no unit price
-    create_item(client, request_id, product_name_snapshot="各类线材一批", amount=800.0)
+    create_item(client, request_id, product_name_snapshot=_ZH_TEXT['TEXT_604BA56C93A65DD7'], amount=800.0)
 
     # line 3: free-text item with no price at all — a normal fact
-    unpriced = create_item(client, request_id, product_name_snapshot="显示器支架", quantity=2)
+    unpriced = create_item(client, request_id, product_name_snapshot=_ZH_TEXT['TEXT_6E2FB1EF4B2B4A37'], quantity=2)
     assert unpriced["unit_price"] is None and unpriced["amount"] is None
 
     submit = client.post(
@@ -161,14 +168,14 @@ def test_purchase_flow_with_optional_vendor_product_price(client: TestClient) ->
 def test_purchase_request_without_vendor_and_work_queue(client: TestClient) -> None:
     employee_id = create_employee(client)
     # no vendor at all — free-text hint only
-    first = create_request(client, employee_id, title="办公用品补货", vendor_name_snapshot="随便哪家文具店")
-    second = create_request(client, employee_id, title="服务器扩容")
+    first = create_request(client, employee_id, title=_ZH_TEXT['TEXT_C72CE83563BABBBD'], vendor_name_snapshot=_ZH_TEXT['TEXT_3AC71949261F2FF0'])
+    second = create_request(client, employee_id, title=_ZH_TEXT['TEXT_C8A99CB50C486916'])
     header = client.get(f"/api/v1/purchase-requests/{first}", headers=api_key_headers()).json()["data"]
     assert header["vendor_id"] is None
-    assert header["vendor_name_snapshot"] == "随便哪家文具店"
+    assert header["vendor_name_snapshot"] == _ZH_TEXT['TEXT_3AC71949261F2FF0']
 
-    create_item(client, first, product_name_snapshot="A4纸", quantity=10, unit="箱")
-    create_item(client, second, product_name_snapshot="2U服务器", quantity=1)
+    create_item(client, first, product_name_snapshot=_ZH_TEXT['TEXT_3FFB64DD8E70E7FB'], quantity=10, unit=_ZH_TEXT['TEXT_702DFF992262EC17'])
+    create_item(client, second, product_name_snapshot=_ZH_TEXT['TEXT_618055B1209620BA'], quantity=1)
     client.post(f"/api/v1/purchase-requests/{first}/submit", json={}, headers=api_key_headers())
     client.post(f"/api/v1/purchase-requests/{second}/submit", json={}, headers=api_key_headers())
 
@@ -183,7 +190,7 @@ def test_purchase_request_without_vendor_and_work_queue(client: TestClient) -> N
             "employee_id": employee_id,
             "entity_type": "purchase_request",
             "entity_id": first,
-            "title": "审批采购申请",
+            "title": _ZH_TEXT['TEXT_A4DF92292C7A54D0'],
             "todo_type": "approval",
         },
         headers=api_key_headers(),
@@ -194,7 +201,7 @@ def test_purchase_request_without_vendor_and_work_queue(client: TestClient) -> N
     ).json()["data"]
     assert {r["id"] for r in queue} == {second}
 
-    # vendor can be attached later (询价后) while editable… request is
+    # vendor can be attached later (after sourcing prices) while editable… request is
     # submitted now, but header vendor patch is not an item write — allowed
     vendor = create_vendor(client)
     patched = client.patch(
@@ -217,7 +224,7 @@ def test_items_locked_after_submit_and_machine_guards(client: TestClient) -> Non
 
     assert client.post(
         "/api/v1/purchase-request-items",
-        json={"request_id": request_id, "product_name_snapshot": "追加", "quantity": 1},
+        json={"request_id": request_id, "product_name_snapshot": _ZH_TEXT['TEXT_D91017C932B5FC75'], "quantity": 1},
         headers=api_key_headers(),
     ).status_code == 409
     assert client.patch(
@@ -227,7 +234,7 @@ def test_items_locked_after_submit_and_machine_guards(client: TestClient) -> Non
         f"/api/v1/purchase-request-items/{item['id']}", headers=api_key_headers()
     ).status_code == 409
 
-    # returned reopens editing (询价补价环), resubmission closes it again
+    # returned reopens editing (sourcing and pricing round), resubmission closes it again
     assert client.patch(
         f"/api/v1/purchase-requests/{request_id}", json={"status": "returned"}, headers=api_key_headers()
     ).status_code == 200
@@ -294,26 +301,26 @@ def test_purchase_validation_and_soft_delete(client: TestClient) -> None:
 
 
 def create_sku(test_client: TestClient, product_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"product_id": product_id, "variant_attrs": {"尺码": "M"}}
+    payload = {"product_id": product_id, "variant_attrs": {_ZH_TEXT['TEXT_4060F118DEA05D67']: "M"}}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "product-skus", **payload)
 
 
 def test_product_sku_master_data_and_item_refinement(client: TestClient) -> None:
     employee_id = create_employee(client)
-    # apparel-style: product = 款色, skus = 尺码
-    style = create_product(client, name="圆领T恤·藏青", spec="STYLE-001-NV", unit="件", list_price=89.0)
-    sku_m = create_sku(client, style["id"], sku_code="001-NV-M", variant_attrs={"尺码": "M"})
+    # apparel-style: product = style and color, skus = size
+    style = create_product(client, name=_ZH_TEXT['TEXT_2764D350CAF84871'], spec="STYLE-001-NV", unit=_ZH_TEXT['TEXT_7C00255577088EC9'], list_price=89.0)
+    sku_m = create_sku(client, style["id"], sku_code="001-NV-M", variant_attrs={_ZH_TEXT['TEXT_4060F118DEA05D67']: "M"})
     sku_xl = create_sku(client, style["id"], sku_code="001-NV-XL",
-                        variant_attrs={"尺码": "XL"}, list_price=95.0)
+                        variant_attrs={_ZH_TEXT['TEXT_4060F118DEA05D67']: "XL"}, list_price=95.0)
 
     # has_skus tells the agent a variant conversation is needed
     read = client.get(f"/api/v1/products/{style['id']}", headers=api_key_headers()).json()["data"]
     assert read["has_skus"] is True
-    listed = client.get("/api/v1/products?keyword=T恤", headers=api_key_headers()).json()["data"]
+    listed = client.get(_ZH_TEXT['TEXT_D873EB3BA24BEEA4'], headers=api_key_headers()).json()["data"]
     assert listed[0]["has_skus"] is True
     # a flat product (product == sku company) stays has_skus false
-    flat = create_product(client, name="27寸显示器无变体")
+    flat = create_product(client, name=_ZH_TEXT['TEXT_D7E32FDFE842E482'])
     assert client.get(
         f"/api/v1/products/{flat['id']}", headers=api_key_headers()
     ).json()["data"]["has_skus"] is False
@@ -322,21 +329,21 @@ def test_product_sku_master_data_and_item_refinement(client: TestClient) -> None
         f"/api/v1/product-skus?product_id={style['id']}", headers=api_key_headers()
     ).json()["data"]
     assert [v["sku_code"] for v in variants] == ["001-NV-M", "001-NV-XL"]
-    assert variants[1]["variant_attrs"] == {"尺码": "XL"}
+    assert variants[1]["variant_attrs"] == {_ZH_TEXT['TEXT_4060F118DEA05D67']: "XL"}
     assert variants[1]["list_price"] == 95.0
 
-    request_id = create_request(client, employee_id, title="文化衫采购")
+    request_id = create_request(client, employee_id, title=_ZH_TEXT['TEXT_CDEE0E6D8E129883'])
 
     # sku alone derives its product; product name/unit backfill from the product
     refined = create_item(client, request_id, product_name_snapshot=None,
                           sku_id=sku_xl["id"], quantity=30, unit_price=95.0)
     assert refined["product_id"] == style["id"]
     assert refined["sku_id"] == sku_xl["id"]
-    assert refined["product_name_snapshot"] == "圆领T恤·藏青"
-    assert refined["unit"] == "件"
+    assert refined["product_name_snapshot"] == _ZH_TEXT['TEXT_2764D350CAF84871']
+    assert refined["unit"] == _ZH_TEXT['TEXT_7C00255577088EC9']
 
     # sku must belong to the product when both are given
-    other_product = create_product(client, name="别的款")
+    other_product = create_product(client, name=_ZH_TEXT['TEXT_CE45DC5B73419368'])
     mismatch = client.post(
         "/api/v1/purchase-request-items",
         json={"request_id": request_id, "product_id": other_product["id"],
@@ -349,9 +356,9 @@ def test_product_sku_master_data_and_item_refinement(client: TestClient) -> None
     pending = create_item(client, request_id, product_id=style["id"],
                           product_name_snapshot=None, quantity=100)
     assert pending["sku_id"] is None
-    archived_only_product = create_product(client, name="历史变体产品")
+    archived_only_product = create_product(client, name=_ZH_TEXT['TEXT_91A9C9BCFCA8F00D'])
     archived_only_sku = create_sku(
-        client, archived_only_product["id"], sku_code="HISTORY-ONLY", variant_attrs={"版本": "旧"}
+        client, archived_only_product["id"], sku_code="HISTORY-ONLY", variant_attrs={_ZH_TEXT['TEXT_5F76B2BF82DD2C5D']: _ZH_TEXT['TEXT_4FBC8134F6D04D80']}
     )
     assert client.delete(
         f"/api/v1/product-skus/{archived_only_sku['id']}", headers=api_key_headers()
@@ -375,19 +382,19 @@ def test_product_sku_master_data_and_item_refinement(client: TestClient) -> None
     assert refined_detail["product"] == {
         "id": style["id"],
         "product_code": None,
-        "name": "圆领T恤·藏青",
+        "name": _ZH_TEXT['TEXT_2764D350CAF84871'],
         "spec": "STYLE-001-NV",
-        "unit": "件",
+        "unit": _ZH_TEXT['TEXT_7C00255577088EC9'],
     }
     assert refined_detail["sku"] == {
         "id": sku_xl["id"],
         "product_id": style["id"],
         "sku_code": "001-NV-XL",
-        "variant_attrs": {"尺码": "XL"},
+        "variant_attrs": {_ZH_TEXT['TEXT_4060F118DEA05D67']: "XL"},
     }
     assert refined_detail["sku_pending"] is False
     pending_detail = next(item for item in detail["items"] if item["id"] == pending["id"])
-    assert pending_detail["product"]["name"] == "圆领T恤·藏青"
+    assert pending_detail["product"]["name"] == _ZH_TEXT['TEXT_2764D350CAF84871']
     assert pending_detail["sku"] is None
     assert pending_detail["sku_pending"] is True
     archived_only_detail = next(
@@ -464,21 +471,21 @@ def test_purchase_tenant_isolation(client: TestClient) -> None:
 
 
 def test_procure_to_order_links_purchase_lines_to_sales_order_lines(client: TestClient) -> None:
-    """零库存 (procure-to-order): a confirmed sales order line drives a
+    """zero-inventory (procure-to-order): a confirmed sales order line drives a
     purchase line. The link is written on the purchase side — the order is
     already locked by then — and both documents' details surface it: the
     purchase reviewer sees which order a line serves, the fulfilment side
     sees the supply status behind each order line."""
-    employee_id = create_employee(client, name="赵采购")
+    employee_id = create_employee(client, name=_ZH_TEXT['TEXT_4CA168F827DFE777'])
     order = client.post(
         "/api/v1/sales-orders",
-        json={"employee_id": employee_id, "title": "市一医院 JC-800", "order_no": "SO-2026-000123",
-              "customer_name_snapshot": "市第一医院"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_006A0BCECC6C3742'], "order_no": "SO-2026-000123",
+              "customer_name_snapshot": _ZH_TEXT['TEXT_B6F9F6281C5CEB6E']},
         headers=api_key_headers(),
     ).json()["data"]
     order_line = client.post(
         "/api/v1/sales-order-items",
-        json={"order_id": order["id"], "product_name_snapshot": "JC-800 打印机", "quantity": 3,
+        json={"order_id": order["id"], "product_name_snapshot": _ZH_TEXT['TEXT_7FC1374BCA2D346C'], "quantity": 3,
               "unit_price": 8000.0},
         headers=api_key_headers(),
     ).json()["data"]
@@ -487,17 +494,17 @@ def test_procure_to_order_links_purchase_lines_to_sales_order_lines(client: Test
         f"/api/v1/sales-orders/{order['id']}/submit", json={}, headers=api_key_headers()
     ).status_code == 200
 
-    request_id = create_request(client, employee_id, title="按单采购 JC-800")
+    request_id = create_request(client, employee_id, title=_ZH_TEXT['TEXT_218B06758AF414CF'])
     linked = create_item(
         client, request_id,
-        product_name_snapshot="JC-800 打印机", quantity=3, unit_price=6500.0,
+        product_name_snapshot=_ZH_TEXT['TEXT_7FC1374BCA2D346C'], quantity=3, unit_price=6500.0,
         sales_order_item_id=order_line["id"],
     )
     assert linked["sales_order_item_id"] == order_line["id"]
     # a second (split) line against the same order line is legal
     create_item(
         client, request_id,
-        product_name_snapshot="JC-800 打印机 备用机", quantity=1,
+        product_name_snapshot=_ZH_TEXT['TEXT_D5EB79D741748213'], quantity=1,
         sales_order_item_id=order_line["id"],
     )
 
@@ -518,7 +525,7 @@ def test_procure_to_order_links_purchase_lines_to_sales_order_lines(client: Test
     assert len(pinned) == 2
     assert pinned[0]["sales_order"]["order_no"] == "SO-2026-000123"
     assert pinned[0]["sales_order"]["order_status"] == "submitted"
-    assert pinned[0]["sales_order"]["customer_name_snapshot"] == "市第一医院"
+    assert pinned[0]["sales_order"]["customer_name_snapshot"] == _ZH_TEXT['TEXT_B6F9F6281C5CEB6E']
     assert pinned[0]["sales_order"]["quantity"] == 3.0
 
     # order detail: the fulfilment side reads the supply behind each line

@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -73,7 +74,7 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
 
   return (
     <section className="skill-audience">
-      <h4>{text("分发范围", "Distribution")}</h4>
+      <h4>{text(zhCN.componentsSkillsSkillAudiencePanel.distribution, "Distribution")}</h4>
 
       <div className="audience-mode">
         <label>
@@ -85,8 +86,8 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
             onChange={() => setMode.mutate("capability")}
           />
           <span>
-            <b>{text("按能力分发", "By capability")}</b>
-            <small>{text("持有所需能力的人都会收到。", "Everyone whose role covers the required capability receives it.")}</small>
+            <b>{text(zhCN.componentsSkillsSkillAudiencePanel.byCapability, "By capability")}</b>
+            <small>{text(zhCN.componentsSkillsSkillAudiencePanel.everyoneWhoseRoleCoversTheRequiredCapabilityReceivesIt, "Everyone whose role covers the required capability receives it.")}</small>
           </span>
         </label>
         <label>
@@ -98,8 +99,8 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
             onChange={() => setMode.mutate("targeted")}
           />
           <span>
-            <b>{text("定向分发", "Targeted")}</b>
-            <small>{text("只发给下面指定的角色与用户，且他们仍需持有所需能力。", "Only the roles and people named below, and they must still hold the required capability.")}</small>
+            <b>{text(zhCN.componentsSkillsSkillAudiencePanel.targeted, "Targeted")}</b>
+            <small>{text(zhCN.componentsSkillsSkillAudiencePanel.onlyTheRolesAndPeopleNamedBelowAndThey, "Only the roles and people named below, and they must still hold the required capability.")}</small>
           </span>
         </label>
       </div>
@@ -108,17 +109,17 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
 
       <div className="audience-picker">
         <select
-          aria-label={text("受众类型", "Audience type")}
+          aria-label={text(zhCN.componentsSkillsSkillAudiencePanel.audienceType, "Audience type")}
           value={subjectType}
           onChange={(event) => { setSubjectType(event.target.value as "role" | "user"); setSubjectId(""); }}
         >
-          <option value="role">{text("角色", "Role")}</option>
-          <option value="user">{text("用户", "User")}</option>
+          <option value="role">{text(zhCN.componentsSkillsSkillAudiencePanel.role, "Role")}</option>
+          <option value="user">{text(zhCN.componentsSkillsSkillAudiencePanel.user, "User")}</option>
         </select>
 
         {subjectType === "role" ? (
-          <select aria-label={text("选择角色", "Choose role")} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-            <option value="">{text("选择角色…", "Choose a role…")}</option>
+          <select aria-label={text(zhCN.componentsSkillsSkillAudiencePanel.chooseRole, "Choose role")} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+            <option value="">{text(zhCN.componentsSkillsSkillAudiencePanel.chooseARole, "Choose a role…")}</option>
             {(roles.data ?? []).map((role) => (
               <option key={role.name} value={role.name}>{role.title || role.name}</option>
             ))}
@@ -126,13 +127,13 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
         ) : (
           <>
             {departments.length > 0 && (
-              <select aria-label={text("按部门筛选", "Filter by department")} value={department} onChange={(e) => setDepartment(e.target.value)}>
-                <option value="">{text("全部部门", "All departments")}</option>
+              <select aria-label={text(zhCN.componentsSkillsSkillAudiencePanel.filterByDepartment, "Filter by department")} value={department} onChange={(e) => setDepartment(e.target.value)}>
+                <option value="">{text(zhCN.componentsSkillsSkillAudiencePanel.allDepartments, "All departments")}</option>
                 {departments.map((name) => <option key={name} value={name}>{name}</option>)}
               </select>
             )}
-            <select aria-label={text("选择用户", "Choose user")} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-              <option value="">{text("选择用户…", "Choose a person…")}</option>
+            <select aria-label={text(zhCN.componentsSkillsSkillAudiencePanel.chooseUser, "Choose user")} value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+              <option value="">{text(zhCN.componentsSkillsSkillAudiencePanel.chooseAPerson, "Choose a person…")}</option>
               {(users.data?.data ?? [])
                 .filter((user) => !department || (user as { department?: string | null }).department === department)
                 .map((user) => (
@@ -148,32 +149,32 @@ export function SkillAudiencePanel({ skillName }: { skillName: string }) {
           disabled={!subjectId || add.isPending}
           onClick={() => add.mutate({ subject_type: subjectType, subject_id: subjectId })}
         >
-          {text("加入受众", "Add")}
+          {text(zhCN.componentsSkillsSkillAudiencePanel.add, "Add")}
         </button>
       </div>
 
       {add.isError && <p className="form-error">{apiErrorMessage(add.error)}</p>}
 
       {assignments.length === 0 ? (
-        <p className="muted-value">{text("尚未指定任何受众。", "Nobody named yet.")}</p>
+        <p className="muted-value">{text(zhCN.componentsSkillsSkillAudiencePanel.nobodyNamedYet, "Nobody named yet.")}</p>
       ) : (
         <ul className="audience-list">
           {assignments.map((row) => (
             <li key={row.id}>
               <span className={`kind-chip ${row.subject_type}`}>
-                {row.subject_type === "role" ? text("角色", "Role") : text("用户", "User")}
+                {row.subject_type === "role" ? text(zhCN.componentsSkillsSkillAudiencePanel.role, "Role") : text(zhCN.componentsSkillsSkillAudiencePanel.user, "User")}
               </span>
               <strong>{row.subject_label || row.subject_id}</strong>
               {row.blocked_members.length > 0 && (
                 <small className="audience-blocked">
                   {text(
-                    `${row.blocked_members.length} 人缺少所需能力，收不到`,
+                    zhCN.componentsSkillsSkillAudiencePanel.lackTheCapabilityAndWillNotReceiveIt(`${row.blocked_members.length}`),
                     `${row.blocked_members.length} lack the capability and will not receive it`,
                   )}
                 </small>
               )}
               <button className="text-action danger-text" type="button" disabled={remove.isPending} onClick={() => remove.mutate(row.id)}>
-                {text("移除", "Remove")}
+                {text(zhCN.componentsSkillsSkillAudiencePanel.remove, "Remove")}
               </button>
             </li>
           ))}
@@ -190,16 +191,16 @@ function AudienceImpact({ impact, mode }: { impact: SkillAudienceImpact; mode: D
     <div className="audience-impact">
       <p>
         {text(
-          `当前 ${impact.reaches_now.length} 人可收到`,
+          zhCN.componentsSkillsSkillAudiencePanel.peopleReceiveItToday(`${impact.reaches_now.length}`),
           `${impact.reaches_now.length} people receive it today`,
         )}
-        {mode === "targeted" && text(`（定向后 ${impact.would_reach.length} 人）`, ` (targeted: ${impact.would_reach.length})`)}
+        {mode === "targeted" && text(zhCN.componentsSkillsSkillAudiencePanel.targeted2(`${impact.would_reach.length}`), ` (targeted: ${impact.would_reach.length})`)}
       </p>
 
       {pending && (
         <p className="audience-note">
           {text(
-            `切换到定向分发后将变为 ${impact.would_reach.length} 人。`,
+            zhCN.componentsSkillsSkillAudiencePanel.switchingToTargetedWouldMakeThat(`${impact.would_reach.length}`),
             `Switching to targeted would make that ${impact.would_reach.length}.`,
           )}
         </p>
@@ -207,21 +208,21 @@ function AudienceImpact({ impact, mode }: { impact: SkillAudienceImpact; mode: D
 
       {impact.losing.length > 0 && (
         <p className="audience-warning">
-          <b>{text(`${impact.losing.length} 人会失去这个技能`, `${impact.losing.length} would lose this skill`)}</b>
+          <b>{text(zhCN.componentsSkillsSkillAudiencePanel.wouldLoseThisSkill(`${impact.losing.length}`), `${impact.losing.length} would lose this skill`)}</b>
           <small>
-            {text("下次同步时从他们的技能包中移除：", "Removed from their bundle on next sync: ")}
+            {text(zhCN.componentsSkillsSkillAudiencePanel.removedFromTheirBundleOnNextSync, "Removed from their bundle on next sync: ")}
             {impact.losing.slice(0, 8).join("、")}
-            {impact.losing.length > 8 && text(` 等 ${impact.losing.length} 人`, ` and ${impact.losing.length - 8} more`)}
+            {impact.losing.length > 8 && text(zhCN.componentsSkillsSkillAudiencePanel.andMore(`${impact.losing.length}`), ` and ${impact.losing.length - 8} more`)}
           </small>
         </p>
       )}
 
       {impact.blocked.length > 0 && (
         <p className="audience-warning">
-          <b>{text(`${impact.blocked.length} 人被指定但缺少所需能力`, `${impact.blocked.length} named but cannot run it`)}</b>
+          <b>{text(zhCN.componentsSkillsSkillAudiencePanel.namedButCannotRunIt(`${impact.blocked.length}`), `${impact.blocked.length} named but cannot run it`)}</b>
           <small>
             {text(
-              "他们不会收到这个技能。先给对应能力，或把他们从受众里去掉。",
+              zhCN.componentsSkillsSkillAudiencePanel.theyWillNotReceiveItGrantTheCapabilityFirst,
               "They will not receive it. Grant the capability first, or drop them from the audience.",
             )}
           </small>

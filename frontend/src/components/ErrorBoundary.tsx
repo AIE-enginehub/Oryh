@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 /**
@@ -57,15 +58,15 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <main className="center-screen">
         <section className="state-card" role="alert">
-          <span className="eyebrow">{this.props.label ?? "出错了 / Something went wrong"}</span>
-          <h1>这个页面没能显示出来</h1>
+          <span className="eyebrow">{this.props.label ?? zhCN.componentsErrorBoundary.message}</span>
+          <h1>{zhCN.componentsErrorBoundary.message2}</h1>
           <p>{error.message}</p>
           <div className="row gap">
             <button className="button primary" onClick={this.retry}>
-              重试 / Try again
+              {zhCN.componentsErrorBoundary.message3}
             </button>
             <button className="button" onClick={this.reauthenticate}>
-              重新登录 / Sign in again
+              {zhCN.componentsErrorBoundary.message4}
             </button>
           </div>
         </section>

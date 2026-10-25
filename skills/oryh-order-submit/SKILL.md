@@ -1,6 +1,6 @@
 ---
 name: oryh-order-submit
-description: Use when a salesperson's agent records, updates or submits their OWN sales order in oryh — after a won quotation ("客户签了，下单吧"), fulfilment facts ("发货了，单号SF…"), channel orders ("把天猫这单录进来") and customer returns ("买家退货了"). Facts only; status transitions belong to the flow. Requires order.submit_own.
+description: Use when a salesperson's agent records, updates or submits their OWN sales order in oryh — after a won quotation ("the customer signed, place the order"), fulfilment facts ("the goods shipped, tracking number SF…"), channel orders ("record this Tmall order") and customer returns ("the buyer returned the goods"). Facts only; status transitions belong to the flow. Requires order.submit_own.
 required_capability: order.submit_own
 ---
 
@@ -47,12 +47,17 @@ oryh:
 
 {{include:_common/leave-no-orphan-work.md}}
 
+{{include:_common/sales-promotions.md}}
+
+**Promotion pricing**: before creating or changing a draft, follow the promotion method above. A no-quotation order evaluates policies against its qualifying business date and facts; a quoted order carries the won benefits and basis forward. Read and reconcile the complete draft before submission, including gifts, adjustments and the payable total.
+
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
 2. **Tenant requirements**: `GET /business-rules?kind=data_rule&entity_kind=builtin&object_type=sales_order&in_force_on=<today>` — what a valid order must carry (a contract number, a ship-to address, approval before shipping, and the like), current as of this moment. Never invent requirements.
 
-3. **From the won quotation** (the normal path) — **after step 4's reuse check, which goes out in the same wave as step 2**: `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array rides `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when a delivery date was promised). `POST /sales-order-items` remains for adding a line to an existing draft. An order with no quotation behind it is also legal — snapshots stand alone.
+
+3. **From the won quotation** (the normal path) — **after step 4's reuse check, which goes out in the same wave as step 2**: `GET /sales-quotations/{id}/detail` of the accepted quotation → `POST /sales-orders` with `quotation_id` (the quote number snapshot backfills automatically), the customer fields, `ship_to_address`, `contract_no`, and `title`. Omit `order_no` for the server's `SO-NNNNNN`, or pass the tenant's own convention. Mirror the quotation's lines **in the same create** — the `items` array and any `adjustments` ride `POST /sales-orders`, one call and one transaction (prices carry over; `promised_date` per line when a delivery date was promised). `POST /sales-order-items` remains for adding a line to an existing draft. An order with no quotation behind it is also legal — snapshots stand alone.
    - **The storefront**: a channel order names the front it came through —
      `GET /stores?source=tmall` (the channel's code, lowercase) lists the
      stores under that channel and the right one's id goes in `store_id`.
@@ -71,10 +76,15 @@ oryh:
      when you need who to name in `contact_name` (the snapshot stays free
      text); `GET /customer-products?customer_id=` for negotiated terms — on
      a no-quotation order, a line's price for a customer with an
-     `agreed_price` is that price unless the principal says otherwise, and
-     an item code on their paperwork resolves through
+     `agreed_price` starts from that price; a published promotion may change
+     it or stack with it only as its clauses permit, and the principal's
+     separately negotiated exception must be named. An
+     item code on their paperwork resolves through
      `customer_product_code` there.
 4. **Reuse before create** (send with step 2, before any create): `GET /sales-orders?quotation_id={id}` and `?employee_id={me}&status=draft` — one won quote, one order; retries must not duplicate. An existing order for the quotation means update it, never a second create. A `returned` order is also reused: fix what the rework todo's `description` and the latest `returned` record's `comment` name, resubmit, then complete that rework todo (`PATCH /todos/{todo_id}` `{"status": "completed"}`) — while it stays open, the order is invisible to the flow admin's work queue.
+
+   If a network interruption prompts another order request for the same purchase, read the linked existing order and report its actual status. Reuse its recorded prices, adjustments and gifts. Submit is idempotent while `submitted`; recovery can repeat the same submit on that document without another submission fact. An order already further along does not need another submit. Explain reuse from the recorded facts; do not invent a frontend promotion check, a duplicate-prevention engine, or a hypothetical 409.
+
 5. **Say the gap out loud before submitting**: `GET /sales-orders/{id}/detail` returns `quote_drift` whenever a quotation is linked — `{quote_total, order_total, amount, percent, quote_basis, order_basis}`, computed by the server against a quotation that can no longer change. **Do not compute it yourself and do not skip it**: if `amount` is not 0, read it to the person in the read-back — "quoted 108,800, this order 120,000, higher by 11,200 (+10.29%)" — and say why, in their words, before `/submit`. The workspace's approval flow is what says whether that gap needs an approval node; the server does not refuse it, so an undisclosed overcharge reaches the customer with nobody having decided it should.
 6. **Submit**: `POST /sales-orders/{id}/submit` after an explicit read-back (lines, the drift above, ship-to, promised dates). The flow agent calibrates and confirms — tenants without order ceremony get `confirmed` immediately per their definition.
 7. **Fulfilment facts, as they happen** (PATCH fields on your own order — never `status`):
@@ -324,3 +334,6 @@ POST /sales-orders
 ## Reference
 
 - [references/api.md](references/api.md): request templates.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

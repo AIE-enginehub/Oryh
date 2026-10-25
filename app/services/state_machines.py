@@ -23,7 +23,7 @@ DEFAULT_TIMESHEET_MACHINE: dict = {
     "editable_states": ["draft", "returned"],
 }
 
-# Shipped default for the builtin 请假 lifecycle. Two states the other
+# Shipped default for the builtin leave lifecycle. Two states the other
 # families do not have, and both are about time passing after approval:
 #
 # `cancelled` — approved leave the person did not take. It cannot be deleted:
@@ -156,8 +156,8 @@ DEFAULT_PURCHASE_ORDER_MACHINE: dict = {
 
 # Shipped default for the SALES RETURN lifecycle — rows in `sales_orders`
 # with order_kind='return', shaped by the e-commerce reality that decided
-# the model: 客户申请(submitted) → 商家同意(approved) → 退单已发出
-# (in_transit) → 已收到(received) → 已验货入库(inspected) → 已退款(refunded).
+# the model: customer request (submitted) → seller acceptance (approved) → return dispatched
+# (in_transit) → receipt (received) → inspection and stocking (inspected) → refund (refunded).
 # The graph is permissive where reality is: seller-arranged pickup skips
 # in_transit, cheap goods are refunded without waiting for the parcel
 # (approved → refunded), and a received parcel may be refunded before formal
@@ -212,7 +212,7 @@ DEFAULT_PURCHASE_RETURN_MACHINE: dict = {
 # received, where `received` means "arrived at the destination" — the
 # customer's hands outbound, our dock inbound. OFBiz keeps two status sets
 # (SHIPMENT_/PURCH_SHIP_); we keep one vocabulary and let the tenant rename
-# or extend (in_transit, delivered, 揽收…) in a sentence. The stock effect
+# or extend (in_transit, delivered, parcel collection…) in a sentence. The stock effect
 # is NOT a state: /post-stock bridges to the inventory ledger exactly once,
 # whatever the status says — the same money/goods-as-facts stance as
 # invoice `paid`.
@@ -232,7 +232,7 @@ DEFAULT_SHIPMENT_MACHINE: dict = {
 
 # Shipped default for the builtin invoice lifecycle, shared by both directions
 # (OFBiz keeps one status vocabulary across sales and purchase invoices too).
-# `submitted` is 开票申请 on the sales side and 待核对 on the purchase side.
+# `submitted` is invoice request on the sales side and awaiting verification on the purchase side.
 #
 # `paid` is a FLOW MARKER, not the settlement truth: how much is actually
 # settled is `applied_amount` against the payment-application ledger, and a
@@ -259,7 +259,7 @@ DEFAULT_INVOICE_MACHINE: dict = {
 }
 
 # Shipped default for the builtin payment lifecycle. The approval half is here
-# for outbound payments — 付款审批 is the most-approved document there is — and
+# for outbound payments — payment approval is the most-approved document there is — and
 # an inbound receipt simply gets created at `paid`, since create accepts any
 # declared state in every family. `void` after `paid` covers a bounced or
 # recalled transfer; the applications it carried are reversed by counter-entry,
@@ -297,7 +297,7 @@ DEFAULT_LEAD_MACHINE: dict = {
         "new": ["contacted", "qualified", "disqualified"],
         "contacted": ["qualified", "disqualified"],
         "qualified": ["converted", "disqualified"],
-        # a dead lead may come back to life — 半年后又有预算了
+        # a dead lead may come back to life — funding returns six months later
         "disqualified": ["contacted"],
         "converted": [],
     },
@@ -555,7 +555,7 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
             fail(f"roles[{role!r}] names {target!r}, which is not a declared state")
     effect = machine.get("stock_effect")
     if effect is not None:
-        # a tenant-defined stock document: 报损单, 调拨单, 借用单, 生产入库单.
+        # a tenant-defined stock document: write-off document, stock-transfer document, loan document, production-receipt document.
         # The definition names the ledger reason its lines post under and
         # the state in which posting is allowed — the tenant's approval
         # state, whatever they call it. Builtin documents post through their
@@ -570,8 +570,8 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
             fail("stock_effect.state must be one of states — the state whose entry lets the lines post")
     account = machine.get("account_effect")
     if account is not None:
-        # a tenant-defined account document: 积分发放单, 积分兑换单, 余额调整单,
-        # 划转单. It names the account-ledger reason its lines post under
+        # a tenant-defined account document: points-award document, points-redemption document, balance-adjustment document,
+        # transfer document. It names the account-ledger reason its lines post under
         # (from the tenant's billing_account_entry_reason vocabulary, checked
         # at posting) and the state that posts.
         if entity_kind != "business_object":
@@ -659,7 +659,7 @@ def is_terminal_state(machine: dict, state: str) -> bool:
     """True when the machine allows nothing to follow this state.
 
     The server is not allowed an opinion about what a workspace's state NAMES
-    mean — 作废, 已取消, 已废弃 and 已完成 are the tenant's vocabulary, and
+    mean — void, cancelled, discarded and completed are the tenant's vocabulary, and
     `leave-no-orphan-work.md` says so in as many words. It does not need one.
     A state with no outgoing transitions is a statement the tenant's own
     machine makes: nothing further happens to a document here. That is enough

@@ -14,6 +14,13 @@ N11 — NaN and Infinity never enter a request body.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_review_2026_09_12.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import invite_member, make_client, provision_tenant
@@ -27,7 +34,7 @@ def desk():
         product = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP-1"}, headers=admin).json()["data"]["id"]
         position = client.post("/api/v1/inventory-items", headers=admin, json={
             "product_id": product, "facility": "main", "initial_quantity": 10}).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
 
         def define(object_type: str, effect_key: str, reason: str, version_bump: dict | None = None):
             machine = {"initial": "draft", "states": ["draft", "approved"],
@@ -173,7 +180,7 @@ def test_the_sweep_lapses_only_lapsed_batches_once_per_request(desk) -> None:
 
 def test_a_crm_row_s_references_agree_with_each_other(desk) -> None:
     c, admin = desk["client"], desk["admin"]
-    emp = c.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
+    emp = c.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
     other = c.post("/api/v1/customers", json={"name": "B"}, headers=admin).json()["data"]["id"]
     deal = c.post("/api/v1/opportunities", headers=admin, json={
         "employee_id": emp, "title": "A's deal", "customer_id": desk["customer"]}).json()["data"]
@@ -195,7 +202,7 @@ def test_a_crm_row_s_references_agree_with_each_other(desk) -> None:
 
 def test_a_line_renamed_to_another_product_is_quoted_under_it(desk) -> None:
     c, admin = desk["client"], desk["admin"]
-    emp = c.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
+    emp = c.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
     lid = c.post("/api/v1/products", json={"name": "Lid", "product_code": "LID-1", "list_price": 5}, headers=admin).json()["data"]["id"]
     deal = c.post("/api/v1/opportunities", headers=admin, json={
         "employee_id": emp, "title": "deal", "customer_id": desk["customer"]}).json()["data"]

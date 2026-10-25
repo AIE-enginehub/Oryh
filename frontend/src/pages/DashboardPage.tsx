@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -59,30 +60,30 @@ export function DashboardPage() {
   const metrics = [
     {
       key: "objects",
-      label: text("业务记录", "Business records"),
+      label: text(zhCN.pagesDashboardPage.businessRecords, "Business records"),
       icon: Files,
-      note: text("未删除的业务对象", "Business objects on record"),
+      note: text(zhCN.pagesDashboardPage.businessObjectsOnRecord, "Business objects on record"),
       href: canReadObjects ? "/objects" : undefined,
     },
     {
       key: "todos_open",
-      label: text("未完成待办", "Open to-dos"),
+      label: text(zhCN.pagesDashboardPage.openToDos, "Open to-dos"),
       icon: CheckCircle,
-      note: text("等待处理的工作项", "Work awaiting completion"),
+      note: text(zhCN.pagesDashboardPage.workAwaitingCompletion, "Work awaiting completion"),
       href: canSeeAll ? "/todos?status=open" : undefined,
     },
     {
       key: "todos_overdue",
-      label: text("逾期待办", "Overdue to-dos"),
+      label: text(zhCN.pagesDashboardPage.overdueToDos, "Overdue to-dos"),
       icon: Clock,
-      note: text("已超过截止时间", "Past their due date"),
+      note: text(zhCN.pagesDashboardPage.pastTheirDueDate, "Past their due date"),
       warning: true,
     },
     {
       key: "users",
-      label: text("活跃用户", "Active users"),
+      label: text(zhCN.pagesDashboardPage.activeUsers, "Active users"),
       icon: Users,
-      note: text("当前工作空间", "In this workspace"),
+      note: text(zhCN.pagesDashboardPage.inThisWorkspace, "In this workspace"),
       href: canReadUsers ? "/users" : undefined,
     },
   ] as const;
@@ -101,10 +102,10 @@ export function DashboardPage() {
       <header className="workspace-welcome">
         <div>
           <span className="workspace-kicker">{bootstrap.tenant.name}</span>
-          <h2>{text("工作，从这里开始。", "A clear view of your work.")}</h2>
+          <h2>{text(zhCN.pagesDashboardPage.aClearViewOfYourWork, "A clear view of your work.")}</h2>
           <p>
             {text(
-              "查看业务进展，找到所需数据，处理日常事务。",
+              zhCN.pagesDashboardPage.seeWhatNeedsAttentionFindYourDataAndKeep,
               "See what needs attention, find your data, and keep business moving.",
             )}
           </p>
@@ -120,7 +121,7 @@ export function DashboardPage() {
             {t("refresh")}
           </button>
           {updated && (
-            <small>{text(`${updated} 更新`, `Updated ${updated}`)}</small>
+            <small>{text(zhCN.pagesDashboardPage.updated(`${updated}`), `Updated ${updated}`)}</small>
           )}
         </div>
       </header>
@@ -128,7 +129,7 @@ export function DashboardPage() {
         <div className="workspace-section-label">
           <h3 id="metrics-title">{t("tenantOperations")}</h3>
           <span>
-            {text("统计范围：整个工作空间", "Scope: entire workspace")}
+            {text(zhCN.pagesDashboardPage.scopeEntireWorkspace, "Scope: entire workspace")}
           </span>
         </div>
         {dashboard.isError ? (
@@ -183,18 +184,18 @@ export function DashboardPage() {
             <div>
               <h3 id="work-queue-title">
                 {canSeeAll
-                  ? text("最近未完成待办", "Recent open to-dos")
-                  : text("我的未完成待办", "My open to-dos")}
+                  ? text(zhCN.pagesDashboardPage.recentOpenToDos, "Recent open to-dos")
+                  : text(zhCN.pagesDashboardPage.myOpenToDos, "My open to-dos")}
               </h3>
               <p>
                 {text(
-                  "需要人来推进的下一步。",
+                  zhCN.pagesDashboardPage.theNextStepsThatNeedAHumanTouch,
                   "The next steps that need a human touch.",
                 )}
               </p>
             </div>
             <Link className="workspace-text-link" to="/todos?status=open">
-              {text("查看全部", "View all")}
+              {text(zhCN.pagesDashboardPage.viewAll, "View all")}
               <ArrowRight size={15} aria-hidden />
             </Link>
           </header>
@@ -203,13 +204,13 @@ export function DashboardPage() {
               <CheckCircle size={30} />
               <strong>
                 {text(
-                  "关联员工档案后查看个人待办",
+                  zhCN.pagesDashboardPage.linkAnEmployeeProfileToSeeYourToDos,
                   "Link an employee profile to see your to-dos",
                 )}
               </strong>
               <p>
                 {text(
-                  "请联系工作空间管理员完成关联。",
+                  zhCN.pagesDashboardPage.askAWorkspaceAdministratorToLinkYourProfile,
                   "Ask a workspace administrator to link your profile.",
                 )}
               </p>
@@ -219,9 +220,9 @@ export function DashboardPage() {
               loading={todos.isPending}
               error={todos.isError ? apiErrorMessage(todos.error) : null}
               empty={todos.data?.data.length === 0}
-              emptyTitle={text("当前没有未完成待办", "No open to-dos")}
+              emptyTitle={text(zhCN.pagesDashboardPage.noOpenToDos, "No open to-dos")}
               emptyDescription={text(
-                "有新的工作项时，会在这里显示。",
+                zhCN.pagesDashboardPage.newWorkItemsWillAppearHere,
                 "New work items will appear here.",
               )}
               onRetry={() => void todos.refetch()}
@@ -262,12 +263,12 @@ export function DashboardPage() {
                               </span>
                               <small>
                                 {overdue
-                                  ? text("已逾期", "Overdue")
-                                  : text("截止", "Due")}
+                                  ? text(zhCN.pagesDashboardPage.overdue, "Overdue")
+                                  : text(zhCN.pagesDashboardPage.due, "Due")}
                               </small>
                             </>
                           ) : (
-                            <span>{text("未设期限", "No due date")}</span>
+                            <span>{text(zhCN.pagesDashboardPage.noDueDate, "No due date")}</span>
                           )}
                         </div>
                       </Link>
@@ -280,12 +281,12 @@ export function DashboardPage() {
           <footer className="workspace-card-footer">
             <span>
               {text(
-                "保留处理记录，每一步都有据可查。",
+                zhCN.pagesDashboardPage.completionHistoryStaysWithEveryWorkItem,
                 "Completion history stays with every work item.",
               )}
             </span>
             <Link to="/approvals">
-              {text("审批记录", "Approval log")}
+              {text(zhCN.pagesDashboardPage.approvalLog, "Approval log")}
               <ArrowRight size={14} aria-hidden />
             </Link>
           </footer>
@@ -298,11 +299,11 @@ export function DashboardPage() {
             <header className="workspace-card-heading">
               <div>
                 <h3 id="data-shortcuts-title">
-                  {text("常用数据", "Everyday data")}
+                  {text(zhCN.pagesDashboardPage.everydayData, "Everyday data")}
                 </h3>
                 <p>
                   {text(
-                    "快速查阅，也能随时补充。",
+                    zhCN.pagesDashboardPage.findARecordOrAddANewOne,
                     "Find a record or add a new one.",
                   )}
                 </p>
@@ -335,10 +336,10 @@ export function DashboardPage() {
       {canReadObjects && (
         <section className="workspace-records" aria-labelledby="records-title">
           <div>
-            <h3 id="records-title">{text("业务单据", "Business records")}</h3>
+            <h3 id="records-title">{text(zhCN.pagesDashboardPage.businessRecords2, "Business records")}</h3>
             <p>
               {text(
-                "从业务类型进入，查看记录与详情。",
+                zhCN.pagesDashboardPage.browseRecordsByBusinessType,
                 "Browse records by business type.",
               )}
             </p>
@@ -346,9 +347,9 @@ export function DashboardPage() {
           <div>
             {(
               [
-                ["sales_quotation", text("销售报价", "Sales quotations")],
-                ["purchase_request", text("采购申请", "Purchase requests")],
-                ["expense_claim", text("费用报销", "Expense claims")],
+                ["sales_quotation", text(zhCN.pagesDashboardPage.salesQuotations, "Sales quotations")],
+                ["purchase_request", text(zhCN.pagesDashboardPage.purchaseRequests, "Purchase requests")],
+                ["expense_claim", text(zhCN.pagesDashboardPage.expenseClaims, "Expense claims")],
               ] as const
             ).map(([type, label]) => (
               <Link key={type} to={`/objects?kind=builtin&object_type=${type}`}>
@@ -368,7 +369,7 @@ export function DashboardPage() {
           <h3 id="connect-agent-title">{t("connectAgentTitle")}</h3>
           <p>
             {text(
-              "让智能体处理流程，在 Console 中掌握数据与结果。",
+              zhCN.pagesDashboardPage.letAgentsHandleWorkflowsKeepDataAndOutcomesIn,
               "Let agents handle workflows. Keep data and outcomes in view here.",
             )}
           </p>

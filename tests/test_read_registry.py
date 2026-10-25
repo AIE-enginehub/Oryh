@@ -9,6 +9,13 @@ list handler again.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_read_registry.json').read_text(encoding="utf-8"))
+
+
 import ast
 import pathlib
 
@@ -83,29 +90,29 @@ def shop():
 def test_a_declared_list_filters_searches_pages_and_hides_the_archived(shop) -> None:
     c, admin = shop
     ids = [c.post("/api/v1/vendors", headers=admin, json={"name": n, "tax_id": t}).json()["data"]["id"]
-           for n, t in (("华东纸业", "T-1"), ("华南纸业", "T-2"), ("北方钢材", "T-3"))]
+           for n, t in ((_ZH_TEXT['TEXT_80B5A1F53EEA0E71'], "T-1"), (_ZH_TEXT['TEXT_5CE88BBDAA505A43'], "T-2"), (_ZH_TEXT['TEXT_C533047B28182A32'], "T-3"))]
     c.patch(f"/api/v1/vendors/{ids[2]}", headers=admin, json={"status": "archived"})
     assert {v["id"] for v in c.get("/api/v1/vendors", headers=admin).json()["data"]} == set(ids[:2]), "active by default"
     assert len(c.get("/api/v1/vendors", headers=admin, params={"status": "all"}).json()["data"]) == 3
-    assert [v["id"] for v in c.get("/api/v1/vendors", headers=admin, params={"keyword": "华东"}).json()["data"]] == [ids[0]]
+    assert [v["id"] for v in c.get("/api/v1/vendors", headers=admin, params={"keyword": _ZH_TEXT['TEXT_142461B190CCF545']}).json()["data"]] == [ids[0]]
     assert [v["id"] for v in c.get("/api/v1/vendors", headers=admin, params={"tax_id": "T-2"}).json()["data"]] == [ids[1]]
     paged = c.get("/api/v1/vendors", headers=admin, params={"page": 1, "size": 1, "order_by": "name"}).json()
     assert paged["meta"]["total"] == 2 and len(paged["data"]) == 1
     assert c.get("/api/v1/vendors", headers=admin, params={"created_at_from": "2099-01-01T00:00:00Z"}).json()["data"] == []
     assert c.get("/api/v1/vendors", headers=admin, params={"nonsense": "x"}).status_code == 422
-    assert c.get(f"/api/v1/vendors/{ids[0]}", headers=admin).json()["data"]["name"] == "华东纸业"
+    assert c.get(f"/api/v1/vendors/{ids[0]}", headers=admin).json()["data"]["name"] == _ZH_TEXT['TEXT_80B5A1F53EEA0E71']
     assert c.get("/api/v1/vendors/not-a-uuid", headers=admin).status_code == 404
 
 
 def test_the_hooks_do_what_the_handlers_did(shop) -> None:
     c, admin = shop
-    root = c.post("/api/v1/product-categories", headers=admin, json={"name": "耗材", "category_code": "C1"}).json()["data"]["id"]
-    c.post("/api/v1/product-categories", headers=admin, json={"name": "色带", "category_code": "C2", "parent_id": root})
+    root = c.post("/api/v1/product-categories", headers=admin, json={"name": _ZH_TEXT['TEXT_C01FEA8EAA7D9D8E'], "category_code": "C1"}).json()["data"]["id"]
+    c.post("/api/v1/product-categories", headers=admin, json={"name": _ZH_TEXT['TEXT_3276FDB7927C16A4'], "category_code": "C2", "parent_id": root})
     assert len(c.get("/api/v1/product-categories", headers=admin).json()["data"]) == 2
     only_roots = c.get("/api/v1/product-categories", headers=admin, params={"root_only": "true"}).json()["data"]
     assert [x["id"] for x in only_roots] == [root], "a flag parameter reaches the where hook"
 
-    product = c.post("/api/v1/products", headers=admin, json={"name": "色带", "product_code": "RB-1"}).json()["data"]["id"]
+    product = c.post("/api/v1/products", headers=admin, json={"name": _ZH_TEXT['TEXT_3276FDB7927C16A4'], "product_code": "RB-1"}).json()["data"]["id"]
     c.post("/api/v1/product-skus", headers=admin, json={"product_id": product, "sku_code": "RB-1-A"})
     listed = c.get("/api/v1/products", headers=admin).json()["data"][0]
     assert listed["has_skus"] is True, "the batch render still enriches list rows"

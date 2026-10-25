@@ -1,6 +1,6 @@
 ---
 name: oryh-skill-author
-description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds ("报销超过5000财务也要审"、"采购先经主管再到采购部") — by publishing or amending the approval flow, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage.
+description: Use when a tenant admin changes how documents ROUTE — who approves what, thresholds ("expenses above 5,000 also require finance review", "procurement requests go to the manager before procurement") — by publishing or amending the approval flow, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage.
 required_capability: skills.manage
 ---
 
@@ -295,3 +295,6 @@ not a fallback to everyone — emptying an audience narrows.
 
 - [references/authoring-guide.md](references/authoring-guide.md): the authoring standard — anatomy, naming, gating, worked example.
 - [references/api.md](references/api.md): request templates.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

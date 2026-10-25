@@ -1,6 +1,6 @@
 ---
 name: oryh-business-rules
-description: Use to write, publish, amend, re-scope or repeal any of the workspace's own rules — a company policy (员工手册、报销制度、薪酬管理办法) or an external standard (社保缴费基数、最低工资), who approves what (an approval flow), what a document must carry when filed (a data rule), what happens elsewhere when it reaches a state (a linkage) — and to split a pre-2026-10 workflow definition into its kinds. Also when an agent needs a figure a policy sets, with its version and publisher. Not for one person's pay (oryh-payroll) or for writing a skill (oryh-skill-author).
+description: Use to write, publish, amend, re-scope or repeal any of the workspace's own rules — a company policy (employee handbook, expense policy, compensation policy) or an external standard (social-insurance contribution base, minimum wage), who approves what (an approval flow), what a document must carry when filed (a data rule), what happens elsewhere when it reaches a state (a linkage) — and to split a pre-2026-10 workflow definition into its kinds. Also when an agent needs a figure a policy sets, with its version and publisher. Not for one person's pay (oryh-payroll) or for writing a skill (oryh-skill-author).
 required_capability: policy.manage|policy.publish|workflows.publish
 ---
 
@@ -317,6 +317,37 @@ the difference between a 422 and a document somebody can audit.
 **Nothing in force means ask, not assume.** If no rule covers the date, say
 so and ask whoever owns it to publish one. That is what this table is for.
 
+## Recording a promotion policy
+
+A promotion is a `kind: policy` document: its natural-language `body` tells
+sales agents who qualifies, for which goods and dates, and what benefit to
+record. Use a workspace's established promotion category; for a new convention,
+`promotion` is a suggested `policy_category` option, not a built-in guarantee.
+Check `GET /type-options?family=policy_category`; if the needed category is
+absent, have the master-data desk register it through its existing skill and
+authority. Do not change schema or invent a fifth `kind`.
+
+Keep independently published schemes under separate codes, with their existing
+version/effective-date lifecycle. Write the owner's actual terms in the body:
+customer names/codes or resolved ids, customer types, goods/SKUs, channel,
+currency, qualifying event/date, price base (including negotiated agreements),
+threshold basis, tax/freight treatment, gift quantities, repetition/caps,
+stacking order, rounding and whether a valid quotation remains honoured after
+the scheme ends, wherever these affect that scheme. Ask about material gaps;
+do not supply default thresholds or commercial terms. Resolve ambiguous names
+rather than granting eligibility to a look-alike customer or product.
+
+Prose alone is sufficient: leave `rules_json` unset unless the owner needs it;
+no condition/action schema is required. Record benefit terms here, submission
+requirements in the relevant `data_rule`, and exception approval authority in
+`approval_flow`. Ensure the sales data rules name the category or codes when
+the workspace uses another discovery convention. Read back and publish under
+this skill's existing confirmation and permission rules, including visibility
+for named-customer terms. This skill publishes the scheme; quotation/order
+agents apply it through existing prices, adjustments and gift lines, citing the
+exact policy version and their working. Never put a campaign's particular
+rates or entitlement lists into a skill's fixed instructions.
+
 ## Recording an external standard
 
 Social-insurance contribution limits, the minimum wage, itemised additional
@@ -372,3 +403,6 @@ deduction line. Recording the notice is how the figure gets one.
 - [references/api.md](references/api.md): every endpoint, the kinds and their
   filters, the visibility matrix, and the guards with the exact conditions that
   raise them.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

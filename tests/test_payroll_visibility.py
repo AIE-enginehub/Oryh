@@ -13,6 +13,13 @@ cannot check what they were paid has no recourse.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_payroll_visibility.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -38,7 +45,7 @@ def workspace() -> Generator[dict, None, None]:
         def make(name: str) -> str:
             return client.post("/api/v1/employees", json={"name": name}, headers=hr).json()["data"]["id"]
 
-        alice, bob, officer = make("Alice"), make("Bob"), make("HR专员")
+        alice, bob, officer = make("Alice"), make("Bob"), make(_ZH_TEXT['TEXT_988D02DF0DBED639'])
 
         def invite(email: str, role: str, permissions: list[str], employee_id: str | None) -> dict:
             return dict(invite_member(client, hr, role, permissions, email=email, employee_id=employee_id))
@@ -55,12 +62,12 @@ def workspace() -> Generator[dict, None, None]:
                 "/api/v1/invoices",
                 json={
                     "direction": "payroll", "employee_id": officer, "payee_employee_id": person,
-                    "title": f"{name} 2026年7月工资",
+                    "title": f"{name}{_ZH_TEXT['TEXT_0C91CC8770FE8CC3']}",
                     "period_start": "2026-07-01", "period_end": "2026-07-31",
                     "items": [
                         {"invoice_item_type": "payroll_salary",
-                         "product_name_snapshot": "基本工资", "amount": net,
-                         "notes": f"月薪 {net:.2f}"},
+                         "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'], "amount": net,
+                         "notes": f"{_ZH_TEXT['TEXT_48CF7B330DA13ACF']}{net:.2f}"},
                     ],
                 },
                 headers=hr,
@@ -81,11 +88,11 @@ def workspace() -> Generator[dict, None, None]:
             slips[name]["payment_id"] = payout["id"]
 
         # an ordinary sales invoice, to prove the gate hides payroll and nothing else
-        buyer = client.post("/api/v1/customers", json={"name": "客户"}, headers=hr).json()["data"]
+        buyer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']}, headers=hr).json()["data"]
         sales = client.post(
             "/api/v1/invoices",
             json={"direction": "sales", "employee_id": officer, "customer_id": buyer["id"],
-                  "title": "货款", "total_amount": 5000.0},
+                  "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'], "total_amount": 5000.0},
             headers=hr,
         ).json()["data"]
 
@@ -166,7 +173,7 @@ def test_an_unsettled_payout_is_hidden_too(workspace: dict) -> None:
     """
     client, hr, outsider = workspace["client"], workspace["hr"], workspace["outsider"]
     officer = client.post(
-        "/api/v1/employees", json={"name": "出纳"}, headers=hr
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_6657E4FAF9330E19']}, headers=hr
     ).json()["data"]["id"]
 
     pending = client.post(
@@ -194,14 +201,14 @@ def test_an_unsettled_payout_is_hidden_too(workspace: dict) -> None:
 
 
 def test_a_money_handler_sees_payouts_it_has_to_process(workspace: dict) -> None:
-    """The exemption is the job: a 出纳 recording 报销付款 and 工资代发 has to
+    """The exemption is the job: a cashier recording expense reimbursement payment and payroll payout has to
     see what they are paying. What stays hidden from them is a payout already
     applied to somebody's payslip — at that point its amount IS the net pay."""
     client, hr = workspace["client"], workspace["hr"]
     cashier = invite_role(client, hr, "cashier@pay-co.com", "cashier",
                           ["payment.record", "payment.apply"])
     officer = client.post(
-        "/api/v1/employees", json={"name": "出纳2"}, headers=hr
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_9760322FB00F1AE2']}, headers=hr
     ).json()["data"]["id"]
 
     pending = client.post(

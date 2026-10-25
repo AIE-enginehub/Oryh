@@ -12,6 +12,13 @@ stated, rows without an id are added, live rows not named are removed,
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_whole_document_save_more.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import invite_member, make_client, provision_tenant
@@ -22,9 +29,9 @@ def desk():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Save Co", email="admin@save.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
-        vendor = client.post("/api/v1/vendors", json={"name": "供应商"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
+        vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_033ED59452549C51']}, headers=admin).json()["data"]["id"]
         cup = client.post("/api/v1/products", json={"name": "Cup", "product_code": "CUP"}, headers=admin).json()["data"]["id"]
         lid = client.post("/api/v1/products", json={"name": "Lid", "product_code": "LID"}, headers=admin).json()["data"]["id"]
         box = client.post("/api/v1/products", json={"name": "Box", "product_code": "BOX"}, headers=admin).json()["data"]["id"]
@@ -40,15 +47,15 @@ def _audit_verbs(c, admin, entity_type, entity_id) -> list[str]:
 def test_an_expense_claim_is_restated_in_one_call(desk) -> None:
     c, admin = desk["client"], desk["admin"]
     claim = c.post("/api/v1/expense-claims", headers=admin, json={
-        "employee_id": desk["employee"], "title": "九月差旅",
-        "items": [{"expense_date": "2026-09-01", "category": "travel", "amount": 100, "notes": "高铁",
+        "employee_id": desk["employee"], "title": _ZH_TEXT['TEXT_38F8BF065B750742'],
+        "items": [{"expense_date": "2026-09-01", "category": "travel", "amount": 100, "notes": _ZH_TEXT['TEXT_2DB31E428DE89535'],
                    "extracted_fields": {"seat": "07A"}},
                   {"expense_date": "2026-09-02", "category": "meal", "amount": 50}]}).json()["data"]
     detail = c.get(f"/api/v1/expense-claims/{claim['id']}/detail", headers=admin).json()["data"]
     revision, (train, meal) = detail["revision"], detail["items"]
     assert len(revision) == 64
 
-    body = {"expected_revision": revision, "title": "九月差旅（改）", "items": [
+    body = {"expected_revision": revision, "title": _ZH_TEXT['TEXT_FC3589A2276E8B4B'], "items": [
         {"id": train["id"], "amount": 120},                                   # changed: one field stated
         {"expense_date": "2026-09-03", "category": "lodging", "amount": 300},   # added
     ]}                                                                        # meal: not named → removed
@@ -60,9 +67,9 @@ def test_an_expense_claim_is_restated_in_one_call(desk) -> None:
     saved = c.post(f"/api/v1/expense-claims/{claim['id']}/save", headers=admin, json=body)
     assert saved.status_code == 200, saved.text
     data = saved.json()["data"]
-    assert data["claim"]["title"] == "九月差旅（改）" and data["total_amount"] == 420
+    assert data["claim"]["title"] == _ZH_TEXT['TEXT_FC3589A2276E8B4B'] and data["total_amount"] == 420
     kept = next(i for i in data["items"] if i["id"] == train["id"])
-    assert kept["amount"] == 120 and kept["notes"] == "高铁" and kept["extracted_fields"] == {"seat": "07A"}, \
+    assert kept["amount"] == 120 and kept["notes"] == _ZH_TEXT['TEXT_2DB31E428DE89535'] and kept["extracted_fields"] == {"seat": "07A"}, \
         "a kept line changes only in the fields the row states"
     assert meal["id"] not in [i["id"] for i in data["items"]] and len(data["items"]) == 2
     assert data["revision"] != revision
@@ -81,7 +88,7 @@ def test_the_gates_of_the_single_row_paths_hold_on_a_save(desk) -> None:
         "employee_id": desk["employee"], "title": "c",
         "items": [{"expense_date": "2026-09-01", "category": "travel", "amount": 100}]}).json()["data"]
     revision = c.get(f"/api/v1/expense-claims/{claim['id']}/detail", headers=admin).json()["data"]["revision"]
-    other_emp = c.post("/api/v1/employees", json={"name": "别人"}, headers=admin).json()["data"]["id"]
+    other_emp = c.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_EEB0BE5265CA353A']}, headers=admin).json()["data"]["id"]
     stranger = invite_member(c, admin, "stranger", ["expense.submit_own"], employee_id=other_emp)
     assert c.post(f"/api/v1/expense-claims/{claim['id']}/save", headers=stranger,
                   json={"expected_revision": revision, "items": []}).status_code == 404, "someone else's claim does not exist"
@@ -150,7 +157,7 @@ def test_a_draft_recipe_is_restated_and_an_active_one_is_not(desk) -> None:
 def test_contract_lines_are_restated(desk) -> None:
     c, admin = desk["client"], desk["admin"]
     contract = c.post("/api/v1/contracts", headers=admin, json={
-        "title": "框架", "contract_type": "oem", "customer_id": desk["customer"], "employee_id": desk["employee"],
+        "title": _ZH_TEXT['TEXT_D4F72B5E41814E32'], "contract_type": "oem", "customer_id": desk["customer"], "employee_id": desk["employee"],
         "items": [{"product_id": desk["cup"], "quantity": 100, "unit_price": 9},
                   {"product_id": desk["lid"], "quantity": 100, "unit_price": 1}]}).json()["data"]
     read = c.get(f"/api/v1/contracts/{contract['id']}", headers=admin).json()["data"]
@@ -213,7 +220,7 @@ def test_a_deal_is_restated_by_its_owner(desk) -> None:
     detail = c.get(f"/api/v1/opportunities/{deal['id']}/detail", headers=admin).json()["data"]
     cup_line = next(i for i in detail["items"] if i["product_id"] == desk["cup"])
     data = _restate(c, admin, f"/api/v1/opportunities/{deal['id']}/save", detail["revision"], [
-        {"id": cup_line["id"], "quantity": 5}, {"product_name_snapshot": "安装培训", "quantity": 1, "unit_price": 3000}])
+        {"id": cup_line["id"], "quantity": 5}, {"product_name_snapshot": _ZH_TEXT['TEXT_CC6C546CF36EBA2F'], "quantity": 1, "unit_price": 3000}])
     kept = next(i for i in data["items"] if i["id"] == cup_line["id"])
     assert kept["quantity"] == 5 and kept["amount"] == 50, "the amount follows quantity × price, as on the PATCH"
     assert len(data["items"]) == 2

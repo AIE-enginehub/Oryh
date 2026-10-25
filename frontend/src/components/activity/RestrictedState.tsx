@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useI18n } from "../../i18n";
 
 type RestrictedStateProps = {
@@ -10,7 +11,7 @@ export function RestrictedState({ title, description }: RestrictedStateProps) {
   return (
     <section className="activity-restricted" role="alert">
       <span className="restricted-mark" aria-hidden="true">!</span>
-      <div><span className="eyebrow">{text("访问受限", "Access limited")}</span><h3>{title}</h3><p>{description}</p></div>
+      <div><span className="eyebrow">{text(zhCN.componentsActivityRestrictedState.accessLimited, "Access limited")}</span><h3>{title}</h3><p>{description}</p></div>
     </section>
   );
 }

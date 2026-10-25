@@ -1943,7 +1943,7 @@
         "type": "object"
       },
       "BuiltinObjectTypeRead": {
-        "description": "One shipped collection, and the words that mean it.\n\n`also_called` carries the singular and the handful of synonyms people reach\nfor — enough for an agent to recognise \"建一个 Product 对象\" as this, and\nshort enough that it is a hint rather than a claim to have thought of\neverything. Semantic near-misses (`merchandise`, `货品`) are not in here and\nare not meant to be: that is the judgement this endpoint exists to inform,\nnot to replace.",
+        "description": "One shipped collection, and the words that mean it.\n\n`also_called` carries the singular and the handful of synonyms people reach\nfor — enough for an agent to recognise \"create a Product object\" as this, and\nshort enough that it is a hint rather than a claim to have thought of\neverything. Semantic near-misses (`merchandise`, `goods`) are not in here and\nare not meant to be: that is the judgement this endpoint exists to inform,\nnot to replace.",
         "properties": {
           "also_called": {
             "items": {
@@ -2847,7 +2847,7 @@
       },
       "BulkInvoiceLineRow": {
         "additionalProperties": false,
-        "description": "A historical invoice line. Unlike order lines, quantity and price are\nboth optional — a 运费 or 折扣 line has neither, and a 汇总开票 line carries\nan amount alone.",
+        "description": "A historical invoice line. Unlike order lines, quantity and price are\nboth optional — a freight or discount line has neither, and a summary invoice line carries\nan amount alone.",
         "properties": {
           "amount": {
             "anyOf": [
@@ -3016,7 +3016,7 @@
       },
       "BulkInvoiceRow": {
         "additionalProperties": false,
-        "description": "One historical invoice — 期初应收应付, the open bills a company carries\nacross the switch. The direction decides which counterparty code is\nrequired; an unmatched one is reported per row like everywhere else.\n\nSettlement is NOT imported here: how much of this invoice was already paid\nis a payment fact, so it arrives as payments and their applications. An\ninvoice imported alone is simply fully outstanding, which is what 期初\nbalances are.",
+        "description": "One historical invoice — opening receivables/payables, the open bills a company carries\nacross the switch. The direction decides which counterparty code is\nrequired; an unmatched one is reported per row like everywhere else.\n\nSettlement is NOT imported here: how much of this invoice was already paid\nis a payment fact, so it arrives as payments and their applications. An\ninvoice imported alone is simply fully outstanding, which is what opening\nbalances are.",
         "properties": {
           "counterparty_name_snapshot": {
             "anyOf": [
@@ -6725,7 +6725,7 @@
         "type": "object"
       },
       "ContractExecutionRead": {
-        "description": "What has happened under the contract, derived on every call: orders\nplaced against it, invoices billed, payments moved — never a stored\nprogress figure.",
+        "description": "What has happened under the contract, derived on every call: orders\nplaced against it, invoices billed, payments moved — never a stored\nprogress figure. Counted: orders from confirmation on, invoices from\nissue on, payments that are paid; nothing voided or cancelled. The\nfigures are in the contract's `currency`; documents in any other\ncurrency are summed apart in `other_currencies`, never added in.",
         "properties": {
           "contract_id": {
             "title": "Contract Id",
@@ -6741,6 +6741,10 @@
               }
             ],
             "title": "Contracted Amount"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
           },
           "invoiced_amount": {
             "title": "Invoiced Amount",
@@ -6766,6 +6770,14 @@
             "title": "Orders",
             "type": "integer"
           },
+          "other_currencies": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Other Currencies",
+            "type": "array"
+          },
           "paid_amount": {
             "title": "Paid Amount",
             "type": "number"
@@ -6782,6 +6794,7 @@
         "required": [
           "contract_id",
           "side",
+          "currency",
           "orders",
           "ordered_amount",
           "invoices",
@@ -9475,6 +9488,21 @@
             ],
             "title": "Remarks"
           },
+          "side": {
+            "anyOf": [
+              {
+                "enum": [
+                  "purchase",
+                  "sales"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Side"
+          },
           "signed_date": {
             "anyOf": [
               {
@@ -10190,7 +10218,7 @@
       },
       "CreateEmployeeLeaveRequest": {
         "additionalProperties": false,
-        "description": "One absence. Note what is NOT here: any statement about entitlement.\n\nThe server is not told, and does not ask, how many days this person has —\nthat follows from the tenant's leave policy applied to their 工龄 and their\nother leave, and it is recomputed every time somebody wants to know. A\nrequest that exceeds the allowance is still a legal record of a request;\nwhether it is granted is the approver's call, informed by the same\ncomputation.",
+        "description": "One absence. Note what is NOT here: any statement about entitlement.\n\nThe server is not told, and does not ask, how many days this person has —\nthat follows from the tenant's leave policy applied to their length of service and their\nother leave, and it is recomputed every time somebody wants to know. A\nrequest that exceeds the allowance is still a legal record of a request;\nwhether it is granted is the approver's call, informed by the same\ncomputation.",
         "properties": {
           "custom_fields": {
             "additionalProperties": true,
@@ -24963,7 +24991,7 @@
         "type": "object"
       },
       "InvoiceOrderMatchRead": {
-        "description": "三单匹配 as facts, not as a verdict. The server reports what was ordered,\nwhat arrived and what has been billed; whether a gap is acceptable is the\nagent's judgment against the tenant's workflow definition — a tolerance\nbaked in here would be business policy in the record layer.",
+        "description": "Three-way matching as facts, not as a verdict. The server reports what was ordered,\nwhat arrived and what has been billed; whether a gap is acceptable is the\nagent's judgment against the tenant's workflow definition — a tolerance\nbaked in here would be business policy in the record layer.",
         "properties": {
           "billed_total": {
             "title": "Billed Total",
@@ -25604,7 +25632,7 @@
         "type": "object"
       },
       "LinkedPurchaseItemRead": {
-        "description": "A purchase line filed to fulfil this order line (按单采购). The\nrequest's status is the supply signal a fulfilment agent reads before\nshipping — a 零库存 order line with no ordered purchase behind it has\nnothing to ship.",
+        "description": "A purchase line filed to fulfil this order line (procure-to-order). The\nrequest's status is the supply signal a fulfilment agent reads before\nshipping — a zero-inventory order line with no ordered purchase behind it has\nnothing to ship.",
         "properties": {
           "id": {
             "title": "Id",
@@ -25644,7 +25672,7 @@
         "type": "object"
       },
       "LinkedPurchaseOrderItemRead": {
-        "description": "A PO line ordering this request line — with the PO's status and the\nreceived progress, the two facts 按单采购 traceability runs on.",
+        "description": "A PO line ordering this request line — with the PO's status and the\nreceived progress, the two facts procure-to-order traceability runs on.",
         "properties": {
           "id": {
             "title": "Id",
@@ -28664,7 +28692,7 @@
         "type": "object"
       },
       "PaymentApplicationRead": {
-        "description": "One 核销 fact. Rows are immutable — a correction is a second row with a\nnegative amount, never an edit of this one.",
+        "description": "One settlement application fact. Rows are immutable — a correction is a second row with a\nnegative amount, never an edit of this one.",
         "properties": {
           "amount_applied": {
             "title": "Amount Applied",
@@ -32504,7 +32532,7 @@
         "type": "object"
       },
       "PurchaseSalesOrderReferenceRead": {
-        "description": "Where a procure-to-order line came from — the fact a purchase\nreviewer routes on (按着订单审采购).",
+        "description": "Where a procure-to-order line came from — the fact a purchase\nreviewer routes on (review procurement against the order).",
         "properties": {
           "customer_name_snapshot": {
             "anyOf": [
@@ -33113,7 +33141,7 @@
       },
       "RepealBusinessRuleRequest": {
         "additionalProperties": false,
-        "description": "废止. `effective_thru` is when it STOPS applying, which is usually today\nbut need not be — a policy can be repealed retroactively to the day a law\nchanged.",
+        "description": "Repeal. `effective_thru` is when it STOPS applying, which is usually today\nbut need not be — a policy can be repealed retroactively to the day a law\nchanged.",
         "properties": {
           "effective_thru": {
             "anyOf": [
@@ -33178,7 +33206,7 @@
       },
       "RescopeBusinessRuleRequest": {
         "additionalProperties": false,
-        "description": "Who may read a policy, changed after it was published.\n\nWhat the rule SAYS is frozen once published — that is what makes the\nhandbook answerable about what people were told. Who may read it is not the\nsame kind of fact: it is a standing administrative decision that outlives\nthe publication and legitimately changes when a department reorganizes, or\nwhen a rule announced to管理层 becomes company-wide.\n\nTreating the two as one thing left a workspace with no remedy at all for a\npolicy published to a wider audience than intended: the edit is refused, a\npublished policy cannot be deleted, and repealing it retires a rule that is\nstill in force. The only way to close it was to stop applying it.",
+        "description": "Who may read a policy, changed after it was published.\n\nWhat the rule SAYS is frozen once published — that is what makes the\nhandbook answerable about what people were told. Who may read it is not the\nsame kind of fact: it is a standing administrative decision that outlives\nthe publication and legitimately changes when a department reorganizes, or\nwhen a rule announced to management becomes company-wide.\n\nTreating the two as one thing left a workspace with no remedy at all for a\npolicy published to a wider audience than intended: the edit is refused, a\npublished policy cannot be deleted, and repealing it retires a rule that is\nstill in force. The only way to close it was to stop applying it.",
         "properties": {
           "note": {
             "anyOf": [
@@ -41091,7 +41119,7 @@
         "type": "object"
       },
       "TodoLastApproval": {
-        "description": "The newest approval fact on the todo's target — enough for the one-line\n\"经理已批，正在财务复核\" a briefing needs, without a per-todo detail call.",
+        "description": "The newest approval fact on the todo's target — enough for the one-line\n\"manager approved, finance review in progress\" a briefing needs, without a per-todo detail call.",
         "properties": {
           "acted_at": {
             "anyOf": [
@@ -43015,6 +43043,17 @@
             ],
             "title": "Custom Fields"
           },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
           "effective_from": {
             "anyOf": [
               {
@@ -43096,6 +43135,21 @@
             ],
             "title": "Remarks"
           },
+          "side": {
+            "anyOf": [
+              {
+                "enum": [
+                  "purchase",
+                  "sales"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Side"
+          },
           "signed_date": {
             "anyOf": [
               {
@@ -43167,6 +43221,17 @@
                 "type": "null"
               }
             ]
+          },
+          "vendor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Id"
           }
         },
         "title": "UpdateContractRequest",
@@ -55686,7 +55751,7 @@
     },
     "/api/v1/attachments/{attachment_id}/content": {
       "get": {
-        "description": "The bytes by id alone — the workspace administrator's route only.\n\nEveryone else reaches an attachment through the document that carries it:\n`GET /invoices/{id}/attachments/{attachment_id}/content` and its eight\nsiblings, where the document's own visibility answers the question first.\nAn attachment is never a thing you are entitled to because you hold its id.\n\nThis route used to be tenant-scoped and nothing else, so any credential in\nthe workspace could read a payslip's PDF — 工资条 is an invoice, and its\nattachment is the payslip. `tests/test_payroll_visibility.py` calls payroll\n\"the first read in this API that belonging to the workspace does not\nentitle you to\", and warns that a gate is only worth its least covered\npath. This was that path.\n\nIt stays open to `users.manage` because an administrator already reads the\nwhole audit trail and manages every credential — the id-based route buys\nthem nothing they lack, and taking it away would leave no way to inspect an\nattachment whose referencing document was deleted.",
+        "description": "The bytes by id alone — the workspace administrator's route only.\n\nEveryone else reaches an attachment through the document that carries it:\n`GET /invoices/{id}/attachments/{attachment_id}/content` and its eight\nsiblings, where the document's own visibility answers the question first.\nAn attachment is never a thing you are entitled to because you hold its id.\n\nThis route used to be tenant-scoped and nothing else, so any credential in\nthe workspace could read a payslip's PDF — payslip is an invoice, and its\nattachment is the payslip. `tests/test_payroll_visibility.py` calls payroll\n\"the first read in this API that belonging to the workspace does not\nentitle you to\", and warns that a gate is only worth its least covered\npath. This was that path.\n\nIt stays open to `users.manage` because an administrator already reads the\nwhole audit trail and manages every credential — the id-based route buys\nthem nothing they lack, and taking it away would leave no way to inspect an\nattachment whose referencing document was deleted.",
         "operationId": "get_attachment_content_api_v1_attachments__attachment_id__content_get",
         "parameters": [
           {
@@ -61195,7 +61260,7 @@
     },
     "/api/v1/builtin-object-types": {
       "get": {
-        "description": "What ORYH already ships, so an agent can tell whether a custom object is\none of these under another name.\n\nAsked to \"建一个 Product 自定义对象\", an agent would define one, and the\nworkspace would end up with two answers to \"有多少产品\" — the real catalogue\nand a shadow of it that no order line, price or inventory row can ever point\nat. Once the shadow has data the two cannot be merged back.\n\nThe exact names listed here (the collection, its singular, its synonyms)\nare REFUSED as generic-object names at creation. Whether a company's \"product\"\nis our product is a reading of THEIR business, and the agent is the one with\nthe person in front of it — it can ask, and the server cannot. So there is no\n409 here and none on the create paths: read this first, and if it matches,\nsay so rather than defining a second one.\n\nUngated, like the skill catalogue and for the same reason: it is a trigger\nindex, and it reveals nothing about this workspace's data.",
+        "description": "What ORYH already ships, so an agent can tell whether a custom object is\none of these under another name.\n\nAsked to \"create a Product custom object\", an agent would define one, and the\nworkspace would end up with two answers to \"how many products are there\" — the real catalogue\nand a shadow of it that no order line, price or inventory row can ever point\nat. Once the shadow has data the two cannot be merged back.\n\nThe exact names listed here (the collection, its singular, its synonyms)\nare REFUSED as generic-object names at creation. Whether a company's \"product\"\nis our product is a reading of THEIR business, and the agent is the one with\nthe person in front of it — it can ask, and the server cannot. So there is no\n409 here and none on the create paths: read this first, and if it matches,\nsay so rather than defining a second one.\n\nUngated, like the skill catalogue and for the same reason: it is a trigger\nindex, and it reveals nothing about this workspace's data.",
         "operationId": "get_builtin_object_types_api_v1_builtin_object_types_get",
         "parameters": [
           {
@@ -63022,7 +63087,7 @@
     },
     "/api/v1/business-objects/{object_id}/post-entries": {
       "post": {
-        "description": "The bridge from a tenant-defined account document to the account\nledger, once. The type's state machine carries `account_effect:\n{reason, state}`; the object's `payload.lines` carry\n`[{billing_account_id, amount, expires_at?, description?}]` (signed, so\na 划转单 is a minus line on one account and a plus line on another).\nPosting is allowed only in the declared state; each account's floor and\nstatus are checked by the same helper the settlement path uses; the\nposter needs `billing_account.post` for each account's unit type. A\nsecond call is a 409 — a correction is a counter-document.",
+        "description": "The bridge from a tenant-defined account document to the account\nledger, once. The type's state machine carries `account_effect:\n{reason, state}`; the object's `payload.lines` carry\n`[{billing_account_id, amount, expires_at?, description?}]` (signed, so\na transfer document is a minus line on one account and a plus line on another).\nPosting is allowed only in the declared state; each account's floor and\nstatus are checked by the same helper the settlement path uses; the\nposter needs `billing_account.post` for each account's unit type. A\nsecond call is a 409 — a correction is a counter-document.",
         "operationId": "post_business_object_entries_api_v1_business_objects__object_id__post_entries_post",
         "parameters": [
           {
@@ -63153,7 +63218,7 @@
     },
     "/api/v1/business-objects/{object_id}/post-stock": {
       "post": {
-        "description": "The bridge from a tenant-defined stock document to the ledger, once.\nThe object's type definition carries `stock_effect: {reason, state}`;\nthe object's `payload.lines` carry `[{inventory_item_id,\nquantity_on_hand_diff, unit_cost?, description?}]` (signed, so a\n调拨单 is one document with a minus line and a plus line). Posting\nis allowed only in the declared state — the tenant's approval, in\ntheir words — and a second call is a 409: the ledger is append-only,\na correction is a counter-document.",
+        "description": "The bridge from a tenant-defined stock document to the ledger, once.\nThe object's type definition carries `stock_effect: {reason, state}`;\nthe object's `payload.lines` carry `[{inventory_item_id,\nquantity_on_hand_diff, unit_cost?, description?}]` (signed, so a\nstock-transfer document is one document with a minus line and a plus line). Posting\nis allowed only in the declared state — the tenant's approval, in\ntheir words — and a second call is a 409: the ledger is append-only,\na correction is a counter-document.",
         "operationId": "post_business_object_stock_api_v1_business_objects__object_id__post_stock_post",
         "parameters": [
           {
@@ -71783,7 +71848,7 @@
     },
     "/api/v1/contracts/{contract_id}/execution": {
       "get": {
-        "description": "What has happened under the contract — orders placed, invoices\nbilled, payments moved, contracted vs ordered quantity by product —\nderived from the documents that point at it, stored nowhere.",
+        "description": "What has happened under the contract — orders placed, invoices\nbilled, payments moved, contracted vs ordered quantity by product —\nderived from the documents that point at it, stored nowhere. Only what\nhappened counts (see `_counted_states`), and money is summed per\ncurrency: the contract's own currency in the top-level figures, any\nother in `other_currencies`, never added together.",
         "operationId": "contract_execution_api_v1_contracts__contract_id__execution_get",
         "parameters": [
           {
@@ -89424,7 +89489,7 @@
     },
     "/api/v1/geos/{geo_id}/path": {
       "get": {
-        "description": "The geo and its ancestors, root first — 中国 / 浙江省 / 杭州市.",
+        "description": "The geo and its ancestors, root first — China / Zhejiang / Hangzhou.",
         "operationId": "get_geo_path_api_v1_geos__geo_id__path_get",
         "parameters": [
           {
@@ -91710,7 +91775,7 @@
     },
     "/api/v1/invoices": {
       "get": {
-        "description": "The receivables/payables work queues live here.\n\n`outstanding=true` is \"still owed\" measured against the settlement ledger,\nnot against a status: an invoice is outstanding while what it bills exceeds\nwhat has been applied to it. Combined with `direction` and `due_before` it\nis the overdue queue — `?direction=sales&outstanding=true&due_before=today`\nis 逾期应收, and the purchase side is what is due to be paid.",
+        "description": "The receivables/payables work queues live here.\n\n`outstanding=true` is \"still owed\" measured against the settlement ledger,\nnot against a status: an invoice is outstanding while what it bills exceeds\nwhat has been applied to it. Combined with `direction` and `due_before` it\nis the overdue queue — `?direction=sales&outstanding=true&due_before=today`\nis overdue receivables, and the purchase side is what is due to be paid.",
         "operationId": "list_invoices_api_v1_invoices_get",
         "parameters": [
           {
@@ -92632,7 +92697,7 @@
     },
     "/api/v1/invoices/bulk": {
       "post": {
-        "description": "Import 期初应收应付 keyed on each invoice's own `invoice_no`.\n\nSettlement is deliberately not part of a row: how much of an invoice was\nalready collected is a payment fact, and importing it as a column would\nmake the running total disagree with the ledger it is supposed to be a sum\nof. Open balances arrive as invoices; the money that already moved arrives\nas payments and their applications.",
+        "description": "Import opening receivables/payables keyed on each invoice's own `invoice_no`.\n\nSettlement is deliberately not part of a row: how much of an invoice was\nalready collected is a payment fact, and importing it as a column would\nmake the running total disagree with the ledger it is supposed to be a sum\nof. Open balances arrive as invoices; the money that already moved arrives\nas payments and their applications.",
         "operationId": "bulk_import_invoices_api_v1_invoices_bulk_post",
         "parameters": [
           {
@@ -93153,7 +93218,7 @@
     },
     "/api/v1/invoices/{invoice_id}/attachments/{attachment_id}/content": {
       "get": {
-        "description": "The 发票原件 — a customer's PDF, a 增值税发票扫描件.\n\nPayroll is why this must not be reachable by id alone: a payslip is an\ninvoice, and its attachment is the payslip.",
+        "description": "The original invoice — a customer's PDF, a scanned VAT invoice.\n\nPayroll is why this must not be reachable by id alone: a payslip is an\ninvoice, and its attachment is the payslip.",
         "operationId": "get_invoice_attachment_api_v1_invoices__invoice_id__attachments__attachment_id__content_get",
         "parameters": [
           {
@@ -95054,7 +95119,7 @@
     },
     "/api/v1/notifications": {
       "post": {
-        "description": "Email one employee about one work event — or about everything one run\nassigned to them, as one message.\n\n202, not 201: nothing is stored, and SMTP acceptance is not delivery. The\nresponse says what was attempted and to whom, so a flow agent can report\n\"told 张三\" or \"李四 has no address on file\" rather than guessing.",
+        "description": "Email one employee about one work event — or about everything one run\nassigned to them, as one message.\n\n202, not 201: nothing is stored, and SMTP acceptance is not delivery. The\nresponse says what was attempted and to whom, so a flow agent can report\n\"told Zhang San\" or \"Li Si has no address on file\" rather than guessing.",
         "operationId": "send_notification_api_v1_notifications_post",
         "parameters": [
           {
@@ -100181,7 +100246,7 @@
     },
     "/api/v1/payments": {
       "get": {
-        "description": "`unapplied=true` is the 认领队列: money that arrived or went out and has\nnot been matched to a document yet. On the inbound side that is 预收款 plus\nevery bank line nobody has identified; on the outbound side, 预付款.",
+        "description": "`unapplied=true` is the unmatched-payment queue: money that arrived or went out and has\nnot been matched to a document yet. On the inbound side that is advance receipt plus\nevery bank line nobody has identified; on the outbound side, advance payment.",
         "operationId": "list_payments_api_v1_payments_get",
         "parameters": [
           {
@@ -100714,7 +100779,7 @@
         "summary": "List Payments"
       },
       "post": {
-        "description": "An outbound payment starts at the machine's `initial` and is walked\nthrough 付款审批 — creating it further along takes `payment.advance`, the\ngrant that walk needs. An inbound receipt is money that already arrived,\nso a `payment.record` holder creates it directly in whatever state says\nso: there is nothing to approve.",
+        "description": "An outbound payment starts at the machine's `initial` and is walked\nthrough payment approval — creating it further along takes `payment.advance`, the\ngrant that walk needs. An inbound receipt is money that already arrived,\nso a `payment.record` holder creates it directly in whatever state says\nso: there is nothing to approve.",
         "operationId": "create_payment_api_v1_payments_post",
         "parameters": [
           {
@@ -100846,7 +100911,7 @@
     },
     "/api/v1/payments/bulk": {
       "post": {
-        "description": "Import historical收付款 keyed on each payment's own `payment_no`.\n\nImported payments arrive fully unapplied — which invoice each one settled\nis recorded through `POST /payments/{id}/apply`, so the over-application,\ndirection and currency guards run on every match. A bulk path into the\nledger would be a bulk path around the only checks that make it trustworthy.",
+        "description": "Import historical receipts and payments keyed on each payment's own `payment_no`.\n\nImported payments arrive fully unapplied — which invoice each one settled\nis recorded through `POST /payments/{id}/apply`, so the over-application,\ndirection and currency guards run on every match. A bulk path into the\nledger would be a bulk path around the only checks that make it trustworthy.",
         "operationId": "bulk_import_payments_api_v1_payments_bulk_post",
         "parameters": [
           {
@@ -101366,7 +101431,7 @@
     },
     "/api/v1/payments/{payment_id}/apply": {
       "post": {
-        "description": "核销: record which documents this payment settles.\n\nFacts only, no status magic — the twin of the purchase order's receive\nendpoint. Each line appends an immutable ledger row and moves the running\n`applied_amount` on both sides; the flow agent moves statuses when the facts\nsupport it. Reversing an application is a line with a negative amount, never\na delete.\n\nDeliberately NOT gated on either document's status, for the same reason\nreceiving is not: the state names are the tenant's own, so the server cannot\nknow which of them mean \"payable\". What the server does guarantee is that no\nmore money is applied than exists on either side, that the direction and the\ncurrency agree, and that a retry with the same idempotency key applies once.",
+        "description": "Settlement application: record which documents this payment settles.\n\nFacts only, no status magic — the twin of the purchase order's receive\nendpoint. Each line appends an immutable ledger row and moves the running\n`applied_amount` on both sides; the flow agent moves statuses when the facts\nsupport it. Reversing an application is a line with a negative amount, never\na delete.\n\nDeliberately NOT gated on either document's status, for the same reason\nreceiving is not: the state names are the tenant's own, so the server cannot\nknow which of them mean \"payable\". What the server does guarantee is that no\nmore money is applied than exists on either side, that the direction and the\ncurrency agree, and that a retry with the same idempotency key applies once.",
         "operationId": "apply_payment_api_v1_payments__payment_id__apply_post",
         "parameters": [
           {
@@ -111958,7 +112023,7 @@
     },
     "/api/v1/purchase-orders/{po_id}/receive": {
       "post": {
-        "description": "Record goods arriving against PO lines. Facts only, no status magic:\nreceived_quantity accumulates on each line, and a line given a `facility`\nalso lands in the inventory ledger (reason `received`, entity pinned to\nthe PO line). No facility = a 直发/零库存 receipt that never touches\nstock. The flow agent moves the PO's status when the facts support it.\n\nDeliberately NOT gated on status: the state names are tenant-editable, so\nthe server cannot know which of them mean \"receivable\" — that judgment is\nthe agent's. Over-receiving is likewise recorded as stated (超收 is a real\nthing); flagging it is conversation, not rejection.\n\nA vendor's price becomes their SupplierProduct.last_price when the link\nalready exists — recording the freshest procurement fact — but a link is\nnever invented here.",
+        "description": "Record goods arriving against PO lines. Facts only, no status magic:\nreceived_quantity accumulates on each line, and a line given a `facility`\nalso lands in the inventory ledger (reason `received`, entity pinned to\nthe PO line). No facility = a drop-ship/zero-inventory receipt that never touches\nstock. The flow agent moves the PO's status when the facts support it.\n\nDeliberately NOT gated on status: the state names are tenant-editable, so\nthe server cannot know which of them mean \"receivable\" — that judgment is\nthe agent's. Over-receiving is likewise recorded as stated (over-receipt is a real\nthing); flagging it is conversation, not rejection.\n\nA vendor's price becomes their SupplierProduct.last_price when the link\nalready exists — recording the freshest procurement fact — but a link is\nnever invented here.",
         "operationId": "receive_purchase_order_api_v1_purchase_orders__po_id__receive_post",
         "parameters": [
           {
@@ -121120,7 +121185,7 @@
     },
     "/api/v1/sales-orders/{order_id}/reserve": {
       "post": {
-        "description": "占货: hold goods for an order. The ONLY way a `reserved` row enters\nthe ledger — an availability fact tied to the order it serves, posted\nby the warehouse from the positions it chooses. Each line names a\nposition holding goods the order sells and a quantity; a hold that\nwould push available to promise below zero is refused with the\nnumbers. Post-stock on the order's shipment consumes the hold itself.",
+        "description": "stock reservation: hold goods for an order. The ONLY way a `reserved` row enters\nthe ledger — an availability fact tied to the order it serves, posted\nby the warehouse from the positions it chooses. Each line names a\nposition holding goods the order sells and a quantity; a hold that\nwould push available to promise below zero is refused with the\nnumbers. Post-stock on the order's shipment consumes the hold itself.",
         "operationId": "reserve_stock_for_order_api_v1_sales_orders__order_id__reserve_post",
         "parameters": [
           {
@@ -137500,7 +137565,7 @@
         "summary": "List Type Options"
       },
       "post": {
-        "description": "Tenant-defined vocabulary entry (经销价、开票服务费…). The first\ncustomization materializes the shipped catalog as system rows, so the\nvocabulary the tenant now owns is complete and editable.",
+        "description": "Tenant-defined vocabulary entry (dealer price, invoicing service fee…). The first\ncustomization materializes the shipped catalog as system rows, so the\nvocabulary the tenant now owns is complete and editable.",
         "operationId": "create_type_option_api_v1_type_options_post",
         "parameters": [
           {

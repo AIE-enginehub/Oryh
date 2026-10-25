@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use when procurement places, maintains or receives against purchase orders in oryh — 下采购单/向供应商订货 from approved requests, 收货 with or without a warehouse, close or cancel. A PO names a specific vendor. Not for filing the requisition (oryh-purchase-submit) or approving it (oryh-approve)."
+  ]
+}

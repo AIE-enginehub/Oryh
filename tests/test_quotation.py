@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_quotation.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -30,19 +37,19 @@ def headers_for_tenant(tenant_id: str) -> dict[str, str]:
 
 
 def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> str:
-    payload = {"name": "李雷"}
+    payload = {"name": _ZH_TEXT['TEXT_3A47328A607F3E0A']}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "employees", **payload)["id"]
 
 
 def create_customer(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "华欣机械有限公司", "contact": "王工", "address": "苏州市工业园区"}
+    payload = {"name": _ZH_TEXT['TEXT_9E8F97DD54D09A73'], "contact": _ZH_TEXT['TEXT_2BF61438CAE7EFAF'], "address": _ZH_TEXT['TEXT_F6A320E8A66394DA']}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "customers", **payload)
 
 
 def create_product(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "四刃立铣刀", "spec": "D10 硬质合金", "unit": "支", "list_price": 120.0}
+    payload = {"name": _ZH_TEXT['TEXT_91A09CC8E051A11E'], "spec": _ZH_TEXT['TEXT_0C8B5EE2AD6E2709'], "unit": _ZH_TEXT['TEXT_BD73499CE772AFFB'], "list_price": 120.0}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "products", **payload)
 
@@ -59,29 +66,29 @@ def test_create_persists_every_accepted_header_field(client: TestClient) -> None
     employee_id = create_employee(client)
     quotation = create_quotation(
         client, employee_id,
-        remarks="折扣理由：战略客户，年内第三次采购",
-        payment_terms="到货验收后 30 天付款",
-        delivery_terms="含 13% 增值税的到货价",
-        source_report_text="客户压价，按八八折报出",
+        remarks=_ZH_TEXT['TEXT_09F0AA4FB8F99D29'],
+        payment_terms=_ZH_TEXT['TEXT_161FF107ABB4F890'],
+        delivery_terms=_ZH_TEXT['TEXT_CCD369CA5FA11509'],
+        source_report_text=_ZH_TEXT['TEXT_1FA6E6FC16BCEEBC'],
     )
     for field, expected in (
-        ("remarks", "折扣理由：战略客户，年内第三次采购"),
-        ("payment_terms", "到货验收后 30 天付款"),
-        ("delivery_terms", "含 13% 增值税的到货价"),
-        ("source_report_text", "客户压价，按八八折报出"),
+        ("remarks", _ZH_TEXT['TEXT_09F0AA4FB8F99D29']),
+        ("payment_terms", _ZH_TEXT['TEXT_161FF107ABB4F890']),
+        ("delivery_terms", _ZH_TEXT['TEXT_CCD369CA5FA11509']),
+        ("source_report_text", _ZH_TEXT['TEXT_1FA6E6FC16BCEEBC']),
     ):
         assert quotation.get(field) == expected, f"{field} lost at create: {quotation.get(field)!r}"
 
     read_back = client.get(
         f"/api/v1/sales-quotations/{quotation['id']}", headers=api_key_headers()
     ).json()["data"]
-    assert read_back["remarks"] == "折扣理由：战略客户，年内第三次采购"
+    assert read_back["remarks"] == _ZH_TEXT['TEXT_09F0AA4FB8F99D29']
 
 
 def create_quotation(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
     payload = {
         "employee_id": employee_id,
-        "title": "华欣机械 刀具年度报价",
+        "title": _ZH_TEXT['TEXT_8AB086372878CDA9'],
         "quote_date": "2026-07-21",
         "valid_until": "2026-08-20",
     }
@@ -90,7 +97,7 @@ def create_quotation(test_client: TestClient, employee_id: str, tenant_id: str =
 
 
 def create_item(test_client: TestClient, quotation_id: str, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"quotation_id": quotation_id, "product_name_snapshot": "定制夹具", "quantity": 2}
+    payload = {"quotation_id": quotation_id, "product_name_snapshot": _ZH_TEXT['TEXT_2ACCF82E4FCDF207'], "quantity": 2}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "sales-quotation-items", **payload)
 
@@ -98,9 +105,9 @@ def create_item(test_client: TestClient, quotation_id: str, tenant_id: str = TES
 def test_customer_master_data_crud_and_filters(client: TestClient) -> None:
     customer = create_customer(client, customer_code="CUS-001", tax_id="91320500MA1WCACX3F")
     assert customer["status"] == "active"
-    assert customer["address"] == "苏州市工业园区"
+    assert customer["address"] == _ZH_TEXT['TEXT_F6A320E8A66394DA']
 
-    by_keyword = client.get("/api/v1/customers?keyword=华欣", headers=api_key_headers()).json()["data"]
+    by_keyword = client.get(_ZH_TEXT['TEXT_DC469ACF7CB5B48F'], headers=api_key_headers()).json()["data"]
     assert [c["id"] for c in by_keyword] == [customer["id"]]
     by_tax = client.get(
         "/api/v1/customers?tax_id=91320500MA1WCACX3F", headers=api_key_headers()
@@ -108,9 +115,9 @@ def test_customer_master_data_crud_and_filters(client: TestClient) -> None:
     assert [c["id"] for c in by_tax] == [customer["id"]]
 
     updated = client.patch(
-        f"/api/v1/customers/{customer['id']}", json={"contact": "赵工"}, headers=api_key_headers()
+        f"/api/v1/customers/{customer['id']}", json={"contact": _ZH_TEXT['TEXT_E69446E8DED51FCA']}, headers=api_key_headers()
     )
-    assert updated.json()["data"]["contact"] == "赵工"
+    assert updated.json()["data"]["contact"] == _ZH_TEXT['TEXT_E69446E8DED51FCA']
 
     # archive removes from active list; other tenant sees nothing
     assert client.delete(f"/api/v1/customers/{customer['id']}", headers=api_key_headers()).status_code == 204
@@ -129,7 +136,7 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
     # server-allocated number, customer snapshot backfilled from master data
     assert quotation["quote_number"] == "QT-000001"
     assert quotation["revision_no"] == 1
-    assert quotation["customer_name_snapshot"] == "华欣机械有限公司"
+    assert quotation["customer_name_snapshot"] == _ZH_TEXT['TEXT_9E8F97DD54D09A73']
     assert quotation["status"] == "draft"
 
     # cataloged line captures the list-price snapshot automatically
@@ -144,12 +151,12 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
         line_no=1,
     )
     assert priced["list_price_snapshot"] == 120.0
-    assert priced["product_name_snapshot"] == "四刃立铣刀"
+    assert priced["product_name_snapshot"] == _ZH_TEXT['TEXT_91A09CC8E051A11E']
     # gift line: zero-priced by design, never "unpriced"
     create_item(
         client,
         quotation["id"],
-        product_name_snapshot="样品一盒",
+        product_name_snapshot=_ZH_TEXT['TEXT_043536A353F4F9EE'],
         quantity=1,
         unit_price=0,
         is_gift=True,
@@ -167,7 +174,7 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
     assert detail["items"][0]["product"]["list_price"] == 120.0
     assert [r["revision_no"] for r in detail["revisions"]] == [1]
 
-    # negotiated document total (抹零) is a declared fact beside the line sum
+    # negotiated document total (rounding adjustment) is a declared fact beside the line sum
     assert client.patch(
         f"/api/v1/sales-quotations/{quotation['id']}",
         json={"total_amount": 21000.0},
@@ -204,7 +211,7 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
             "employee_id": employee_id,
             "entity_type": "sales_quotation",
             "entity_id": quotation["id"],
-            "title": "审批报价 QT-000001",
+            "title": _ZH_TEXT['TEXT_1115B8F383FAEBF9'],
         },
         headers=api_key_headers(),
     )
@@ -222,12 +229,12 @@ def test_quotation_full_lifecycle_with_derived_pricing_facts(client: TestClient)
 
     closed = client.post(
         f"/api/v1/sales-quotations/{quotation['id']}/close",
-        json={"outcome": "accepted", "outcome_note": "按报价签约"},
+        json={"outcome": "accepted", "outcome_note": _ZH_TEXT['TEXT_910E9211529F8DC3']},
         headers=api_key_headers(),
     ).json()["data"]
     assert closed["status"] == "accepted"
     assert closed["closed_at"] is not None
-    assert closed["outcome_note"] == "按报价签约"
+    assert closed["outcome_note"] == _ZH_TEXT['TEXT_910E9211529F8DC3']
 
     detail = client.get(
         f"/api/v1/sales-quotations/{quotation['id']}/detail", headers=api_key_headers()
@@ -286,7 +293,7 @@ def test_revision_flow(client: TestClient) -> None:
 
     revised = client.post(
         f"/api/v1/sales-quotations/{quotation['id']}/revise",
-        json={"reason": "客户要求降价"},
+        json={"reason": _ZH_TEXT['TEXT_43080EEF056AA98C']},
         headers=api_key_headers(),
     )
     assert revised.status_code == 201
@@ -348,7 +355,7 @@ def test_items_locked_after_submit_and_machine_guards(client: TestClient) -> Non
 
     assert client.post(
         "/api/v1/sales-quotation-items",
-        json={"quotation_id": quotation["id"], "product_name_snapshot": "追加", "quantity": 1},
+        json={"quotation_id": quotation["id"], "product_name_snapshot": _ZH_TEXT['TEXT_D91017C932B5FC75'], "quantity": 1},
         headers=api_key_headers(),
     ).status_code == 409
     assert client.patch(
@@ -388,8 +395,8 @@ def test_items_locked_after_submit_and_machine_guards(client: TestClient) -> Non
 
 def test_pricing_fact_overrides_and_product_swap(client: TestClient) -> None:
     employee_id = create_employee(client)
-    cheap = create_product(client, name="国产立铣刀", list_price=60.0)
-    dear = create_product(client, name="进口立铣刀", list_price=200.0)
+    cheap = create_product(client, name=_ZH_TEXT['TEXT_66AC9AE7F4D66ED5'], list_price=60.0)
+    dear = create_product(client, name=_ZH_TEXT['TEXT_5DC7A0D3F82FA0C5'], list_price=200.0)
     quotation = create_quotation(client, employee_id)
 
     # explicit snapshot (special price list) beats the catalog capture
@@ -413,7 +420,7 @@ def test_pricing_fact_overrides_and_product_swap(client: TestClient) -> None:
         headers=api_key_headers(),
     ).json()["data"]
     assert swapped["product_id"] == dear["id"]
-    assert swapped["product_name_snapshot"] == "国产立铣刀"
+    assert swapped["product_name_snapshot"] == _ZH_TEXT['TEXT_66AC9AE7F4D66ED5']
     assert swapped["list_price_snapshot"] == 200.0
 
     # tax_rate is bounded
@@ -493,7 +500,7 @@ def test_quotation_work_queue_filter(client: TestClient) -> None:
             "employee_id": employee_id,
             "entity_type": "sales_quotation",
             "entity_id": quotation["id"],
-            "title": "审批报价",
+            "title": _ZH_TEXT['TEXT_0273AB7B02312928'],
         },
         headers=api_key_headers(),
     )
@@ -516,10 +523,10 @@ def test_quotation_tenant_isolation(client: TestClient) -> None:
     assert client.get("/api/v1/sales-quotations", headers=other).json()["data"] == []
     assert client.get(f"/api/v1/customers/{customer['id']}", headers=other).status_code == 404
     # cross-tenant references are 404s, not leaks
-    other_employee = create_employee(client, tenant_id=OTHER_TENANT, name="外部员工")
+    other_employee = create_employee(client, tenant_id=OTHER_TENANT, name=_ZH_TEXT['TEXT_8F2F52916D97AD3D'])
     assert client.post(
         "/api/v1/sales-quotations",
-        json={"employee_id": other_employee, "title": "跨租户", "customer_id": customer["id"]},
+        json={"employee_id": other_employee, "title": _ZH_TEXT['TEXT_E4146F61211A8146'], "customer_id": customer["id"]},
         headers=other,
     ).status_code == 404
 
@@ -531,7 +538,7 @@ def test_adjustments_shape_the_total_and_ride_revisions(client: TestClient) -> N
     employee_id = create_employee(client)
     quotation = create_quotation(client, employee_id)
     line = create_item(client, quotation["id"], quantity=10, unit_price=100.0)
-    other_quotation = create_quotation(client, employee_id, title="另一单")
+    other_quotation = create_quotation(client, employee_id, title=_ZH_TEXT['TEXT_539059A5366F1752'])
     foreign_line = create_item(client, other_quotation["id"])
 
     def add(payload, expect=201):
@@ -544,15 +551,15 @@ def test_adjustments_shape_the_total_and_ride_revisions(client: TestClient) -> N
         return response.json()["data"] if expect == 201 else response.json()
 
     # header-level: tax on, rounding off; line-level: a promo discount
-    add({"adjustment_type": "tax", "amount": 130.0, "source_percentage": 13, "description": "增值税 13%"})
-    add({"adjustment_type": "rounding", "amount": -0.5, "description": "抹零"})
+    add({"adjustment_type": "tax", "amount": 130.0, "source_percentage": 13, "description": _ZH_TEXT['TEXT_5403C0112264B3BA']})
+    add({"adjustment_type": "rounding", "amount": -0.5, "description": _ZH_TEXT['TEXT_7D3CCEFDD1AC6BF8']})
     promo = add({
         "adjustment_type": "promotion", "amount": -50.0,
-        "quotation_item_id": line["id"], "description": "开业促销减50",
-        "metadata": {"活动": "开业季"},
+        "quotation_item_id": line["id"], "description": _ZH_TEXT['TEXT_C2D6328130859743'],
+        "metadata": {_ZH_TEXT['TEXT_9E9BEAD81498B898']: _ZH_TEXT['TEXT_8DDE04D3EB8B468B']},
     })
     assert promo["quotation_item_id"] == line["id"]
-    assert promo["metadata"] == {"活动": "开业季"}
+    assert promo["metadata"] == {_ZH_TEXT['TEXT_9E9BEAD81498B898']: _ZH_TEXT['TEXT_8DDE04D3EB8B468B']}
 
     # a line from another quotation is a 400, not a silent cross-link
     wrong = add({"adjustment_type": "discount", "amount": -1, "quotation_item_id": foreign_line["id"]}, expect=400)
@@ -578,7 +585,7 @@ def test_adjustments_shape_the_total_and_ride_revisions(client: TestClient) -> N
     assert advance.status_code == 200, advance.text
     revised = client.post(
         f"/api/v1/sales-quotations/{quotation['id']}/revise",
-        json={"reason": "客户要求再让一点"},
+        json={"reason": _ZH_TEXT['TEXT_BC5AC344D75AD941']},
         headers=api_key_headers(),
     )
     assert revised.status_code == 201, revised.text
@@ -609,7 +616,7 @@ def test_adjustments_shape_the_total_and_ride_revisions(client: TestClient) -> N
     ).json()["data"]
     patched = client.patch(
         f"/api/v1/sales-quotation-adjustments/{fee['id']}",
-        json={"amount": 25.0, "description": "加急服务费"},
+        json={"amount": 25.0, "description": _ZH_TEXT['TEXT_D64CD484C1FE94DF']},
         headers=api_key_headers(),
     )
     assert patched.status_code == 200

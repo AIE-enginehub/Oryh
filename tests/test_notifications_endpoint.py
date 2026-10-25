@@ -15,6 +15,13 @@ six-variable whitelist and never carries SMTP credentials.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_notifications_endpoint.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from app.core.config import settings
@@ -29,10 +36,10 @@ def workspace(client):
     created = client.post(
         "/api/v1/employees",
         headers=headers,
-        json={"name": "许蒙恩", "email": "mengen@notify.example"},
+        json={"name": _ZH_TEXT['TEXT_C981FA16F2EEAB88'], "email": "mengen@notify.example"},
     )
     assert created.status_code == 201, created.text
-    silent = client.post("/api/v1/employees", headers=headers, json={"name": "无邮箱同事"})
+    silent = client.post("/api/v1/employees", headers=headers, json={"name": _ZH_TEXT['TEXT_611934DF7591B884']})
     assert silent.status_code == 201, silent.text
     outbox.clear()
     return headers, created.json()["data"]["id"], silent.json()["data"]["id"]
@@ -40,16 +47,16 @@ def workspace(client):
 
 def test_a_return_notification_carries_the_comment_verbatim(client, workspace):
     headers, employee_id, _ = workspace
-    comment = "每周总时数需达 40 小时；本表 32 小时。任务粒度需到项目号。"
+    comment = _ZH_TEXT['TEXT_3389E6BE96C61371']
     response = client.post(
         "/api/v1/notifications",
         headers=headers,
         json={
             "employee_id": employee_id,
             "event": "returned",
-            "title": "许蒙恩 08/03-08/07 周工时",
+            "title": _ZH_TEXT['TEXT_B6964FE14B4D32CD'],
             "detail": comment,
-            "actor_name": "童文戟",
+            "actor_name": _ZH_TEXT['TEXT_CD485074AA3B075C'],
         },
     )
     assert response.status_code == 202, response.text
@@ -61,7 +68,7 @@ def test_a_return_notification_carries_the_comment_verbatim(client, workspace):
     # Verbatim: a paraphrased instruction is a different instruction, and this
     # is the text the person must act on.
     assert comment in message.body
-    assert "童文戟" in message.body
+    assert _ZH_TEXT['TEXT_CD485074AA3B075C'] in message.body
 
 
 def test_the_caller_cannot_choose_the_address(client, workspace):
@@ -72,7 +79,7 @@ def test_the_caller_cannot_choose_the_address(client, workspace):
         json={
             "employee_id": employee_id,
             "event": "assigned",
-            "title": "审批 许蒙恩 工时",
+            "title": _ZH_TEXT['TEXT_A3F5B358F0791171'],
             # Not a field. If it ever becomes one, this endpoint is a relay.
             "to": "attacker@elsewhere.example",
         },
@@ -90,14 +97,14 @@ def test_a_missing_address_is_reported_not_guessed(client, workspace):
     response = client.post(
         "/api/v1/notifications",
         headers=headers,
-        json={"employee_id": silent_id, "event": "assigned", "title": "审批某单"},
+        json={"employee_id": silent_id, "event": "assigned", "title": _ZH_TEXT['TEXT_E04F4395F0582F69']},
     )
     # Not an error: the agent did its part and a person has to fix the record.
     assert response.status_code == 202, response.text
     data = response.json()["data"]
     assert data["delivered"] is False
     assert "no email address" in data["reason"]
-    assert data["employee_name"] == "无邮箱同事"
+    assert data["employee_name"] == _ZH_TEXT['TEXT_611934DF7591B884']
     assert not outbox.messages, "nothing may be sent when no address is on file"
 
 
@@ -120,7 +127,7 @@ def test_another_tenants_employee_is_not_reachable(client, workspace):
     stranger = client.post(
         "/api/v1/employees",
         headers=other_headers,
-        json={"name": "陌生人", "email": "stranger@other.example"},
+        json={"name": _ZH_TEXT['TEXT_8B5824C4BBC18486'], "email": "stranger@other.example"},
     ).json()["data"]["id"]
     outbox.clear()
 
@@ -177,7 +184,7 @@ def test_sending_leaves_a_trail_without_the_address(client, workspace):
         json={
             "employee_id": employee_id,
             "event": "approved",
-            "title": "许蒙恩 08/03-08/07 周工时",
+            "title": _ZH_TEXT['TEXT_B6964FE14B4D32CD'],
             "entity_type": "timesheet_header",
             "entity_id": "22222222-2222-2222-2222-222222222222",
         },
@@ -211,7 +218,7 @@ def test_a_key_without_the_permission_is_refused(client, workspace):
     """
     headers, employee_id, _ = workspace
     member = invite_member(client, headers, "member", role="member", email="member@notify.example",
-                           display_name="普通成员", password="member-pass1", key=False)
+                           display_name=_ZH_TEXT['TEXT_21DFFBD46E2674C1'], password="member-pass1", key=False)
 
     from app.services.emails import outbox as mailbox
 
@@ -254,7 +261,7 @@ def assigned_todos(client, headers, employee_id, count):
             headers=headers,
             json={"employee_id": employee_id, "entity_type": "timesheet_header",
                   "entity_id": header.json()["data"]["id"],
-                  "title": f"审批 第{n + 1}周工时", "todo_type": "approval"},
+                  "title": f"{_ZH_TEXT['TEXT_D790C0CBD379D62F']}{n + 1}{_ZH_TEXT['TEXT_B5920BB0B77A0B1D']}", "todo_type": "approval"},
         )
         assert todo.status_code == 201, todo.text
         ids.append(todo.json()["data"]["id"])
@@ -278,16 +285,16 @@ def test_one_run_one_person_one_mail_listing_every_todo(client, workspace):
     assert response.json()["data"]["delivered"] is True
     assert len(outbox.messages) == 1
     mail = outbox.messages[0]
-    assert ("3 项" in mail.subject) if settings.resolved_locale == "zh" else ("3 items" in mail.subject)
+    assert (_ZH_TEXT['TEXT_49EF840EFE6FA1AA'] in mail.subject) if settings.resolved_locale == "zh" else ("3 items" in mail.subject)
     for n in (1, 2, 3):
-        assert f"- 审批 第{n}周工时" in mail.body
+        assert f"{_ZH_TEXT['TEXT_D57C50A6094DC84A']}{n}{_ZH_TEXT['TEXT_B5920BB0B77A0B1D']}" in mail.body
     assert "/console/todos" in mail.body
 
     trail = client.get(
         "/api/v1/audit-logs", headers=headers, params={"action": "notification.sent"}
     ).json()["data"][0]["detail"]
     assert trail["todo_ids"] == ids
-    assert trail["title"] == ("3 项工作" if settings.resolved_locale == "zh" else "3 items")
+    assert trail["title"] == (_ZH_TEXT['TEXT_D1A7C08DD3CEDE4B'] if settings.resolved_locale == "zh" else "3 items")
 
 
 def test_a_single_todo_needs_no_title_and_reads_as_one_item(client, workspace):
@@ -299,7 +306,7 @@ def test_a_single_todo_needs_no_title_and_reads_as_one_item(client, workspace):
         json={"employee_id": employee_id, "event": "assigned", "todo_ids": [todo_id]},
     )
     assert response.status_code == 202, response.text
-    expected = "有一项工作需要你处理：审批 第1周工时" if settings.resolved_locale == "zh" else "Work assigned to you: 审批 第1周工时"
+    expected = _ZH_TEXT['TEXT_A1AD2827629DC71C'] if settings.resolved_locale == "zh" else _ZH_TEXT['TEXT_5C67BDF4F32EAD43']
     assert outbox.messages[0].subject == expected
 
 

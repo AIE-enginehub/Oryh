@@ -7,11 +7,18 @@ around that: sign rules the database itself enforces (deposits positive,
 withdrawals negative — CHECKs SQLite-backed tests witness), the PSP
 gross/fee/net identity, statement re-imports made idempotent by the bank's
 own line id, the reconciliation link that may point a line only at a
-payment moving money the SAME way, and the desk split — 钱账分离 —
+payment moving money the SAME way, and the desk split — separation of payment documents and bank-register duties —
 that keeps the accountant's payment.record out of the cashier's register.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_treasury.json').read_text(encoding="utf-8"))
+
 
 import pytest
 
@@ -30,7 +37,7 @@ def desk():
 
         cashier = invite("cashier", ["fin_account.manage"])
         account = client.post("/api/v1/fin-accounts", headers=cashier, json={
-            "name": "招行基本户", "institution": "招商银行", "account_number": "1109",
+            "name": _ZH_TEXT['TEXT_4E7B023A37DB41C8'], "institution": _ZH_TEXT['TEXT_4E721FAE5963494D'], "account_number": "1109",
             "opening_balance": 1000.0, "opening_date": "2026-08-01",
         }).json()["data"]
 
@@ -105,12 +112,12 @@ def test_the_database_itself_holds_the_sign_rules(desk) -> None:
 def test_psp_lines_carry_gross_fee_net_and_the_identity_holds(desk) -> None:
     client, cashier = desk["client"], desk["cashier"]
     wallet = client.post("/api/v1/fin-accounts", headers=cashier, json={
-        "name": "微信商户", "institution": "微信支付", "account_type": "wallet",
+        "name": _ZH_TEXT['TEXT_BD4B2C3656829A6D'], "institution": _ZH_TEXT['TEXT_064464BF647781A6'], "account_type": "wallet",
     }).json()["data"]
     ok = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": wallet["id"], "amount": 99.4,
         "gross_amount": 100.0, "fee_amount": 0.6,
-        "counterparty": "买家A", "reference_no": "WX-1001"})
+        "counterparty": _ZH_TEXT['TEXT_9981A44E524271B9'], "reference_no": "WX-1001"})
     assert ok.status_code == 201, ok.text
     crooked = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": wallet["id"], "amount": 99.0,
@@ -122,9 +129,9 @@ def test_statement_import_is_idempotent_by_the_banks_own_line_id(desk) -> None:
     client, cashier = desk["client"], desk["cashier"]
     rows = [
         {"trans_date": "2026-08-25", "amount": 300.0, "reference_no": "B-001",
-         "counterparty": "客户甲"},
+         "counterparty": _ZH_TEXT['TEXT_6AD75CF1BE403528']},
         {"trans_date": "2026-08-25", "amount": -80.0, "reference_no": "B-002",
-         "counterparty": "房东"},
+         "counterparty": _ZH_TEXT['TEXT_F028763B3379B1FA']},
         {"trans_date": "2026-08-26", "amount": -1.5, "trans_type": "fee",
          "reference_no": "B-003"},
     ]
@@ -155,9 +162,9 @@ def test_statement_import_is_idempotent_by_the_banks_own_line_id(desk) -> None:
 
 def test_the_reconciliation_link_moves_money_the_same_way(desk) -> None:
     client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
-    emp = client.post("/api/v1/employees", json={"name": "出纳"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_6657E4FAF9330E19']},
                       headers=admin).json()["data"]["id"]
-    vendor = client.post("/api/v1/vendors", json={"name": "房东公司"},
+    vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_C78E5C4C821C16B0']},
                          headers=admin).json()["data"]["id"]
     payment = client.post("/api/v1/payments", headers=admin, json={
         "direction": "outbound", "employee_id": emp, "vendor_id": vendor,
@@ -165,7 +172,7 @@ def test_the_reconciliation_link_moves_money_the_same_way(desk) -> None:
 
     line = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": desk["account"]["id"], "amount": -80.0,
-        "counterparty": "房东公司"}).json()["data"]
+        "counterparty": _ZH_TEXT['TEXT_C78E5C4C821C16B0']}).json()["data"]
     linked = client.patch(f"/api/v1/fin-account-transactions/{line['id']}",
                           headers=cashier, json={"payment_id": payment["id"]})
     assert linked.status_code == 200, linked.text
@@ -192,9 +199,9 @@ def test_one_debit_settles_a_batch_of_payments(desk) -> None:
     at once."""
     client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
     account = desk["account"]["id"]
-    officer = client.post("/api/v1/employees", json={"name": "出纳"},
+    officer = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_6657E4FAF9330E19']},
                           headers=admin).json()["data"]["id"]
-    for name, net in (("周", 300.0), ("吴", 200.0), ("郑", 150.0)):
+    for name, net in ((_ZH_TEXT['TEXT_5C553EC3F6DB54F0'], 300.0), (_ZH_TEXT['TEXT_861AEF24C6507F88'], 200.0), (_ZH_TEXT['TEXT_C84635F39EE853AD'], 150.0)):
         person = client.post("/api/v1/employees", json={"name": name},
                              headers=admin).json()["data"]["id"]
         r = client.post("/api/v1/payments", headers=admin, json={
@@ -203,14 +210,14 @@ def test_one_debit_settles_a_batch_of_payments(desk) -> None:
         assert r.status_code == 201, r.text
 
     short = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
-        "fin_account_id": account, "amount": -640.0, "description": "代发工资"}).json()["data"]
+        "fin_account_id": account, "amount": -640.0, "description": _ZH_TEXT['TEXT_924AC057FA0E524B']}).json()["data"]
     refused = client.patch(f"/api/v1/fin-account-transactions/{short['id']}",
                            headers=cashier, json={"payment_reference_no": "PAYROLL-2026-08"})
     assert refused.status_code == 422 and "difference of -10.0" in refused.json()["detail"], \
         "a batch settles exactly — the refusal names the gap for a person"
 
     debit = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
-        "fin_account_id": account, "amount": -650.0, "description": "代发工资"}).json()["data"]
+        "fin_account_id": account, "amount": -650.0, "description": _ZH_TEXT['TEXT_924AC057FA0E524B']}).json()["data"]
     unknown = client.patch(f"/api/v1/fin-account-transactions/{debit['id']}",
                            headers=cashier, json={"payment_reference_no": "PAYROLL-2026-09"})
     assert unknown.status_code == 422, "a batch link names a batch that exists"
@@ -257,16 +264,16 @@ def test_bank_fees_are_register_facts_not_payments(desk) -> None:
     assert queue == [], "rows whose type is the explanation never wait for a document"
     assert desk["balance"]() == 1000.0 - 1.5 + 0.8 - 50.0, "they still move the balance"
 
-    emp = client.post("/api/v1/employees", json={"name": "会计"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_D649E95568CAF62D']},
                       headers=admin).json()["data"]["id"]
-    customer = client.post("/api/v1/customers", json={"name": "大客户"},
+    customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_DA7A4643ED2DC857']},
                            headers=admin).json()["data"]["id"]
     payment = client.post("/api/v1/payments", headers=admin, json={
         "direction": "inbound", "employee_id": emp, "customer_id": customer,
         "amount": 10000.0}).json()["data"]
     netted = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": account, "gross_amount": 10000.0, "fee_amount": 15.0,
-        "amount": 9985.0, "counterparty": "大客户"})
+        "amount": 9985.0, "counterparty": _ZH_TEXT['TEXT_DA7A4643ED2DC857']})
     assert netted.status_code == 201, netted.text
     row = netted.json()["data"]
     assert row["id"] in {r["id"] for r in client.get(
@@ -281,12 +288,12 @@ def test_bank_fees_are_register_facts_not_payments(desk) -> None:
 
 def test_a_retail_refund_line_names_the_return_row(desk) -> None:
     client, admin, cashier = desk["client"], desk["admin"], desk["cashier"]
-    emp = client.post("/api/v1/employees", json={"name": "店长"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                       headers=admin).json()["data"]["id"]
     so = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "一单"}).json()["data"]
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA']}).json()["data"]
     ret = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "退一件", "order_kind": "return",
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_AE98BB01109AA52D'], "order_kind": "return",
         "original_order_id": so["id"]}).json()["data"]
     refund = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": desk["account"]["id"], "amount": -39.0,
@@ -301,7 +308,7 @@ def test_a_retail_refund_line_names_the_return_row(desk) -> None:
 
 
 def test_the_desks_stay_split(desk) -> None:
-    """钱账分离: the accountant's payment.record reaches payment documents and
+    """separation of payment documents and bank-register duties: the accountant's payment.record reaches payment documents and
     never the register; the register's capability reaches nothing else."""
     accountant = desk["invite"]("accountant", ["payment.record", "payment.apply"])
     for method, path, body in (
@@ -314,9 +321,9 @@ def test_the_desks_stay_split(desk) -> None:
                                    json=body)
         assert r.status_code == 403, f"{method} {path}: {r.status_code}"
 
-    emp = desk["client"].post("/api/v1/employees", json={"name": "会计"},
+    emp = desk["client"].post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_D649E95568CAF62D']},
                               headers=desk["admin"]).json()["data"]["id"]
-    vendor = desk["client"].post("/api/v1/vendors", json={"name": "供应商乙"},
+    vendor = desk["client"].post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_D72D64A9F278ED6A']},
                                  headers=desk["admin"]).json()["data"]["id"]
     payment_write = desk["client"].post("/api/v1/payments", headers=desk["cashier"], json={
         "direction": "outbound", "employee_id": emp, "vendor_id": vendor, "amount": 5.0})
@@ -327,7 +334,7 @@ def test_the_desks_stay_split(desk) -> None:
 def test_an_archived_account_refuses_postings(desk) -> None:
     client, cashier = desk["client"], desk["cashier"]
     box = client.post("/api/v1/fin-accounts", headers=cashier,
-                      json={"name": "旧现金柜"}).json()["data"]
+                      json={"name": _ZH_TEXT['TEXT_ED7DE9186FF79079']}).json()["data"]
     assert client.delete(f"/api/v1/fin-accounts/{box['id']}",
                          headers=cashier).status_code == 204
     refused = client.post("/api/v1/fin-account-transactions", headers=cashier, json={

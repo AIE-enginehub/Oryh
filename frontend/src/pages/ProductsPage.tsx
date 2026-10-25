@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useRecordNotice } from "../components/master-data/RecordNotice";
 import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -126,11 +127,11 @@ function parsePrice(raw: string, text: LocalText): { value: number | null; error
   const normalized = raw.trim();
   if (!normalized) return { value: null, error: null };
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
-    return { value: null, error: text("价格最多保留两位小数。", "Prices can have at most two decimal places.") };
+    return { value: null, error: text(zhCN.pagesProductsPage.pricesCanHaveAtMostTwoDecimalPlaces, "Prices can have at most two decimal places.") };
   }
   const value = Number(normalized);
   if (!Number.isFinite(value) || value < 0 || value > MAX_PRICE) {
-    return { value: null, error: text(`价格必须在 0 到 ${MAX_PRICE.toLocaleString()} 之间。`, `Price must be between 0 and ${MAX_PRICE.toLocaleString()}.`) };
+    return { value: null, error: text(zhCN.pagesProductsPage.priceMustBeBetween0And(`${MAX_PRICE.toLocaleString()}`), `Price must be between 0 and ${MAX_PRICE.toLocaleString()}.`) };
   }
   return { value, error: null };
 }
@@ -142,16 +143,16 @@ function buildAttributes(rows: AttributeRow[], text: LocalText): { value: Record
     const attributeValue = row.value.trim();
     if (!key && !attributeValue) continue;
     if (!key || !attributeValue) {
-      return { value: {}, error: text("每一行规格属性都需要同时填写名称和值。", "Every variant attribute row requires both a name and a value.") };
+      return { value: {}, error: text(zhCN.pagesProductsPage.everyVariantAttributeRowRequiresBothANameAnd, "Every variant attribute row requires both a name and a value.") };
     }
     if (Object.prototype.hasOwnProperty.call(value, key)) {
-      return { value: {}, error: text(`规格属性“${key}”重复，请合并后再保存。`, `Variant attribute “${key}” is duplicated. Merge it before saving.`) };
+      return { value: {}, error: text(zhCN.pagesProductsPage.variantAttributeIsDuplicatedMergeItBeforeSaving(`${key}`), `Variant attribute “${key}” is duplicated. Merge it before saving.`) };
     }
     if (row.valueType === "json") {
       try {
         value[key] = JSON.parse(attributeValue) as unknown;
       } catch {
-        return { value: {}, error: text(`规格属性“${key}”包含结构化内容，请按原有格式填写。`, `Variant attribute “${key}” contains structured content. Keep the original format.`) };
+        return { value: {}, error: text(zhCN.pagesProductsPage.variantAttributeContainsStructuredContentKeepTheOriginalFormat(`${key}`), `Variant attribute “${key}” contains structured content. Keep the original format.`) };
       }
     } else {
       value[key] = attributeValue;
@@ -184,7 +185,7 @@ function formatMoney(value: number | null | undefined, currency: string, locale 
 function AttributeSummary({ attributes }: { attributes: Record<string, unknown> }) {
   const { text } = useI18n();
   const entries = Object.entries(attributes);
-  if (entries.length === 0) return <span className="muted-value">{text("未设置规格", "No variants")}</span>;
+  if (entries.length === 0) return <span className="muted-value">{text(zhCN.pagesProductsPage.noVariants, "No variants")}</span>;
   return (
     <div className="variant-summary">
       {entries.map(([key, value]) => (
@@ -218,7 +219,7 @@ export function ProductsPage() {
   const [skuForm, setSkuForm] = useState<SkuForm>(emptySkuForm);
   const [skuValidation, setSkuValidation] = useState<string | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
-  const [batchForm, setBatchForm] = useState<BatchSkuForm>(() => emptyBatchSkuForm(text("尺码", "Size")));
+  const [batchForm, setBatchForm] = useState<BatchSkuForm>(() => emptyBatchSkuForm(text(zhCN.pagesProductsPage.size, "Size")));
   const [batchValidation, setBatchValidation] = useState<string | null>(null);
   const [batchNotice, setBatchNotice] = useState<BatchSkuNotice | null>(null);
 
@@ -365,11 +366,11 @@ export function ProductsPage() {
     const name = productForm.name.trim();
     const currency = productForm.currency.trim().toUpperCase();
     if (!name) {
-      setProductValidation(text("产品名称不能为空。", "Product name is required."));
+      setProductValidation(text(zhCN.pagesProductsPage.productNameIsRequired, "Product name is required."));
       return;
     }
     if (!/^[A-Z]{3}$/.test(currency)) {
-      setProductValidation(text("币种必须是三位 ISO 代码，例如 CNY、USD。", "Currency must be a three-letter ISO code, such as CNY or USD."));
+      setProductValidation(text(zhCN.pagesProductsPage.currencyMustBeAThreeLetterISOCodeSuch, "Currency must be a three-letter ISO code, such as CNY or USD."));
       return;
     }
     const price = parsePrice(productForm.price, text);
@@ -402,7 +403,7 @@ export function ProductsPage() {
 
   const openBatchCreateSku = () => {
     if (!selectedProduct) return;
-    setBatchForm(emptyBatchSkuForm(text("尺码", "Size")));
+    setBatchForm(emptyBatchSkuForm(text(zhCN.pagesProductsPage.size, "Size")));
     setBatchValidation(null);
     setBatchNotice(null);
     batchCreateSku.reset();
@@ -424,7 +425,7 @@ export function ProductsPage() {
     }
     const code = skuForm.code.trim();
     if (!code && Object.keys(attributes.value).length === 0) {
-      setSkuValidation(text("请填写 SKU 编码，或至少添加一项规格属性。", "Enter a SKU code or add at least one variant attribute."));
+      setSkuValidation(text(zhCN.pagesProductsPage.enterASKUCodeOrAddAtLeastOne, "Enter a SKU code or add at least one variant attribute."));
       return;
     }
     const price = parsePrice(skuForm.price, text);
@@ -454,11 +455,11 @@ export function ProductsPage() {
     const dimension = batchForm.dimension.trim();
     const values = splitBatchValues(batchForm.values);
     if (!dimension) {
-      setBatchValidation(text("请填写配码维度，例如尺码或颜色。", "Enter a variant dimension, such as size or color."));
+      setBatchValidation(text(zhCN.pagesProductsPage.enterAVariantDimensionSuchAsSizeOrColor, "Enter a variant dimension, such as size or color."));
       return;
     }
     if (values.length === 0) {
-      setBatchValidation(text("请至少填写一个规格值。", "Enter at least one variant value."));
+      setBatchValidation(text(zhCN.pagesProductsPage.enterAtLeastOneVariantValue, "Enter at least one variant value."));
       return;
     }
     const price = parsePrice(batchForm.price, text);
@@ -478,17 +479,17 @@ export function ProductsPage() {
   return (
     <div className="product-workspace" data-testid="products-page">
       <header className="page-intro">
-        <div><span className="eyebrow">Product catalog</span><h2>{text("产品与 SKU", "Products and SKUs")}</h2><p>{text("先维护产品级信息，再为颜色、尺码或其他可交易变体建立 SKU。", "Maintain product-level information, then create SKUs for colors, sizes, or other sellable variants.")}</p></div>
+        <div><span className="eyebrow">Product catalog</span><h2>{text(zhCN.pagesProductsPage.productsAndSKUs, "Products and SKUs")}</h2><p>{text(zhCN.pagesProductsPage.maintainProductLevelInformationThenCreateSKUsForColors, "Maintain product-level information, then create SKUs for colors, sizes, or other sellable variants.")}</p></div>
       </header>
       {notice}
 
-      <section className="data-panel" aria-label={text("产品列表", "Product list")} aria-busy={products.isFetching}>
+      <section className="data-panel" aria-label={text(zhCN.pagesProductsPage.productList, "Product list")} aria-busy={products.isFetching}>
         <ListToolbar
           keyword={keyword}
           status={status}
-          placeholder={text("按产品名称搜索", "Search product names")}
-          createLabel={text("新建产品", "New product")}
-          statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
+          placeholder={text(zhCN.pagesProductsPage.searchProductNames, "Search product names")}
+          createLabel={text(zhCN.pagesProductsPage.newProduct, "New product")}
+          statusOptions={[{ value: "active", label: text(zhCN.pagesProductsPage.active, "Active") }, { value: "archived", label: text(zhCN.pagesProductsPage.archived, "Archived") }]}
           onCreate={openCreateProduct}
           onApply={applyFilters}
         />
@@ -496,24 +497,24 @@ export function ProductsPage() {
           loading={products.isPending}
           error={products.isError ? apiErrorMessage(products.error) : null}
           empty={Boolean(productResult && productResult.data.length === 0)}
-          emptyTitle={keyword || status ? text("没有匹配的产品", "No matching products") : text("还没有产品", "No products yet")}
-          emptyDescription={keyword || status ? text("尝试调整搜索词或状态筛选。", "Try changing your search or status filter.") : text("新建产品后，可继续为它维护 SKU 变体。", "Create a product, then add its SKU variants.")}
+          emptyTitle={keyword || status ? text(zhCN.pagesProductsPage.noMatchingProducts, "No matching products") : text(zhCN.pagesProductsPage.noProductsYet, "No products yet")}
+          emptyDescription={keyword || status ? text(zhCN.pagesProductsPage.tryChangingYourSearchOrStatusFilter, "Try changing your search or status filter.") : text(zhCN.pagesProductsPage.createAProductThenAddItsSKUVariants, "Create a product, then add its SKU variants.")}
           onRetry={() => void products.refetch()}
         >
           {productResult && <>
             <div className="table-scroll"><table className="data-table">
-              <thead><tr><th>{text("产品", "Product")}</th><th>{text("规格 / 单位", "Specification / Unit")}</th><th>{text("参考价格", "Reference price")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+              <thead><tr><th>{text(zhCN.pagesProductsPage.product, "Product")}</th><th>{text(zhCN.pagesProductsPage.specificationUnit, "Specification / Unit")}</th><th>{text(zhCN.pagesProductsPage.referencePrice, "Reference price")}</th><th>{text(zhCN.pagesProductsPage.status, "Status")}</th><th><span className="sr-only">{text(zhCN.pagesProductsPage.actions, "Actions")}</span></th></tr></thead>
               <tbody>{productResult.data.map((product) => (
                 <tr key={product.id}>
-                  <td><div className="product-name-cell"><button className="product-name-link" type="button" title={text("查看产品详情", "View product details")} onClick={() => setViewingProduct(product)}><strong>{product.name}</strong></button>{product.sku_count > 0 && <span className="sku-count">{product.sku_count} SKU</span>}</div><small>{product.product_code || text("未设置产品编号", "No product code")}</small></td>
-                  <td><span>{product.spec || <span className="muted-value">{text("未设置规格", "No specification")}</span>}</span><small>{product.unit || text("未设置单位", "No unit")}</small></td>
+                  <td><div className="product-name-cell"><button className="product-name-link" type="button" title={text(zhCN.pagesProductsPage.viewProductDetails, "View product details")} onClick={() => setViewingProduct(product)}><strong>{product.name}</strong></button>{product.sku_count > 0 && <span className="sku-count">{product.sku_count} SKU</span>}</div><small>{product.product_code || text(zhCN.pagesProductsPage.noProductCode, "No product code")}</small></td>
+                  <td><span>{product.spec || <span className="muted-value">{text(zhCN.pagesProductsPage.noVariants, "No specification")}</span>}</span><small>{product.unit || text(zhCN.pagesProductsPage.noUnit, "No unit")}</small></td>
                   <td className="price-cell">{formatMoney(product.list_price, product.currency, language)}</td>
                   <td><StatusBadge status={product.status} /></td>
                   <td className="row-actions">
-                    <button className="text-action" type="button" onClick={() => setViewingProduct(product)}>{text("详情", "Details")}</button>
+                    <button className="text-action" type="button" onClick={() => setViewingProduct(product)}>{text(zhCN.pagesProductsPage.details, "Details")}</button>
                     <button className="text-action" type="button" aria-pressed={selectedProduct?.id === product.id} onClick={() => selectProduct(product)}>SKU · {product.sku_count}</button>
-                    <button className="text-action" type="button" onClick={() => openEditProduct(product)}>{text("编辑", "Edit")}</button>
-                    {product.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archiveProductMutation.reset(); setArchivingProduct(product); }}>{text("归档", "Archive")}</button>}
+                    <button className="text-action" type="button" onClick={() => openEditProduct(product)}>{text(zhCN.pagesProductsPage.edit, "Edit")}</button>
+                    {product.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archiveProductMutation.reset(); setArchivingProduct(product); }}>{text(zhCN.pagesProductsPage.archive, "Archive")}</button>}
                   </td>
                 </tr>
               ))}</tbody>
@@ -523,32 +524,32 @@ export function ProductsPage() {
         </ListState>
       </section>
 
-      <section ref={skuPanelRef} tabIndex={-1} hidden={!selectedProduct} className={`sku-workspace ${selectedProduct ? "selected" : ""}`} aria-label={text("SKU 管理", "SKU management")}>
+      <section ref={skuPanelRef} tabIndex={-1} hidden={!selectedProduct} className={`sku-workspace ${selectedProduct ? "selected" : ""}`} aria-label={text(zhCN.pagesProductsPage.sKUManagement, "SKU management")}>
         {!selectedProduct ? (
-          <div className="sku-placeholder"><strong>{text("选择一个产品管理 SKU", "Select a product to manage its SKUs")}</strong><p>{text("点击产品行右侧的“SKU”操作，进入该产品的二级变体目录。", "Use the “SKU” action on a product row to open its variant catalog.")}</p></div>
+          <div className="sku-placeholder"><strong>{text(zhCN.pagesProductsPage.selectAProductToManageItsSKUs, "Select a product to manage its SKUs")}</strong><p>{text(zhCN.pagesProductsPage.useTheSKUActionOnAProductRowTo, "Use the “SKU” action on a product row to open its variant catalog.")}</p></div>
         ) : (
           <>
             <header className="sku-workspace-header">
-              <div><span className="eyebrow">{text("当前产品", "Selected product")}</span><h3>{selectedProduct.name} · SKU</h3><p>{selectedProduct.product_code || text("无产品编号", "No product code")} · {text(`价格币种 ${selectedProduct.currency}`, `Price currency ${selectedProduct.currency}`)}</p></div>
+              <div><span className="eyebrow">{text(zhCN.pagesProductsPage.selectedProduct, "Selected product")}</span><h3>{selectedProduct.name} · SKU</h3><p>{selectedProduct.product_code || text(zhCN.pagesProductsPage.noProductCode2, "No product code")} · {text(zhCN.pagesProductsPage.priceCurrency2(`${selectedProduct.currency}`), `Price currency ${selectedProduct.currency}`)}</p></div>
               <div className="sku-header-actions">
-                <button className="button quiet" type="button" onClick={() => setSelectedProduct(null)}>{text("关闭", "Close")}</button>
+                <button className="button quiet" type="button" onClick={() => setSelectedProduct(null)}>{text(zhCN.pagesProductsPage.close, "Close")}</button>
                 <button
                   className="button"
                   type="button"
                   disabled={selectedProduct.status === "archived"}
-                  title={selectedProduct.status === "archived" ? text("请先将产品恢复为启用状态", "Restore the product to active first") : undefined}
+                  title={selectedProduct.status === "archived" ? text(zhCN.pagesProductsPage.restoreTheProductToActiveFirst, "Restore the product to active first") : undefined}
                   onClick={openBatchCreateSku}
                 >
-                  {text("批量配码", "Batch variants")}
+                  {text(zhCN.pagesProductsPage.batchVariants, "Batch variants")}
                 </button>
                 <button
                   className="button primary"
                   type="button"
                   disabled={selectedProduct.status === "archived"}
-                  title={selectedProduct.status === "archived" ? text("请先将产品恢复为启用状态", "Restore the product to active first") : undefined}
+                  title={selectedProduct.status === "archived" ? text(zhCN.pagesProductsPage.restoreTheProductToActiveFirst, "Restore the product to active first") : undefined}
                   onClick={openCreateSku}
                 >
-                  {text("＋ 新建 SKU", "+ New SKU")}
+                  {text(zhCN.pagesProductsPage.newSKU, "+ New SKU")}
                 </button>
               </div>
             </header>
@@ -556,23 +557,23 @@ export function ProductsPage() {
               <section className="sku-batch-result" role="status" aria-live="polite">
                 <div className="sku-batch-result-summary">
                   <div>
-                    <span className="eyebrow">{text("批量结果", "Batch result")}</span>
-                    <strong>{text(`批量配码完成：已创建 ${batchNotice.created.length} 个 SKU，跳过 ${batchNotice.skipped.length} 个值。`, `Batch complete: created ${batchNotice.created.length} SKUs and skipped ${batchNotice.skipped.length} values.`)}</strong>
+                    <span className="eyebrow">{text(zhCN.pagesProductsPage.batchResult, "Batch result")}</span>
+                    <strong>{text(zhCN.pagesProductsPage.batchCompleteCreatedSKUsAndSkippedValues(`${batchNotice.created.length}`, `${batchNotice.skipped.length}`), `Batch complete: created ${batchNotice.created.length} SKUs and skipped ${batchNotice.skipped.length} values.`)}</strong>
                   </div>
-                  <button className="notice-close" type="button" aria-label={text("关闭批量配码结果", "Dismiss batch result")} onClick={() => setBatchNotice(null)}>×</button>
+                  <button className="notice-close" type="button" aria-label={text(zhCN.pagesProductsPage.dismissBatchResult, "Dismiss batch result")} onClick={() => setBatchNotice(null)}>×</button>
                 </div>
-                {batchNotice.created.length > 0 && <div className="sku-batch-result-group"><b>{text("已创建", "Created")}</b><div>{batchNotice.created.map((created) => <span key={created.id}>{batchSkuLabel(created, batchNotice.dimension)}</span>)}</div></div>}
-                {batchNotice.skipped.length > 0 && <div className="sku-batch-result-group skipped"><b>{text("已跳过", "Skipped")}</b><div>{batchNotice.skipped.map((value, index) => <span key={`${value}:${index}`}>{value}</span>)}</div></div>}
+                {batchNotice.created.length > 0 && <div className="sku-batch-result-group"><b>{text(zhCN.pagesProductsPage.created, "Created")}</b><div>{batchNotice.created.map((created) => <span key={created.id}>{batchSkuLabel(created, batchNotice.dimension)}</span>)}</div></div>}
+                {batchNotice.skipped.length > 0 && <div className="sku-batch-result-group skipped"><b>{text(zhCN.pagesProductsPage.skipped, "Skipped")}</b><div>{batchNotice.skipped.map((value, index) => <span key={`${value}:${index}`}>{value}</span>)}</div></div>}
               </section>
             )}
             <div className="sku-toolbar">
               <form className="sku-filter" role="search" onSubmit={(event) => { event.preventDefault(); setSkuCode(skuCodeDraft.trim()); setSkuPage(1); }}>
-                <label className="sr-only" htmlFor="sku-code-filter">{text("精确 SKU 编码", "Exact SKU code")}</label>
-                <input id="sku-code-filter" value={skuCodeDraft} placeholder={text("精确 SKU 编码", "Exact SKU code")} onChange={(event) => setSkuCodeDraft(event.target.value)} />
-                <label className="sr-only" htmlFor="sku-status-filter">{text("SKU 状态", "SKU status")}</label>
-                <select id="sku-status-filter" value={skuStatus} onChange={(event) => { setSkuStatus(event.target.value as StatusFilter); setSkuPage(1); }}><option value="">{text("全部状态", "All statuses")}</option><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option></select>
-                <button className="button compact" type="submit">{text("查询", "Search")}</button>
-                {(skuCode || skuStatus) && <button className="button compact quiet" type="button" onClick={() => { setSkuCode(""); setSkuCodeDraft(""); setSkuStatus(""); setSkuPage(1); }}>{text("清除", "Clear")}</button>}
+                <label className="sr-only" htmlFor="sku-code-filter">{text(zhCN.pagesProductsPage.exactSKUCode, "Exact SKU code")}</label>
+                <input id="sku-code-filter" value={skuCodeDraft} placeholder={text(zhCN.pagesProductsPage.exactSKUCode, "Exact SKU code")} onChange={(event) => setSkuCodeDraft(event.target.value)} />
+                <label className="sr-only" htmlFor="sku-status-filter">{text(zhCN.pagesProductsPage.sKUStatus, "SKU status")}</label>
+                <select id="sku-status-filter" value={skuStatus} onChange={(event) => { setSkuStatus(event.target.value as StatusFilter); setSkuPage(1); }}><option value="">{text(zhCN.pagesProductsPage.allStatuses, "All statuses")}</option><option value="active">{text(zhCN.pagesProductsPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesProductsPage.archived, "Archived")}</option></select>
+                <button className="button compact" type="submit">{text(zhCN.pagesProductsPage.search, "Search")}</button>
+                {(skuCode || skuStatus) && <button className="button compact quiet" type="button" onClick={() => { setSkuCode(""); setSkuCodeDraft(""); setSkuStatus(""); setSkuPage(1); }}>{text(zhCN.pagesProductsPage.clear, "Clear")}</button>}
               </form>
 
             </div>
@@ -580,20 +581,20 @@ export function ProductsPage() {
               loading={skus.isPending}
               error={skus.isError ? apiErrorMessage(skus.error) : null}
               empty={Boolean(skuResult && skuResult.data.length === 0)}
-              emptyTitle={skuCode || skuStatus ? text("没有匹配的 SKU", "No matching SKUs") : text("该产品还没有 SKU", "This product has no SKUs yet")}
-              emptyDescription={skuCode || skuStatus ? text("检查精确编码或调整状态筛选。", "Check the exact code or change the status filter.") : text("如果产品有颜色、尺码等变体，可从这里创建第一条 SKU。", "Create the first SKU here if this product has color, size, or other variants.")}
+              emptyTitle={skuCode || skuStatus ? text(zhCN.pagesProductsPage.noMatchingSKUs, "No matching SKUs") : text(zhCN.pagesProductsPage.thisProductHasNoSKUsYet, "This product has no SKUs yet")}
+              emptyDescription={skuCode || skuStatus ? text(zhCN.pagesProductsPage.checkTheExactCodeOrChangeTheStatusFilter, "Check the exact code or change the status filter.") : text(zhCN.pagesProductsPage.createTheFirstSKUHereIfThisProductHas, "Create the first SKU here if this product has color, size, or other variants.")}
               onRetry={() => void skus.refetch()}
             >
               {skuResult && <>
                 <div className="table-scroll"><table className="data-table">
-                  <thead><tr><th>{text("SKU 编码", "SKU code")}</th><th>{text("规格属性", "Variant attributes")}</th><th>{text("变体价格", "Variant price")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+                  <thead><tr><th>{text(zhCN.pagesProductsPage.sKUCode, "SKU code")}</th><th>{text(zhCN.pagesProductsPage.variantAttributes, "Variant attributes")}</th><th>{text(zhCN.pagesProductsPage.variantPrice, "Variant price")}</th><th>{text(zhCN.pagesProductsPage.status, "Status")}</th><th><span className="sr-only">{text(zhCN.pagesProductsPage.actions, "Actions")}</span></th></tr></thead>
                   <tbody>{skuResult.data.map((sku) => (
                     <tr key={sku.id}>
-                      <td className="mono-cell">{sku.sku_code || <span className="muted-value">{text("无编码", "No code")}</span>}</td>
+                      <td className="mono-cell">{sku.sku_code || <span className="muted-value">{text(zhCN.pagesProductsPage.noCode, "No code")}</span>}</td>
                       <td><AttributeSummary attributes={sku.variant_attrs} /></td>
-                      <td className="price-cell">{sku.list_price == null ? <span className="muted-value">{text("继承产品价格", "Inherits product price")}</span> : formatMoney(sku.list_price, selectedProduct.currency, language)}</td>
+                      <td className="price-cell">{sku.list_price == null ? <span className="muted-value">{text(zhCN.pagesProductsPage.inheritsProductPrice, "Inherits product price")}</span> : formatMoney(sku.list_price, selectedProduct.currency, language)}</td>
                       <td><StatusBadge status={sku.status} /></td>
-                      <td className="row-actions"><button className="text-action" type="button" onClick={() => openEditSku(sku)}>{text("编辑", "Edit")}</button>{sku.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archiveSkuMutation.reset(); setArchivingSku(sku); }}>{text("归档", "Archive")}</button>}</td>
+                      <td className="row-actions"><button className="text-action" type="button" onClick={() => openEditSku(sku)}>{text(zhCN.pagesProductsPage.edit, "Edit")}</button>{sku.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archiveSkuMutation.reset(); setArchivingSku(sku); }}>{text(zhCN.pagesProductsPage.archive, "Archive")}</button>}</td>
                     </tr>
                   ))}</tbody>
                 </table></div>
@@ -614,72 +615,72 @@ export function ProductsPage() {
 
       <Drawer
         open={editingProduct !== undefined}
-        title={editingProduct ? text("编辑产品", "Edit product") : text("新建产品", "New product")}
-        description={editingProduct ? text(`更新 ${editingProduct.name} 的产品级信息。`, `Update product-level information for ${editingProduct.name}.`) : text("建立产品目录项，之后可继续添加 SKU。", "Create a product catalog entry, then add SKUs.")}
-        submitLabel={editingProduct ? text("保存更改", "Save changes") : text("创建产品", "Create product")}
+        title={editingProduct ? text(zhCN.pagesProductsPage.editProduct, "Edit product") : text(zhCN.pagesProductsPage.newProduct, "New product")}
+        description={editingProduct ? text(zhCN.pagesProductsPage.updateProductLevelInformationFor(`${editingProduct.name}`), `Update product-level information for ${editingProduct.name}.`) : text(zhCN.pagesProductsPage.createAProductCatalogEntryThenAddSKUs, "Create a product catalog entry, then add SKUs.")}
+        submitLabel={editingProduct ? text(zhCN.pagesProductsPage.saveChanges, "Save changes") : text(zhCN.pagesProductsPage.createProduct, "Create product")}
         busy={saveProduct.isPending}
         error={productValidation || (saveProduct.isError ? apiErrorMessage(saveProduct.error) : null)}
         onClose={() => !saveProduct.isPending && setEditingProduct(undefined)}
         onSubmit={submitProduct}
       >
         <div className="field-grid">
-          <div className="field span-2"><label htmlFor="product-name">{text("产品名称", "Product name")} <b>*</b></label><input id="product-name" maxLength={200} required value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} /></div>
-          <div className="field"><label htmlFor="product-code">{text("产品编号", "Product code")}</label><input id="product-code" maxLength={64} value={productForm.code} onChange={(event) => setProductForm({ ...productForm, code: event.target.value })} /></div>
-          <div className="field"><label htmlFor="product-status">{text("状态", "Status")}</label><select id="product-status" value={productForm.status} onChange={(event) => setProductForm({ ...productForm, status: event.target.value as ActiveStatus })}><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option></select></div>
-          <div className="field span-2"><label htmlFor="product-spec">{text("产品规格", "Product specification")}</label><input id="product-spec" maxLength={200} value={productForm.spec} onChange={(event) => setProductForm({ ...productForm, spec: event.target.value })} /></div>
-          <div className="field"><label htmlFor="product-unit">{text("计量单位", "Unit of measure")}</label><input id="product-unit" maxLength={50} placeholder={text("件、台、箱", "item, unit, box")} value={productForm.unit} onChange={(event) => setProductForm({ ...productForm, unit: event.target.value })} /></div>
-          <div className="field"><label htmlFor="product-currency">{text("币种", "Currency")} <b>*</b></label><input id="product-currency" className="currency-input" maxLength={3} required value={productForm.currency} onChange={(event) => setProductForm({ ...productForm, currency: event.target.value.toUpperCase() })} /></div>
-          <div className="field"><label htmlFor="product-type">{text("产品角色", "Product type")}</label><select id="product-type" value={productForm.product_type} onChange={(event) => setProductForm({ ...productForm, product_type: event.target.value as ProductType })}>
-            <option value="finished_good">{text("成品", "Finished good")}</option>
-            <option value="semi_finished">{text("半成品", "Semi-finished")}</option>
-            <option value="raw_material">{text("原材料", "Raw material")}</option>
-            <option value="service">{text("服务", "Service")}</option>
+          <div className="field span-2"><label htmlFor="product-name">{text(zhCN.pagesProductsPage.productName, "Product name")} <b>*</b></label><input id="product-name" maxLength={200} required value={productForm.name} onChange={(event) => setProductForm({ ...productForm, name: event.target.value })} /></div>
+          <div className="field"><label htmlFor="product-code">{text(zhCN.pagesProductsPage.productCode, "Product code")}</label><input id="product-code" maxLength={64} value={productForm.code} onChange={(event) => setProductForm({ ...productForm, code: event.target.value })} /></div>
+          <div className="field"><label htmlFor="product-status">{text(zhCN.pagesProductsPage.status, "Status")}</label><select id="product-status" value={productForm.status} onChange={(event) => setProductForm({ ...productForm, status: event.target.value as ActiveStatus })}><option value="active">{text(zhCN.pagesProductsPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesProductsPage.archived, "Archived")}</option></select></div>
+          <div className="field span-2"><label htmlFor="product-spec">{text(zhCN.pagesProductsPage.productSpecification, "Product specification")}</label><input id="product-spec" maxLength={200} value={productForm.spec} onChange={(event) => setProductForm({ ...productForm, spec: event.target.value })} /></div>
+          <div className="field"><label htmlFor="product-unit">{text(zhCN.pagesProductsPage.unitOfMeasure, "Unit of measure")}</label><input id="product-unit" maxLength={50} placeholder={text(zhCN.pagesProductsPage.itemUnitBox, "item, unit, box")} value={productForm.unit} onChange={(event) => setProductForm({ ...productForm, unit: event.target.value })} /></div>
+          <div className="field"><label htmlFor="product-currency">{text(zhCN.pagesProductsPage.currency, "Currency")} <b>*</b></label><input id="product-currency" className="currency-input" maxLength={3} required value={productForm.currency} onChange={(event) => setProductForm({ ...productForm, currency: event.target.value.toUpperCase() })} /></div>
+          <div className="field"><label htmlFor="product-type">{text(zhCN.pagesProductsPage.productType, "Product type")}</label><select id="product-type" value={productForm.product_type} onChange={(event) => setProductForm({ ...productForm, product_type: event.target.value as ProductType })}>
+            <option value="finished_good">{text(zhCN.pagesProductsPage.finishedGood, "Finished good")}</option>
+            <option value="semi_finished">{text(zhCN.pagesProductsPage.semiFinished, "Semi-finished")}</option>
+            <option value="raw_material">{text(zhCN.pagesProductsPage.rawMaterial, "Raw material")}</option>
+            <option value="service">{text(zhCN.pagesProductsPage.service, "Service")}</option>
           </select></div>
-          <div className="field span-2"><label htmlFor="product-price">{text("参考价格", "Reference price")}</label><input id="product-price" inputMode="decimal" placeholder="0.00" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} /><small>{text("用于偏差检查，不作为硬性采购上限。", "Used for variance checks, not as a hard purchasing limit.")}</small></div>
+          <div className="field span-2"><label htmlFor="product-price">{text(zhCN.pagesProductsPage.referencePrice, "Reference price")}</label><input id="product-price" inputMode="decimal" placeholder="0.00" value={productForm.price} onChange={(event) => setProductForm({ ...productForm, price: event.target.value })} /><small>{text(zhCN.pagesProductsPage.usedForVarianceChecksNotAsAHardPurchasing, "Used for variance checks, not as a hard purchasing limit.")}</small></div>
         </div>
       </Drawer>
 
       <Drawer
         open={editingSku !== undefined}
-        title={editingSku ? text("编辑 SKU", "Edit SKU") : text("新建 SKU", "New SKU")}
-        description={text(`${selectedProduct?.name ?? "当前产品"}的可交易变体。`, `Sellable variant of ${selectedProduct?.name ?? "the current product"}.`)}
-        submitLabel={editingSku ? text("保存更改", "Save changes") : text("创建 SKU", "Create SKU")}
+        title={editingSku ? text(zhCN.pagesProductsPage.editSKU, "Edit SKU") : text(zhCN.pagesProductsPage.newSKU2, "New SKU")}
+        description={text(zhCN.pagesProductsPage.sellableVariantOf(`${selectedProduct?.name ?? zhCN.pagesProductsPage.selectedProduct}`), `Sellable variant of ${selectedProduct?.name ?? "the current product"}.`)}
+        submitLabel={editingSku ? text(zhCN.pagesProductsPage.saveChanges, "Save changes") : text(zhCN.pagesProductsPage.createSKU, "Create SKU")}
         busy={saveSku.isPending}
         error={skuValidation || (saveSku.isError ? apiErrorMessage(saveSku.error) : null)}
         onClose={() => !saveSku.isPending && setEditingSku(undefined)}
         onSubmit={submitSku}
       >
         <div className="field-grid">
-          <div className="field"><label htmlFor="sku-code">{text("SKU 编码", "SKU code")}</label><input id="sku-code" maxLength={64} value={skuForm.code} onChange={(event) => setSkuForm({ ...skuForm, code: event.target.value })} /></div>
-          <div className="field"><label htmlFor="sku-status">{text("状态", "Status")}</label><select id="sku-status" value={skuForm.status} onChange={(event) => setSkuForm({ ...skuForm, status: event.target.value as ActiveStatus })}><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option></select></div>
+          <div className="field"><label htmlFor="sku-code">{text(zhCN.pagesProductsPage.sKUCode, "SKU code")}</label><input id="sku-code" maxLength={64} value={skuForm.code} onChange={(event) => setSkuForm({ ...skuForm, code: event.target.value })} /></div>
+          <div className="field"><label htmlFor="sku-status">{text(zhCN.pagesProductsPage.status, "Status")}</label><select id="sku-status" value={skuForm.status} onChange={(event) => setSkuForm({ ...skuForm, status: event.target.value as ActiveStatus })}><option value="active">{text(zhCN.pagesProductsPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesProductsPage.archived, "Archived")}</option></select></div>
           <div className="field span-2"><VariantAttributesEditor rows={skuForm.attributes} onChange={(attributes) => setSkuForm({ ...skuForm, attributes })} /></div>
-          <div className="field"><label htmlFor="sku-price">{text("变体价格", "Variant price")}</label><input id="sku-price" inputMode="decimal" placeholder={text("留空则继承产品价格", "Leave blank to inherit the product price")} value={skuForm.price} onChange={(event) => setSkuForm({ ...skuForm, price: event.target.value })} /></div>
-          <div className="field"><label>{text("价格币种", "Price currency")}</label><div className="inherited-currency">{selectedProduct?.currency ?? "CNY"} · {text("继承产品", "Inherited from product")}</div></div>
+          <div className="field"><label htmlFor="sku-price">{text(zhCN.pagesProductsPage.variantPrice, "Variant price")}</label><input id="sku-price" inputMode="decimal" placeholder={text(zhCN.pagesProductsPage.leaveBlankToInheritTheProductPrice, "Leave blank to inherit the product price")} value={skuForm.price} onChange={(event) => setSkuForm({ ...skuForm, price: event.target.value })} /></div>
+          <div className="field"><label>{text(zhCN.pagesProductsPage.priceCurrency, "Price currency")}</label><div className="inherited-currency">{selectedProduct?.currency ?? "CNY"} · {text(zhCN.pagesProductsPage.inheritedFromProduct, "Inherited from product")}</div></div>
         </div>
       </Drawer>
 
       <Drawer
         open={batchOpen}
-        title={text(`批量配码 · ${selectedProduct?.name ?? "当前产品"}`, `Batch variants · ${selectedProduct?.name ?? "Current product"}`)}
-        description={text("输入一个规格维度和一组值，系统会为尚不存在的值创建 SKU，并跳过重复规格。", "Enter a variant dimension and its values. The system creates missing SKUs and skips duplicate variants.")}
-        submitLabel={text("批量创建 SKU", "Create SKUs in batch")}
+        title={text(zhCN.pagesProductsPage.batchVariants2(`${selectedProduct?.name ?? zhCN.pagesProductsPage.selectedProduct}`), `Batch variants · ${selectedProduct?.name ?? "Current product"}`)}
+        description={text(zhCN.pagesProductsPage.enterAVariantDimensionAndItsValuesTheSystem, "Enter a variant dimension and its values. The system creates missing SKUs and skips duplicate variants.")}
+        submitLabel={text(zhCN.pagesProductsPage.createSKUsInBatch, "Create SKUs in batch")}
         busy={batchCreateSku.isPending}
         error={batchValidation || (batchCreateSku.isError ? apiErrorMessage(batchCreateSku.error) : null)}
         onClose={() => { if (!batchCreateSku.isPending) setBatchOpen(false); }}
         onSubmit={submitBatchSku}
       >
         <div className="field-grid batch-sku-fields">
-          <div className="field span-2"><label htmlFor="batch-sku-dimension">{text("配码维度", "Variant dimension")} <b>*</b></label><input id="batch-sku-dimension" required maxLength={50} placeholder={text("尺码", "Size")} value={batchForm.dimension} onChange={(event) => setBatchForm({ ...batchForm, dimension: event.target.value })} /><small>{text("每次批量处理一个维度，例如尺码、颜色或容量。", "Process one dimension at a time, such as size, color, or capacity.")}</small></div>
-          <div className="field span-2"><label htmlFor="batch-sku-values">{text("规格值", "Variant values")} <b>*</b></label><textarea id="batch-sku-values" required rows={6} placeholder="S, M, L, XL" value={batchForm.values} onChange={(event) => setBatchForm({ ...batchForm, values: event.target.value })} /><small>{text("可使用逗号、空格、分号、斜杠或换行分隔；已有相同规格的值会被跳过。", "Separate values with commas, spaces, semicolons, slashes, or line breaks. Existing variants are skipped.")}</small></div>
-          <div className="field"><label htmlFor="batch-sku-price">{text("统一变体价格", "Shared variant price")}</label><input id="batch-sku-price" inputMode="decimal" placeholder={text("留空则不设置变体价格", "Leave blank to omit a variant price")} value={batchForm.price} onChange={(event) => setBatchForm({ ...batchForm, price: event.target.value })} /></div>
-          <div className="field"><label>{text("价格币种", "Price currency")}</label><div className="inherited-currency">{selectedProduct?.currency ?? "CNY"} · {text("仅用于本批次价格", "Used only for this batch")}</div></div>
+          <div className="field span-2"><label htmlFor="batch-sku-dimension">{text(zhCN.pagesProductsPage.variantDimension, "Variant dimension")} <b>*</b></label><input id="batch-sku-dimension" required maxLength={50} placeholder={text(zhCN.pagesProductsPage.size, "Size")} value={batchForm.dimension} onChange={(event) => setBatchForm({ ...batchForm, dimension: event.target.value })} /><small>{text(zhCN.pagesProductsPage.processOneDimensionAtATimeSuchAsSize, "Process one dimension at a time, such as size, color, or capacity.")}</small></div>
+          <div className="field span-2"><label htmlFor="batch-sku-values">{text(zhCN.pagesProductsPage.variantValues, "Variant values")} <b>*</b></label><textarea id="batch-sku-values" required rows={6} placeholder="S, M, L, XL" value={batchForm.values} onChange={(event) => setBatchForm({ ...batchForm, values: event.target.value })} /><small>{text(zhCN.pagesProductsPage.separateValuesWithCommasSpacesSemicolonsSlashesOrLine, "Separate values with commas, spaces, semicolons, slashes, or line breaks. Existing variants are skipped.")}</small></div>
+          <div className="field"><label htmlFor="batch-sku-price">{text(zhCN.pagesProductsPage.sharedVariantPrice, "Shared variant price")}</label><input id="batch-sku-price" inputMode="decimal" placeholder={text(zhCN.pagesProductsPage.leaveBlankToOmitAVariantPrice, "Leave blank to omit a variant price")} value={batchForm.price} onChange={(event) => setBatchForm({ ...batchForm, price: event.target.value })} /></div>
+          <div className="field"><label>{text(zhCN.pagesProductsPage.priceCurrency, "Price currency")}</label><div className="inherited-currency">{selectedProduct?.currency ?? "CNY"} · {text(zhCN.pagesProductsPage.usedOnlyForThisBatch, "Used only for this batch")}</div></div>
         </div>
       </Drawer>
 
       <ConfirmDialog
         open={Boolean(archivingProduct)}
-        title={text(`归档“${archivingProduct?.name ?? ""}”？`, `Archive “${archivingProduct?.name ?? ""}”?`)}
-        description={text("归档不会删除历史采购引用；该产品不再作为启用目录项，已有 SKU 仍会保留。", "Archiving keeps historical purchasing references and existing SKUs, but the product will no longer be active.")}
+        title={text(zhCN.pagesProductsPage.archive2(`${archivingProduct?.name ?? ""}`), `Archive “${archivingProduct?.name ?? ""}”?`)}
+        description={text(zhCN.pagesProductsPage.archivingKeepsHistoricalPurchasingReferencesAndExistingSKUsBut, "Archiving keeps historical purchasing references and existing SKUs, but the product will no longer be active.")}
         busy={archiveProductMutation.isPending}
         error={archiveProductMutation.isError ? apiErrorMessage(archiveProductMutation.error) : null}
         onCancel={() => !archiveProductMutation.isPending && setArchivingProduct(null)}
@@ -687,8 +688,8 @@ export function ProductsPage() {
       />
       <ConfirmDialog
         open={Boolean(archivingSku)}
-        title={text(`归档 SKU“${archivingSku?.sku_code || "无编码变体"}”？`, `Archive SKU “${archivingSku?.sku_code || "variant without a code"}”?`)}
-        description={text("归档后保留历史引用，但新采购申请不应再选择该 SKU。", "Archiving keeps historical references, but new purchase requests should no longer select this SKU.")}
+        title={text(zhCN.pagesProductsPage.archiveSKU(`${archivingSku?.sku_code || zhCN.pagesProductsPage.message}`), `Archive SKU “${archivingSku?.sku_code || "variant without a code"}”?`)}
+        description={text(zhCN.pagesProductsPage.archivingKeepsHistoricalReferencesButNewPurchaseRequestsShould, "Archiving keeps historical references, but new purchase requests should no longer select this SKU.")}
         busy={archiveSkuMutation.isPending}
         error={archiveSkuMutation.isError ? apiErrorMessage(archiveSkuMutation.error) : null}
         onCancel={() => !archiveSkuMutation.isPending && setArchivingSku(null)}

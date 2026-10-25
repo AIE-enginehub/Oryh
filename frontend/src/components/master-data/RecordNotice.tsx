@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useState } from "react";
 import { CheckCircle, X } from "@phosphor-icons/react";
 import { useI18n } from "../../i18n";
@@ -15,10 +16,10 @@ export function useRecordNotice() {
       sequence: (previous?.sequence ?? 0) + 1,
     }));
   const labels: Record<NoticeKind, string> = {
-    created: text("记录已创建。", "Record created."),
-    saved: text("更改已保存。", "Changes saved."),
+    created: text(zhCN.componentsMasterDataRecordNotice.recordCreated, "Record created."),
+    saved: text(zhCN.componentsMasterDataRecordNotice.changesSaved, "Changes saved."),
     archived: text(
-      "记录已归档，历史引用仍然保留。",
+      zhCN.componentsMasterDataRecordNotice.recordArchivedHistoricalReferencesArePreserved,
       "Record archived. Historical references are preserved.",
     ),
   };
@@ -31,7 +32,7 @@ export function useRecordNotice() {
       <button
         className="icon-button"
         type="button"
-        aria-label={text("关闭操作提示", "Dismiss update")}
+        aria-label={text(zhCN.componentsMasterDataRecordNotice.dismissUpdate, "Dismiss update")}
         onClick={() => setMessage(null)}
       >
         <X size={16} />

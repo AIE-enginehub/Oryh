@@ -11,11 +11,17 @@ mechanism. The two retired routes stay one release as views.
 
 from __future__ import annotations
 
-from datetime import date
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_business_rules.json').read_text(encoding="utf-8"))
+
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.business_date import business_today
 from conftest import create, invite_member, make_client, provision_tenant
 
 
@@ -44,7 +50,7 @@ def office():
 def test_a_scoped_kind_gets_its_code_from_its_scope(office) -> None:
     c, admin = office["client"], office["admin"]
     drafted = c.post("/api/v1/business-rules", headers=admin, json={
-        "kind": "approval_flow", "object_type": "timesheet_header", "body": "直属经理审批。"})
+        "kind": "approval_flow", "object_type": "timesheet_header", "body": _ZH_TEXT['TEXT_A65ED888594265CA']})
     assert drafted.status_code == 201, drafted.text
     row = drafted.json()["data"]
     assert row["code"] == "approval_flow:builtin:timesheet_header:default"
@@ -54,7 +60,7 @@ def test_a_scoped_kind_gets_its_code_from_its_scope(office) -> None:
     assert row["title"], "the seed's own title is kept"
     # the next draft of the same scope is the next version of the same code
     again = c.post("/api/v1/business-rules", headers=admin, json={
-        "kind": "data_rule", "object_type": "timesheet_header", "body": "每行必须写项目。"}).json()["data"]
+        "kind": "data_rule", "object_type": "timesheet_header", "body": _ZH_TEXT['TEXT_542AC3EFE772759F']}).json()["data"]
     assert again["code"] == "data_rule:builtin:timesheet_header:default" and again["version"] == 1
     third = c.post("/api/v1/business-rules", headers=admin, json={
         "kind": "approval_flow", "object_type": "timesheet_header", "body": "v2"}).json()["data"]
@@ -64,13 +70,13 @@ def test_a_scoped_kind_gets_its_code_from_its_scope(office) -> None:
 
 def test_a_policy_brings_its_own_code_and_category(office) -> None:
     c, admin = office["client"], office["admin"]
-    missing = c.post("/api/v1/business-rules", headers=admin, json={"kind": "policy", "title": "手册", "body": "x"})
+    missing = c.post("/api/v1/business-rules", headers=admin, json={"kind": "policy", "title": _ZH_TEXT['TEXT_5FE4E25D932CD06E'], "body": "x"})
     assert missing.status_code == 422 and "code" in missing.json()["detail"]
     no_category = c.post("/api/v1/business-rules", headers=admin, json={
-        "kind": "policy", "code": "HR-001", "title": "手册", "body": "x"})
+        "kind": "policy", "code": "HR-001", "title": _ZH_TEXT['TEXT_5FE4E25D932CD06E'], "body": "x"})
     assert no_category.status_code == 422 and "category" in no_category.json()["detail"]
     ok = c.post("/api/v1/business-rules", headers=admin, json={
-        "kind": "policy", "code": "HR-001", "category": "hr", "title": "员工手册", "body": "第一条"})
+        "kind": "policy", "code": "HR-001", "category": "hr", "title": _ZH_TEXT['TEXT_29DB8FCC1CCF1A6A'], "body": _ZH_TEXT['TEXT_0393212391453B21']})
     assert ok.status_code == 201, ok.text
     assert ok.json()["data"]["object_type"] is None
     # a scoped kind refuses a category: it is classified by kind
@@ -111,7 +117,8 @@ def test_publishing_hands_over_in_one_transaction_for_every_kind(office) -> None
                   headers=admin).json()["data"]
     assert [row["version"] for row in march] == [1]
     # twice in one afternoon: the previous one closes on its own first day, not before it began
-    today = date.today().isoformat()
+    # the server's today is the workspace's (ORYH_BUSINESS_TIMEZONE), not this machine's
+    today = business_today().isoformat()
     third = publish(admin, kind="data_rule", object_type="expense_claim", body="a")
     fourth = publish(admin, kind="data_rule", object_type="expense_claim", body="b")
     assert third["current"]["effective_from"] == today
@@ -121,7 +128,7 @@ def test_publishing_hands_over_in_one_transaction_for_every_kind(office) -> None
 def test_drafts_are_the_authors_and_the_published_rule_is_everyones(office) -> None:
     c, admin, member, flows = office["client"], office["admin"], office["member"], office["flows"]
     draft = c.post("/api/v1/business-rules", headers=flows, json={
-        "kind": "data_rule", "object_type": "timesheet_header", "body": "每周 40 小时。"}).json()["data"]
+        "kind": "data_rule", "object_type": "timesheet_header", "body": _ZH_TEXT['TEXT_0353328D93B26784']}).json()["data"]
     assert c.get(f"/api/v1/business-rules/{draft['id']}", headers=member).status_code == 404
     assert draft["id"] not in {r["id"] for r in c.get("/api/v1/business-rules", headers=member).json()["data"]}
     assert c.get(f"/api/v1/business-rules/{draft['id']}", headers=flows).status_code == 200
@@ -147,13 +154,13 @@ def test_the_gates_follow_the_kind(office) -> None:
     assert c.post(f"/api/v1/business-rules/{policy.json()['data']['id']}/publish", headers=drafter).status_code == 403, \
         "drafting a policy is not publishing it"
     linkage = c.post("/api/v1/business-rules/publish", headers=flows, json={
-        "kind": "linkage", "object_type": "sales_order", "body": "confirmed 后先拣货再发货。"})
+        "kind": "linkage", "object_type": "sales_order", "body": _ZH_TEXT['TEXT_4CA4C4F3EAF57FAA']})
     assert linkage.status_code == 201, linkage.text
 
 
 def test_repeal_and_rescope_and_the_audit_trail(office) -> None:
     c, admin, publish = office["client"], office["admin"], office["publish"]
-    row = publish(admin, kind="linkage", object_type="sales_order", body="signed 后开票。")["current"]
+    row = publish(admin, kind="linkage", object_type="sales_order", body=_ZH_TEXT['TEXT_F43130010E4774E5'])["current"]
     closed = c.post(f"/api/v1/business-rules/{row['id']}/visibility", headers=admin,
                     json={"visibility": "restricted", "required_capability": "order.advance"})
     assert closed.status_code == 200 and closed.json()["data"]["visibility"] == "restricted"
@@ -171,7 +178,7 @@ def test_publishing_an_approval_flow_lifts_a_park_and_is_what_the_report_counts(
     c, admin, publish = office["client"], office["admin"], office["publish"]
     before = c.get("/api/v1/workspace/setup-report", headers=admin).json()["data"]["areas"]["expense_claim"]
     assert before["facts"]["workflow_definitions"]["expense_claim"] is False
-    publish(admin, kind="approval_flow", object_type="expense_claim", body="财务审核。")
+    publish(admin, kind="approval_flow", object_type="expense_claim", body=_ZH_TEXT['TEXT_8B316FD2FDC42E30'])
     # a data rule alone is not a map: the family is routed by its approval flow only
     publish(admin, kind="data_rule", object_type="purchase_request", body="x")
     after = c.get("/api/v1/workspace/setup-report", headers=admin).json()["data"]["areas"]
@@ -188,11 +195,11 @@ def test_the_business_object_detail_carries_its_types_rules(office) -> None:
         "object_type": "warranty_card", "json_schema": {}}).status_code == 201
     card = create(c, admin, "business-objects", object_type="warranty_card", title="WC-1")
     c.post("/api/v1/business-rules/publish", headers=admin, json={
-        "kind": "approval_flow", "entity_kind": "business_object", "object_type": "warranty_card", "body": "质量审核。"})
+        "kind": "approval_flow", "entity_kind": "business_object", "object_type": "warranty_card", "body": _ZH_TEXT['TEXT_BC63F69D49C76AC2']})
     c.post("/api/v1/business-rules/publish", headers=admin, json={
-        "kind": "data_rule", "entity_kind": "business_object", "object_type": "warranty_card", "body": "附装机照片。"})
+        "kind": "data_rule", "entity_kind": "business_object", "object_type": "warranty_card", "body": _ZH_TEXT['TEXT_2E98589F848F8B1D']})
     detail = c.get(f"/api/v1/business-objects/{card['id']}/detail", headers=admin).json()["data"]
-    assert [r["body"] for r in detail["rules"] if r["kind"] == "approval_flow"] == ["质量审核。"]
+    assert [r["body"] for r in detail["rules"] if r["kind"] == "approval_flow"] == [_ZH_TEXT['TEXT_BC63F69D49C76AC2']]
     assert sorted(r["kind"] for r in detail["rules"]) == ["approval_flow", "data_rule"]
 
 
@@ -211,7 +218,7 @@ def test_a_new_workspace_starts_with_seeded_drafts_nobody_can_act_on_yet(office)
     assert len(c.get("/api/v1/business-rules?status=draft&origin=catalog", headers=flows).json()["data"]) == len(seeded)
     # and a seed is published like any draft: read it, change a sentence, publish
     draft = next(r for r in seeded if r["kind"] == "approval_flow" and r["object_type"] == "expense_claim")
-    edited = c.patch(f"/api/v1/business-rules/{draft['id']}", headers=flows, json={"body": "直属经理审批即可。"})
+    edited = c.patch(f"/api/v1/business-rules/{draft['id']}", headers=flows, json={"body": _ZH_TEXT['TEXT_F9AFF14841589F6B']})
     assert edited.status_code == 200, edited.text
     published = c.post(f"/api/v1/business-rules/{draft['id']}/publish", headers=flows)
     assert published.status_code == 200, published.text

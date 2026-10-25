@@ -1,6 +1,6 @@
 ---
 name: oryh-treasury
-description: Use when the cashier's agent manages where company money sits and moves — open fin accounts (银行户/现金/微信支付宝), import statements ("把招行这个月流水导进来"), record fees and transfers, reconcile register lines with paid payments ("这笔打款到账了吗"、"对账"). The register is the bank's truth. Requires fin_account.manage.
+description: Use when the cashier's agent manages where company money sits and moves — open fin accounts (bank account/cash/WeChat Pay and Alipay), import statements ("import this month's bank statement"), record fees and transfers, reconcile register lines with paid payments ("has this transfer arrived", "reconcile statements"). The register is the bank's truth. Requires fin_account.manage.
 required_capability: fin_account.manage
 ---
 
@@ -176,3 +176,6 @@ oryh:
 
 - [references/api.md](references/api.md): endpoints, the import contract,
   the sign rules.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

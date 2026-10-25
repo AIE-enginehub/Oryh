@@ -11,6 +11,13 @@ is the server's, a person's credential records decisions only.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_ledger_doors.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import invite_member, make_client, provision_tenant
@@ -21,12 +28,12 @@ def desk():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Doors Co", email="admin@doors.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
         points = client.post("/api/v1/billing-accounts", headers=admin, json={
-            "name": "积分", "unit_type": "points", "unit": "point", "customer_id": customer}).json()["data"]
+            "name": _ZH_TEXT['TEXT_10939F5486458E14'], "unit_type": "points", "unit": "point", "customer_id": customer}).json()["data"]
         money = client.post("/api/v1/billing-accounts", headers=admin, json={
-            "name": "储值", "unit_type": "currency", "unit": "CNY", "customer_id": customer,
+            "name": _ZH_TEXT['TEXT_C3B404645CE32C62'], "unit_type": "currency", "unit": "CNY", "customer_id": customer,
             "opening_balance": 1000.0}).json()["data"]
 
         def define(object_type: str, reason: str, states=("approved",)) -> object:
@@ -61,10 +68,10 @@ def test_reserved_reasons_keep_their_own_doors(desk) -> None:
 def test_a_transfer_is_one_document_on_two_accounts(desk) -> None:
     c, admin = desk["client"], desk["admin"]
     other = c.post("/api/v1/billing-accounts", headers=admin, json={
-        "name": "储值 B", "unit_type": "currency", "unit": "CNY", "customer_id": desk["customer"]}).json()["data"]
+        "name": _ZH_TEXT['TEXT_F0582A01A851F043'], "unit_type": "currency", "unit": "CNY", "customer_id": desk["customer"]}).json()["data"]
     assert desk["define"]("balance_transfer", "transfer").status_code == 201
     doc = c.post("/api/v1/business-objects", headers=admin, json={
-        "object_type": "balance_transfer", "title": "划转 300", "status": "approved",
+        "object_type": "balance_transfer", "title": _ZH_TEXT['TEXT_7F4ED32E4E605E14'], "status": "approved",
         "payload": {"lines": [{"billing_account_id": desk["money"]["id"], "amount": -300.0},
                               {"billing_account_id": other["id"], "amount": 300.0}]}}).json()["data"]
     posted = c.post(f"/api/v1/business-objects/{doc['id']}/post-entries", headers=admin)
@@ -118,7 +125,7 @@ def test_an_order_that_ships_by_shipments_takes_freight_facts_from_the_shipment(
     c, admin = desk["client"], desk["admin"]
     product = c.post("/api/v1/products", json={"name": "Cup"}, headers=admin).json()["data"]["id"]
     order = c.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": desk["employee"], "customer_id": desk["customer"], "title": "一单",
+        "employee_id": desk["employee"], "customer_id": desk["customer"], "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA'],
         "items": [{"product_id": product, "quantity": 1, "unit_price": 10}]}).json()["data"]
     # no shipment yet: the header is the only place, and it is open
     ok = c.patch(f"/api/v1/sales-orders/{order['id']}", headers=admin, json={"logistics_tracking_no": "SF-1"})
@@ -131,17 +138,17 @@ def test_an_order_that_ships_by_shipments_takes_freight_facts_from_the_shipment(
         refused = c.patch(f"/api/v1/sales-orders/{order['id']}", headers=admin, json={field: value})
         assert refused.status_code == 409, (field, refused.text)
         assert leg.json()["data"]["shipment_no"] in refused.json()["detail"]
-    remarks = c.patch(f"/api/v1/sales-orders/{order['id']}", headers=admin, json={"remarks": "留言"})
+    remarks = c.patch(f"/api/v1/sales-orders/{order['id']}", headers=admin, json={"remarks": _ZH_TEXT['TEXT_2335399F1FA89B9C']})
     assert remarks.status_code == 200, "the other fulfilment facts stay open"
 
 
 def test_the_submitted_fact_is_the_servers(desk) -> None:
     c, admin = desk["client"], desk["admin"]
-    approver_emp = c.post("/api/v1/employees", json={"name": "审批人"}, headers=admin).json()["data"]["id"]
+    approver_emp = c.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']}, headers=admin).json()["data"]["id"]
     approver = invite_member(c, admin, "approver", ["approval.record"], employee_id=approver_emp)
     product = c.post("/api/v1/products", json={"name": "Cup"}, headers=admin).json()["data"]["id"]
     order = c.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": desk["employee"], "customer_id": desk["customer"], "title": "一单",
+        "employee_id": desk["employee"], "customer_id": desk["customer"], "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA'],
         "items": [{"product_id": product, "quantity": 1, "unit_price": 10}]}).json()["data"]
     forged = c.post("/api/v1/approval-records", headers=approver, json={
         "entity_type": "sales_order", "entity_id": order["id"], "action": "submitted"})

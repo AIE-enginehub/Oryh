@@ -23,6 +23,8 @@ scoped ones. Reads are member-visible like the documents themselves.
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -58,7 +60,7 @@ router = APIRouter()
 
 # entity_type -> (model, capability, attribute the scope is read from).
 # A None scope attribute means the capability is unscoped. business_object is
-# scoped by the object's own type, so a tenant-defined 退货单 type is guarded
+# scoped by the object's own type, so a tenant-defined return document type is guarded
 # exactly as tightly as editing that object would be; invoice by its direction.
 LINKABLE_DOCUMENTS: dict[str, tuple[type, str, str | None]] = {
     "sales_order": (SalesOrder, "order.submit_own", None),
@@ -129,8 +131,7 @@ def create_external_document_link(
                 f"{payload.source} {payload.external_kind} {payload.external_no} is already "
                 f"linked to {payload.entity_type} "
                 + ", ".join(sorted({link.entity_id for link in elsewhere}))
-                + " — a duplicate import reuses that document; a deliberate split (拆单) "
-                "sends split: true"
+                + zh_messages.EXTERNAL_CREATE_EXTERNAL_DOCUMENT_LINK_DETAIL
             ),
         )
     existing = db.scalar(

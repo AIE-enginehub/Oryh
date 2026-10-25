@@ -1,0 +1,3 @@
+{
+  "description": "Use when a person's agent checks their own leave balance or files, amends, withdraws or submits their OWN 请假 in oryh — \"我还有几天年假\"、\"下周三请一天假\"、\"上午请半天\". Computes the balance from the published leave policy. Requester's facts only; approving and routing belong to other roles."
+}

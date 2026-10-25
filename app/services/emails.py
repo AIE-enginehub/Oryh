@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 import logging
 from dataclasses import dataclass, field
 
@@ -151,15 +153,9 @@ def send_registration_approved_email(*, to: str, tenant_name: str) -> None:
     login_url = f"{canonical_link_base(purpose='registration approval')}/console/login"
     outbox.send(
         to=to,
-        subject=f"您的 oryh 企业注册已通过 / {tenant_name} is ready on oryh",
+        subject=f'{zh_messages.EMAILS_TEXT}{tenant_name} is ready on oryh',
         body=(
-            f"您好！\n\n"
-            f"您的公司「{tenant_name}」注册申请已通过审核，您是该工作空间的首位管理员。\n"
-            f"请使用注册时设置的密码登录：{login_url}\n\n"
-            f"登录后可在“访问凭证”中为 AI agent 创建个人或企业访问凭证。\n\n"
-            f"---\n"
-            f"Your registration for \"{tenant_name}\" was approved. You are its first workspace administrator.\n"
-            f"Sign in at {login_url} with the password you chose during registration.\n"
+            f'{zh_messages.EMAILS_TEXT_2}{tenant_name}{zh_messages.EMAILS_TEXT_3}{login_url}{zh_messages.EMAILS_TEXT_4}{tenant_name}" was approved. You are its first workspace administrator.\nSign in at {login_url} with the password you chose during registration.\n'
         ),
     )
 
@@ -167,15 +163,9 @@ def send_registration_approved_email(*, to: str, tenant_name: str) -> None:
 def send_registration_rejected_email(*, to: str, company_name: str, reason: str) -> None:
     outbox.send(
         to=to,
-        subject=f"您的 oryh 企业注册未通过 / {company_name} registration update",
+        subject=f'{zh_messages.EMAILS_TEXT_5}{company_name} registration update',
         body=(
-            f"您好！\n\n"
-            f"您的公司「{company_name}」注册申请未通过审核。\n"
-            f"原因：{reason}\n\n"
-            f"如需进一步核实，请联系平台运营人员。\n\n"
-            f"---\n"
-            f"Your registration for \"{company_name}\" was not approved.\n"
-            f"Reason: {reason}\n"
+            f'{zh_messages.EMAILS_TEXT_2}{company_name}{zh_messages.EMAILS_TEXT_6}{reason}{zh_messages.EMAILS_TEXT_7}{company_name}" was not approved.\nReason: {reason}\n'
         ),
     )
 
@@ -250,17 +240,9 @@ def send_tenant_welcome_email(*, to: str, tenant_name: str, password: str) -> No
         return
     outbox.send(
         to=to,
-        subject=f"您的 oryh 工作空间「{tenant_name}」已开通 / Your oryh workspace is ready",
+        subject=f'{zh_messages.EMAILS_TEXT_8}{tenant_name}{zh_messages.EMAILS_TEXT_9}',
         body=(
-            f"您好！\n\n"
-            f"您的公司「{tenant_name}」已在 oryh 开通，您是该工作空间的管理员。\n\n"
-            f"登录地址: {login_url}\n"
-            f"登录账号: {to}\n"
-            f"初始密码: {password}\n\n"
-            f"请妥善保管，登录后建议尽快联系平台更换密码。\n\n"
-            f"---\n"
-            f"Your company \"{tenant_name}\" is now live on oryh and you are its admin.\n"
-            f"Sign in at {login_url} with this email and the initial password above.\n"
+            f'{zh_messages.EMAILS_TEXT_2}{tenant_name}{zh_messages.EMAILS_TEXT_10}{login_url}{zh_messages.EMAILS_TEXT_11}{to}{zh_messages.EMAILS_TEXT_12}{password}{zh_messages.EMAILS_TEXT_13}{tenant_name}" is now live on oryh and you are its admin.\nSign in at {login_url} with this email and the initial password above.\n'
         ),
     )
 
@@ -280,17 +262,9 @@ def send_password_reset_email(*, to: str, tenant_name: str, password: str) -> No
         return
     outbox.send(
         to=to,
-        subject=f"您在「{tenant_name}」的 oryh 密码已重置 / Your oryh password was reset",
+        subject=f'{zh_messages.EMAILS_TEXT_14}{tenant_name}{zh_messages.EMAILS_TEXT_15}',
         body=(
-            f"您好！\n\n"
-            f"您在「{tenant_name}」的 oryh 登录密码已由平台管理员重置，原有会话已全部退出。\n\n"
-            f"登录地址: {login_url}\n"
-            f"登录账号: {to}\n"
-            f"新密码: {password}\n\n"
-            f"如果这不是您请求的操作，请立即联系您的管理员。\n\n"
-            f"---\n"
-            f"A platform administrator reset your oryh password for \"{tenant_name}\"; "
-            f"all existing sessions were signed out. Sign in at {login_url} with the new password above.\n"
+            f'{zh_messages.EMAILS_TEXT_16}{tenant_name}{zh_messages.EMAILS_TEXT_17}{login_url}{zh_messages.EMAILS_TEXT_11}{to}{zh_messages.EMAILS_TEXT_18}{password}{zh_messages.EMAILS_TEXT_19}{tenant_name}"; all existing sessions were signed out. Sign in at {login_url} with the new password above.\n'
         ),
     )
 
@@ -313,18 +287,9 @@ def send_password_reset_link_email(*, to: str, tenant_name: str, token: str) -> 
         return
     outbox.send(
         to=to,
-        subject=f"重置您在「{tenant_name}」的 oryh 密码 / Reset your oryh password",
+        subject=f'{zh_messages.EMAILS_TEXT_20}{tenant_name}{zh_messages.EMAILS_TEXT_21}',
         body=(
-            f"您好！\n\n"
-            f"有人请求重置您在「{tenant_name}」的 oryh 密码。\n\n"
-            f"请打开以下一次性链接设置新密码：\n{link}\n\n"
-            f"链接将在 {settings.password_reset_token_ttl_minutes} 分钟后失效。完成重置前，当前密码和会话仍然有效；"
-            f"完成后，旧会话会全部退出。如果收到多封重置邮件，只有最新一封中的链接有效。\n\n"
-            f"如果您没有预期此操作，请忽略本邮件并联系工作空间管理员。\n\n"
-            f"---\n"
-            f"A password reset was requested for your account in \"{tenant_name}\". "
-            f"Open the one-time link above to choose a new password. Existing sessions are revoked only after the reset is completed; "
-            f"if you receive multiple reset emails, only the newest link works.\n"
+            f'{zh_messages.EMAILS_TEXT_22}{tenant_name}{zh_messages.EMAILS_TEXT_23}{link}{zh_messages.EMAILS_TEXT_24}{settings.password_reset_token_ttl_minutes}{zh_messages.EMAILS_TEXT_25}{tenant_name}". Open the one-time link above to choose a new password. Existing sessions are revoked only after the reset is completed; if you receive multiple reset emails, only the newest link works.\n'
         ),
     )
 
@@ -343,12 +308,9 @@ def send_self_registration_notice_email(
     workspace's approval queues are enrolled on paper and driven by nobody.
     """
     if _zh():
-        subject = f"新工作区自助开通：{tenant_name}（{tenant_slug}）"
+        subject = f'{zh_messages.EMAILS_TEXT_26}{tenant_name}（{tenant_slug}）'
         body = (
-            f"一家公司通过邮箱验证自助注册，工作区已经开通，无需审核。\n\n"
-            f"公司：{tenant_name}\n标识：{tenant_slug}\n管理员：{admin_email}\n\n"
-            f"它的托管流程代理尚未登记：订阅已随开通写入，但托管密钥要由平台签发，runner 也只从凭据文件里认识租户。"
-            f"在运维目录里运行 enroll-hosted-flow-agent.sh {tenant_slug}，它的审批队列才会被驱动。\n"
+            f'{zh_messages.EMAILS_TEXT_27}{tenant_name}{zh_messages.EMAILS_TEXT_28}{tenant_slug}{zh_messages.EMAILS_TEXT_29}{admin_email}{zh_messages.EMAILS_TEXT_30}{tenant_slug}{zh_messages.EMAILS_TEXT_31}'
         )
     else:
         subject = f"New workspace registered itself: {tenant_name} ({tenant_slug})"
@@ -387,11 +349,11 @@ def send_invitation_email(*, to: str, tenant_name: str, token: str) -> None:
 # to remember into something it cannot do.
 
 NOTIFICATION_SUBJECTS_ZH = {
-    "assigned": "有一项工作需要你处理：{title}",
-    "assigned_many": "有 {count} 项工作需要你处理",
-    "returned": "你的单据被退回，请修改后重新提交：{title}",
-    "approved": "你的单据已通过：{title}",
-    "rejected": "你的单据已被驳回：{title}",
+    "assigned": zh_messages.EMAILS_NOTIFICATION_SUBJECTS_ZH,
+    "assigned_many": zh_messages.EMAILS_NOTIFICATION_SUBJECTS_ZH_2,
+    "returned": zh_messages.EMAILS_NOTIFICATION_SUBJECTS_ZH_3,
+    "approved": zh_messages.EMAILS_NOTIFICATION_SUBJECTS_ZH_4,
+    "rejected": zh_messages.EMAILS_NOTIFICATION_SUBJECTS_ZH_5,
 }
 NOTIFICATION_SUBJECTS_EN = {
     "assigned": "Work assigned to you: {title}",
@@ -430,14 +392,14 @@ def send_work_notification(
     nothing here reformats it.
     """
     if _zh():
-        subjects, fallback = NOTIFICATION_SUBJECTS_ZH, "工作通知：{title}"
+        subjects, fallback = NOTIFICATION_SUBJECTS_ZH, zh_messages.EMAILS_SEND_WORK_NOTIFICATION_TEXT
         opening = f"{recipient_name}："
         said = {
-            "assigned_many": "有 {count} 项工作分配给你：", "assigned": "有一项工作分配给你：{title}",
-            "returned": "你提交的《{title}》被退回，需要修改后重新提交。",
-            "approved": "你提交的《{title}》已通过审批。", "rejected": "你提交的《{title}》已被驳回。",
-            "actor": "处理人：{actor}", "detail": "说明（原文）：", "link": "处理入口：{link}",
-            "footer": "本邮件由 oryh 自动发送，请勿直接回复。",
+            "assigned_many": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID, "assigned": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_2,
+            "returned": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_3,
+            "approved": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_4, "rejected": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_5,
+            "actor": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_6, "detail": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_7, "link": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_8,
+            "footer": zh_messages.EMAILS_SEND_WORK_NOTIFICATION_SAID_9,
         }
     else:
         subjects, fallback = NOTIFICATION_SUBJECTS_EN, "Work notification: {title}"

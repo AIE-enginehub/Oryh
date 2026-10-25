@@ -1,0 +1,3 @@
+{
+  "description": "Use to file or consult contracts in oryh — record a signed contract (\"把这份代工合同录进去\"), answer from its clauses (\"付款节奏怎样?\"、\"首付多少?\"), record supplements and renewals, link the orders, invoices and payments that execute it. Requires contract.manage, scoped :purchase or :sales."
+}

@@ -1,6 +1,6 @@
 ---
 name: oryh-workspace-setup
-description: Use when a tenant administrator's agent introduces a NEW workspace ("刚开通,从哪开始？"、"帮我初始化"、"给我做个开通向导") or audits where setup stands ("我们还缺什么配置"). Reads the setup report, interviews the admin, hands each step to the owning skill and re-reads the report to verify. Requires users.manage.
+description: Use when a tenant administrator's agent introduces a NEW workspace ("newly provisioned, where should I start?", "initialize the workspace", "walk me through workspace setup") or audits where setup stands ("what setup is still missing"). Reads the setup report, interviews the admin, hands each step to the owning skill and re-reads the report to verify. Requires users.manage.
 required_capability: users.manage
 ---
 
@@ -164,3 +164,6 @@ oryh:
   this skill makes, and its two writes — `POST /business-rules/publish` and
   `PATCH /object-type-definitions/{id}` for state renames. Every other
   write is a handoff.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

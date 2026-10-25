@@ -1,7 +1,7 @@
 """Every ledger row is written by a business act, and carries that act.
 
 The generic `POST /inventory-item-details` is gone: an agent that heard
-"出库" once wrote a bare `issued` row past the order and the shipment, and
+"dispatch goods" once wrote a bare `issued` row past the order and the shipment, and
 the row it wrote could not say why. Now a movement's provenance is not a
 field the caller fills in — it is the bridge that wrote it: a shipment
 line, a purchase-order line, the count import, an order's hold, or a
@@ -9,6 +9,13 @@ tenant-defined stock document in its approved state.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_inventory_movement_provenance.json').read_text(encoding="utf-8"))
+
 
 import pytest
 from fastapi.testclient import TestClient
@@ -60,19 +67,19 @@ def test_a_shipment_line_is_the_movement_s_provenance(shop) -> None:
 
 
 def test_a_stock_document_posts_under_its_definition_s_reason(shop) -> None:
-    """报损单, 借用单, 调拨单: the tenant defines the type, names the ledger
+    """write-off document, loan document, transfer document: the tenant defines the type, names the ledger
     reason and the state that posts, and the bridge does the rest — once."""
     shop["post"]("/object-type-definitions", {
-        "object_type": "damage_report", "title": "报损单",
+        "object_type": "damage_report", "title": _ZH_TEXT['TEXT_74DE0ACC760F0C43'],
         "state_machine": {
             "initial": "draft", "states": ["draft", "approved", "rejected"],
             "transitions": {"draft": ["approved", "rejected"], "approved": [], "rejected": []},
             "stock_effect": {"reason": "damaged", "state": "approved"},
         }})
     report = shop["post"]("/business-objects", {
-        "object_type": "damage_report", "title": "两件摔坏", "status": "draft",
+        "object_type": "damage_report", "title": _ZH_TEXT['TEXT_7F8FDD2915D993A1'], "status": "draft",
         "payload": {"lines": [{"inventory_item_id": shop["item"], "quantity_on_hand_diff": -2,
-                               "description": "叉车碰倒"}]}})
+                               "description": _ZH_TEXT['TEXT_4B9022B02061A0E9']}]}})
     early = shop["client"].post(f"/api/v1/business-objects/{report['id']}/post-stock", headers=shop["headers"])
     assert early.status_code == 409 and "approved" in early.json()["detail"], early.text
 
@@ -84,7 +91,7 @@ def test_a_stock_document_posts_under_its_definition_s_reason(shop) -> None:
                               params={"entity_type": "business_object", "entity_id": report["id"]},
                               headers=shop["headers"]).json()["data"]
     assert [(r["reason"], r["quantity_on_hand_diff"], r["description"]) for r in rows] == \
-        [("damaged", -2.0, "叉车碰倒")]
+        [("damaged", -2.0, _ZH_TEXT['TEXT_4B9022B02061A0E9'])]
     twice = shop["client"].post(f"/api/v1/business-objects/{report['id']}/post-stock", headers=shop["headers"])
     assert twice.status_code == 409, "once — a correction is a counter-document"
     read = shop["client"].get(f"/api/v1/business-objects/{report['id']}", headers=shop["headers"]).json()["data"]

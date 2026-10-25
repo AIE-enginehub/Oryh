@@ -11,6 +11,13 @@ enforce the same rules by construction.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_inline_lines.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers, create
@@ -20,7 +27,7 @@ def provision(client: TestClient) -> dict[str, str]:
     return admin_headers(client, company_name="Inline Co", email="admin@inline-co.example", password="admin-pass1")
 
 
-def employee(client: TestClient, headers: dict, name: str = "小林") -> str:
+def employee(client: TestClient, headers: dict, name: str = _ZH_TEXT['TEXT_BB8B40A6B626DA1C']) -> str:
     return create(client, headers, "employees", name=name)["id"]
 
 
@@ -33,8 +40,8 @@ def test_timesheet_created_whole_and_submitted_in_two_calls(client: TestClient) 
         "period_start": "2026-06-01",
         "period_end": "2026-06-07",
         "entries": [
-            {"work_date": "2026-06-01", "hours": 8, "task": "需求梳理"},
-            {"work_date": "2026-06-02", "hours": 6.5, "task": "方案评审"},
+            {"work_date": "2026-06-01", "hours": 8, "task": _ZH_TEXT['TEXT_3CF4A4FB41DA0434']},
+            {"work_date": "2026-06-02", "hours": 6.5, "task": _ZH_TEXT['TEXT_067951B2C64E924A']},
         ],
     }, headers=headers)
     assert created.status_code == 201, created.text
@@ -98,7 +105,7 @@ def test_expense_claim_with_items_and_batch_invoice_dedup(client: TestClient) ->
 
     created = client.post("/api/v1/expense-claims", json={
         "employee_id": emp,
-        "title": "出差报销",
+        "title": _ZH_TEXT['TEXT_0B505B5EFF6DAC15'],
         "items": [
             {"expense_date": "2026-06-03", "amount": 120, "invoice_number": "INV-001"},
             {"expense_date": "2026-06-04", "amount": 80.5},
@@ -112,7 +119,7 @@ def test_expense_claim_with_items_and_batch_invoice_dedup(client: TestClient) ->
     # reusing the invoice number is refused, and the claim does not land
     duplicate = client.post("/api/v1/expense-claims", json={
         "employee_id": emp,
-        "title": "重复发票",
+        "title": _ZH_TEXT['TEXT_FE5072763AED8988'],
         "items": [{"expense_date": "2026-06-05", "amount": 50, "invoice_number": "INV-001"}],
     }, headers=headers)
     assert duplicate.status_code == 409, duplicate.text
@@ -137,18 +144,18 @@ def test_quotation_created_whole_with_catalog_snapshot(client: TestClient) -> No
     headers = provision(client)
     emp = employee(client, headers)
     product = client.post("/api/v1/products", json={
-        "product_code": "P-LENS", "name": "内窥镜镜头", "list_price": 1200,
+        "product_code": "P-LENS", "name": _ZH_TEXT['TEXT_C7005F6AFFA067C1'], "list_price": 1200,
     }, headers=headers)
     assert product.status_code == 201, product.text
     product_id = product.json()["data"]["id"]
 
     created = client.post("/api/v1/sales-quotations", json={
         "employee_id": emp,
-        "title": "医院设备报价",
+        "title": _ZH_TEXT['TEXT_D8B59DFE92029CF3'],
         "valid_until": "2026-08-31",
         "items": [
             {"line_no": 1, "product_id": product_id, "quantity": 2, "unit_price": 1000, "amount": 2000},
-            {"line_no": 2, "product_name_snapshot": "安装调试", "quantity": 1, "unit_price": 500, "amount": 500},
+            {"line_no": 2, "product_name_snapshot": _ZH_TEXT['TEXT_C7E832245ABA86A5'], "quantity": 1, "unit_price": 500, "amount": 500},
         ],
     }, headers=headers)
     assert created.status_code == 201, created.text
@@ -157,7 +164,7 @@ def test_quotation_created_whole_with_catalog_snapshot(client: TestClient) -> No
     lines = {row["line_no"]: row for row in data["items"]}
     # the catalog snapshot rode the inline path — discount review depends on it
     assert lines[1]["list_price_snapshot"] == 1200.0
-    assert lines[1]["product_name_snapshot"] == "内窥镜镜头"
+    assert lines[1]["product_name_snapshot"] == _ZH_TEXT['TEXT_C7005F6AFFA067C1']
     assert lines[2]["list_price_snapshot"] is None
 
     # submit straight away: the whole quote was two calls
@@ -170,22 +177,22 @@ def test_purchase_request_and_order_lines_ride_the_create(client: TestClient) ->
     emp = employee(client, headers)
 
     request = client.post("/api/v1/purchase-requests", json={
-        "employee_id": emp, "title": "办公用品",
-        "items": [{"product_name_snapshot": "人体工学椅", "quantity": 3, "unit_price": 800, "amount": 2400}],
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_F341AC285C711A7F'],
+        "items": [{"product_name_snapshot": _ZH_TEXT['TEXT_B31F6EB420364847'], "quantity": 3, "unit_price": 800, "amount": 2400}],
     }, headers=headers)
     assert request.status_code == 201, request.text
     assert request.json()["data"]["items"][0]["amount"] == 2400.0
 
     order = client.post("/api/v1/sales-orders", json={
-        "employee_id": emp, "title": "服务订单",
-        "items": [{"product_name_snapshot": "驻场顾问", "quantity": 2, "unit_price": 1500, "amount": 3000}],
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_8E13FE549C167DC1'],
+        "items": [{"product_name_snapshot": _ZH_TEXT['TEXT_3A8AC77ED1760CEE'], "quantity": 2, "unit_price": 1500, "amount": 3000}],
     }, headers=headers)
     assert order.status_code == 201, order.text
     assert order.json()["data"]["items"][0]["amount"] == 3000.0
 
     # a bad row still rolls back the whole document, generic path included
     bad = client.post("/api/v1/sales-orders", json={
-        "employee_id": emp, "title": "坏行",
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_035F052558979ABE'],
         "items": [{"quantity": 1, "unit_price": 10}],  # no product, no snapshot
     }, headers=headers)
     assert bad.status_code == 422, bad.text
@@ -194,10 +201,10 @@ def test_purchase_request_and_order_lines_ride_the_create(client: TestClient) ->
 
     # and an inline row may not point at a different parent
     other = client.post("/api/v1/sales-quotations", json={
-        "employee_id": emp, "title": "另一张",
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_B9E661BE4EC324B5'],
     }, headers=headers).json()["data"]
     conflict = client.post("/api/v1/sales-quotations", json={
-        "employee_id": emp, "title": "冲突",
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_45FB956103636EA6'],
         "items": [{"quotation_id": other["id"], "product_name_snapshot": "x", "quantity": 1}],
     }, headers=headers)
     assert conflict.status_code == 422, conflict.text

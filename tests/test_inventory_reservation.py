@@ -1,4 +1,4 @@
-"""Reservations: 占货 is an availability fact, not a movement.
+"""Reservations: stock reservation is an availability fact, not a movement.
 
 When an order lands and the goods must be held, the ledger gains an
 ATP-only row — `reserved`, available drops, on-hand stays, and the row
@@ -13,6 +13,13 @@ never reserves must not be punished for it.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_inventory_reservation.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from app.services.emails import outbox
@@ -25,7 +32,7 @@ def stockroom():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Hold Co", email="admin@hold.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "店长"},
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                           headers=admin).json()["data"]["id"]
         product = client.post("/api/v1/products", json={"name": "Cup"},
                               headers=admin).json()["data"]["id"]
@@ -33,7 +40,7 @@ def stockroom():
             "product_id": product, "facility": "main", "initial_quantity": 10,
         }).json()["data"]["id"]
 
-        def order(title="一单") -> str:
+        def order(title=_ZH_TEXT['TEXT_14DD2CDE0CB435EA']) -> str:
             return client.post("/api/v1/sales-orders", headers=admin, json={
                 "employee_id": emp, "title": title,
                 "items": [{"product_id": product, "quantity": 5}]}).json()["data"]["id"]
@@ -56,7 +63,7 @@ def test_a_hold_moves_availability_only_and_names_its_order(stockroom) -> None:
     ok = stockroom["reserve"](so, 3)
     assert ok.status_code == 200, ok.text
     assert ok.json()["data"]["lines"][0]["available_to_promise"] == 7.0
-    assert stockroom["sums"]() == (10.0, 7.0), "占货: available drops, on-hand stays"
+    assert stockroom["sums"]() == (10.0, 7.0), _ZH_TEXT['TEXT_CBD7A92B84B8732B']
     rows = stockroom["client"].get("/api/v1/inventory-item-details",
                                    params={"sales_order_id": so}, headers=stockroom["admin"]).json()["data"]
     assert [(r["reason"], r["quantity_on_hand_diff"], r["available_to_promise_diff"]) for r in rows] == \
@@ -149,11 +156,11 @@ def test_a_second_shipment_consumes_only_what_the_hold_still_holds(stockroom) ->
 
 def test_a_cancelled_order_gives_its_hold_back_by_hand(stockroom) -> None:
     client, admin = stockroom["client"], stockroom["admin"]
-    so = stockroom["order"]("要取消的单")
+    so = stockroom["order"](_ZH_TEXT['TEXT_4C2EEA4FACD34D88'])
     stockroom["reserve"](so, 4)
     assert stockroom["sums"]() == (10.0, 6.0)
     released = client.post(f"/api/v1/sales-orders/{so}/release", headers=admin,
-                           json={"description": "订单取消,释放占货"})
+                           json={"description": _ZH_TEXT['TEXT_7394298E783BC007']})
     assert released.status_code == 200, released.text
     assert released.json()["data"]["lines"][0]["quantity"] == 4.0
     assert stockroom["sums"]() == (10.0, 10.0), "the hold came back, nothing moved"

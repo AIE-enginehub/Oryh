@@ -1,6 +1,6 @@
 ---
 name: oryh-campaign
-description: Use when marketing runs a campaign in oryh — 建一场展会/线上活动/邮件营销, 登记触达了谁, 看活动带来了多少线索和商机 — creating, advancing and reading campaigns and their members. Requires campaign.manage. Attribution on leads and deals is the sales desk's ($oryh-crm).
+description: Use when marketing runs a campaign in oryh — create a trade-fair campaign/online event/email campaign, record contacts reached, review campaign lead and opportunity attribution — creating, advancing and reading campaigns and their members. Requires campaign.manage. Attribution on leads and deals is the sales desk's ($oryh-crm).
 required_capability: campaign.manage
 ---
 
@@ -75,3 +75,6 @@ oryh:
 ## Reference
 
 - [references/api.md](references/api.md): request templates.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

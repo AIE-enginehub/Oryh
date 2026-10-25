@@ -1333,6 +1333,9 @@ def project_from_opportunity(
     tenant_id = actor.tenant_id
     require_permission(actor, "project.manage")
     opportunity = _own_opportunity(db, actor, opportunity_id, editable=False)
+    # two calls for one deal serialise here, and the second finds the first's
+    # project; SQLite ignores the clause, the unique index still holds
+    db.execute(select(Opportunity.id).where(Opportunity.id == opportunity.id).with_for_update())
     existing = db.scalar(select(Project).where(Project.tenant_id == tenant_id, Project.opportunity_id == opportunity.id))
     if existing is not None:
         return envelope(ProjectRead.model_validate(existing).model_dump(by_alias=True))
@@ -1469,8 +1472,8 @@ def quote_opportunity(
             unit=item.unit,
             list_price_snapshot=list_price,
             unit_price=unit_price,
-            amount=round(float(item.quantity) * unit_price, 2) if unit_price is not None else None,
-            # F-29: a deal line's notes are internal ("价格未谈"); the quotation
+            amount=derive_line_amount(item.quantity, unit_price, None),
+            # F-29: a deal line's notes are internal ("price not negotiated"); the quotation
             # line is what the customer reads — it starts clean
         )
         db.add(line)

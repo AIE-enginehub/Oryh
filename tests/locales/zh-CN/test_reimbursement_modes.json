@@ -1,0 +1,4 @@
+{
+  "TEXT_6EB5C2EF5D3CEED0": "报销审批通过后直接核销报销单，不开 reimbursement 发票。",
+  "TEXT_04648FBBD59D8DB5": "报销一律先开 reimbursement 发票，付款核销发票。"
+}

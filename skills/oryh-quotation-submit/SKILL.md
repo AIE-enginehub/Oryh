@@ -1,6 +1,6 @@
 ---
 name: oryh-quotation-submit
-description: Use when a salesperson's agent drafts, updates, submits, sends, closes or revises their OWN sales quotation in oryh — match customer and products, list-price snapshots and discounts, gift lines, 抹零, send, record 成交/流失/过期, issue a revision. Salesperson's facts only; approval routing is other roles'.
+description: Use when a salesperson's agent drafts, updates, submits, sends, closes or revises their OWN sales quotation in oryh — match customer and products, list-price snapshots and discounts, gift lines, rounding adjustment, send, record won/lost/expired, issue a revision. Salesperson's facts only; approval routing is other roles'.
 required_capability: quotation.submit_own
 ---
 
@@ -11,7 +11,7 @@ Record and drive the principal's own sales quotation through its whole life. The
 A quotation is an **outbound document**: unlike a requisition, what you write here is what the customer will read. Two consequences shape everything:
 
 - **A sent quotation is immutable.** Fixing a price after it went out is not an edit — it is a new revision (`POST .../revise`), same quote number, `revision_no + 1`. The old revision stays as the fact it was.
-- **The discount is derived, never stated.** Each line carries `list_price_snapshot` (the catalog price at quoting time, captured automatically for cataloged products) and `unit_price` (what you actually quote). Approvers and the flow agent judge the gap; you never write a "discount rate" anywhere.
+- **The discount is derived, never stated.** Each line carries `list_price_snapshot` (the catalog price at quoting time, captured automatically for cataloged products) and `unit_price` (what you actually quote). Approvers and the flow agent judge the gap; do not store a separate discount rate on the item; explain any policy calculation in its `notes`.
 
 Legitimately uncertain things, and the record is honest about all of them:
 
@@ -81,6 +81,10 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 
 {{include:_common/leave-no-orphan-work.md}}
 
+{{include:_common/sales-promotions.md}}
+
+**Promotion pricing**: before step 6, read the applicable promotion policies using the method above. Resolve the governing business date and match the customer/products before judging eligibility. Include all resulting gifts, adjustments and basis in the draft and the pre-submit read-back. Revisions and returned drafts must reconcile existing benefits rather than append them again.
+
 ## Steps
 
 1. **Identity**: your employee id is already in this file — `{{EMPLOYEE_ID}}`. No call needed. Blank means no employee record is linked to this principal: say so, do not work around it.
@@ -100,8 +104,9 @@ Everything else comes from conversation: who the customer is, what to quote, at 
    - Customer: `GET /customers?keyword={name}` or `?tax_id=`. Confident match → `customer_id` (name backfills the snapshot); otherwise the principal's words go in `customer_name_snapshot`. Per-quote contact fields (`contact_name/phone/email`) are THIS deal's buyer — may differ from the master record.
    - Product per line: `GET /products?keyword=`. A confident match auto-captures `list_price_snapshot` — quote your `unit_price` against it knowingly.
    - **A matched customer may have negotiated terms**: `GET /customer-products?customer_id=`
-     in the same batch. An `agreed_price` on a quoted product is the price to
-     quote — the price book is the rule, the agreement is that customer's
+     in the same batch. An `agreed_price` on a quoted product is the base price to
+     quote unless a published promotion explicitly changes it; apply further
+     benefits only as that policy permits — the price book is the rule, the agreement is that customer's
      exception; quote something else only by saying so out loud. Their
      `customer_product_code` is what THEIR paperwork calls the product.
    - SKUs need a product id, so they are the only second wave: for matched
@@ -110,7 +115,7 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 6. **Quotation — one call, lines included**: `POST /sales-quotations` with
    `employee_id`, `title`, customer fields, `valid_until`,
    `payment_terms`/`delivery_terms`, the principal's original words in
-   `source_report_text`, **and the complete `items` array**: per line
+   `source_report_text`, **and the complete `items` and any `adjustments` arrays**: per line
    `line_no` (the printed order), `quantity`, `unit_price`, and when relevant
    `tax_rate` (mixed quoting, such as 13% on goods and 6% on services),
    `lead_time` (in stock, two weeks),
@@ -123,7 +128,7 @@ Everything else comes from conversation: who the customer is, what to quote, at 
    landed — that IS the material for the pre-submit read-back.
    (`POST /sales-quotation-items` still exists for adding a line to an
    existing `draft`/`returned` quotation — a 409 there means revise instead.)
-7. **Submit**: `POST /sales-quotations/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent. Internal approval (if the tenant requires any) runs from here; a tenant with no rules gets it finalized by the flow agent without human nodes.
+7. **Submit**: `POST /sales-quotations/{id}/submit` — only after the pre-submit read-back below got an explicit yes. Idempotent while already `submitted`: it returns the existing document without another submission fact or approval round. Internal approval (if the tenant requires any) runs from here; a tenant with no rules gets it finalized by the flow agent without human nodes.
 8. **The submitted approval fact is not yours to write.** `/submit` records it (`round_no` derived, `sequence_no=1`, `source=system`), so the trail opens with it whether or not this credential carries `approval.record`. Posting it anyway is harmless — the recorded fact comes back — but there is nothing to do here.
 9. **Send**: once `approved`, render the customer-facing document from `GET /sales-quotations/{id}/detail` (lines in `line_no` order with prices, tax rates, lead times, terms, validity — the principal's own template if they have one), deliver it however the principal does, then `POST /sales-quotations/{id}/send` to record the fact. Idempotent.
 10. **Outcome**: when the customer decides — `POST /sales-quotations/{id}/close` with `outcome: accepted|declined|expired` and an `outcome_note` (the agreed amount, or why it was lost). The win rate lives on these facts.
@@ -136,7 +141,8 @@ Everything else comes from conversation: who the customer is, what to quote, at 
 - `quantity` > 0; every line needs a `product_id` **or** a free-text `product_name_snapshot`.
 - Items only while `draft`/`returned`; sent means revise.
 - `customer_id` / `product_id` / `sku_id` / `attachment_id` / `project_id` must be real records here — free text goes in snapshots, never a guessed id.
-- Lifecycle is machine-guarded: submit from `draft`/`returned`, send from `approved`, close from `sent`, revise from `approved`/`sent`. A 409 names the legal moves.
+- Lifecycle is machine-guarded: submit transitions `draft`/`returned` to `submitted`; repeating submit while `submitted` returns the existing document. Send from `approved`, close from `sent`, revise from `approved`/`sent`. For other states, follow the actual response.
+- **Interrupted submission:** read the same quotation first. If already submitted or further along, report its actual status and reuse it; do not create another quotation or recompute its benefits. Say “already submitted; this is the same quotation”, never claim a retry is forbidden or would return 409 without such a response. If the original submit outcome still needs recovering while submitted, retry that same route/document (and the same Idempotency-Key when available).
 - A tenant-supplied `quote_number` that already exists → 409; pick the next or let the server allocate.
 
 **Tenant requirements (the flow agent returns violations; catch them in conversation first):**
@@ -165,9 +171,12 @@ Submitted quotations sit in the flow agent's queue: calibrated against the step-
 - Approve its own quotation, decide routing, or PATCH the status raw (`/submit`, `/send`, `/close`, `/revise` are its only transitions).
 - Create customers or products as a side effect.
 - Edit a sent quotation — revise it.
-- Invent a price, discount, or validity the principal didn't state.
+- Invent a price, discount, or validity without the principal's stated terms or an applicable published rule.
 - Send to the customer before the quotation is `approved`, or submit without the read-back.
 
 ## Reference
 
 - [references/api.md](references/api.md): request templates.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

@@ -11,6 +11,13 @@ any of it.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_campaigns.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 
@@ -79,10 +86,10 @@ def test_members_are_one_party_each_and_never_twice(crm) -> None:
     campaign = client.post("/api/v1/campaigns", headers=marketing["key"],
                            json={"name": "Webinar", "employee_id": marketing["employee_id"]}).json()["data"]
     lead = client.post("/api/v1/leads", headers=zhang["key"],
-                       json={"employee_id": zhang["employee_id"], "company_name": "泵业公司"}).json()["data"]
-    customer = client.post("/api/v1/customers", headers=crm["admin"], json={"name": "老客户"}).json()["data"]
+                       json={"employee_id": zhang["employee_id"], "company_name": _ZH_TEXT['TEXT_B3D94E4ACC7E624D']}).json()["data"]
+    customer = client.post("/api/v1/customers", headers=crm["admin"], json={"name": _ZH_TEXT['TEXT_68897FD84FB823D9']}).json()["data"]
     contact = client.post("/api/v1/customer-contacts", headers=crm["admin"],
-                          json={"customer_id": customer["id"], "name": "王工"}).json()["data"]
+                          json={"customer_id": customer["id"], "name": _ZH_TEXT['TEXT_2BF61438CAE7EFAF']}).json()["data"]
 
     both = client.post("/api/v1/campaign-members", headers=marketing["key"],
                        json={"campaign_id": campaign["id"], "lead_id": lead["id"], "customer_id": customer["id"]})
@@ -108,7 +115,7 @@ def test_members_are_one_party_each_and_never_twice(crm) -> None:
     by_contact = client.post("/api/v1/campaign-members", headers=marketing["key"],
                              json={"campaign_id": campaign["id"], "customer_id": customer["id"], "contact_id": contact["id"]})
     assert by_contact.status_code == 201
-    other_customer = client.post("/api/v1/customers", headers=crm["admin"], json={"name": "别家"}).json()["data"]
+    other_customer = client.post("/api/v1/customers", headers=crm["admin"], json={"name": _ZH_TEXT['TEXT_EA0CF81B19342818']}).json()["data"]
     wrong = client.post("/api/v1/campaign-members", headers=marketing["key"],
                         json={"campaign_id": campaign["id"], "customer_id": other_customer["id"], "contact_id": contact["id"]})
     assert wrong.status_code == 422
@@ -134,7 +141,7 @@ def test_attribution_rides_the_lead_into_the_deal_and_the_detail_counts_live(crm
     assert ghost.status_code == 404, "attribution names a real campaign"
 
     leads = []
-    for name in ("甲", "乙", "丙"):
+    for name in (_ZH_TEXT['TEXT_33E3580C093111E1'], _ZH_TEXT['TEXT_71530D4C49F12C48'], _ZH_TEXT['TEXT_C680A614513FA8A7']):
         made = client.post("/api/v1/leads", headers=zhang["key"],
                            json={"employee_id": zhang["employee_id"], "company_name": name,
                                  "source": "trade-fair", "campaign_id": campaign["id"]})
@@ -147,7 +154,7 @@ def test_attribution_rides_the_lead_into_the_deal_and_the_detail_counts_live(crm
     # qualify and convert one: the deal inherits the campaign
     client.patch(f"/api/v1/leads/{leads[0]['id']}", headers=zhang["key"], json={"status": "qualified"})
     converted = client.post(f"/api/v1/leads/{leads[0]['id']}/convert", headers=zhang["key"],
-                            json={"opportunity_title": "甲的项目", "expected_amount": 120000})
+                            json={"opportunity_title": _ZH_TEXT['TEXT_AC1A5FB873DDA99D'], "expected_amount": 120000})
     assert converted.status_code in (200, 201), converted.text
     deal = client.get(f"/api/v1/opportunities?lead_id={leads[0]['id']}", headers=zhang["key"]).json()["data"][0]
     assert deal["campaign_id"] == campaign["id"]
@@ -156,8 +163,8 @@ def test_attribution_rides_the_lead_into_the_deal_and_the_detail_counts_live(crm
 
     # a deal with no lead names the campaign directly
     direct = client.post("/api/v1/opportunities", headers=zhang["key"],
-                         json={"employee_id": zhang["employee_id"], "title": "路过的", "campaign_id": campaign["id"],
-                               "customer_name_snapshot": "丁", "expected_amount": 5000})
+                         json={"employee_id": zhang["employee_id"], "title": _ZH_TEXT['TEXT_F75FAB5199C3F5DB'], "campaign_id": campaign["id"],
+                               "customer_name_snapshot": _ZH_TEXT['TEXT_A523477108776640'], "expected_amount": 5000})
     assert direct.status_code == 201, direct.text
 
     detail = client.get(f"/api/v1/campaigns/{campaign['id']}/detail", headers=zhang["key"])

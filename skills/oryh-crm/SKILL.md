@@ -1,6 +1,6 @@
 ---
 name: oryh-crm
-description: Use when a salesperson's agent works their own pipeline in oryh — capture leads ("展会上加了个微信,记一下"), advance them, convert a qualified lead into a customer and opportunity, close won or lost. No approvals; quoting and ordering hand off to oryh-quotation-submit and oryh-order-submit. Requires crm.own.
+description: Use when a salesperson's agent works their own pipeline in oryh — capture leads ("captured a contact at the trade fair, record it"), advance them, convert a qualified lead into a customer and opportunity, close won or lost. No approvals; quoting and ordering hand off to oryh-quotation-submit and oryh-order-submit. Requires crm.own.
 required_capability: crm.own
 ---
 
@@ -272,3 +272,6 @@ itself" a count instead of a recollection.
 ## Reference
 
 - [references/api.md](references/api.md): request templates.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

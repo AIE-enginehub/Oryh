@@ -76,7 +76,7 @@ def main() -> None:
         # looks. `provision_system_roles` tops up `admin` and deliberately
         # nothing else, because a capability missing from a role somebody else
         # designed might be an omission or might be a decision. It cannot
-        # guess — but staying silent is how 结算, 工资 and 请假 each shipped to
+        # guess — but staying silent is how settlement, payroll and leave each shipped to
         # a workspace where nobody could use them, each found later by an E2E
         # 403 rather than here.
         print()

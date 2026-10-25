@@ -1,6 +1,6 @@
 ---
 name: oryh-master-data
-description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map ("天猫这个商品对应我们哪个货"). Dry run before writing. Requires master_data.manage; other skills only read it. Also customer contacts (the rolodex), geos and territories.
+description: Use to load or maintain master data in oryh — import products, vendors, customers from a spreadsheet, correct or archive entries, audit the catalog, curate sales channels and the external product map ("which catalog product matches this Tmall listing"). Dry run before writing. Requires master_data.manage; other skills only read it. Also customer contacts (the rolodex), geos and territories.
 required_capability: master_data.manage
 ---
 
@@ -410,6 +410,12 @@ from the subject's side: `{"customer_id": X, "related_customer_id": Y,
 (`referred_by`), which `GET /customers/{id}/relations` does for either
 customer. A relation is dated because a partner stops being one.
 
+One fact, one row: the same relation for the same start date (undated
+included) is refused 409, and so is its mirror — `Y referred_by X` when
+`X referrer_of Y` is on file, or `Y partner_of X` beside `X partner_of Y`.
+Read the relations of both customers before writing, and on a 409 point
+the person to the row that already says it.
+
 This is how a customer may exist with no documents of its own and still be
 honest: the bus company behind a referral deal is a customer row, its
 relation to the friend who brought it says "single line of contact", and
@@ -547,3 +553,6 @@ Where a customer is, and whose it therefore is, are two facts kept apart:
 - [references/spreadsheets.md](references/spreadsheets.md): reading real
   files — header detection, merged cells, the Chinese column-name vocabulary
   real sheets use, number and price cleanup.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

@@ -11,6 +11,13 @@ The confidentiality half lives in `test_payroll_visibility.py`.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_payroll.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -37,7 +44,7 @@ def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
     return response.json()["data"] if expect < 400 else response.json()
 
 
-def employee(client: TestClient, name: str = "员工小周") -> str:
+def employee(client: TestClient, name: str = _ZH_TEXT['TEXT_B73A09275751C199']) -> str:
     return post(client, "/api/v1/employees", {"name": name})["id"]
 
 
@@ -110,7 +117,7 @@ def test_a_record_a_payslip_cited_cannot_be_edited(client: TestClient) -> None:
     """Moving it would change what an issued document says without touching
     that document."""
     person = employee(client)
-    hr = employee(client, "HR小孙")
+    hr = employee(client, _ZH_TEXT['TEXT_77750A010975905F'])
     record = set_salary(client, person, 12000.0, "2026-07-01")["current"]
 
     payslip = post(
@@ -119,11 +126,11 @@ def test_a_record_a_payslip_cited_cannot_be_edited(client: TestClient) -> None:
             "direction": "payroll",
             "employee_id": hr,
             "payee_employee_id": person,
-            "title": "2026年7月工资",
+            "title": _ZH_TEXT['TEXT_CFA60C47884F2A61'],
             "period_start": "2026-07-01",
             "period_end": "2026-07-31",
             "items": [
-                {"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
+                {"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
                  "amount": 12000.0, "pay_history_id": record["id"]},
             ],
         },
@@ -137,7 +144,7 @@ def test_a_record_a_payslip_cited_cannot_be_edited(client: TestClient) -> None:
     assert "payslip line" in response.json()["detail"]
 
     # an untouched record is still correctable
-    other = set_salary(client, employee(client, "新人"), 8000.0, "2026-07-01")["current"]
+    other = set_salary(client, employee(client, _ZH_TEXT['TEXT_E87070AFEF32E177']), 8000.0, "2026-07-01")["current"]
     assert client.patch(
         f"/api/v1/pay-histories/{other['id']}", json={"amount": 8500.0}, headers=HEADERS
     ).status_code == 200
@@ -153,8 +160,8 @@ def test_a_commission_rate_lives_beside_the_salary(client: TestClient) -> None:
     commission = post(
         client, "/api/v1/pay-histories",
         {"employee_id": person, "component": "commission", "effective_from": "2026-01-01",
-         "rate": 0.03, "basis": "当月本人负责合同的回款额",
-         "notes": "季度结算，随次月工资发放"},
+         "rate": 0.03, "basis": _ZH_TEXT['TEXT_9FD5504E6A021F84'],
+         "notes": _ZH_TEXT['TEXT_7496CF801BE4A950']},
     )["current"]
     assert commission["rate"] == 0.03
     assert commission["amount"] is None
@@ -174,16 +181,16 @@ def test_a_commission_rate_lives_beside_the_salary(client: TestClient) -> None:
 def test_an_arrangement_that_is_neither_a_number_nor_a_rate_is_stated_in_words(
     client: TestClient,
 ) -> None:
-    """阶梯提成 has no scalar and no single rate. The server stores the sentence
+    """tiered commission has no scalar and no single rate. The server stores the sentence
     and never parses it — the agent reads it, exactly as it reads a workflow
     definition."""
     person = employee(client)
     stated = post(
         client, "/api/v1/pay-histories",
         {"employee_id": person, "component": "bonus", "effective_from": "2026-01-01",
-         "formula": "季度回款达标 100% 发 2 个月工资，120% 以上按 3 个月，未达标不发"},
+         "formula": _ZH_TEXT['TEXT_F2D17DC98EFDA46A']},
     )["current"]
-    assert stated["formula"].startswith("季度回款")
+    assert stated["formula"].startswith(_ZH_TEXT['TEXT_F3748B49F540FEF0'])
     assert stated["amount"] is None and stated["rate"] is None
 
 
@@ -222,7 +229,7 @@ def test_a_raise_does_not_close_someone_s_commission_arrangement(client: TestCli
     commission = post(
         client, "/api/v1/pay-histories",
         {"employee_id": person, "component": "commission", "effective_from": "2026-01-01",
-         "rate": 0.03, "basis": "回款额"},
+         "rate": 0.03, "basis": _ZH_TEXT['TEXT_1CBA26C97CD5BE77']},
     )["current"]
 
     raise_ = set_salary(client, person, 15000.0, "2026-07-01")
@@ -236,7 +243,7 @@ def test_a_raise_does_not_close_someone_s_commission_arrangement(client: TestCli
     bumped = post(
         client, "/api/v1/pay-histories",
         {"employee_id": person, "component": "commission", "effective_from": "2026-07-01",
-         "rate": 0.05, "basis": "回款额"},
+         "rate": 0.05, "basis": _ZH_TEXT['TEXT_1CBA26C97CD5BE77']},
     )
     assert bumped["superseded"]["id"] == commission["id"]
     assert bumped["superseded"]["effective_thru"] == "2026-06-30"
@@ -253,7 +260,7 @@ def test_the_component_vocabulary_is_gated(client: TestClient) -> None:
 
 
 def test_a_contribution_base_is_a_fact_about_the_person(client: TestClient) -> None:
-    """五险一金 RATES are national policy and deliberately absent — but the base
+    """social-insurance and housing-fund RATES are national policy and deliberately absent — but the base
     they apply to is this person's own number, and it changes on its own
     schedule, so it inherits this table's effective dating."""
     person = employee(client)
@@ -277,7 +284,7 @@ def test_the_period_type_vocabulary_is_gated(client: TestClient) -> None:
     body = set_salary(client, person, 60.0, "2026-01-01", period_type="fortnight", expect=422)
     assert "hour" in body["detail"]
 
-    hourly = set_salary(client, employee(client, "钟点工"), 60.0, "2026-01-01", period_type="hour")
+    hourly = set_salary(client, employee(client, _ZH_TEXT['TEXT_ADD33E3B24186ACF']), 60.0, "2026-01-01", period_type="hour")
     assert hourly["current"]["period_type"] == "hour"
 
 
@@ -290,7 +297,7 @@ def payslip(client: TestClient, hr: str, person: str, items: list[dict],
         "direction": "payroll",
         "employee_id": hr,
         "payee_employee_id": person,
-        "title": f"{year}年{int(month)}月工资",
+        "title": f"{year}{_ZH_TEXT['TEXT_62EF900A8F5D5BFF']}{int(month)}{_ZH_TEXT['TEXT_A0F6F55027A52C74']}",
         "period_start": f"{year}-{month}-01",
         "period_end": f"{year}-{month}-{last}",
         "items": items,
@@ -300,20 +307,20 @@ def payslip(client: TestClient, hr: str, person: str, items: list[dict],
 
 
 JULY = [
-    {"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
-     "amount": 12000.0, "notes": "月薪 12000.00"},
-    {"invoice_item_type": "payroll_allowance", "product_name_snapshot": "交通补贴",
-     "amount": 500.0, "notes": "岗位交通补贴 500.00/月"},
-    {"invoice_item_type": "payroll_pension_ee", "product_name_snapshot": "养老",
-     "amount": -960.0, "notes": "缴费基数 12000.00 × 8%"},
-    {"invoice_item_type": "payroll_medical_ee", "product_name_snapshot": "医疗",
-     "amount": -240.0, "notes": "缴费基数 12000.00 × 2%"},
-    {"invoice_item_type": "payroll_unemploy_ee", "product_name_snapshot": "失业",
-     "amount": -60.0, "notes": "缴费基数 12000.00 × 0.5%"},
-    {"invoice_item_type": "payroll_housing_ee", "product_name_snapshot": "公积金",
-     "amount": -1440.0, "notes": "缴费基数 12000.00 × 12%"},
-    {"invoice_item_type": "payroll_iit", "product_name_snapshot": "个税",
-     "amount": -253.8, "notes": "累计预扣法：应纳税所得额 8460.00 × 3%"},
+    {"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
+     "amount": 12000.0, "notes": _ZH_TEXT['TEXT_462C33D5CF06A211']},
+    {"invoice_item_type": "payroll_allowance", "product_name_snapshot": _ZH_TEXT['TEXT_D9B3800CE50EF3C4'],
+     "amount": 500.0, "notes": _ZH_TEXT['TEXT_C0769D63D160CABC']},
+    {"invoice_item_type": "payroll_pension_ee", "product_name_snapshot": _ZH_TEXT['TEXT_4BF5576E296CCB1B'],
+     "amount": -960.0, "notes": _ZH_TEXT['TEXT_C56BFA6963DDDB19']},
+    {"invoice_item_type": "payroll_medical_ee", "product_name_snapshot": _ZH_TEXT['TEXT_F1B9FD6D8812C715'],
+     "amount": -240.0, "notes": _ZH_TEXT['TEXT_61E57DD0DE976D2E']},
+    {"invoice_item_type": "payroll_unemploy_ee", "product_name_snapshot": _ZH_TEXT['TEXT_9FA4C944BE11CD8D'],
+     "amount": -60.0, "notes": _ZH_TEXT['TEXT_B3A9A2650B322FC7']},
+    {"invoice_item_type": "payroll_housing_ee", "product_name_snapshot": _ZH_TEXT['TEXT_397C857220371FDB'],
+     "amount": -1440.0, "notes": _ZH_TEXT['TEXT_E69063F66E895F97']},
+    {"invoice_item_type": "payroll_iit", "product_name_snapshot": _ZH_TEXT['TEXT_C9983EEC5FE007F0'],
+     "amount": -253.8, "notes": _ZH_TEXT['TEXT_C2ECB69C4646D739']},
 ]
 
 
@@ -332,7 +339,7 @@ def test_a_payslip_nets_its_earnings_against_its_deductions(client: TestClient) 
 
 
 def test_one_payslip_per_person_per_period(client: TestClient) -> None:
-    """双发工资 is the expensive mistake here, so it is a database fact."""
+    """duplicate payroll disbursement is the expensive mistake here, so it is a database fact."""
     person, hr = employee(client), employee(client, "HR")
     payslip(client, hr, person, JULY)
 
@@ -341,7 +348,7 @@ def test_one_payslip_per_person_per_period(client: TestClient) -> None:
 
     # the next month is fine, and so is another person in the same month
     assert payslip(client, hr, person, JULY, period="2026-08")
-    assert payslip(client, hr, employee(client, "另一位"), JULY)
+    assert payslip(client, hr, employee(client, _ZH_TEXT['TEXT_6CA37D06CECB701E']), JULY)
 
 
 def test_the_duplicate_payslip_409_names_the_person_not_the_number(client: TestClient) -> None:
@@ -349,20 +356,20 @@ def test_the_duplicate_payslip_409_names_the_person_not_the_number(client: TestC
     they mean opposite things. An agent told its NUMBER is taken retries with a
     different one, gets the same answer, and never learns that the real problem
     is it is about to pay somebody twice."""
-    person, hr = employee(client), employee(client, "HR小孙")
+    person, hr = employee(client), employee(client, _ZH_TEXT['TEXT_77750A010975905F'])
 
     def payslip(title: str, expect: int, **extra) -> dict:
         body = {"direction": "payroll", "employee_id": hr, "payee_employee_id": person,
                 "title": title, "period_start": "2026-07-01", "period_end": "2026-07-31",
                 "items": [{"invoice_item_type": "payroll_salary",
-                           "product_name_snapshot": "基本工资", "amount": 12000.0,
-                           "notes": "月薪 12000.00"}]}
+                           "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'], "amount": 12000.0,
+                           "notes": _ZH_TEXT['TEXT_462C33D5CF06A211']}]}
         body.update(extra)
         return post(client, "/api/v1/invoices", body, expect=expect)
 
-    first = payslip("2026年7月工资", 201)
+    first = payslip(_ZH_TEXT['TEXT_CFA60C47884F2A61'], 201)
 
-    same_period = payslip("2026年7月工资（重复）", 409)
+    same_period = payslip(_ZH_TEXT['TEXT_876A935DCF86F283'], 409)
     assert "pay them twice" in same_period["detail"]
     assert "2026-07-01" in same_period["detail"]
     # it names the payslip that already covers the period, which is the thing
@@ -371,30 +378,30 @@ def test_the_duplicate_payslip_409_names_the_person_not_the_number(client: TestC
 
     # ...and a genuine numbering clash still says so
     clash = payslip(
-        "2026年8月工资", 409,
+        _ZH_TEXT['TEXT_07E9B551817B9E93'], 409,
         invoice_no=first["invoice_no"], period_start="2026-08-01", period_end="2026-08-31",
     )
     assert "invoice_no" in clash["detail"]
 
 
 def test_a_payslip_line_must_show_its_working(client: TestClient) -> None:
-    """The other half of a deliberate omission: 五险一金 rates are not stored
+    """The other half of a deliberate omission: social-insurance and housing-fund rates are not stored
     here, so the line is the only record of how the number was reached."""
-    person, hr = employee(client), employee(client, "HR小孙")
+    person, hr = employee(client), employee(client, _ZH_TEXT['TEXT_77750A010975905F'])
     record = set_salary(client, person, 12000.0, "2026-07-01")["current"]
 
     def payslip(items: list[dict], expect: int, period: str = "2026-07") -> dict:
         return post(
             client, "/api/v1/invoices",
             {"direction": "payroll", "employee_id": hr, "payee_employee_id": person,
-             "title": f"{period} 工资", "period_start": f"{period}-01",
+             "title": f"{period}{_ZH_TEXT['TEXT_92D6BD318AF32976']}", "period_start": f"{period}-01",
              "period_end": f"{period}-28", "items": items},
             expect=expect,
         )
 
     unexplained = payslip(
         [{"invoice_item_type": "payroll_housing_ee",
-          "product_name_snapshot": "住房公积金（个人）", "amount": -1440.0}],
+          "product_name_snapshot": _ZH_TEXT['TEXT_AA1AA34B09F95F19'], "amount": -1440.0}],
         expect=422,
     )
     assert "show its working" in unexplained["detail"]
@@ -402,41 +409,41 @@ def test_a_payslip_line_must_show_its_working(client: TestClient) -> None:
     # spelling the arithmetic out is enough...
     payslip(
         [{"invoice_item_type": "payroll_housing_ee",
-          "product_name_snapshot": "住房公积金（个人）", "amount": -1440.0,
-          "notes": "缴费基数 12000.00 × 12% = 1440.00"}],
+          "product_name_snapshot": _ZH_TEXT['TEXT_AA1AA34B09F95F19'], "amount": -1440.0,
+          "notes": _ZH_TEXT['TEXT_D5AD885540F3B578']}],
         expect=201,
     )
     # ...and so is citing the record the number came from
     payslip(
-        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
+        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
           "amount": 12000.0, "pay_history_id": record["id"]}],
         expect=201, period="2026-08",
     )
 
     # whitespace is not an explanation
     assert payslip(
-        [{"invoice_item_type": "payroll_allowance", "product_name_snapshot": "交通补贴",
+        [{"invoice_item_type": "payroll_allowance", "product_name_snapshot": _ZH_TEXT['TEXT_D9B3800CE50EF3C4'],
           "amount": 500.0, "notes": "   "}],
         expect=422, period="2026-09",
     )
 
     # and an ordinary sales line is unaffected — this is a payslip rule
-    buyer = post(client, "/api/v1/customers", {"name": "客户"})["id"]
+    buyer = post(client, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']})["id"]
     post(
         client, "/api/v1/invoices",
-        {"direction": "sales", "employee_id": hr, "customer_id": buyer, "title": "货款",
-         "items": [{"product_name_snapshot": "货物", "amount": 5000.0}]},
+        {"direction": "sales", "employee_id": hr, "customer_id": buyer, "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'],
+         "items": [{"product_name_snapshot": _ZH_TEXT['TEXT_0883A49C383F6A0E'], "amount": 5000.0}]},
     )
 
 
 def test_a_correction_cannot_strip_the_explanation(client: TestClient) -> None:
-    person, hr = employee(client), employee(client, "HR小孙")
+    person, hr = employee(client), employee(client, _ZH_TEXT['TEXT_77750A010975905F'])
     payslip = post(
         client, "/api/v1/invoices",
         {"direction": "payroll", "employee_id": hr, "payee_employee_id": person,
-         "title": "2026年7月工资", "period_start": "2026-07-01", "period_end": "2026-07-31",
-         "items": [{"invoice_item_type": "payroll_iit", "product_name_snapshot": "个人所得税",
-                    "amount": -300.0, "notes": "累计预扣法：应纳税所得额 10000 × 3%"}]},
+         "title": _ZH_TEXT['TEXT_CFA60C47884F2A61'], "period_start": "2026-07-01", "period_end": "2026-07-31",
+         "items": [{"invoice_item_type": "payroll_iit", "product_name_snapshot": _ZH_TEXT['TEXT_1E020F7945740633'],
+                    "amount": -300.0, "notes": _ZH_TEXT['TEXT_323374D0008725DB']}]},
     )
     line = payslip["items"][0]["id"]
     emptied = client.patch(
@@ -446,16 +453,16 @@ def test_a_correction_cannot_strip_the_explanation(client: TestClient) -> None:
 
 
 def test_a_deduction_written_positive_is_refused(client: TestClient) -> None:
-    """个税 as +253.8 rather than −253.8 pays the person 507.6 too much, and
+    """individual income tax as +253.8 rather than −253.8 pays the person 507.6 too much, and
     nothing downstream would notice."""
     person, hr = employee(client), employee(client, "HR")
     body = payslip(
         client, hr, person,
         [
-            {"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
-             "amount": 12000.0, "notes": "月薪 12000.00"},
-            {"invoice_item_type": "payroll_iit", "product_name_snapshot": "个税",
-             "amount": 253.8, "notes": "累计预扣法"},
+            {"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
+             "amount": 12000.0, "notes": _ZH_TEXT['TEXT_462C33D5CF06A211']},
+            {"invoice_item_type": "payroll_iit", "product_name_snapshot": _ZH_TEXT['TEXT_C9983EEC5FE007F0'],
+             "amount": 253.8, "notes": _ZH_TEXT['TEXT_C0625A7FB97290CB']},
         ],
         expect=422,
     )
@@ -465,8 +472,8 @@ def test_a_deduction_written_positive_is_refused(client: TestClient) -> None:
     # and an earning written negative is refused the same way
     body = payslip(
         client, hr, person,
-        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
-          "amount": -12000.0, "notes": "月薪 12000.00"}],
+        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
+          "amount": -12000.0, "notes": _ZH_TEXT['TEXT_462C33D5CF06A211']}],
         expect=422,
     )
     assert "earning" in body["detail"]
@@ -485,7 +492,7 @@ def test_a_payslip_needs_a_period_and_lines(client: TestClient) -> None:
         client, "/api/v1/invoices",
         {
             "direction": "payroll", "employee_id": hr, "payee_employee_id": person,
-            "title": "无期间", "items": JULY,
+            "title": _ZH_TEXT['TEXT_962EC6BA75DC7D7C'], "items": JULY,
         },
         expect=422,
     )
@@ -497,7 +504,7 @@ def test_a_payslip_needs_a_period_and_lines(client: TestClient) -> None:
 
 def test_a_payslip_carries_no_customer_vendor_or_order(client: TestClient) -> None:
     person, hr = employee(client), employee(client, "HR")
-    buyer = post(client, "/api/v1/customers", {"name": "客户"})["id"]
+    buyer = post(client, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']})["id"]
 
     wrong_party = payslip(client, hr, person, JULY, customer_id=buyer, expect=422)
     assert "payee_employee_id" in wrong_party["detail"]
@@ -514,19 +521,19 @@ def test_a_payslip_uses_the_payroll_vocabulary_not_the_goods_one(client: TestCli
     person, hr = employee(client), employee(client, "HR")
     body = payslip(
         client, hr, person,
-        [{"invoice_item_type": "goods", "product_name_snapshot": "货物", "amount": 100.0}],
+        [{"invoice_item_type": "goods", "product_name_snapshot": _ZH_TEXT['TEXT_0883A49C383F6A0E'], "amount": 100.0}],
         expect=422,
     )
     assert "payroll_salary" in body["detail"]
 
     # and a sales invoice cannot use payroll types
-    buyer = post(client, "/api/v1/customers", {"name": "客户"})["id"]
+    buyer = post(client, "/api/v1/customers", {"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']})["id"]
     cross = post(
         client, "/api/v1/invoices",
         {
-            "direction": "sales", "employee_id": hr, "customer_id": buyer, "title": "串词表",
+            "direction": "sales", "employee_id": hr, "customer_id": buyer, "title": _ZH_TEXT['TEXT_085CA24E5A9409BC'],
             "items": [{"invoice_item_type": "payroll_salary", "product_name_snapshot": "x",
-                       "amount": 1.0, "notes": "月薪 1.00"}],
+                       "amount": 1.0, "notes": _ZH_TEXT['TEXT_09F83E0111BEE334']}],
         },
         expect=422,
     )
@@ -537,12 +544,12 @@ def test_a_tenant_deduction_type_must_declare_its_sign(client: TestClient) -> No
     person, hr = employee(client), employee(client, "HR")
     assert post(
         client, "/api/v1/type-options",
-        {"family": "payroll_item_type", "name": "union_dues", "title": "工会费"},
+        {"family": "payroll_item_type", "name": "union_dues", "title": _ZH_TEXT['TEXT_4C58D9FFDC812101']},
     )
 
     unsigned = payslip(
         client, hr, person,
-        [{"invoice_item_type": "union_dues", "product_name_snapshot": "工会费", "amount": -50.0}],
+        [{"invoice_item_type": "union_dues", "product_name_snapshot": _ZH_TEXT['TEXT_4C58D9FFDC812101'], "amount": -50.0}],
         expect=422,
     )
     assert "does not say whether it adds" in unsigned["detail"]
@@ -585,13 +592,13 @@ def test_a_payslip_is_settled_by_an_outbound_payment(client: TestClient) -> None
 
 
 def test_a_salary_line_may_only_cite_that_persons_record(client: TestClient) -> None:
-    person, other = employee(client), employee(client, "别人")
+    person, other = employee(client), employee(client, _ZH_TEXT['TEXT_EEB0BE5265CA353A'])
     hr = employee(client, "HR")
     theirs = set_salary(client, other, 20000.0, "2026-07-01")["current"]
 
     body = payslip(
         client, hr, person,
-        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
+        [{"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
           "amount": 12000.0, "pay_history_id": theirs["id"]}],
         expect=422,
     )
@@ -599,10 +606,10 @@ def test_a_salary_line_may_only_cite_that_persons_record(client: TestClient) -> 
 
 
 def test_setting_a_salary_needs_the_payroll_capability(scoped_client) -> None:
-    """定薪 is a different act from running payroll, so it is a different grant."""
+    """setting compensation is a different act from running payroll, so it is a different grant."""
     service, hr_only = scoped_client
     person = service["client"].post(
-        "/api/v1/employees", json={"name": "员工"}, headers=service["headers"]
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A1F5D5FCBDC4D510']}, headers=service["headers"]
     ).json()["data"]["id"]
 
     refused = hr_only["client"].post(
@@ -658,20 +665,20 @@ def test_the_integrity_audits_payroll_invariants_hold_on_real_payroll(client: Te
     from app.db.session import get_db
     from app.main import app
 
-    person, colleague = employee(client), employee(client, "同事小林")
-    hr = employee(client, "HR小孙")
+    person, colleague = employee(client), employee(client, _ZH_TEXT['TEXT_5289B8DB9D2A6265'])
+    hr = employee(client, _ZH_TEXT['TEXT_77750A010975905F'])
 
     salary = set_salary(client, person, 12000.0, "2026-01-01")["current"]
     set_salary(client, person, 15000.0, "2026-07-01")            # a raise
     post(                                                        # a rate term
         client, "/api/v1/pay-histories",
         {"employee_id": person, "component": "commission", "effective_from": "2026-01-01",
-         "rate": 0.03, "basis": "回款额"},
+         "rate": 0.03, "basis": _ZH_TEXT['TEXT_1CBA26C97CD5BE77']},
     )
     post(                                                        # a formula term
         client, "/api/v1/pay-histories",
         {"employee_id": colleague, "component": "bonus", "effective_from": "2026-01-01",
-         "formula": "达标发 2 个月工资"},
+         "formula": _ZH_TEXT['TEXT_044A66D2AFD24A1A']},
     )
     colleague_salary = set_salary(client, colleague, 9000.0, "2026-01-01")["current"]
 
@@ -680,20 +687,20 @@ def test_the_integrity_audits_payroll_invariants_hold_on_real_payroll(client: Te
             client, "/api/v1/invoices",
             {
                 "direction": "payroll", "employee_id": hr, "payee_employee_id": who,
-                "title": "2026年6月工资", "period_start": "2026-06-01", "period_end": "2026-06-30",
+                "title": _ZH_TEXT['TEXT_AFE11D77D0BEBB6C'], "period_start": "2026-06-01", "period_end": "2026-06-30",
                 "items": [
-                    {"invoice_item_type": "payroll_salary", "product_name_snapshot": "基本工资",
+                    {"invoice_item_type": "payroll_salary", "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'],
                      "amount": gross, "pay_history_id": record["id"]},
                     {"invoice_item_type": "payroll_allowance",
-                     "product_name_snapshot": "交通补贴", "amount": 500.0,
-                     "notes": "岗位交通补贴 500.00/月"},
+                     "product_name_snapshot": _ZH_TEXT['TEXT_D9B3800CE50EF3C4'], "amount": 500.0,
+                     "notes": _ZH_TEXT['TEXT_C0769D63D160CABC']},
                     {"invoice_item_type": "payroll_pension_ee",
-                     "product_name_snapshot": "养老保险（个人 8%）",
+                     "product_name_snapshot": _ZH_TEXT['TEXT_33101704FD6F287F'],
                      "amount": -round(gross * 0.08, 2),
-                     "notes": f"缴费基数 {gross:.2f} × 8%"},
+                     "notes": f"{_ZH_TEXT['TEXT_5290C6FF7044EEBE']}{gross:.2f} × 8%"},
                     {"invoice_item_type": "payroll_iit",
-                     "product_name_snapshot": "个人所得税", "amount": -300.0,
-                     "notes": "累计预扣法"},
+                     "product_name_snapshot": _ZH_TEXT['TEXT_1E020F7945740633'], "amount": -300.0,
+                     "notes": _ZH_TEXT['TEXT_C0625A7FB97290CB']},
                 ],
             },
         )

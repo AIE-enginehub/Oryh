@@ -11,6 +11,13 @@ single-listing reads would.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_external_resolve.json').read_text(encoding="utf-8"))
+
+
 import time
 
 import pytest
@@ -24,26 +31,26 @@ def shop():
         t = provision_tenant(client, company_name="Resolve Co", email="admin@resolve.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
         client.post("/api/v1/sales-channels", headers=admin, json={
-            "channel_code": "tmall", "name": "天猫", "channel_kind": "marketplace"})
+            "channel_code": "tmall", "name": _ZH_TEXT['TEXT_650D7BCACD9B4DDB'], "channel_kind": "marketplace"})
 
         def product(name: str, code: str, spec: str | None = None) -> str:
             return client.post("/api/v1/products", headers=admin, json={
                 "name": name, "product_code": code, **({"spec": spec} if spec else {})}).json()["data"]["id"]
 
-        cup = product("保温杯", "CUP-500", "500ml")
-        box = product("礼盒", "BOX-01")
-        ribbon = product("医用胶片打印机色带", "RB-100")
-        printer = product("医用胶片打印机", "PR-900")
+        cup = product(_ZH_TEXT['TEXT_2FA6B65BF08FB482'], "CUP-500", "500ml")
+        box = product(_ZH_TEXT['TEXT_6C1B8DB7C56C8267'], "BOX-01")
+        ribbon = product(_ZH_TEXT['TEXT_798868B4C64C7B76'], "RB-100")
+        printer = product(_ZH_TEXT['TEXT_A518A8C46A312845'], "PR-900")
 
         def pair(**body) -> dict:
             r = client.post("/api/v1/external-product-maps", headers=admin, json={"source": "tmall", **body})
             assert r.status_code == 201, r.text
             return r.json()["data"]
 
-        pair(external_product_id="TM-1", external_name="保温杯 500ML 官方正品", product_id=cup)
+        pair(external_product_id="TM-1", external_name=_ZH_TEXT['TEXT_E1A3AFAA8290F395'], product_id=cup)
         # a bundle listing: two rows under one title, no platform id
-        pair(external_name="保温杯礼盒装", product_id=cup)
-        pair(external_name="保温杯礼盒装", product_id=box)
+        pair(external_name=_ZH_TEXT['TEXT_DC8933BFACACE2E9'], product_id=cup)
+        pair(external_name=_ZH_TEXT['TEXT_DC8933BFACACE2E9'], product_id=box)
         # a listing that swapped products on 2026-07-01
         pair(external_product_id="TM-SWAP", product_id=printer, effective_to="2026-07-01")
         pair(external_product_id="TM-SWAP", product_id=ribbon, effective_from="2026-07-01")
@@ -59,10 +66,10 @@ def _resolve(shop, **body):
 def test_one_call_answers_every_listing_in_order(shop) -> None:
     out = _resolve(shop, at="2026-09-01", listings=[
         {"external_product_id": "TM-1"},
-        {"external_name": "保温杯礼盒装"},
-        {"external_name": "保温杯　500ml 官方正品"},      # fullwidth space, other case: the same title
-        {"external_name": "没人见过的商品"},
-        {"external_product_id": "TM-404", "external_name": "保温杯 500ML 官方正品"},  # unknown id, known title — but that row is id-keyed
+        {"external_name": _ZH_TEXT['TEXT_DC8933BFACACE2E9']},
+        {"external_name": _ZH_TEXT['TEXT_2F68D3165E1677D8']},      # fullwidth space, other case: the same title
+        {"external_name": _ZH_TEXT['TEXT_2C894B3FE6165E09']},
+        {"external_product_id": "TM-404", "external_name": _ZH_TEXT['TEXT_E1A3AFAA8290F395']},  # unknown id, known title — but that row is id-keyed
     ])
     data = out["data"]
     assert [d["index"] for d in data] == [0, 1, 2, 3, 4]
@@ -88,8 +95,8 @@ def test_each_listing_is_answered_as_of_its_own_date(shop) -> None:
 def test_the_batch_agrees_with_the_single_listing_read(shop) -> None:
     c, admin = shop["client"], shop["admin"]
     listings = [
-        {"external_product_id": "TM-1"}, {"external_name": "保温杯礼盒装"}, {"external_product_id": "TM-SWAP"},
-        {"external_product_id": "TM-1", "external_name": "保温杯礼盒装"}, {"external_name": "nothing"},
+        {"external_product_id": "TM-1"}, {"external_name": _ZH_TEXT['TEXT_DC8933BFACACE2E9']}, {"external_product_id": "TM-SWAP"},
+        {"external_product_id": "TM-1", "external_name": _ZH_TEXT['TEXT_DC8933BFACACE2E9']}, {"external_name": "nothing"},
     ]
     batch = _resolve(shop, at="2026-08-15", listings=listings)["data"]
     for listing, answer in zip(listings, batch):
@@ -100,13 +107,13 @@ def test_the_batch_agrees_with_the_single_listing_read(shop) -> None:
 
 def test_unmapped_titles_come_back_with_the_same_shortlist_product_matches_gives(shop) -> None:
     c, admin = shop["client"], shop["admin"]
-    titles = ["医用胶片打印机色带 原装正品", "保温杯 新款", "zzz 完全无关"]
+    titles = [_ZH_TEXT['TEXT_578068C723E3EBD1'], _ZH_TEXT['TEXT_70DDEF13FBA7A7D4'], _ZH_TEXT['TEXT_9E5FDCE269EA28D3']]
     out = _resolve(shop, with_candidates=True, candidate_limit=3,
                    listings=[{"external_name": t} for t in titles] + [{"external_product_id": "TM-1"}])["data"]
     for title, answer in zip(titles, out):
         single = c.get("/api/v1/product-matches", headers=admin, params={"title": title, "limit": 3}).json()["data"]
         assert [(x["id"], x["match_score"]) for x in answer["candidates"]] == [(x["id"], x["match_score"]) for x in single], title
-    assert out[0]["candidates"][0]["id"] == shop["ribbon"], "the rare phrase decides: 色带 names the ribbon, not the printer"
+    assert out[0]["candidates"][0]["id"] == shop["ribbon"], _ZH_TEXT['TEXT_87D3B53CD0E2628D']
     assert out[2]["candidates"] == []
     assert "candidates" not in out[3], "a mapped listing needs no shortlist"
 
@@ -114,7 +121,7 @@ def test_unmapped_titles_come_back_with_the_same_shortlist_product_matches_gives
 def test_it_is_a_read_bounded_and_strict(shop) -> None:
     c, admin = shop["client"], shop["admin"]
     before = len(c.get("/api/v1/external-product-maps", headers=admin).json()["data"])
-    _resolve(shop, with_candidates=True, listings=[{"external_name": "保温杯 新款"}])
+    _resolve(shop, with_candidates=True, listings=[{"external_name": _ZH_TEXT['TEXT_70DDEF13FBA7A7D4']}])
     assert len(c.get("/api/v1/external-product-maps", headers=admin).json()["data"]) == before, "resolving confirms nothing"
     url = "/api/v1/external-product-maps/resolve"
     assert c.post(url, headers=admin, json={"source": "tmall", "listings": []}).status_code == 422
@@ -142,18 +149,18 @@ def test_a_large_catalog_and_a_large_file_stay_one_fast_call() -> None:
                 tenant_id = db.query(Tenant).filter(Tenant.name == "Big Co").one().id
             from app.db.session import bind_tenant_context
             bind_tenant_context(db, tenant_id)
-            families = ["保温杯", "打印机色带", "医用胶片", "蓝牙耳机", "办公椅", "显示器支架", "数据线", "机械键盘"]
-            products = [Product(tenant_id=tenant_id, name=f"{families[i % 8]}{i:04d}型", product_code=f"P-{i:05d}",
+            families = [_ZH_TEXT['TEXT_2FA6B65BF08FB482'], _ZH_TEXT['TEXT_5386326B9FB0B932'], _ZH_TEXT['TEXT_5C71C5780CCB6032'], _ZH_TEXT['TEXT_3817285CDEA2134F'], _ZH_TEXT['TEXT_E6F6CD8DE54293AE'], _ZH_TEXT['TEXT_6E2FB1EF4B2B4A37'], _ZH_TEXT['TEXT_8D112AC9B899713F'], _ZH_TEXT['TEXT_3B43089648D6A155']]
+            products = [Product(tenant_id=tenant_id, name=f"{families[i % 8]}{i:04d}{_ZH_TEXT['TEXT_850E16D958CEA72A']}", product_code=f"P-{i:05d}",
                                 spec=f"{100 + i % 50}x{200 + i % 30}", status="active") for i in range(3000)]
             db.add_all(products); db.flush()
             db.add_all([ExternalProductMap(tenant_id=tenant_id, source="tmall", external_product_id=f"TM-{i}",
-                                           external_sku_id="", external_name=f"店铺标题 {i}",
-                                           external_name_norm=normalize_external_name(f"店铺标题 {i}"),
+                                           external_sku_id="", external_name=f"{_ZH_TEXT['TEXT_F79CBD5F2876075F']}{i}",
+                                           external_name_norm=normalize_external_name(f"{_ZH_TEXT['TEXT_F79CBD5F2876075F']}{i}"),
                                            product_id=products[i % 3000].id, quantity=1, status="active")
                         for i in range(10000)])
             db.commit()
         listings = [{"external_product_id": f"TM-{i * 20}"} for i in range(400)] + \
-                   [{"external_name": f"{families[i % 8]}{i * 7:04d}型 官方旗舰店 包邮"} for i in range(100)]
+                   [{"external_name": f"{families[i % 8]}{i * 7:04d}{_ZH_TEXT['TEXT_B89AD82CD875A727']}"} for i in range(100)]
         started = time.perf_counter()
         out = client.post("/api/v1/external-product-maps/resolve", headers=admin,
                           json={"source": "tmall", "listings": listings, "with_candidates": True}).json()

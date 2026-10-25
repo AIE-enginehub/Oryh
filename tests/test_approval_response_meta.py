@@ -8,6 +8,13 @@ it closed and the document's status; the skill says that is the check.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_approval_response_meta.json').read_text(encoding="utf-8"))
+
+
 from conftest import make_client, provision_tenant
 
 
@@ -15,7 +22,7 @@ def test_the_decision_response_names_the_todo_it_closed_and_the_status() -> None
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Meta Co", email="admin@meta.example")
         key = {"X-API-Key": t["plain_text_api_key"]}
-        owner = client.post("/api/v1/employees", json={"name": "提交人"}, headers=key).json()["data"]["id"]
+        owner = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_973F2EB1ED93D1BA']}, headers=key).json()["data"]["id"]
         header = client.post(
             "/api/v1/timesheet-headers", headers=key,
             json={"employee_id": owner, "period_start": "2026-06-01", "period_end": "2026-06-07",

@@ -3,7 +3,7 @@
 The gate said "any capability that files attachment-backed records grants
 upload" and then named two of them. Eight models carry `attachment_id`, so six
 families were filed by people who could not produce the id their own record
-wanted — most visibly 发票, where the original IS the evidence: an 应收会计
+wanted — most visibly invoice, where the original IS the evidence: an receivables accountant
 holding only `invoice.manage:sales` could raise the invoice, could set its
 `attachment_id`, and got 403 on the upload that would have created one.
 

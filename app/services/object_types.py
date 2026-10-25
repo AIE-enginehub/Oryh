@@ -45,8 +45,8 @@ BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
 # What ORYH already ships — stated so an agent can judge, and, for the EXACT
 # names, enforced at creation.
 #
-# Asked to "建一个 Product 自定义对象", an agent would define one, and the
-# workspace would then have two answers to "有多少产品": the real catalogue, and
+# Asked to "create a Product custom object", an agent would define one, and the
+# workspace would then have two answers to "how many products are there": the real catalogue, and
 # a shadow of it that no order line, price row or inventory item can ever point
 # at. This was doctrine-by-judgement until a production tenant's admin agent
 # loaded 150,000 legacy customers, products, quotes and sales orders into
@@ -56,7 +56,7 @@ BUILTIN_OBJECT_TYPES: tuple[str, ...] = (
 # So the server now refuses a generic object — a row or a type definition —
 # whose name IS a shipped collection or one of its listed synonyms
 # (`shipped_collection_for`). Only exact words: whether "merchandise" or
-# "货品" means our products is still a reading of the business, and the agent
+# "merchandise" means our products is still a reading of the business, and the agent
 # with the person in front of it still does that part. The refusal names the
 # real collection and its import route, so the same sheet lands in the right
 # place on the next try.

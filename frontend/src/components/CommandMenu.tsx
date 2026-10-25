@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
@@ -78,7 +79,7 @@ export function CommandMenu({ groups, mode, onClose }: CommandMenuProps) {
     >
       <button
         className="command-scrim"
-        aria-label={text("关闭快捷查找", "Close quick finder")}
+        aria-label={text(zhCN.componentsCommandMenu.closeQuickFinder, "Close quick finder")}
         onClick={onClose}
       />
       <section
@@ -93,15 +94,15 @@ export function CommandMenu({ groups, mode, onClose }: CommandMenuProps) {
             <span className="eyebrow">ORYH CONSOLE</span>
             <h2 id={`${id}-title`}>
               {mode === "create"
-                ? text("新建记录", "Create a record")
-                : text("查找页面与功能", "Find a page or action")}
+                ? text(zhCN.componentsCommandMenu.createARecord, "Create a record")
+                : text(zhCN.componentsCommandMenu.findAPageOrAction, "Find a page or action")}
             </h2>
           </div>
           <button
             className="icon-button"
             type="button"
             onClick={onClose}
-            aria-label={text("关闭", "Close")}
+            aria-label={text(zhCN.componentsCommandMenu.close, "Close")}
           >
             <X size={20} />
           </button>
@@ -122,9 +123,9 @@ export function CommandMenu({ groups, mode, onClose }: CommandMenuProps) {
             aria-activedescendant={
               matches.length ? `${id}-option-${selected}` : undefined
             }
-            aria-label={text("搜索页面或功能", "Search pages or actions")}
+            aria-label={text(zhCN.componentsCommandMenu.searchPagesOrActions, "Search pages or actions")}
             placeholder={text(
-              "输入客户、产品、待办…",
+              zhCN.componentsCommandMenu.tryCustomersProductsToDos,
               "Try customers, products, to-dos…",
             )}
             onKeyDown={(event) => {
@@ -151,7 +152,7 @@ export function CommandMenu({ groups, mode, onClose }: CommandMenuProps) {
           id={`${id}-results`}
           className="command-results"
           role="listbox"
-          aria-label={text("匹配功能", "Matching actions")}
+          aria-label={text(zhCN.componentsCommandMenu.matchingActions, "Matching actions")}
         >
           {matches.map((item, index) => (
             <button
@@ -179,15 +180,15 @@ export function CommandMenu({ groups, mode, onClose }: CommandMenuProps) {
         {matches.length === 0 && (
           <p className="command-empty" role="status">
             {text(
-              "没有匹配项，试试其他名称。",
+              zhCN.componentsCommandMenu.noMatchesTryAnotherName,
               "No matches. Try another name.",
             )}
           </p>
         )}
         <footer>
-          <span>{text("↑ ↓ 选择", "↑ ↓ Select")}</span>
-          <span>{text("↵ 打开", "↵ Open")}</span>
-          <span>Esc {text("关闭", "Close")}</span>
+          <span>{text(zhCN.componentsCommandMenu.select, "↑ ↓ Select")}</span>
+          <span>{text(zhCN.componentsCommandMenu.open, "↵ Open")}</span>
+          <span>Esc {text(zhCN.componentsCommandMenu.close, "Close")}</span>
         </footer>
       </section>
     </div>

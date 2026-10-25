@@ -9,6 +9,13 @@ list response, from a fixed number of batched reads.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_todo_target.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from conftest import admin_headers
@@ -29,7 +36,7 @@ def todo_for(client: TestClient, headers: dict, employee_id: str, entity_type: s
         "employee_id": employee_id,
         "entity_type": entity_type,
         "entity_id": entity_id,
-        "title": f"处理 {entity_type}",
+        "title": f"{_ZH_TEXT['TEXT_8DF8ED618B297065']}{entity_type}",
     })["id"]
 
 
@@ -45,8 +52,8 @@ def targets_by_type(client: TestClient, headers: dict, employee_id: str) -> dict
 
 def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -> None:
     headers = provision(client)
-    approver = post(client, headers, "/employees", {"name": "审批人"})["id"]
-    owner = post(client, headers, "/employees", {"name": "王小明"})["id"]
+    approver = post(client, headers, "/employees", {"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']})["id"]
+    owner = post(client, headers, "/employees", {"name": _ZH_TEXT['TEXT_ACF979CC584E1CF9']})["id"]
 
     header_id = post(client, headers, "/timesheet-headers", {
         "employee_id": owner, "period_start": "2026-06-01", "period_end": "2026-06-07",
@@ -57,7 +64,7 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
         })
 
     claim_id = post(client, headers, "/expense-claims", {
-        "employee_id": owner, "title": "出差报销",
+        "employee_id": owner, "title": _ZH_TEXT['TEXT_0B505B5EFF6DAC15'],
     })["id"]
     for amount in (120, 80.5):
         post(client, headers, "/expense-items", {
@@ -67,11 +74,11 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     post(client, headers, f"/expense-claims/{claim_id}/submit", {})
     post(client, headers, "/approval-records", {
         "entity_type": "expense_claim", "entity_id": claim_id,
-        "action": "approved", "sequence_no": 2, "approver_id": approver, "comment": "票据齐全",
+        "action": "approved", "sequence_no": 2, "approver_id": approver, "comment": _ZH_TEXT['TEXT_E043B3300234E7E8'],
     })
 
     object_id = post(client, headers, "/business-objects", {
-        "object_type": "daily_report", "title": "周一日报", "payload": {},
+        "object_type": "daily_report", "title": _ZH_TEXT['TEXT_904E8BEB5F3D20D5'], "payload": {},
     })["id"]
 
     for entity_type, entity_id in (
@@ -85,20 +92,20 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
 
     # timesheet: whose week, how many hours — summed from entries
     sheet = targets["timesheet_header"]
-    assert sheet["employee_name"] == "王小明"
+    assert sheet["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
     assert sheet["amount"] == 14.5 and sheet["unit"] == "hours"
     assert "2026-06-01" in sheet["title"]
 
     # expense claim: whose, how much, and where the approval stands
     claim = targets["expense_claim"]
-    assert claim["employee_name"] == "王小明"
+    assert claim["employee_name"] == _ZH_TEXT['TEXT_ACF979CC584E1CF9']
     assert claim["amount"] == 200.5 and claim["unit"] == "amount"
     assert claim["status"] == "submitted"
     assert claim["approval_count"] >= 1
     last = claim["last_approval"]
     assert last["action"] == "approved"
-    assert last["approver_name"] == "审批人"
-    assert last["comment"] == "票据齐全"
+    assert last["approver_name"] == _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']
+    assert last["comment"] == _ZH_TEXT['TEXT_E043B3300234E7E8']
 
     # a flow agent's approval carries a service label, not an employee id —
     # postgres refuses to cast it to uuid, so it must never reach the
@@ -113,12 +120,12 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     # a quotation whose header total was never set still gets a number — the
     # real briefing could not price a deal because the total lived on the
     # lines (found by the measurement run, on live data)
-    customer = post(client, headers, "/customers", {"name": "蓝湾零售"})["id"]
+    customer = post(client, headers, "/customers", {"name": _ZH_TEXT['TEXT_EFFC31CC7F78880D']})["id"]
     quotation = post(client, headers, "/sales-quotations", {
-        "employee_id": owner, "customer_id": customer, "title": "驻场报价",
+        "employee_id": owner, "customer_id": customer, "title": _ZH_TEXT['TEXT_72B066C2C5B43957'],
     })
     post(client, headers, "/sales-quotation-items", {
-        "quotation_id": quotation["id"], "product_name_snapshot": "顾问",
+        "quotation_id": quotation["id"], "product_name_snapshot": _ZH_TEXT['TEXT_5C1CEB063314D6C9'],
         "quantity": 2, "unit_price": 1500, "amount": 3000,
     })
     todo_for(client, headers, approver, "sales_quotation", quotation["id"])
@@ -128,7 +135,7 @@ def test_todo_targets_answer_what_the_detail_calls_used_to(client: TestClient) -
     # business objects report their own object_type, not the todo's word for it
     report = targets["business_object"]
     assert report["object_type"] == "daily_report"
-    assert report["title"] == "周一日报"
+    assert report["title"] == _ZH_TEXT['TEXT_904E8BEB5F3D20D5']
 
 
 def test_dangling_and_unrequested_targets(stack) -> None:
@@ -141,9 +148,9 @@ def test_dangling_and_unrequested_targets(stack) -> None:
 
     client, engine = stack
     headers = provision(client)
-    someone = post(client, headers, "/employees", {"name": "小李"})["id"]
+    someone = post(client, headers, "/employees", {"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']})["id"]
     claim_id = post(client, headers, "/expense-claims", {
-        "employee_id": someone, "title": "会消失的报销",
+        "employee_id": someone, "title": _ZH_TEXT['TEXT_8976423C529727E7'],
     })["id"]
     todo_for(client, headers, someone, "expense_claim", claim_id)
 

@@ -1,0 +1,5 @@
+{
+  "SKILL.md": [
+    "description: Use when a salesperson's agent records, updates or submits their OWN sales order in oryh — after a won quotation (\"客户签了，下单吧\"), fulfilment facts (\"发货了，单号SF…\"), channel orders (\"把天猫这单录进来\") and customer returns (\"买家退货了\"). Facts only; status transitions belong to the flow. Requires order.submit_own."
+  ]
+}

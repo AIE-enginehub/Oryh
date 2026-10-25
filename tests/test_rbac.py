@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_rbac.json').read_text(encoding="utf-8"))
+
+
 from fastapi.testclient import TestClient
 
 from app.api.workspace import enriched_api_key
@@ -63,14 +70,14 @@ def test_scoped_custom_role(client: TestClient) -> None:
     # a custom capability + a vendor role scoped to warranty types only
     assert client.post(
         "/api/v1/capabilities",
-        json={"name": "jc.warranty.approve", "title": "保修卡审批资格"},
+        json={"name": "jc.warranty.approve", "title": _ZH_TEXT['TEXT_F0BB9861013C845E']},
         headers=service,
     ).status_code == 201
     response = client.post(
         "/api/v1/roles",
         json={
             "name": "vendor",
-            "title": "外部服务商",
+            "title": _ZH_TEXT['TEXT_E5933EAB3DB3252C'],
             "permissions": [
                 "business_object.write:warranty_card",
                 "business_object.write:warranty_repair",
@@ -90,7 +97,7 @@ def test_scoped_custom_role(client: TestClient) -> None:
         "/api/v1/roles", json={"name": "bad2", "permissions": ["approval.record:warranty_card"]}, headers=service
     ).status_code == 422
 
-    employee_id = client.post("/api/v1/employees", json={"name": "张伟"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A3A0BAFD0BEED44D']}, headers=service).json()["data"]["id"]
     vendor = invite_with_role(client, service, "vendor@partner-co.com", "vendor", employee_id)
 
     # scoped write: warranty_card allowed, expense_claim denied
@@ -408,7 +415,7 @@ def test_role_and_capability_guards(client: TestClient) -> None:
     assert client.delete("/api/v1/capabilities/users.manage", headers=service).status_code == 409
 
     # member (no users.manage) cannot manage roles
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     member_user = invite_with_role(client, service, "wang@rbac-co.com", "member", employee_id)
     assert client.post(
         "/api/v1/roles", json={"name": "hax", "permissions": []}, headers=member_user["headers"]
@@ -418,7 +425,7 @@ def test_role_and_capability_guards(client: TestClient) -> None:
 def test_member_baseline_preserved(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小王"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F5C982AE4094EF29']}, headers=service).json()["data"]["id"]
     member = invite_with_role(client, service, "wang2@rbac-co.com", "member", employee_id)
 
     # member can still: submit own timesheet, write objects, record approvals
@@ -445,13 +452,13 @@ def test_member_baseline_preserved(client: TestClient) -> None:
 def test_member_expense_baseline(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小李"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=service).json()["data"]["id"]
     member = invite_with_role(client, service, "li@rbac-co.com", "member", employee_id)
 
     # member can submit their own expense claim with a receipt attachment
     claim = client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": employee_id, "title": "打车报销"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_A047E66A8EECF699']},
         headers=member["headers"],
     )
     assert claim.status_code == 201
@@ -484,10 +491,10 @@ def test_member_expense_baseline(client: TestClient) -> None:
     ).status_code == 403
 
     # … nor act on someone else's claim
-    other_employee = client.post("/api/v1/employees", json={"name": "别人"}, headers=service).json()["data"]["id"]
+    other_employee = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_EEB0BE5265CA353A']}, headers=service).json()["data"]["id"]
     other_claim = client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": other_employee, "title": "别人的报销"},
+        json={"employee_id": other_employee, "title": _ZH_TEXT['TEXT_CABA7AEEE531E1E3']},
         headers=service,
     ).json()["data"]["id"]
     assert client.post(
@@ -495,7 +502,7 @@ def test_member_expense_baseline(client: TestClient) -> None:
     ).status_code == 404  # someone else's claim does not exist for a member (app/api/visibility.py)
     assert client.post(
         "/api/v1/expense-claims",
-        json={"employee_id": other_employee, "title": "替别人建"},
+        json={"employee_id": other_employee, "title": _ZH_TEXT['TEXT_8157B28D5962367F']},
         headers=member["headers"],
     ).status_code == 403
 
@@ -503,13 +510,13 @@ def test_member_expense_baseline(client: TestClient) -> None:
 def test_member_purchase_baseline(client: TestClient) -> None:
     ctx = provision_tenant(client)
     service = ctx["service"]
-    employee_id = client.post("/api/v1/employees", json={"name": "小周"}, headers=service).json()["data"]["id"]
+    employee_id = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_BA0936A106615582']}, headers=service).json()["data"]["id"]
     member = invite_with_role(client, service, "zhou@rbac-co.com", "member", employee_id)
 
     # member can file and submit their own purchase request (with a quote attachment)
     request = client.post(
         "/api/v1/purchase-requests",
-        json={"employee_id": employee_id, "title": "买一把人体工学椅"},
+        json={"employee_id": employee_id, "title": _ZH_TEXT['TEXT_1F723DF8236416C9']},
         headers=member["headers"],
     )
     assert request.status_code == 201
@@ -524,7 +531,7 @@ def test_member_purchase_baseline(client: TestClient) -> None:
         "/api/v1/purchase-request-items",
         json={
             "request_id": request_id,
-            "product_name_snapshot": "人体工学椅",
+            "product_name_snapshot": _ZH_TEXT['TEXT_B31F6EB420364847'],
             "quantity": 1,
             "unit_price": 1899.0,
             "attachment_id": attachment.json()["data"]["id"],
@@ -541,10 +548,10 @@ def test_member_purchase_baseline(client: TestClient) -> None:
     ).status_code == 403
 
     # … nor file for someone else
-    other_employee = client.post("/api/v1/employees", json={"name": "别人"}, headers=service).json()["data"]["id"]
+    other_employee = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_EEB0BE5265CA353A']}, headers=service).json()["data"]["id"]
     assert client.post(
         "/api/v1/purchase-requests",
-        json={"employee_id": other_employee, "title": "替别人申请"},
+        json={"employee_id": other_employee, "title": _ZH_TEXT['TEXT_E26812E36851DCF5']},
         headers=member["headers"],
     ).status_code == 403
 
@@ -556,10 +563,10 @@ def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> Non
     ctx = provision_tenant(client)
     service = ctx["service"]
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "小李"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=service
     ).json()["data"]["id"]
     colleague_id = client.post(
-        "/api/v1/employees", json={"name": "小张"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_84FA59AC87EDC647']}, headers=service
     ).json()["data"]["id"]
     member = invite_with_role(client, service, "li@rbac-co.com", "member", employee_id)
 
@@ -576,7 +583,7 @@ def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> Non
             "employee_id": colleague_id,
             "entity_type": "timesheet_header",
             "entity_id": header_id,
-            "title": "看一下这份工时",
+            "title": _ZH_TEXT['TEXT_95C1C3582CDF00D3'],
         },
         headers=member["headers"],
     )
@@ -589,7 +596,7 @@ def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> Non
             "employee_id": employee_id,
             "entity_type": "timesheet_header",
             "entity_id": header_id,
-            "title": "看一下这份工时",
+            "title": _ZH_TEXT['TEXT_95C1C3582CDF00D3'],
         },
         headers=member["headers"],
     )
@@ -603,7 +610,7 @@ def test_member_cannot_assign_todos_but_completes_own(client: TestClient) -> Non
             "employee_id": employee_id,
             "entity_type": "timesheet_header",
             "entity_id": header_id,
-            "title": "补一下周三的工时",
+            "title": _ZH_TEXT['TEXT_FF20C8F1D58355E0'],
             "todo_type": "rework",
         },
         headers=service,
@@ -669,7 +676,7 @@ def test_roles_carry_their_headcount(client: TestClient) -> None:
     # a role nobody holds says so rather than omitting the field
     created = client.post(
         "/api/v1/roles",
-        json={"name": "auditor", "title": "审计", "permissions": ["approval.record"]},
+        json={"name": "auditor", "title": _ZH_TEXT['TEXT_E73D84773A078BBB'], "permissions": ["approval.record"]},
         headers=service,
     )
     assert created.status_code == 201, created.text
@@ -707,18 +714,18 @@ def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
         "/api/v1/roles",
         json={
             "name": "dept_manager",
-            "title": "部门经理",
+            "title": _ZH_TEXT['TEXT_BC770C6E98DF7104'],
             "permissions": ["approval.record", "todos.complete_own"],
         },
         headers=service,
     )
     assert created.status_code == 201, created.text
-    manager_employee = client.post("/api/v1/employees", json={"name": "部门经理"}, headers=service).json()["data"]["id"]
+    manager_employee = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_BC770C6E98DF7104']}, headers=service).json()["data"]["id"]
     manager = invite_with_role(client, service, "manager@rbac-co.com", "dept_manager", employee_id=manager_employee)
 
     # the capability the report said was missing, exercised end to end
     employee_id = client.post(
-        "/api/v1/employees", json={"name": "提交人"}, headers=service
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_973F2EB1ED93D1BA']}, headers=service
     ).json()["data"]["id"]
     header = client.post(
         "/api/v1/timesheet-headers",
@@ -730,7 +737,7 @@ def test_an_undeclared_role_cannot_be_assigned(client: TestClient) -> None:
     unrouted = client.get(f"/api/v1/timesheet-headers/{header}", headers=manager["headers"])
     assert unrouted.status_code == 404
     routed = client.post("/api/v1/todos", headers=service, json={
-        "employee_id": manager_employee, "entity_type": "timesheet_header", "entity_id": header, "title": "审批工时"})
+        "employee_id": manager_employee, "entity_type": "timesheet_header", "entity_id": header, "title": _ZH_TEXT['TEXT_5C2029336A093863']})
     assert routed.status_code == 201, routed.text
     recorded = client.post(
         "/api/v1/approval-records",

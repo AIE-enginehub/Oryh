@@ -10,6 +10,13 @@ and one skill fragment says when to stop looking.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_fail_fast_submission.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -22,8 +29,8 @@ def office():
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Fast Co", email="admin@fast.example")
         key = {"X-API-Key": t["plain_text_api_key"]}
-        who = client.post("/api/v1/employees", json={"name": "周明"}, headers=key).json()["data"]["id"]
-        for name in ("华东医院信息化二期", "华东医院一期", "西南仓库改造"):
+        who = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_8471F10D58DFBF99']}, headers=key).json()["data"]["id"]
+        for name in (_ZH_TEXT['TEXT_8863EBD0A1DCB363'], _ZH_TEXT['TEXT_22B72D25511BA439'], _ZH_TEXT['TEXT_BEA3A4BEAF0F634D']):
             r = client.post("/api/v1/projects", json={"project_name": name}, headers=key)
             assert r.status_code == 201, r.text
         yield client, key, who
@@ -32,27 +39,27 @@ def office():
 def test_every_word_must_land_so_the_first_lookup_is_the_last(office) -> None:
     client, key, _ = office
     names = lambda r: sorted(p["project_name"] for p in r.json()["data"])  # noqa: E731
-    assert names(client.get("/api/v1/projects?keyword=华东 二期", headers=key)) == ["华东医院信息化二期"]
-    assert names(client.get("/api/v1/projects?keyword=二期 华东", headers=key)) == ["华东医院信息化二期"]
-    assert names(client.get("/api/v1/projects?keyword=华东", headers=key)) == ["华东医院一期", "华东医院信息化二期"]
-    assert names(client.get("/api/v1/projects?keyword=华东 西南", headers=key)) == []
+    assert names(client.get(_ZH_TEXT['TEXT_E1201E6844E9C7DF'], headers=key)) == [_ZH_TEXT['TEXT_8863EBD0A1DCB363']]
+    assert names(client.get(_ZH_TEXT['TEXT_4478D2180C505B8B'], headers=key)) == [_ZH_TEXT['TEXT_8863EBD0A1DCB363']]
+    assert names(client.get(_ZH_TEXT['TEXT_8A74810D224B6654'], headers=key)) == [_ZH_TEXT['TEXT_22B72D25511BA439'], _ZH_TEXT['TEXT_8863EBD0A1DCB363']]
+    assert names(client.get(_ZH_TEXT['TEXT_758CCAA8B20D097C'], headers=key)) == []
 
 
 def test_a_dry_run_create_answers_would_this_land_and_writes_nothing(office) -> None:
     client, key, who = office
-    project = client.get("/api/v1/projects?keyword=二期", headers=key).json()["data"][0]["id"]
+    project = client.get(_ZH_TEXT['TEXT_40B9B4C646B440CA'], headers=key).json()["data"][0]["id"]
     body = {
         "employee_id": who, "period_start": "2026-06-01", "period_end": "2026-06-07",
         "entries": [
-            {"work_date": "2026-06-01", "hours": 8, "task": "需求评审", "project_id": project},
-            {"work_date": "2026-06-02", "hours": 6, "task": "联调"},
+            {"work_date": "2026-06-01", "hours": 8, "task": _ZH_TEXT['TEXT_C18406B16A5B9E7D'], "project_id": project},
+            {"work_date": "2026-06-02", "hours": 6, "task": _ZH_TEXT['TEXT_DDCC4FE6FB35BCD9']},
         ],
     }
     dry = client.post("/api/v1/timesheet-headers?validate_only=true", json=body, headers=key)
     assert dry.status_code == 201, dry.text
     assert dry.json()["meta"] == {"validate_only": True, "written": False}
     assert [e["hours"] for e in dry.json()["data"]["entries"]] == [8, 6]
-    assert dry.json()["data"]["entries"][0]["project_name_snapshot"] == "华东医院信息化二期"
+    assert dry.json()["data"]["entries"][0]["project_name_snapshot"] == _ZH_TEXT['TEXT_8863EBD0A1DCB363']
 
     listed = client.get(f"/api/v1/timesheet-headers?employee_id={who}", headers=key).json()["data"]
     assert listed == [], "a dry run leaves no draft behind"
@@ -74,17 +81,17 @@ def test_a_dry_run_create_answers_would_this_land_and_writes_nothing(office) -> 
 def test_an_expense_dry_run_catches_the_duplicate_invoice_without_filing_anything(office) -> None:
     client, key, who = office
     first = client.post("/api/v1/expense-claims", headers=key, json={
-        "employee_id": who, "title": "上海出差", "claim_date": "2026-07-10",
+        "employee_id": who, "title": _ZH_TEXT['TEXT_9559F782D9D48FB6'], "claim_date": "2026-07-10",
         "items": [{"expense_date": "2026-07-09", "amount": 120.0, "invoice_number": "INV-9"}],
     })
     assert first.status_code == 201, first.text
     again = client.post("/api/v1/expense-claims?validate_only=true", headers=key, json={
-        "employee_id": who, "title": "又一张", "claim_date": "2026-07-11",
+        "employee_id": who, "title": _ZH_TEXT['TEXT_B5079E6E81BF8A2B'], "claim_date": "2026-07-11",
         "items": [{"expense_date": "2026-07-09", "amount": 120.0, "invoice_number": "INV-9"}],
     })
     assert again.status_code == 409 and "INV-9" in again.json()["detail"]
     claims = client.get(f"/api/v1/expense-claims?employee_id={who}", headers=key).json()["data"]
-    assert [c["title"] for c in claims] == ["上海出差"]
+    assert [c["title"] for c in claims] == [_ZH_TEXT['TEXT_9559F782D9D48FB6']]
 
 
 def test_the_stop_rule_is_written_where_every_submit_skill_reads() -> None:
@@ -112,7 +119,7 @@ def test_a_count_is_one_call_on_every_list_shape(office) -> None:
     (either parameter opts in) — hand back the total for one row."""
     client, key, who = office
     for i in range(3):
-        made = client.post("/api/v1/products", json={"product_code": f"P-{i}", "name": f"货 {i}"}, headers=key)
+        made = client.post("/api/v1/products", json={"product_code": f"P-{i}", "name": f"{_ZH_TEXT['TEXT_AEE31CE01D6D39ED']}{i}"}, headers=key)
         assert made.status_code == 201, made.text
     products = client.get("/api/v1/products?page=1&size=1", headers=key).json()
     assert products["meta"]["total"] == 3 and len(products["data"]) == 1
@@ -132,7 +139,7 @@ def test_one_paging_contract_on_every_list(office) -> None:
     and omitting both still returns everything."""
     client, key, _ = office
     for i in range(3):
-        made = client.post("/api/v1/products", json={"product_code": f"Q-{i}", "name": f"品 {i}"}, headers=key)
+        made = client.post("/api/v1/products", json={"product_code": f"Q-{i}", "name": f"{_ZH_TEXT['TEXT_52F6D07DB111B146']}{i}"}, headers=key)
         assert made.status_code == 201, made.text
 
     # size alone pages, on a master-data list and on a document list alike
@@ -160,17 +167,17 @@ def test_the_three_sweeps_filter_on_the_server(office) -> None:
     sent quotation to find the expired ones, the whole outbound payment
     history to find a bank debit's batch, a PO-item query per order line."""
     client, key, who = office
-    customer = client.post("/api/v1/customers", json={"name": "华东医院"}, headers=key).json()["data"]["id"]
+    customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_C01CD27E1C332541']}, headers=key).json()["data"]["id"]
     for n, valid in (("Q-OLD", "2026-01-31"), ("Q-NEW", "2027-01-31")):
         q = client.post("/api/v1/sales-quotations", headers=key, json={
             "employee_id": who, "customer_id": customer, "title": n, "valid_until": valid,
-            "items": [{"product_name_snapshot": "服务", "quantity": 1, "unit_price": 100}],
+            "items": [{"product_name_snapshot": _ZH_TEXT['TEXT_EC309AB207EF7FA3'], "quantity": 1, "unit_price": 100}],
         })
         assert q.status_code == 201, q.text
     listed = client.get("/api/v1/sales-quotations?valid_before=2026-06-01", headers=key).json()["data"]
     assert [q["title"] for q in listed] == ["Q-OLD"]
 
-    vendor = client.post("/api/v1/vendors", json={"name": "戴尔"}, headers=key).json()["data"]["id"]
+    vendor = client.post("/api/v1/vendors", json={"name": _ZH_TEXT['TEXT_B34AA8E97B2C2454']}, headers=key).json()["data"]["id"]
     for day in ("2026-08-05", "2026-08-25"):
         p = client.post("/api/v1/payments", headers=key, json={
             "direction": "outbound", "vendor_id": vendor, "employee_id": who,
@@ -187,7 +194,7 @@ def test_the_three_sweeps_filter_on_the_server(office) -> None:
     # and the parameter exists where the order-flow agent reads the contract
     order = client.post("/api/v1/sales-orders", headers=key, json={
         "employee_id": who, "customer_id": customer, "title": "SO",
-        "items": [{"product_name_snapshot": "服务", "quantity": 1, "unit_price": 100}],
+        "items": [{"product_name_snapshot": _ZH_TEXT['TEXT_EC309AB207EF7FA3'], "quantity": 1, "unit_price": 100}],
     })
     assert order.status_code == 201, order.text
     chain = client.get(f"/api/v1/purchase-order-items?sales_order_id={order.json()['data']['id']}", headers=key)

@@ -11,14 +11,30 @@ Transport is injectable so tests drive the real app in-process without a socket.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+def business_today() -> date:
+    """Today where the workspaces are, not where the runner's clock is: the
+    container runs in UTC, and from midnight to 08:00 in Beijing its date is
+    yesterday's. The same setting and default as the API's
+    `app/core/business_date.py`; a fixed +08:00 when the tz database is
+    absent from the image."""
+    name = os.environ.get("ORYH_BUSINESS_TIMEZONE", "Asia/Shanghai")
+    try:
+        zone = ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = timezone(timedelta(hours=8))
+    return datetime.now(zone).date()
 
 
 class Transport(Protocol):
@@ -122,7 +138,7 @@ class OryhClient:
                 "kind": "approval_flow",
                 # the version that governs today — `status=published` alone
                 # is the latest version, which may not have started yet
-                "in_force_on": date.today().isoformat(),
+                "in_force_on": business_today().isoformat(),
                 "entity_kind": entity_kind,
                 "object_type": entity_type,
                 "page": 1,

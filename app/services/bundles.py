@@ -231,16 +231,16 @@ def withheld_catalog(
     """The skills this holder does NOT get, with enough to act on.
 
     A bundle used to describe only what it contained, which reads as a complete
-    account of the workspace and is not one. An HR person asked to 做工资单 had
+    account of the workspace and is not one. An HR person asked to prepare payroll had
     no payroll skill, no mention that a payroll skill exists, and no way to
     reach one — so the agent improvised, filed the wrong kind of record, and
     nobody was told a capability was missing. The skill itself was fine: its
-    description says 生成工资条, its body says a payslip is a `direction=payroll`
+    description says generate payslips, its body says a payslip is a `direction=payroll`
     invoice. It was simply never handed over, because the tenant's `hr_admin`
     role holds no payroll verb.
 
     `description` rides along because it is the sentence an agent matches a
-    request against; a bare name is a thing the agent cannot connect to 工资单.
+    request against; a bare name is a thing the agent cannot connect to payroll.
 
     A service key bypasses the permission layer, so nothing is withheld from it
     and an empty list is the truth rather than a gap.
@@ -300,7 +300,7 @@ def withheld_section(withheld: list[dict], brand: str, root: str) -> str:
 # A narrow role withholds most of the catalog — nineteen of them for a plain
 # member — and at full length that buried the install and security notes the
 # README exists for, under a section nobody would read to the end of. These
-# descriptions open with what the skill is for ("Use when HR … 生成工资条 …"),
+# descriptions open with what the skill is for ("Use when HR … generate payslips …"),
 # so the head is the part worth keeping.
 EXCERPT_CHARS = 200
 
@@ -335,7 +335,7 @@ MAX_INSTALLED_NAME = 63
 def installed_skill_name(slug: str, name: str) -> str:
     """`oryh-timesheet-submit` → `{brand}-acme-timesheet-submit`. The company
     sits in the skill's own name because the name and description are all a
-    local agent sees when it picks a skill from "报一下 Acme 这周的工时"; the
+    local agent sees when it picks a skill from "record this week's hours for Acme"; the
     brand sits in front of it so bundles from different environments (prod
     "oryh", test "calwbiz") stay distinguishable on the same machine. The
     canonical registry prefix being stripped is always `oryh-`, regardless of
@@ -467,7 +467,7 @@ def apply_brand(content: str) -> str:
       bug, not cosmetics — it makes one deployment's agent claim another's
       companies.
     - **Standalone prose mentions** ("submit your timesheet in oryh"), so a
-      description does not steer "在 calwbiz 里报工时" away from the very
+      description does not steer "record hours in calwbiz" away from the very
       bundle that serves it.
 
     Registry names and template hashes underneath stay canonical, exactly like
@@ -528,7 +528,7 @@ def set_frontmatter_name(skill_md: str, installed_name: str) -> str:
 def scope_description_to_tenant(skill_md: str, tenant_name: str) -> str:
     """Name the employer in the skill's description — the line the agent reads
     when it decides which company this request is for. Emitted as a quoted YAML
-    scalar because a company name is free-form: `晶诚: 医疗` would otherwise
+    scalar because a company name is free-form: `Jingcheng: Medical` would otherwise
     break the frontmatter in the person's agent, not here.
 
     Only a single-line description is rewritten. A multi-line one (a tenant's

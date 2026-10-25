@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -64,11 +65,11 @@ function DataDirectory({ missing }: { missing?: string }) {
       <header className="page-intro">
         <div>
           <span className="eyebrow">Data browser</span>
-          <h2>{text("数据浏览", "Data browser")}</h2>
-          <p>{text("按集合查看和维护工作区的全部主数据和业务数据：服务端支持的每个筛选条件、任意列排序、分页；每一次写入都先确认。", "Every collection in the workspace, master and business data alike: every server-side filter, sort on any column, paging — and every write confirmed first.")}</p>
+          <h2>{text(zhCN.pagesDataBrowserPage.dataBrowser, "Data browser")}</h2>
+          <p>{text(zhCN.pagesDataBrowserPage.everyCollectionInTheWorkspaceMasterAndBusinessData, "Every collection in the workspace, master and business data alike: every server-side filter, sort on any column, paging — and every write confirmed first.")}</p>
         </div>
       </header>
-      {missing && <p className="notice error" role="alert">{text(`没有名为 ${missing} 的集合。`, `There is no collection named ${missing}.`)}</p>}
+      {missing && <p className="notice error" role="alert">{text(zhCN.pagesDataBrowserPage.thereIsNoCollectionNamed(`${missing}`), `There is no collection named ${missing}.`)}</p>}
       {dataCatalog.groups.map((group) => {
         const resources = dataCatalog.resources.filter((item) => item.group === group.key);
         if (resources.length === 0) return null;
@@ -79,7 +80,7 @@ function DataDirectory({ missing }: { missing?: string }) {
               {resources.map((item) => (
                 <li key={item.key}>
                   <Link to={`/data/${item.key}`}><Database size={16} aria-hidden />{pick(item.label, language)}</Link>
-                  <small>{item.filters.length} {text("个筛选", "filters")} · {item.columns.length} {text("列", "columns")}{item.update ? ` · ${text("可编辑", "editable")}` : ""}</small>
+                  <small>{item.filters.length} {text(zhCN.pagesDataBrowserPage.filters, "filters")} · {item.columns.length} {text(zhCN.pagesDataBrowserPage.columns, "columns")}{item.update ? zhCN.pagesDataBrowserPage.template2(`${text(zhCN.pagesDataBrowserPage.editable, "editable")}`) : ""}</small>
                 </li>
               ))}
             </ul>
@@ -147,11 +148,11 @@ function DataList({ resource }: { resource: CatalogResource }) {
       setPending(null);
       setEditor(null);
       setNotice({
-        create: text("记录已创建。", "Record created."),
-        update: text("更改已保存。", "Changes saved."),
-        delete: text("记录已删除或归档。", "Record deleted or archived."),
-        action: text(`已执行：${job.label}`, `Done: ${job.label}`),
-        status: text("状态已更新。", "Status updated."),
+        create: text(zhCN.pagesDataBrowserPage.recordCreated, "Record created."),
+        update: text(zhCN.pagesDataBrowserPage.changesSaved, "Changes saved."),
+        delete: text(zhCN.pagesDataBrowserPage.recordDeletedOrArchived, "Record deleted or archived."),
+        action: text(zhCN.pagesDataBrowserPage.done(`${job.label}`), `Done: ${job.label}`),
+        status: text(zhCN.pagesDataBrowserPage.statusUpdated, "Status updated."),
       }[job.kind]);
       void queryClient.invalidateQueries({ queryKey: ["data-browser", resource.key] });
     },
@@ -194,55 +195,55 @@ function DataList({ resource }: { resource: CatalogResource }) {
   const submitEditor = (draft: Record<string, string>) => {
     if (!editor) return;
     if (editor.kind === "create") {
-      stage({ kind: "create", label: text("新建", "Create"), method: "POST", path: resource.path, body: filledFields(editor.fields, draft) });
+      stage({ kind: "create", label: text(zhCN.pagesDataBrowserPage.create, "Create"), method: "POST", path: resource.path, body: filledFields(editor.fields, draft) });
     } else if (editor.kind === "update" && recordPath) {
       const body = changedFields(editor.fields, editor.row, draft);
-      stage({ kind: "update", label: text("编辑", "Edit"), method: "PATCH", path: recordUrl(recordPath, idOf(editor.row)), body, row: editor.row });
+      stage({ kind: "update", label: text(zhCN.pagesDataBrowserPage.edit, "Edit"), method: "PATCH", path: recordUrl(recordPath, idOf(editor.row)), body, row: editor.row });
     } else if (editor.kind === "action") {
       stage({ kind: "action", label: editor.action.summary, method: "POST", path: recordUrl(editor.action.path, idOf(editor.row)), body: filledFields(editor.action.fields, draft), row: editor.row });
     } else if (editor.kind === "status" && recordPath) {
-      stage({ kind: "status", label: text("状态", "Status"), method: "PATCH", path: recordUrl(recordPath, idOf(editor.row)), body: { status: draft.status }, row: editor.row });
+      stage({ kind: "status", label: text(zhCN.pagesDataBrowserPage.status, "Status"), method: "PATCH", path: recordUrl(recordPath, idOf(editor.row)), body: { status: draft.status }, row: editor.row });
     }
   };
   const runAction = (action: CatalogAction, row: DataRow) => {
     if (action.fields.length > 0) setEditor({ kind: "action", action, row });
     else stage({ kind: "action", label: action.summary, method: "POST", path: recordUrl(action.path, idOf(row)), body: {}, row });
   };
-  const askDelete = (row: DataRow) => recordPath && stage({ kind: "delete", label: text("删除", "Delete"), method: "DELETE", path: recordUrl(recordPath, idOf(row)), row });
+  const askDelete = (row: DataRow) => recordPath && stage({ kind: "delete", label: text(zhCN.pagesDataBrowserPage.delete, "Delete"), method: "DELETE", path: recordUrl(recordPath, idOf(row)), row });
 
   return (
     <div className="master-data-page data-browser" data-testid="data-list">
       <header className="page-intro">
         <div>
-          <span className="eyebrow"><Link to="/data">{text("数据浏览", "Data browser")}</Link></span>
+          <span className="eyebrow"><Link to="/data">{text(zhCN.pagesDataBrowserPage.dataBrowser, "Data browser")}</Link></span>
           <h2>{pick(resource.label, language)}</h2>
-          <p><code>GET {resource.path}</code>{activeFilters.length > 0 && <> · {text(`${activeFilters.length} 个筛选生效`, `${activeFilters.length} filters applied`)}</>}</p>
+          <p><code>GET {resource.path}</code>{activeFilters.length > 0 && <> · {text(zhCN.pagesDataBrowserPage.filtersApplied(`${activeFilters.length}`), `${activeFilters.length} filters applied`)}</>}</p>
         </div>
         {resource.create && (
-          <button className="button primary" type="button" onClick={openCreate}><Plus size={17} aria-hidden />{text("新建", "Create")}</button>
+          <button className="button primary" type="button" onClick={openCreate}><Plus size={17} aria-hidden />{text(zhCN.pagesDataBrowserPage.create, "Create")}</button>
         )}
       </header>
       {notice && (
-        <div className="record-notice"><div role="status"><span>{notice}</span></div><button className="icon-button" type="button" aria-label={text("关闭操作提示", "Dismiss update")} onClick={() => setNotice(null)}>×</button></div>
+        <div className="record-notice"><div role="status"><span>{notice}</span></div><button className="icon-button" type="button" aria-label={text(zhCN.pagesDataBrowserPage.dismissUpdate, "Dismiss update")} onClick={() => setNotice(null)}>×</button></div>
       )}
       <section className="data-panel" aria-label={pick(resource.label, language)}>
         <FilterForm key={params.toString()} resource={resource} params={params} onApply={applyFilters} />
         {restricted ? (
-          <RestrictedState title={text("无权查看这个集合", "This collection is not visible to you")} description={text("你的角色没有读取它的能力；管理员可以在角色页调整。", "Your role lacks the capability to read it; an administrator can change that on the roles page.")} />
+          <RestrictedState title={text(zhCN.pagesDataBrowserPage.thisCollectionIsNotVisibleToYou, "This collection is not visible to you")} description={text(zhCN.pagesDataBrowserPage.yourRoleLacksTheCapabilityToReadItAn, "Your role lacks the capability to read it; an administrator can change that on the roles page.")} />
         ) : (
           <ListState
             loading={rows.isPending}
             error={rows.isError ? apiErrorMessage(rows.error) : null}
             empty={!rows.isPending && !rows.isError && (rows.data?.data.length ?? 0) === 0}
-            emptyTitle={text("没有匹配的记录", "No matching records")}
-            emptyDescription={text("放宽筛选条件再试。", "Loosen the filters and try again.")}
+            emptyTitle={text(zhCN.pagesDataBrowserPage.noMatchingRecords, "No matching records")}
+            emptyDescription={text(zhCN.pagesDataBrowserPage.loosenTheFiltersAndTryAgain, "Loosen the filters and try again.")}
             onRetry={() => rows.refetch()}
           >
             <div className="table-scroll">
               <table className="data-table data-browser-table">
                 <thead>
                   <tr>
-                    <th><span className="sr-only">{text("操作", "Actions")}</span></th>
+                    <th><span className="sr-only">{text(zhCN.pagesDataBrowserPage.actions, "Actions")}</span></th>
                     {resource.columns.map((column) => {
                       const active = sort?.column === column.name;
                       return (
@@ -260,23 +261,23 @@ function DataList({ resource }: { resource: CatalogResource }) {
                   {(rows.data?.data ?? []).map((row, index) => (
                     <tr key={idOf(row) || index}>
                       <td className="row-actions data-row-actions">
-                        <button className="text-action" type="button" onClick={() => setEditor({ kind: "detail", row })}>{text("详情", "Detail")}</button>
-                        {detailType && idOf(row) && <Link className="text-action" to={detailUrl(detailType, row)}>{text("轨迹", "Trail")}</Link>}
-                        {canEdit && canAct(row) && <button className="text-action" type="button" onClick={() => setEditor({ kind: "update", fields: resource.update!.filter((field) => field.name !== "status"), row })}>{text("编辑", "Edit")}</button>}
-                        {editableStatus && canAct(row) && <button className="text-action" type="button" onClick={() => setEditor({ kind: "status", row, options: statusOptions })}>{text("状态", "Status")}</button>}
+                        <button className="text-action" type="button" onClick={() => setEditor({ kind: "detail", row })}>{text(zhCN.pagesDataBrowserPage.detail, "Detail")}</button>
+                        {detailType && idOf(row) && <Link className="text-action" to={detailUrl(detailType, row)}>{text(zhCN.pagesDataBrowserPage.trail, "Trail")}</Link>}
+                        {canEdit && canAct(row) && <button className="text-action" type="button" onClick={() => setEditor({ kind: "update", fields: resource.update!.filter((field) => field.name !== "status"), row })}>{text(zhCN.pagesDataBrowserPage.edit, "Edit")}</button>}
+                        {editableStatus && canAct(row) && <button className="text-action" type="button" onClick={() => setEditor({ kind: "status", row, options: statusOptions })}>{text(zhCN.pagesDataBrowserPage.status, "Status")}</button>}
                         {(resource.actions ?? []).length > 0 && canAct(row) && (
                           <details className="row-menu">
-                            <summary className="text-action">{text("动作", "Actions")}</summary>
+                            <summary className="text-action">{text(zhCN.pagesDataBrowserPage.actions2, "Actions")}</summary>
                             <div className="row-menu-list">
                               {resource.actions!.map((action) => (
                                 action.unsupported
-                                  ? <button key={action.verb} className="text-action" type="button" disabled title={text(`需要 ${action.unsupported.join(", ")}：由 Agent 或 API 执行`, `Needs ${action.unsupported.join(", ")}: driven by an agent or the API`)}>{action.verb}</button>
+                                  ? <button key={action.verb} className="text-action" type="button" disabled title={text(zhCN.pagesDataBrowserPage.needsDrivenByAnAgentOrTheAPI(`${action.unsupported.join(", ")}`), `Needs ${action.unsupported.join(", ")}: driven by an agent or the API`)}>{action.verb}</button>
                                   : <button key={action.verb} className="text-action" type="button" onClick={(event) => { (event.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open"); runAction(action, row); }}>{action.verb}</button>
                               ))}
                             </div>
                           </details>
                         )}
-                        {resource.remove && canAct(row) && <button className="text-action danger-text" type="button" onClick={() => askDelete(row)}>{text("删除", "Delete")}</button>}
+                        {resource.remove && canAct(row) && <button className="text-action danger-text" type="button" onClick={() => askDelete(row)}>{text(zhCN.pagesDataBrowserPage.delete, "Delete")}</button>}
                       </td>
                       {resource.columns.map((column) => <td key={column.name} className={cellClass(column)}>{formatCell(row[column.name], column, language)}</td>)}
                     </tr>
@@ -293,9 +294,9 @@ function DataList({ resource }: { resource: CatalogResource }) {
         <RecordEditor key={`${editor.kind}-${"row" in editor ? idOf(editor.row) : "new"}`} editor={editor} resource={resource} onClose={() => setEditor(null)} onSubmit={submitEditor} />
       )}
       {editor?.kind === "detail" && (
-        <Drawer open title={rowTitle(editor.row) || text("记录", "Record")} description={`${pick(resource.label, language)} · ${idOf(editor.row)}`} submitLabel={text("关闭", "Close")} onClose={() => setEditor(null)} onSubmit={(event) => { event.preventDefault(); setEditor(null); }}>
+        <Drawer open title={rowTitle(editor.row) || text(zhCN.pagesDataBrowserPage.record, "Record")} description={`${pick(resource.label, language)} · ${idOf(editor.row)}`} submitLabel={text(zhCN.pagesDataBrowserPage.close, "Close")} onClose={() => setEditor(null)} onSubmit={(event) => { event.preventDefault(); setEditor(null); }}>
           {(resource.related ?? []).length > 0 && (
-            <nav className="data-related" aria-label={text("相关记录", "Related records")}>
+            <nav className="data-related" aria-label={text(zhCN.pagesDataBrowserPage.relatedRecords, "Related records")}>
               {resource.related!.map((link) => (
                 <Link key={`${link.resource}-${link.param}`} className="button compact" to={`/data/${link.resource}?${link.param}=${encodeURIComponent(idOf(editor.row))}`} onClick={() => setEditor(null)}>
                   {pick(link.label, language)}
@@ -314,14 +315,14 @@ function DataList({ resource }: { resource: CatalogResource }) {
         <ConfirmDialog
           open
           tone={pending.kind === "delete" ? "danger" : "primary"}
-          kicker={text("写入确认", "Confirm write")}
+          kicker={text(zhCN.pagesDataBrowserPage.confirmWrite, "Confirm write")}
           title={pending.kind === "delete"
-            ? text(`删除 ${rowTitle(pending.row ?? {})}？`, `Delete ${rowTitle(pending.row ?? {})}?`)
+            ? text(zhCN.pagesDataBrowserPage.delete2(`${rowTitle(pending.row ?? {})}`), `Delete ${rowTitle(pending.row ?? {})}?`)
             : `${pending.label} · ${pending.row ? rowTitle(pending.row) : pick(resource.label, language)}`}
-          description={text(`将发送 ${pending.method} ${pending.path}。下面是要写入的全部内容。`, `Sends ${pending.method} ${pending.path}. Everything it will write is listed below.`)}
-          confirmLabel={text("确认写入", "Confirm write")}
-          busyLabel={text("正在写入…", "Writing…")}
-          scrimLabel={text("取消写入", "Cancel write")}
+          description={text(zhCN.pagesDataBrowserPage.sendsEverythingItWillWriteIsListedBelow(`${pending.method}`, `${pending.path}`), `Sends ${pending.method} ${pending.path}. Everything it will write is listed below.`)}
+          confirmLabel={text(zhCN.pagesDataBrowserPage.confirmWrite2, "Confirm write")}
+          busyLabel={text(zhCN.pagesDataBrowserPage.writing, "Writing…")}
+          scrimLabel={text(zhCN.pagesDataBrowserPage.cancelWrite, "Cancel write")}
           busy={write.isPending}
           error={write.isError ? apiErrorMessage(write.error) : null}
           onCancel={() => { if (!write.isPending) setPending(null); }}
@@ -329,15 +330,15 @@ function DataList({ resource }: { resource: CatalogResource }) {
         >
           {pending.body !== undefined && (
             Object.keys(pending.body).length === 0
-              ? <p className="muted-value">{text("不带任何字段。", "No fields.")}</p>
+              ? <p className="muted-value">{text(zhCN.pagesDataBrowserPage.noFields, "No fields.")}</p>
               : (
-                <table className="data-table write-preview" aria-label={text("将写入的字段", "Fields to write")}>
+                <table className="data-table write-preview" aria-label={text(zhCN.pagesDataBrowserPage.fieldsToWrite, "Fields to write")}>
                   <tbody>
                     {Object.entries(pending.body).map(([key, value]) => (
                       <tr key={key}>
                         <th scope="row">{key}</th>
                         {pending.row && key in pending.row && <td className="muted-value">{formValue(pending.row[key]) || "—"}</td>}
-                        <td>{value === null ? <span className="muted-value">{text("清空", "clear")}</span> : formValue(value)}</td>
+                        <td>{value === null ? <span className="muted-value">{text(zhCN.pagesDataBrowserPage.clear, "clear")}</span> : formValue(value)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -363,32 +364,32 @@ function RecordEditor({ editor, resource, onClose, onSubmit }: { editor: Exclude
   });
   const [problem, setProblem] = useState<string | null>(null);
   const title = {
-    create: text(`新建 ${pick(resource.label, language)}`, `New ${pick(resource.label, language)}`),
-    update: text(`编辑 ${rowTitle(editor.kind === "update" ? editor.row : {})}`, `Edit ${rowTitle(editor.kind === "update" ? editor.row : {})}`),
+    create: text(zhCN.pagesDataBrowserPage.new(`${pick(resource.label, language)}`), `New ${pick(resource.label, language)}`),
+    update: text(zhCN.pagesDataBrowserPage.edit2(`${rowTitle(editor.kind === "update" ? editor.row : {})}`), `Edit ${rowTitle(editor.kind === "update" ? editor.row : {})}`),
     action: editor.kind === "action" ? editor.action.summary : "",
-    status: text(`设置状态 · ${rowTitle(editor.kind === "status" ? editor.row : {})}`, `Set status · ${rowTitle(editor.kind === "status" ? editor.row : {})}`),
+    status: text(zhCN.pagesDataBrowserPage.setStatus(`${rowTitle(editor.kind === "status" ? editor.row : {})}`), `Set status · ${rowTitle(editor.kind === "status" ? editor.row : {})}`),
   }[editor.kind];
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (editor.kind === "update" && Object.keys(changedFields(editor.fields, editor.row, draft)).length === 0) {
-      setProblem(text("没有任何更改。", "Nothing changed."));
+      setProblem(text(zhCN.pagesDataBrowserPage.nothingChanged, "Nothing changed."));
       return;
     }
     if (editor.kind === "status" && !draft.status.trim()) {
-      setProblem(text("请选择状态。", "Choose a status."));
+      setProblem(text(zhCN.pagesDataBrowserPage.chooseAStatus, "Choose a status."));
       return;
     }
     setProblem(null);
     onSubmit(draft);
   };
   return (
-    <Drawer open title={title} description={text("提交后会先显示将写入的内容，确认后才发送。", "Submitting shows what will be written; nothing is sent until you confirm.")} submitLabel={text("下一步：确认", "Next: confirm")} error={problem} onClose={onClose} onSubmit={submit}>
+    <Drawer open title={title} description={text(zhCN.pagesDataBrowserPage.submittingShowsWhatWillBeWrittenNothingIsSent, "Submitting shows what will be written; nothing is sent until you confirm.")} submitLabel={text(zhCN.pagesDataBrowserPage.nextConfirm, "Next: confirm")} error={problem} onClose={onClose} onSubmit={submit}>
       <div className="field-grid">
         {editor.kind === "status" && (
           <div className="field span-2">
             <label htmlFor="data-status">status</label>
             {editor.options.length > 0
-              ? <select id="data-status" value={draft.status} onChange={(event) => setDraft({ status: event.target.value })}><option value="">{text("选择…", "Choose…")}</option>{editor.options.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+              ? <select id="data-status" value={draft.status} onChange={(event) => setDraft({ status: event.target.value })}><option value="">{text(zhCN.pagesDataBrowserPage.choose, "Choose…")}</option>{editor.options.map((option) => <option key={option} value={option}>{option}</option>)}</select>
               : <input id="data-status" value={draft.status} onChange={(event) => setDraft({ status: event.target.value })} />}
           </div>
         )}
@@ -399,7 +400,7 @@ function RecordEditor({ editor, resource, onClose, onSubmit }: { editor: Exclude
             {field.description && <small className="muted-value">{field.description}</small>}
           </div>
         ))}
-        {fields.length === 0 && editor.kind !== "status" && <p className="muted-value span-2">{text("这个动作不需要输入。", "This action takes no input.")}</p>}
+        {fields.length === 0 && editor.kind !== "status" && <p className="muted-value span-2">{text(zhCN.pagesDataBrowserPage.thisActionTakesNoInput, "This action takes no input.")}</p>}
       </div>
     </Drawer>
   );
@@ -411,10 +412,10 @@ function WriteInput({ id, field, value, onChange }: { id: string; field: Catalog
   const target = referenceTarget(field.name);
   if (target) return <ReferencePicker id={id} target={target} value={value} required={required} onChange={onChange} />;
   if (field.enum && field.enum.length > 0) {
-    return <select id={id} required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{text("未设置", "Unset")}</option>{field.enum.map((option) => <option key={option} value={option}>{option}</option>)}</select>;
+    return <select id={id} required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{text(zhCN.pagesDataBrowserPage.unset, "Unset")}</option>{field.enum.map((option) => <option key={option} value={option}>{option}</option>)}</select>;
   }
   if (field.type === "boolean") {
-    return <select id={id} required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{text("未设置", "Unset")}</option><option value="true">true</option><option value="false">false</option></select>;
+    return <select id={id} required={required} value={value} onChange={(event) => onChange(event.target.value)}><option value="">{text(zhCN.pagesDataBrowserPage.unset, "Unset")}</option><option value="true">true</option><option value="false">false</option></select>;
   }
   if (field.format === "date") return <input id={id} type="date" required={required} value={value} onChange={(event) => onChange(event.target.value)} />;
   if (field.format === "date-time") return <input id={id} type="datetime-local" required={required} value={value.replace(/(\.\d+)?(Z|[+-]\d\d:\d\d)$/, "")} onChange={(event) => onChange(event.target.value)} />;
@@ -438,7 +439,7 @@ function cellClass(column: CatalogField): string | undefined {
 
 function formatCell(value: unknown, column: CatalogField, language: string) {
   if (value === null || value === undefined || value === "") return <span className="muted-value">—</span>;
-  if (typeof value === "boolean") return value ? (language === "en" ? "yes" : "是") : (language === "en" ? "no" : "否");
+  if (typeof value === "boolean") return value ? (language === "en" ? "yes" : zhCN.pagesDataBrowserPage.yes) : (language === "en" ? "no" : zhCN.pagesDataBrowserPage.no);
   if (column.format === "date-time" && typeof value === "string") {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString(language === "en" ? "en" : "zh-CN");
@@ -477,8 +478,8 @@ function FilterForm({ resource, params, onApply }: { resource: CatalogResource; 
         </label>
       ))}
       <div className="data-filter-actions">
-        <button className="button" type="submit">{text("筛选", "Filter")}</button>
-        {dirty && <button className="button quiet" type="button" onClick={clear}>{text("清除", "Clear")}</button>}
+        <button className="button" type="submit">{text(zhCN.pagesDataBrowserPage.filter, "Filter")}</button>
+        {dirty && <button className="button quiet" type="button" onClick={clear}>{text(zhCN.pagesDataBrowserPage.clear2, "Clear")}</button>}
       </div>
     </form>
   );
@@ -491,7 +492,7 @@ function FilterInput({ filter, value, onChange }: { filter: CatalogField; value:
   if (filter.enum && filter.enum.length > 0) {
     return (
       <select value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">{text("全部", "Any")}</option>
+        <option value="">{text(zhCN.pagesDataBrowserPage.any, "Any")}</option>
         {filter.enum.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
     );
@@ -499,7 +500,7 @@ function FilterInput({ filter, value, onChange }: { filter: CatalogField; value:
   if (filter.type === "boolean") {
     return (
       <select value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">{text("全部", "Any")}</option>
+        <option value="">{text(zhCN.pagesDataBrowserPage.any, "Any")}</option>
         <option value="true">true</option>
         <option value="false">false</option>
       </select>

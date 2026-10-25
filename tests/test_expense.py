@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_expense.json').read_text(encoding="utf-8"))
+
+
 import base64
 from collections.abc import Generator
 
@@ -42,7 +49,7 @@ def create_employee(test_client: TestClient, tenant_id: str = TEST_TENANT, **ove
 def create_claim(test_client: TestClient, employee_id: str, tenant_id: str = TEST_TENANT, **overrides) -> str:
     payload = {
         "employee_id": employee_id,
-        "title": "上海出差报销",
+        "title": _ZH_TEXT['TEXT_58BA620F166A3118'],
         "claim_date": "2026-07-10",
     }
     payload.update(overrides)
@@ -77,7 +84,7 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
     employee_id = create_employee(client, email="alice@example.com")
     vendor_response = client.post(
         "/api/v1/vendors",
-        json={"name": "上海餐饮供应商", "vendor_code": "SUP-001"},
+        json={"name": _ZH_TEXT['TEXT_F116949A01841E51'], "vendor_code": "SUP-001"},
         headers=api_key_headers(),
     )
     assert vendor_response.status_code == 201, vendor_response.text
@@ -85,7 +92,7 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
     claim_id = create_claim(
         client,
         employee_id,
-        source_report_text="7月8日出差上海，餐费186.5元，高铁票553元，附发票。",
+        source_report_text=_ZH_TEXT['TEXT_4FA54427CE048588'],
     )
 
     attachment = upload_receipt(client)
@@ -98,11 +105,11 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
         amount=186.5,
         tax_amount=11.06,
         vendor_id=vendor["id"],
-        merchant="上海某餐饮有限公司",
+        merchant=_ZH_TEXT['TEXT_DFB33CCAD74759B0'],
         invoice_number="032001900311",
         invoice_type="vat_electronic",
         attachment_id=attachment["id"],
-        extracted_fields={"发票代码": "032001900311", "购买方名称": "Test Tenant"},
+        extracted_fields={_ZH_TEXT['TEXT_ED0956E1EF8711CE']: "032001900311", _ZH_TEXT['TEXT_C1DE5DB6A156816A']: "Test Tenant"},
     )
     create_item(
         client,
@@ -149,8 +156,8 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
     # and the decision on top of it
     assert [r["action"] for r in detail["approval_records"]] == ["submitted", "approved"]
     assert [a["id"] for a in detail["attachments"]] == [attachment["id"]]
-    assert detail["items"][0]["extracted_fields"]["购买方名称"] == "Test Tenant"
-    assert detail["items"][0]["vendor_name"] == "上海餐饮供应商"
+    assert detail["items"][0]["extracted_fields"][_ZH_TEXT['TEXT_C1DE5DB6A156816A']] == "Test Tenant"
+    assert detail["items"][0]["vendor_name"] == _ZH_TEXT['TEXT_F116949A01841E51']
 
     # finalize: submitted -> approved -> paid follows the default machine
     for target in ("approved", "paid"):
@@ -163,8 +170,8 @@ def test_expense_flow_with_receipt_and_approval(client: TestClient) -> None:
 
 def test_expense_claim_filters_and_work_queue(client: TestClient) -> None:
     employee_id = create_employee(client)
-    first = create_claim(client, employee_id, title="报销一")
-    second = create_claim(client, employee_id, title="报销二")
+    first = create_claim(client, employee_id, title=_ZH_TEXT['TEXT_9DBEB0980FCCB257'])
+    second = create_claim(client, employee_id, title=_ZH_TEXT['TEXT_9A2B1491D862F2C2'])
     client.post(f"/api/v1/expense-claims/{first}/submit", json={}, headers=api_key_headers())
     client.post(f"/api/v1/expense-claims/{second}/submit", json={}, headers=api_key_headers())
 
@@ -178,7 +185,7 @@ def test_expense_claim_filters_and_work_queue(client: TestClient) -> None:
             "employee_id": employee_id,
             "entity_type": "expense_claim",
             "entity_id": first,
-            "title": "审批 Alice 的报销",
+            "title": _ZH_TEXT['TEXT_42069168DC1B692C'],
             "todo_type": "approval",
         },
         headers=api_key_headers(),
@@ -193,8 +200,8 @@ def test_expense_claim_filters_and_work_queue(client: TestClient) -> None:
 
 def test_duplicate_invoice_number_is_rejected_within_tenant(client: TestClient) -> None:
     employee_id = create_employee(client)
-    first_claim = create_claim(client, employee_id, title="第一张")
-    second_claim = create_claim(client, employee_id, title="第二张")
+    first_claim = create_claim(client, employee_id, title=_ZH_TEXT['TEXT_86D38BC69A03A7B5'])
+    second_claim = create_claim(client, employee_id, title=_ZH_TEXT['TEXT_F27D3F1E818A5126'])
     item = create_item(client, first_claim, employee_id, invoice_number="INV-001")
 
     duplicate = client.post(
@@ -359,7 +366,7 @@ def test_claim_soft_delete_restore_and_validation(client: TestClient) -> None:
     assert listed == []
 
     # items on a deleted claim stop blocking the invoice number
-    other_claim = create_claim(client, employee_id, title="新报销")
+    other_claim = create_claim(client, employee_id, title=_ZH_TEXT['TEXT_7E3BAB6A64E7649F'])
     create_item(client, other_claim, employee_id, invoice_number="INV-D1")
 
     restored = client.post(
@@ -393,17 +400,17 @@ def test_claim_soft_delete_restore_and_validation(client: TestClient) -> None:
 
 
 def create_vendor(test_client: TestClient, tenant_id: str = TEST_TENANT, **overrides) -> dict:
-    payload = {"name": "上海某餐饮有限公司", "tax_id": "91310000MA1FL0000X"}
+    payload = {"name": _ZH_TEXT['TEXT_DFB33CCAD74759B0'], "tax_id": "91310000MA1FL0000X"}
     payload.update(overrides)
     return create(test_client, headers_for_tenant(tenant_id), "vendors", **payload)
 
 
 def test_vendor_master_data_and_item_association(client: TestClient) -> None:
-    vendor = create_vendor(client, vendor_code="V-001", contact="王经理", phone="021-12345678")
+    vendor = create_vendor(client, vendor_code="V-001", contact=_ZH_TEXT['TEXT_7D2F35C0455A4AC2'], phone="021-12345678")
     assert vendor["status"] == "active"
 
     # filters: keyword and exact tax_id
-    by_keyword = client.get("/api/v1/vendors?keyword=餐饮", headers=api_key_headers()).json()["data"]
+    by_keyword = client.get(_ZH_TEXT['TEXT_39FD721C7FE5740A'], headers=api_key_headers()).json()["data"]
     assert [v["id"] for v in by_keyword] == [vendor["id"]]
     by_tax = client.get(
         "/api/v1/vendors?tax_id=91310000MA1FL0000X", headers=api_key_headers()
@@ -416,16 +423,16 @@ def test_vendor_master_data_and_item_association(client: TestClient) -> None:
     claim_id = create_claim(client, employee_id)
     item = create_item(client, claim_id, employee_id, vendor_id=vendor["id"], merchant=None)
     assert item["vendor_id"] == vendor["id"]
-    assert item["merchant"] == "上海某餐饮有限公司"
+    assert item["merchant"] == _ZH_TEXT['TEXT_DFB33CCAD74759B0']
 
     # explicit merchant text wins over the backfill; vendor stays linked
     item2 = create_item(
-        client, claim_id, employee_id, vendor_id=vendor["id"], merchant="发票抬头原文", invoice_number="INV-V1"
+        client, claim_id, employee_id, vendor_id=vendor["id"], merchant=_ZH_TEXT['TEXT_2659C78E72AD0FD6'], invoice_number="INV-V1"
     )
-    assert item2["merchant"] == "发票抬头原文"
+    assert item2["merchant"] == _ZH_TEXT['TEXT_2659C78E72AD0FD6']
 
     # vendor is optional: null vendor_id with free-text merchant only
-    item3 = create_item(client, claim_id, employee_id, merchant="无主数据商户", invoice_number="INV-V2")
+    item3 = create_item(client, claim_id, employee_id, merchant=_ZH_TEXT['TEXT_357D4150291E02ED'], invoice_number="INV-V2")
     assert item3["vendor_id"] is None
 
     # filter items by vendor
@@ -443,7 +450,7 @@ def test_vendor_master_data_and_item_association(client: TestClient) -> None:
         f"/api/v1/expense-items/{item3['id']}", json={"vendor_id": None}, headers=api_key_headers()
     )
     assert detached.json()["data"]["vendor_id"] is None
-    assert detached.json()["data"]["merchant"] == "无主数据商户"
+    assert detached.json()["data"]["merchant"] == _ZH_TEXT['TEXT_357D4150291E02ED']
 
     # archive removes it from active lists but history stands
     assert client.delete(f"/api/v1/vendors/{vendor['id']}", headers=api_key_headers()).status_code == 204

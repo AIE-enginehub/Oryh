@@ -1,0 +1,3 @@
+{
+  "description": "Use when a tenant admin changes how documents ROUTE — who approves what, thresholds (\"报销超过5000财务也要审\"、\"采购先经主管再到采购部\") — by publishing or amending the approval flow, or turns a process into a custom skill against the tenant's real object types. Requires skills.manage."
+}

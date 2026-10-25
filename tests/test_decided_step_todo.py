@@ -10,6 +10,13 @@ now reads it before it hands out the same step again.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_decided_step_todo.json').read_text(encoding="utf-8"))
+
+
 from conftest import invite_member, make_client, provision_tenant
 
 
@@ -17,15 +24,15 @@ def test_a_decided_step_is_not_reissued() -> None:
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Trail Co", email="admin@trail.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        worker = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        boss_emp = client.post("/api/v1/employees", json={"name": "经理"}, headers=admin).json()["data"]["id"]
+        worker = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        boss_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_D2C8576739E011E1']}, headers=admin).json()["data"]["id"]
         boss = invite_member(client, admin, "boss", ["approval.record", "todos.complete_own"], employee_id=boss_emp)
         header = client.post("/api/v1/timesheet-headers", headers=admin, json={
             "employee_id": worker, "period_start": "2026-09-14", "period_end": "2026-09-20",
             "entries": [{"work_date": "2026-09-15", "hours": 8}]}).json()["data"]["id"]
         client.post(f"/api/v1/timesheet-headers/{header}/submit", headers=admin, json={})
 
-        step = {"employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": "审批工时",
+        step = {"employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": _ZH_TEXT['TEXT_5C2029336A093863'],
                 "metadata": {"workflow_version": 1, "round_no": 1, "sequence_no": 2}}
         first = client.post("/api/v1/todos", headers=admin, json=step)
         assert first.status_code == 201, first.text
@@ -47,10 +54,10 @@ def test_a_decided_step_is_not_reissued() -> None:
         assert client.get("/api/v1/todos", headers=boss, params={"status": "open"}).json()["data"] == [], "nothing pending was minted"
 
         # the NEXT step of the same document is still assignable; a plain todo without step metadata too
-        nxt = client.post("/api/v1/todos", headers=admin, json={**step, "title": "复核", "metadata": {"round_no": 1, "sequence_no": 3}})
+        nxt = client.post("/api/v1/todos", headers=admin, json={**step, "title": _ZH_TEXT['TEXT_4A0C2575242946B5'], "metadata": {"round_no": 1, "sequence_no": 3}})
         assert nxt.status_code == 201, nxt.text
         plain = client.post("/api/v1/todos", headers=admin, json={"employee_id": worker, "entity_type": "timesheet_header",
-                                                                   "entity_id": header, "title": "补充说明"})
+                                                                   "entity_id": header, "title": _ZH_TEXT['TEXT_6F3EBD2D3E876212']})
         assert plain.status_code == 201, plain.text
         # a returned document re-enters at a new round: round 2 / seq 2 is undecided
         r2 = client.post("/api/v1/todos", headers=admin, json={**step, "employee_id": boss_emp, "metadata": {"round_no": 2, "sequence_no": 2}})
@@ -63,17 +70,17 @@ def test_the_assigner_may_withdraw_a_todo_it_minted_and_a_rework_todo_may_name_t
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Withdraw Co", email="admin@withdraw.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        worker = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        boss_emp = client.post("/api/v1/employees", json={"name": "经理"}, headers=admin).json()["data"]["id"]
+        worker = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        boss_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_D2C8576739E011E1']}, headers=admin).json()["data"]["id"]
         boss = invite_member(client, admin, "boss", ["approval.record", "todos.complete_own"], employee_id=boss_emp)
-        flow_emp = client.post("/api/v1/employees", json={"name": "流程"}, headers=admin).json()["data"]["id"]
+        flow_emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_BDD207E8C6E3AE50']}, headers=admin).json()["data"]["id"]
         flow = invite_member(client, admin, "flow", ["todos.assign", "approval.record", "timesheet.advance"], employee_id=flow_emp)  # the hosted agent's shape: it advances, so it reads
         header = client.post("/api/v1/timesheet-headers", headers=admin, json={
             "employee_id": worker, "period_start": "2026-09-14", "period_end": "2026-09-20",
             "entries": [{"work_date": "2026-09-15", "hours": 8}]}).json()["data"]["id"]
         client.post(f"/api/v1/timesheet-headers/{header}/submit", headers=admin, json={})
         minted_r = client.post("/api/v1/todos", headers=flow, json={
-            "employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": "审批",
+            "employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": _ZH_TEXT['TEXT_64D021080A5FBCB3'],
             "metadata": {"round_no": 1, "sequence_no": 2}})
         assert minted_r.status_code == 201, minted_r.text
         minted = minted_r.json()["data"]["id"]
@@ -83,13 +90,13 @@ def test_the_assigner_may_withdraw_a_todo_it_minted_and_a_rework_todo_may_name_t
         assert client.patch(f"/api/v1/todos/{minted}", headers=flow, json={"status": "cancelled"}).status_code == 200
         # someone else's minted todo is not the assigner's to withdraw
         other = client.post("/api/v1/todos", headers=admin, json={
-            "employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": "审批2"}).json()["data"]["id"]
+            "employee_id": boss_emp, "entity_type": "timesheet_header", "entity_id": header, "title": _ZH_TEXT['TEXT_2E798C0947F5B0E6']}).json()["data"]["id"]
         assert client.patch(f"/api/v1/todos/{other}", headers=flow, json={"status": "cancelled"}).status_code == 403
         # a return decided at r1/s2 hands the submitter a rework todo that may name that step
         assert client.post("/api/v1/approval-records", headers=boss, json={
             "entity_type": "timesheet_header", "entity_id": header, "action": "returned", "round_no": 1, "sequence_no": 2,
-            "comment": "改"}).status_code == 201
+            "comment": _ZH_TEXT['TEXT_3441804940632876']}).status_code == 201
         rework = client.post("/api/v1/todos", headers=flow, json={
-            "employee_id": worker, "entity_type": "timesheet_header", "entity_id": header, "title": "修改", "todo_type": "rework",
+            "employee_id": worker, "entity_type": "timesheet_header", "entity_id": header, "title": _ZH_TEXT['TEXT_37090F45651676FC'], "todo_type": "rework",
             "metadata": {"round_no": 1, "sequence_no": 2}})
         assert rework.status_code == 201, rework.text

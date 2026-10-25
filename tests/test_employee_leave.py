@@ -1,4 +1,4 @@
-"""请假, and the balance that is deliberately not stored anywhere.
+"""leave, and the balance that is deliberately not stored anywhere.
 
 The design claim under test: a leave balance is not a fact. It is what the
 workspace's published rules imply about a person today, and the rules change —
@@ -14,6 +14,13 @@ is gone and nobody would notice from the endpoints alone.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_employee_leave.json').read_text(encoding="utf-8"))
+
 
 import pytest
 from fastapi.testclient import TestClient
@@ -33,7 +40,7 @@ def workspace(client: TestClient) -> dict:
                             password="leave-pass1234")
     root = {"X-API-Key": data["plain_text_api_key"]}
     staff = post(client, root, "/employees",
-                 {"name": "王小明", "hire_date": "2019-03-01"})["id"]
+                 {"name": _ZH_TEXT['TEXT_ACF979CC584E1CF9'], "hire_date": "2019-03-01"})["id"]
     return {"client": client, "root": root, "staff": staff}
 
 
@@ -41,7 +48,7 @@ def file_leave(workspace, **overrides):
     body = {
         "employee_id": workspace["staff"], "leave_type": "annual",
         "from_date": "2026-03-02", "thru_date": "2026-03-06", "duration_days": 3,
-        "reason": "回老家",
+        "reason": _ZH_TEXT['TEXT_DBF411553B9636AE'],
     }
     body.update(overrides)
     return workspace["client"].post("/api/v1/employee-leaves", json=body,
@@ -72,7 +79,7 @@ def test_a_leave_request_is_filed_submitted_and_approved(workspace: dict) -> Non
 
 
 def test_half_days_are_the_point_of_the_decimal(workspace: dict) -> None:
-    """请假以天为单位，但可以有小数。An 上午请半天 is the ordinary case, not an
+    """Leave is measured in days, including fractions. A half-day morning request is the ordinary case, not an
     edge one."""
     half = file_leave(workspace, from_date="2026-03-02", thru_date="2026-03-02",
                       duration_days=0.5)
@@ -84,7 +91,7 @@ def test_half_days_are_the_point_of_the_decimal(workspace: dict) -> None:
 
 
 def test_the_server_never_derives_the_length_from_the_dates(workspace: dict) -> None:
-    """Whether the Saturday inside 周五到周一 counts is the tenant's rule, so
+    """Whether the Saturday inside Friday through Monday counts is the tenant's rule, so
     the agent computes the figure and the server records what was agreed. A
     server that subtracted the dates would be quietly overruling the policy."""
     filed = file_leave(workspace, from_date="2026-03-06", thru_date="2026-03-09",
@@ -101,7 +108,7 @@ def test_a_backwards_period_is_refused(workspace: dict) -> None:
 
 
 def test_the_leave_type_comes_from_the_tenant_vocabulary(workspace: dict) -> None:
-    """Which kinds of leave exist is local — 陪产假 and 丧假 vary by workspace
+    """Which kinds of leave exist is local — paternity leave and bereavement leave vary by workspace
     and their length by province — so it is a type-option family, not a
     constrained column."""
     client, root = workspace["client"], workspace["root"]
@@ -112,7 +119,7 @@ def test_the_leave_type_comes_from_the_tenant_vocabulary(workspace: dict) -> Non
     assert file_leave(workspace, leave_type="not_a_leave_type").status_code == 422
 
     client.post("/api/v1/type-options",
-                json={"family": "leave_type", "name": "study", "title": "进修假"},
+                json={"family": "leave_type", "name": "study", "title": _ZH_TEXT['TEXT_2B2D3A09B20E8C9F']},
                 headers=root)
     assert file_leave(workspace, leave_type="study").status_code == 201
 
@@ -140,7 +147,7 @@ def test_the_facts_a_balance_is_computed_from_are_all_reachable(workspace: dict)
     if the three inputs are each one call away."""
     client, root = workspace["client"], workspace["root"]
 
-    # 1. 工龄 — the employee carries a hire date
+    # 1. Tenure comes from the employee hire date.
     employee = client.get(f"/api/v1/employees/{workspace['staff']}",
                           headers=root).json()["data"]
     assert employee["hire_date"] == "2019-03-01"
@@ -148,8 +155,8 @@ def test_the_facts_a_balance_is_computed_from_are_all_reachable(workspace: dict)
     # 2. the rules, as they stood on a chosen date
     policy = post(client, root, "/business-rules", {
         "kind": "policy",
-        "code": "HR-002", "category": "hr", "title": "员工请假管理制度",
-        "body": "# 年假\n满 5 年 10 天。", "rules_json": {"annual": {"tier_5y": 10}},
+        "code": "HR-002", "category": "hr", "title": _ZH_TEXT['TEXT_98C2002503617C1F'],
+        "body": _ZH_TEXT['TEXT_3152D3BC818D40D3'], "rules_json": {"annual": {"tier_5y": 10}},
     })
     client.post(f"/api/v1/business-rules/{policy['id']}/publish",
                 json={"effective_from": "2026-01-01"}, headers=root)
@@ -271,7 +278,7 @@ def test_leave_joins_the_shared_document_plumbing(workspace: dict) -> None:
 
     todo = client.post("/api/v1/todos", json={
         "employee_id": workspace["staff"], "entity_type": "employee_leave",
-        "entity_id": leave["id"], "title": "审批请假", "todo_type": "approval",
+        "entity_id": leave["id"], "title": _ZH_TEXT['TEXT_58F0E2DCEBF55B27'], "todo_type": "approval",
     }, headers=root)
     assert todo.status_code == 201, todo.text
 
@@ -290,8 +297,8 @@ def test_the_demo_seed_can_actually_answer_how_many_days_are_left() -> None:
     it is worth pinning that its parts still fit together.
 
     A balance needs three things and is unanswerable without any of them: a
-    published policy carrying the tiers, a hire date to measure 工龄 from, and
-    leave rows in states that distinguish 已批 from 在途. The seed used to
+    published policy carrying the tiers, a hire date to measure tenure from, and
+    leave rows in states that distinguish approved from pending. The seed used to
     provide none of them — there were no policies in it at all.
 
     Read out of the source rather than by seeding: this asserts the demo data
@@ -319,11 +326,11 @@ def test_the_demo_seed_can_actually_answer_how_many_days_are_left() -> None:
     assert text.count('"statutory"') == 2
     assert '"company_bonus"' in text
 
-    # 已批 and 在途 must BOTH appear, or the in-flight subtraction — the whole
+    # Approved and pending must BOTH appear, or the in-flight subtraction — the whole
     # protection against spending the same days twice — is never exercised
     stages = {kw.value.value for call in leaves for kw in call.keywords
               if kw.arg == "stage" and isinstance(kw.value, ast.Constant)}
     assert {"approved", "submitted", "returned", "cancelled", "taken"} <= stages, stages
 
-    # everybody gets a hire date, so 工龄 is never a shrug
+    # Every employee gets a hire date, so tenure is never unknown.
     assert "hire_date = (NOW - timedelta(days=months * 30)).date()" in text

@@ -1,3 +1,5 @@
+import { zhAttributes } from "../locales/zh-CN/attributes";
+import { zhCN } from "../locales/zh-CN/tests";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -292,7 +294,7 @@ describe("console API client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await listProducts({ page: 2, size: 20, keyword: "  显示器  ", status: "active" });
+    await listProducts({ page: 2, size: 20, keyword: zhCN.apiClient.keyword, status: "active" });
     await listProductSkus({
       page: 1,
       size: 25,
@@ -300,7 +302,7 @@ describe("console API client", () => {
       sku_code: " SKU XL ",
       status: "archived",
     });
-    await listEmployees({ page: 3, size: 10, keyword: "  王  ", status: "inactive" });
+    await listEmployees({ page: 3, size: 10, keyword: zhCN.apiClient.keyword2, status: "inactive" });
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "/api/v1/products?page=2&size=20&keyword=%E6%98%BE%E7%A4%BA%E5%99%A8&status=active",
@@ -311,13 +313,13 @@ describe("console API client", () => {
 
   it("creates a CSRF-protected batch of product SKUs for an encoded product", async () => {
     document.cookie = "oryh_csrf=batch-token; Path=/";
-    const created = [{ id: "sku-1", product_id: "product/1", sku_code: "P-1-S", variant_attrs: { 尺码: "S" } }];
+    const created = [{ id: "sku-1", product_id: "product/1", sku_code: "P-1-S", variant_attrs: { [zhAttributes.size]: "S" } }];
     const result = { created, skipped: ["M"] };
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: result, meta: {} }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(batchCreateProductSkus("product/1", {
-      dimension: "尺码",
+      dimension: zhCN.apiClient.dimension,
       values: ["S", "M"],
       list_price: 129.9,
     })).resolves.toEqual(result);
@@ -327,14 +329,14 @@ describe("console API client", () => {
     expect(init.method).toBe("POST");
     expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("batch-token");
     expect(JSON.parse(String(init.body))).toEqual({
-      dimension: "尺码",
+      dimension: zhCN.apiClient.dimension,
       values: ["S", "M"],
       list_price: 129.9,
     });
   });
 
   it("loads one employee option by its encoded identifier", async () => {
-    const employee = { id: "employee/1", name: "王小明", status: "active" };
+    const employee = { id: "employee/1", name: zhCN.apiClient.name, status: "active" };
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({ data: employee, meta: {} }),
     );
@@ -621,16 +623,16 @@ describe("console API client", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await createProduct({ name: "显示器", status: "active", currency: "CNY", product_type: "finished_good" });
-    await updateProduct("product/1", { unit: "台", currency: "CNY", status: "active", product_type: "finished_good" });
+    await createProduct({ name: zhCN.apiClient.name2, status: "active", currency: "CNY", product_type: "finished_good" });
+    await updateProduct("product/1", { unit: zhCN.apiClient.unit, currency: "CNY", status: "active", product_type: "finished_good" });
     await createProductSku({
       product_id: "product/1",
       sku_code: "27-IN",
-      variant_attrs: { 尺寸: "27" },
+      variant_attrs: { [zhAttributes.dimensions]: "27" },
       status: "active",
     });
     await updateProductSku("sku/1", { list_price: 1299 });
-    await createEmployee({ name: "王小明", status: "active" });
+    await createEmployee({ name: zhCN.apiClient.name, status: "active" });
     await updateEmployee("employee/1", { timezone: "Asia/Shanghai", status: "active" });
 
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init.method])).toEqual([

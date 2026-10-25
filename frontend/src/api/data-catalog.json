@@ -3,77 +3,77 @@
     {
       "key": "master",
       "label": [
-        "主数据",
+        "Master data",
         "Master data"
       ]
     },
     {
       "key": "sales",
       "label": [
-        "销售",
+        "Sales",
         "Sales"
       ]
     },
     {
       "key": "purchasing",
       "label": [
-        "采购",
+        "Purchasing",
         "Purchasing"
       ]
     },
     {
       "key": "inventory",
       "label": [
-        "库存与发运",
+        "Inventory & shipping",
         "Inventory & shipping"
       ]
     },
     {
       "key": "finance",
       "label": [
-        "财务",
+        "Finance",
         "Finance"
       ]
     },
     {
       "key": "people",
       "label": [
-        "人事",
+        "People",
         "People"
       ]
     },
     {
       "key": "crm",
       "label": [
-        "客户关系",
+        "CRM",
         "CRM"
       ]
     },
     {
       "key": "contracts",
       "label": [
-        "合同",
+        "Contracts",
         "Contracts"
       ]
     },
     {
       "key": "work",
       "label": [
-        "工作与流程",
+        "Work & flow",
         "Work & flow"
       ]
     },
     {
       "key": "system",
       "label": [
-        "系统",
+        "System",
         "System"
       ]
     },
     {
       "key": "other",
       "label": [
-        "其他",
+        "Other",
         "Other"
       ]
     }
@@ -84,7 +84,7 @@
       "path": "/api/v1/bom-items",
       "group": "master",
       "label": [
-        "物料清单行",
+        "BOM items",
         "BOM items"
       ],
       "filters": [
@@ -242,7 +242,7 @@
       "path": "/api/v1/bills-of-materials",
       "group": "master",
       "label": [
-        "物料清单",
+        "Bills of materials",
         "Bills of materials"
       ],
       "filters": [
@@ -421,7 +421,7 @@
           "resource": "bom-items",
           "param": "bom_id",
           "label": [
-            "物料行",
+            "Components",
             "Components"
           ]
         }
@@ -432,7 +432,7 @@
       "path": "/api/v1/customer-contacts",
       "group": "master",
       "label": [
-        "客户联系人",
+        "Customer contacts",
         "Customer contacts"
       ],
       "filters": [
@@ -633,7 +633,7 @@
       "path": "/api/v1/customer-products",
       "group": "master",
       "label": [
-        "客户产品约定",
+        "Customer product terms",
         "Customer product terms"
       ],
       "filters": [
@@ -838,7 +838,7 @@
       "path": "/api/v1/customers",
       "group": "master",
       "label": [
-        "客户",
+        "Customers",
         "Customers"
       ],
       "filters": [
@@ -1149,7 +1149,7 @@
           "resource": "activities",
           "param": "customer_id",
           "label": [
-            "跟进",
+            "Activities",
             "Activities"
           ]
         },
@@ -1157,7 +1157,7 @@
           "resource": "events",
           "param": "customer_id",
           "label": [
-            "日程",
+            "Events",
             "Events"
           ]
         },
@@ -1165,7 +1165,7 @@
           "resource": "communication-events",
           "param": "customer_id",
           "label": [
-            "沟通",
+            "Communications",
             "Communications"
           ]
         },
@@ -1173,7 +1173,7 @@
           "resource": "customer-contacts",
           "param": "customer_id",
           "label": [
-            "联系人",
+            "Contacts",
             "Contacts"
           ]
         },
@@ -1181,7 +1181,7 @@
           "resource": "customer-products",
           "param": "customer_id",
           "label": [
-            "产品约定",
+            "Product terms",
             "Product terms"
           ]
         },
@@ -1189,7 +1189,7 @@
           "resource": "sales-orders",
           "param": "customer_id",
           "label": [
-            "订单",
+            "Orders",
             "Orders"
           ]
         },
@@ -1197,7 +1197,7 @@
           "resource": "sales-quotations",
           "param": "customer_id",
           "label": [
-            "报价",
+            "Quotations",
             "Quotations"
           ]
         },
@@ -1205,7 +1205,7 @@
           "resource": "invoices",
           "param": "customer_id",
           "label": [
-            "发票",
+            "Invoices",
             "Invoices"
           ]
         },
@@ -1213,7 +1213,7 @@
           "resource": "contracts",
           "param": "customer_id",
           "label": [
-            "合同",
+            "Contracts",
             "Contracts"
           ]
         }
@@ -1224,7 +1224,7 @@
       "path": "/api/v1/external-product-maps",
       "group": "master",
       "label": [
-        "外部商品映射",
+        "External product maps",
         "External product maps"
       ],
       "filters": [
@@ -1486,7 +1486,7 @@
       "path": "/api/v1/facilities",
       "group": "master",
       "label": [
-        "设施",
+        "Facilities",
         "Facilities"
       ],
       "filters": [
@@ -1642,7 +1642,7 @@
       "path": "/api/v1/geos",
       "group": "master",
       "label": [
-        "地理区划",
+        "Geos",
         "Geos"
       ],
       "filters": [
@@ -1801,7 +1801,7 @@
           "resource": "geos",
           "param": "parent_geo_id",
           "label": [
-            "下级",
+            "Children",
             "Children"
           ]
         },
@@ -1809,7 +1809,7 @@
           "resource": "customers",
           "param": "geo_id",
           "label": [
-            "客户",
+            "Customers",
             "Customers"
           ]
         },
@@ -1817,7 +1817,7 @@
           "resource": "leads",
           "param": "geo_id",
           "label": [
-            "线索",
+            "Leads",
             "Leads"
           ]
         },
@@ -1825,7 +1825,7 @@
           "resource": "territory-geos",
           "param": "geo_id",
           "label": [
-            "所属区域",
+            "Territories",
             "Territories"
           ]
         }
@@ -1836,7 +1836,7 @@
       "path": "/api/v1/product-prices",
       "group": "master",
       "label": [
-        "价格表",
+        "Price book",
         "Price book"
       ],
       "filters": [
@@ -2013,7 +2013,7 @@
       "path": "/api/v1/product-skus",
       "group": "master",
       "label": [
-        "产品 SKU",
+        "Product SKUs",
         "Product SKUs"
       ],
       "filters": [
@@ -2138,7 +2138,7 @@
       "path": "/api/v1/product-categories",
       "group": "master",
       "label": [
-        "产品分类",
+        "Product categories",
         "Product categories"
       ],
       "filters": [
@@ -2292,7 +2292,7 @@
       "path": "/api/v1/product-images",
       "group": "master",
       "label": [
-        "产品图片",
+        "Product images",
         "Product images"
       ],
       "filters": [
@@ -2441,7 +2441,7 @@
       "path": "/api/v1/products",
       "group": "master",
       "label": [
-        "产品",
+        "Products",
         "Products"
       ],
       "filters": [
@@ -2686,7 +2686,7 @@
           "resource": "product-skus",
           "param": "product_id",
           "label": [
-            "SKU",
+            "SKUs",
             "SKUs"
           ]
         },
@@ -2694,7 +2694,7 @@
           "resource": "product-prices",
           "param": "product_id",
           "label": [
-            "价格",
+            "Prices",
             "Prices"
           ]
         },
@@ -2702,7 +2702,7 @@
           "resource": "inventory-items",
           "param": "product_id",
           "label": [
-            "库存",
+            "Stock",
             "Stock"
           ]
         },
@@ -2710,7 +2710,7 @@
           "resource": "external-product-maps",
           "param": "product_id",
           "label": [
-            "外部映射",
+            "External maps",
             "External maps"
           ]
         },
@@ -2718,7 +2718,7 @@
           "resource": "supplier-products",
           "param": "product_id",
           "label": [
-            "供应商",
+            "Suppliers",
             "Suppliers"
           ]
         }
@@ -2729,7 +2729,7 @@
       "path": "/api/v1/projects",
       "group": "master",
       "label": [
-        "项目",
+        "Projects",
         "Projects"
       ],
       "filters": [
@@ -2989,7 +2989,7 @@
       "path": "/api/v1/resources",
       "group": "master",
       "label": [
-        "资源",
+        "Resources",
         "Resources"
       ],
       "filters": [
@@ -3197,7 +3197,7 @@
       "path": "/api/v1/sales-channels",
       "group": "master",
       "label": [
-        "销售渠道",
+        "Sales channels",
         "Sales channels"
       ],
       "filters": [
@@ -3335,7 +3335,7 @@
       "path": "/api/v1/store-facilities",
       "group": "master",
       "label": [
-        "门店设施",
+        "Store facilities",
         "Store facilities"
       ],
       "filters": [
@@ -3473,7 +3473,7 @@
       "path": "/api/v1/stores",
       "group": "master",
       "label": [
-        "门店",
+        "Stores",
         "Stores"
       ],
       "filters": [
@@ -3682,7 +3682,7 @@
       "path": "/api/v1/supplier-products",
       "group": "master",
       "label": [
-        "供应商产品",
+        "Supplier products",
         "Supplier products"
       ],
       "filters": [
@@ -3910,7 +3910,7 @@
       "path": "/api/v1/territories",
       "group": "master",
       "label": [
-        "销售区域",
+        "Territories",
         "Territories"
       ],
       "filters": [
@@ -4068,7 +4068,7 @@
           "resource": "territory-geos",
           "param": "territory_id",
           "label": [
-            "覆盖的地理",
+            "Coverage",
             "Coverage"
           ]
         },
@@ -4076,7 +4076,7 @@
           "resource": "territory-members",
           "param": "territory_id",
           "label": [
-            "成员",
+            "Members",
             "Members"
           ]
         },
@@ -4084,7 +4084,7 @@
           "resource": "customers",
           "param": "territory_id",
           "label": [
-            "客户",
+            "Customers",
             "Customers"
           ]
         },
@@ -4092,7 +4092,7 @@
           "resource": "territories",
           "param": "parent_territory_id",
           "label": [
-            "子区域",
+            "Child territories",
             "Child territories"
           ]
         }
@@ -4103,7 +4103,7 @@
       "path": "/api/v1/territory-geos",
       "group": "master",
       "label": [
-        "区域覆盖",
+        "Territory coverage",
         "Territory coverage"
       ],
       "filters": [
@@ -4176,7 +4176,7 @@
       "path": "/api/v1/territory-members",
       "group": "master",
       "label": [
-        "区域成员",
+        "Territory members",
         "Territory members"
       ],
       "filters": [
@@ -4328,7 +4328,7 @@
       "path": "/api/v1/vendors",
       "group": "master",
       "label": [
-        "供应商",
+        "Vendors",
         "Vendors"
       ],
       "filters": [
@@ -4499,7 +4499,7 @@
           "resource": "supplier-products",
           "param": "vendor_id",
           "label": [
-            "供应产品",
+            "Supplied products",
             "Supplied products"
           ]
         },
@@ -4507,7 +4507,7 @@
           "resource": "purchase-orders",
           "param": "vendor_id",
           "label": [
-            "采购订单",
+            "Purchase orders",
             "Purchase orders"
           ]
         },
@@ -4515,7 +4515,7 @@
           "resource": "invoices",
           "param": "vendor_id",
           "label": [
-            "发票",
+            "Invoices",
             "Invoices"
           ]
         }
@@ -4526,7 +4526,7 @@
       "path": "/api/v1/sales-order-adjustments",
       "group": "sales",
       "label": [
-        "订单调整项",
+        "Order adjustments",
         "Order adjustments"
       ],
       "filters": [
@@ -4667,7 +4667,7 @@
       "path": "/api/v1/sales-order-items",
       "group": "sales",
       "label": [
-        "订单行",
+        "Order lines",
         "Order lines"
       ],
       "filters": [
@@ -4972,7 +4972,7 @@
       "path": "/api/v1/sales-quotation-adjustments",
       "group": "sales",
       "label": [
-        "报价调整项",
+        "Quotation adjustments",
         "Quotation adjustments"
       ],
       "filters": [
@@ -5113,7 +5113,7 @@
       "path": "/api/v1/sales-quotation-items",
       "group": "sales",
       "label": [
-        "报价行",
+        "Quotation lines",
         "Quotation lines"
       ],
       "filters": [
@@ -5399,7 +5399,7 @@
       "path": "/api/v1/sales-orders",
       "group": "sales",
       "label": [
-        "销售订单与退货",
+        "Sales orders & returns",
         "Sales orders & returns"
       ],
       "filters": [
@@ -6113,7 +6113,7 @@
           "resource": "sales-order-items",
           "param": "order_id",
           "label": [
-            "订单行",
+            "Lines",
             "Lines"
           ]
         },
@@ -6121,7 +6121,7 @@
           "resource": "sales-order-adjustments",
           "param": "order_id",
           "label": [
-            "调整项",
+            "Adjustments",
             "Adjustments"
           ]
         },
@@ -6129,7 +6129,7 @@
           "resource": "invoices",
           "param": "sales_order_id",
           "label": [
-            "发票",
+            "Invoices",
             "Invoices"
           ]
         },
@@ -6137,7 +6137,7 @@
           "resource": "shipments",
           "param": "sales_order_id",
           "label": [
-            "发货单",
+            "Shipments",
             "Shipments"
           ]
         },
@@ -6145,7 +6145,7 @@
           "resource": "purchase-order-items",
           "param": "sales_order_id",
           "label": [
-            "采购链",
+            "Procurement",
             "Procurement"
           ]
         },
@@ -6153,7 +6153,7 @@
           "resource": "sales-orders",
           "param": "original_order_id",
           "label": [
-            "退货",
+            "Returns",
             "Returns"
           ]
         },
@@ -6161,7 +6161,7 @@
           "resource": "sales-orders",
           "param": "supersedes_order_id",
           "label": [
-            "替代单",
+            "Replacement",
             "Replacement"
           ]
         }
@@ -6172,7 +6172,7 @@
       "path": "/api/v1/sales-quotations",
       "group": "sales",
       "label": [
-        "销售报价",
+        "Sales quotations",
         "Sales quotations"
       ],
       "filters": [
@@ -6781,7 +6781,7 @@
           "resource": "sales-quotation-items",
           "param": "quotation_id",
           "label": [
-            "报价行",
+            "Lines",
             "Lines"
           ]
         },
@@ -6789,7 +6789,7 @@
           "resource": "sales-quotation-adjustments",
           "param": "quotation_id",
           "label": [
-            "调整项",
+            "Adjustments",
             "Adjustments"
           ]
         },
@@ -6797,7 +6797,7 @@
           "resource": "sales-orders",
           "param": "quotation_id",
           "label": [
-            "成交订单",
+            "Orders",
             "Orders"
           ]
         }
@@ -6808,7 +6808,7 @@
       "path": "/api/v1/purchase-order-adjustments",
       "group": "purchasing",
       "label": [
-        "采购订单调整项",
+        "Purchase order adjustments",
         "Purchase order adjustments"
       ],
       "filters": [
@@ -6949,7 +6949,7 @@
       "path": "/api/v1/purchase-order-items",
       "group": "purchasing",
       "label": [
-        "采购订单行",
+        "Purchase order lines",
         "Purchase order lines"
       ],
       "filters": [
@@ -7250,7 +7250,7 @@
       "path": "/api/v1/purchase-orders",
       "group": "purchasing",
       "label": [
-        "采购订单",
+        "Purchase orders",
         "Purchase orders"
       ],
       "filters": [
@@ -7658,7 +7658,7 @@
           "resource": "purchase-order-items",
           "param": "po_id",
           "label": [
-            "采购行",
+            "Lines",
             "Lines"
           ]
         },
@@ -7666,7 +7666,7 @@
           "resource": "purchase-order-adjustments",
           "param": "po_id",
           "label": [
-            "调整项",
+            "Adjustments",
             "Adjustments"
           ]
         },
@@ -7674,7 +7674,7 @@
           "resource": "invoices",
           "param": "purchase_order_id",
           "label": [
-            "发票",
+            "Invoices",
             "Invoices"
           ]
         }
@@ -7685,7 +7685,7 @@
       "path": "/api/v1/purchase-requests",
       "group": "purchasing",
       "label": [
-        "采购申请",
+        "Purchase requests",
         "Purchase requests"
       ],
       "filters": [
@@ -7993,7 +7993,7 @@
       "path": "/api/v1/inventory-item-details",
       "group": "inventory",
       "label": [
-        "库存明细",
+        "Inventory details",
         "Inventory details"
       ],
       "filters": [
@@ -8155,7 +8155,7 @@
       "path": "/api/v1/inventory-items",
       "group": "inventory",
       "label": [
-        "库存位置",
+        "Inventory positions",
         "Inventory positions"
       ],
       "filters": [
@@ -8468,7 +8468,7 @@
       "path": "/api/v1/picklist-items",
       "group": "inventory",
       "label": [
-        "拣货单行",
+        "Picklist items",
         "Picklist items"
       ],
       "filters": [
@@ -8637,7 +8637,7 @@
       "path": "/api/v1/picklists",
       "group": "inventory",
       "label": [
-        "拣货单",
+        "Picklists",
         "Picklists"
       ],
       "filters": [
@@ -8799,7 +8799,7 @@
           "resource": "picklist-items",
           "param": "picklist_id",
           "label": [
-            "拣货行",
+            "Lines",
             "Lines"
           ]
         }
@@ -8810,7 +8810,7 @@
       "path": "/api/v1/shipment-items",
       "group": "inventory",
       "label": [
-        "发货单行",
+        "Shipment items",
         "Shipment items"
       ],
       "filters": [
@@ -8965,7 +8965,7 @@
       "path": "/api/v1/shipments",
       "group": "inventory",
       "label": [
-        "发货单",
+        "Shipments",
         "Shipments"
       ],
       "filters": [
@@ -9325,7 +9325,7 @@
           "resource": "shipment-items",
           "param": "shipment_id",
           "label": [
-            "发货行",
+            "Lines",
             "Lines"
           ]
         }
@@ -9336,7 +9336,7 @@
       "path": "/api/v1/fin-account-transactions",
       "group": "finance",
       "label": [
-        "资金流水",
+        "Account transactions",
         "Account transactions"
       ],
       "filters": [
@@ -9595,7 +9595,7 @@
       "path": "/api/v1/billing-account-entries",
       "group": "finance",
       "label": [
-        "账户流水",
+        "Billing account entries",
         "Billing account entries"
       ],
       "filters": [
@@ -9716,7 +9716,7 @@
       "path": "/api/v1/billing-accounts",
       "group": "finance",
       "label": [
-        "账单账户",
+        "Billing accounts",
         "Billing accounts"
       ],
       "filters": [
@@ -10089,7 +10089,7 @@
           "resource": "billing-account-entries",
           "param": "billing_account_id",
           "label": [
-            "流水",
+            "Entries",
             "Entries"
           ]
         }
@@ -10100,7 +10100,7 @@
       "path": "/api/v1/expense-claims",
       "group": "finance",
       "label": [
-        "报销单",
+        "Expense claims",
         "Expense claims"
       ],
       "filters": [
@@ -10373,7 +10373,7 @@
       "path": "/api/v1/fin-accounts",
       "group": "finance",
       "label": [
-        "资金账户",
+        "Financial accounts",
         "Financial accounts"
       ],
       "filters": [
@@ -10566,7 +10566,7 @@
           "resource": "fin-account-transactions",
           "param": "fin_account_id",
           "label": [
-            "流水",
+            "Transactions",
             "Transactions"
           ]
         }
@@ -10577,7 +10577,7 @@
       "path": "/api/v1/invoice-items",
       "group": "finance",
       "label": [
-        "发票行",
+        "Invoice lines",
         "Invoice lines"
       ],
       "filters": [
@@ -10882,7 +10882,7 @@
       "path": "/api/v1/invoices",
       "group": "finance",
       "label": [
-        "发票与工资条",
+        "Invoices & payslips",
         "Invoices & payslips"
       ],
       "filters": [
@@ -11547,7 +11547,7 @@
           "resource": "invoice-items",
           "param": "invoice_id",
           "label": [
-            "发票行",
+            "Lines",
             "Lines"
           ]
         }
@@ -11558,7 +11558,7 @@
       "path": "/api/v1/payment-applications",
       "group": "finance",
       "label": [
-        "款项核销",
+        "Payment applications",
         "Payment applications"
       ],
       "filters": [
@@ -11656,7 +11656,7 @@
       "path": "/api/v1/payments",
       "group": "finance",
       "label": [
-        "收付款",
+        "Payments",
         "Payments"
       ],
       "filters": [
@@ -12112,7 +12112,7 @@
           "resource": "payment-applications",
           "param": "payment_id",
           "label": [
-            "核销",
+            "Applications",
             "Applications"
           ]
         }
@@ -12123,7 +12123,7 @@
       "path": "/api/v1/employees",
       "group": "people",
       "label": [
-        "员工",
+        "Employees",
         "Employees"
       ],
       "filters": [
@@ -12289,7 +12289,7 @@
           "resource": "todos",
           "param": "employee_id",
           "label": [
-            "待办",
+            "To-dos",
             "To-dos"
           ]
         },
@@ -12297,7 +12297,7 @@
           "resource": "timesheet-headers",
           "param": "employee_id",
           "label": [
-            "工时单",
+            "Timesheets",
             "Timesheets"
           ]
         },
@@ -12305,7 +12305,7 @@
           "resource": "expense-claims",
           "param": "employee_id",
           "label": [
-            "报销",
+            "Expense claims",
             "Expense claims"
           ]
         },
@@ -12313,7 +12313,7 @@
           "resource": "employee-leaves",
           "param": "employee_id",
           "label": [
-            "请假",
+            "Leave",
             "Leave"
           ]
         },
@@ -12321,7 +12321,7 @@
           "resource": "pay-histories",
           "param": "employee_id",
           "label": [
-            "薪酬",
+            "Pay history",
             "Pay history"
           ]
         }
@@ -12332,7 +12332,7 @@
       "path": "/api/v1/employee-leaves",
       "group": "people",
       "label": [
-        "请假",
+        "Leave",
         "Leave"
       ],
       "filters": [
@@ -12598,7 +12598,7 @@
       "path": "/api/v1/pay-histories",
       "group": "people",
       "label": [
-        "薪酬记录",
+        "Pay history",
         "Pay history"
       ],
       "filters": [
@@ -12844,7 +12844,7 @@
       "path": "/api/v1/timesheet-headers",
       "group": "people",
       "label": [
-        "工时单",
+        "Timesheets",
         "Timesheets"
       ],
       "filters": [
@@ -13096,7 +13096,7 @@
       "path": "/api/v1/activities",
       "group": "crm",
       "label": [
-        "跟进记录",
+        "Activities",
         "Activities"
       ],
       "filters": [
@@ -13435,7 +13435,7 @@
       "path": "/api/v1/campaign-members",
       "group": "crm",
       "label": [
-        "活动成员",
+        "Campaign members",
         "Campaign members"
       ],
       "filters": [
@@ -13610,7 +13610,7 @@
       "path": "/api/v1/campaigns",
       "group": "crm",
       "label": [
-        "市场活动",
+        "Campaigns",
         "Campaigns"
       ],
       "filters": [
@@ -13920,7 +13920,7 @@
           "resource": "campaign-members",
           "param": "campaign_id",
           "label": [
-            "成员",
+            "Members",
             "Members"
           ]
         },
@@ -13928,7 +13928,7 @@
           "resource": "leads",
           "param": "campaign_id",
           "label": [
-            "线索",
+            "Leads",
             "Leads"
           ]
         },
@@ -13936,7 +13936,7 @@
           "resource": "opportunities",
           "param": "campaign_id",
           "label": [
-            "商机",
+            "Opportunities",
             "Opportunities"
           ]
         },
@@ -13944,7 +13944,7 @@
           "resource": "campaigns",
           "param": "parent_campaign_id",
           "label": [
-            "子活动",
+            "Child campaigns",
             "Child campaigns"
           ]
         }
@@ -13955,7 +13955,7 @@
       "path": "/api/v1/communication-events",
       "group": "crm",
       "label": [
-        "往来沟通",
+        "Communications",
         "Communications"
       ],
       "filters": [
@@ -14242,7 +14242,7 @@
       "path": "/api/v1/event-participants",
       "group": "crm",
       "label": [
-        "日程参与人",
+        "Event participants",
         "Event participants"
       ],
       "filters": [
@@ -14364,7 +14364,7 @@
       "path": "/api/v1/events",
       "group": "crm",
       "label": [
-        "日程",
+        "Events",
         "Events"
       ],
       "filters": [
@@ -14697,7 +14697,7 @@
           "resource": "event-participants",
           "param": "event_id",
           "label": [
-            "参与人",
+            "Participants",
             "Participants"
           ]
         },
@@ -14705,7 +14705,7 @@
           "resource": "activities",
           "param": "event_id",
           "label": [
-            "记录",
+            "Logged activities",
             "Logged activities"
           ]
         }
@@ -14716,7 +14716,7 @@
       "path": "/api/v1/leads",
       "group": "crm",
       "label": [
-        "线索",
+        "Leads",
         "Leads"
       ],
       "filters": [
@@ -15031,7 +15031,7 @@
           "resource": "activities",
           "param": "lead_id",
           "label": [
-            "跟进",
+            "Activities",
             "Activities"
           ]
         },
@@ -15039,7 +15039,7 @@
           "resource": "events",
           "param": "lead_id",
           "label": [
-            "日程",
+            "Events",
             "Events"
           ]
         },
@@ -15047,7 +15047,7 @@
           "resource": "communication-events",
           "param": "lead_id",
           "label": [
-            "沟通",
+            "Communications",
             "Communications"
           ]
         },
@@ -15055,7 +15055,7 @@
           "resource": "campaign-members",
           "param": "lead_id",
           "label": [
-            "活动",
+            "Campaigns",
             "Campaigns"
           ]
         },
@@ -15063,7 +15063,7 @@
           "resource": "opportunities",
           "param": "lead_id",
           "label": [
-            "商机",
+            "Opportunities",
             "Opportunities"
           ]
         }
@@ -15074,7 +15074,7 @@
       "path": "/api/v1/opportunities",
       "group": "crm",
       "label": [
-        "商机",
+        "Opportunities",
         "Opportunities"
       ],
       "filters": [
@@ -15513,7 +15513,7 @@
           "resource": "activities",
           "param": "opportunity_id",
           "label": [
-            "跟进",
+            "Activities",
             "Activities"
           ]
         },
@@ -15521,7 +15521,7 @@
           "resource": "events",
           "param": "opportunity_id",
           "label": [
-            "日程",
+            "Events",
             "Events"
           ]
         },
@@ -15529,7 +15529,7 @@
           "resource": "communication-events",
           "param": "opportunity_id",
           "label": [
-            "沟通",
+            "Communications",
             "Communications"
           ]
         },
@@ -15537,7 +15537,7 @@
           "resource": "opportunity-items",
           "param": "opportunity_id",
           "label": [
-            "产品行",
+            "Lines",
             "Lines"
           ]
         },
@@ -15545,7 +15545,7 @@
           "resource": "opportunity-contacts",
           "param": "opportunity_id",
           "label": [
-            "联系人",
+            "Contacts",
             "Contacts"
           ]
         },
@@ -15553,7 +15553,7 @@
           "resource": "sales-quotations",
           "param": "opportunity_id",
           "label": [
-            "报价",
+            "Quotations",
             "Quotations"
           ]
         },
@@ -15561,7 +15561,7 @@
           "resource": "sales-orders",
           "param": "opportunity_id",
           "label": [
-            "订单",
+            "Orders",
             "Orders"
           ]
         }
@@ -15572,7 +15572,7 @@
       "path": "/api/v1/opportunity-contacts",
       "group": "crm",
       "label": [
-        "商机联系人",
+        "Opportunity contacts",
         "Opportunity contacts"
       ],
       "filters": [
@@ -15694,7 +15694,7 @@
       "path": "/api/v1/opportunity-items",
       "group": "crm",
       "label": [
-        "商机产品行",
+        "Opportunity lines",
         "Opportunity lines"
       ],
       "filters": [
@@ -15905,7 +15905,7 @@
       "path": "/api/v1/contract-documents",
       "group": "contracts",
       "label": [
-        "合同文件",
+        "Contract documents",
         "Contract documents"
       ],
       "filters": [
@@ -16077,7 +16077,7 @@
       "path": "/api/v1/contract-items",
       "group": "contracts",
       "label": [
-        "合同行",
+        "Contract items",
         "Contract items"
       ],
       "filters": [
@@ -16265,7 +16265,7 @@
       "path": "/api/v1/contract-terms",
       "group": "contracts",
       "label": [
-        "合同条款",
+        "Contract terms",
         "Contract terms"
       ],
       "filters": [
@@ -16455,7 +16455,7 @@
       "path": "/api/v1/contracts",
       "group": "contracts",
       "label": [
-        "合同",
+        "Contracts",
         "Contracts"
       ],
       "filters": [
@@ -16705,6 +16705,15 @@
           "type": "string"
         },
         {
+          "name": "side",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "purchase",
+            "sales"
+          ]
+        },
+        {
           "name": "opportunity_id",
           "required": false,
           "type": "string"
@@ -16795,6 +16804,25 @@
           "name": "contract_type",
           "required": false,
           "type": "string"
+        },
+        {
+          "name": "vendor_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "side",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "purchase",
+            "sales"
+          ]
         },
         {
           "name": "opportunity_id",
@@ -16906,7 +16934,7 @@
           "resource": "contract-items",
           "param": "contract_id",
           "label": [
-            "合同行",
+            "Lines",
             "Lines"
           ]
         },
@@ -16914,7 +16942,7 @@
           "resource": "contract-terms",
           "param": "contract_id",
           "label": [
-            "条款",
+            "Terms",
             "Terms"
           ]
         },
@@ -16922,7 +16950,7 @@
           "resource": "contract-documents",
           "param": "contract_id",
           "label": [
-            "文件",
+            "Documents",
             "Documents"
           ]
         }
@@ -16933,7 +16961,7 @@
       "path": "/api/v1/approval-records",
       "group": "work",
       "label": [
-        "审批记录",
+        "Approval records",
         "Approval records"
       ],
       "filters": [
@@ -17181,7 +17209,7 @@
       "path": "/api/v1/approval-targets",
       "group": "work",
       "label": [
-        "可审批对象",
+        "Approval targets",
         "Approval targets"
       ],
       "filters": [
@@ -17360,7 +17388,7 @@
       "path": "/api/v1/business-objects",
       "group": "work",
       "label": [
-        "自定义对象",
+        "Custom objects",
         "Custom objects"
       ],
       "filters": [
@@ -17561,7 +17589,7 @@
       "path": "/api/v1/external-document-links",
       "group": "work",
       "label": [
-        "外部单号链接",
+        "External document links",
         "External document links"
       ],
       "filters": [
@@ -17684,7 +17712,7 @@
       "path": "/api/v1/business-object-links",
       "group": "work",
       "label": [
-        "对象关联",
+        "Object links",
         "Object links"
       ],
       "filters": [
@@ -17772,7 +17800,7 @@
       "path": "/api/v1/resource-bookings",
       "group": "work",
       "label": [
-        "资源预订",
+        "Resource bookings",
         "Resource bookings"
       ],
       "filters": [
@@ -18028,7 +18056,7 @@
       "path": "/api/v1/todos",
       "group": "work",
       "label": [
-        "待办",
+        "To-dos",
         "To-dos"
       ],
       "filters": [
@@ -18319,7 +18347,7 @@
       "path": "/api/v1/tenant/api-keys",
       "group": "system",
       "label": [
-        "API 密钥",
+        "API keys",
         "API keys"
       ],
       "filters": [
@@ -18463,7 +18491,7 @@
       "path": "/api/v1/business-rules",
       "group": "system",
       "label": [
-        "业务规则",
+        "Business rules",
         "Business rules"
       ],
       "filters": [
@@ -18930,7 +18958,7 @@
       "path": "/api/v1/flow-runs",
       "group": "system",
       "label": [
-        "流程代理运行",
+        "Flow agent runs",
         "Flow agent runs"
       ],
       "filters": [
@@ -19125,7 +19153,7 @@
       "path": "/api/v1/flow-subscriptions",
       "group": "system",
       "label": [
-        "流程代理订阅",
+        "Flow agent subscriptions",
         "Flow agent subscriptions"
       ],
       "filters": [
@@ -19260,7 +19288,7 @@
       "path": "/api/v1/object-type-definitions",
       "group": "system",
       "label": [
-        "对象类型定义",
+        "Object type definitions",
         "Object type definitions"
       ],
       "filters": [

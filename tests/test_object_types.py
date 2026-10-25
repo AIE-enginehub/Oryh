@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_object_types.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -399,7 +406,7 @@ def test_the_server_refuses_the_exact_word_and_leaves_the_reading_to_the_agent(c
     quotes and sales orders into generic objects named exactly that, beside
     empty builtin tables — judgement never fired once. So the EXACT shipped
     words are now the server's to refuse; the reading beyond them ("merchandise",
-    "货品") is still the agent's, and still allowed through here."""
+    "goods") is still the agent's, and still allowed through here."""
     for object_type in ("product", "invoice", "customer"):
         response = client.post(
             "/api/v1/object-type-definitions",
@@ -491,7 +498,7 @@ def test_a_deleted_legacy_dump_leaves_the_directory(client: TestClient) -> None:
     live rows and no definition is gone."""
     made = [
         client.post("/api/v1/business-objects",
-                    json={"object_type": "legacy_customer", "title": f"客户 {n}"},
+                    json={"object_type": "legacy_customer", "title": f"{_ZH_TEXT['TEXT_88460D906FE6FBB8']}{n}"},
                     headers=HEADERS).json()["data"]["id"]
         for n in range(3)
     ]
@@ -525,7 +532,7 @@ def test_a_generic_object_may_not_shadow_a_shipped_collection(client: TestClient
         "json_schema": {"type": "object"}})
     assert definition.status_code == 422 and "/products" in definition.json()["detail"]
     allowed = client.post("/api/v1/business-objects", headers=HEADERS,
-                          json={"object_type": "product_recall", "title": "召回 2026-09"})
+                          json={"object_type": "product_recall", "title": _ZH_TEXT['TEXT_90D9ACBEEDBAD443']})
     assert allowed.status_code == 201, "a name that is not a shipped word stays free"
 
 
@@ -543,14 +550,14 @@ def test_a_record_cannot_change_type_to_borrow_another_types_write_grant(client:
     scoped = invite_member(client, admin, "reviewer",
                            ["business_object.write:review_allowed", "business_object.read:review_record"])
     record = client.post("/api/v1/business-objects", headers=admin,
-                         json={"object_type": "review_record", "title": "评审记录"}).json()["data"]
+                         json={"object_type": "review_record", "title": _ZH_TEXT['TEXT_0B35007330CCAE16']}).json()["data"]
     assert client.patch(f"/api/v1/business-objects/{record['id']}", headers=scoped,
-                        json={"title": "改标题"}).status_code == 403
+                        json={"title": _ZH_TEXT['TEXT_0C4E29F6120CACAD']}).status_code == 403
     retyped = client.patch(f"/api/v1/business-objects/{record['id']}", headers=scoped,
-                           json={"object_type": "review_allowed", "title": "改标题"})
+                           json={"object_type": "review_allowed", "title": _ZH_TEXT['TEXT_0C4E29F6120CACAD']})
     assert retyped.status_code in (403, 422), retyped.text
     as_admin = client.patch(f"/api/v1/business-objects/{record['id']}", headers=admin,
                             json={"object_type": "review_allowed"})
     assert as_admin.status_code == 422 and "identity" in as_admin.json()["detail"], "not even an admin re-types a record"
     still = client.get(f"/api/v1/business-objects/{record['id']}", headers=admin).json()["data"]
-    assert still["object_type"] == "review_record" and still["title"] == "评审记录"
+    assert still["object_type"] == "review_record" and still["title"] == _ZH_TEXT['TEXT_0B35007330CCAE16']

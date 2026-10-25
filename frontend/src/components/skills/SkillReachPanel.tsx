@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -24,7 +25,7 @@ export function SkillReachPanel({
   const reach = useQuery({ queryKey: ["skill-reach", subjectKey], queryFn: fetcher });
 
   if (reach.isPending) {
-    return <section className="skill-reach"><p className="muted-value">{text("正在计算…", "Working it out…")}</p></section>;
+    return <section className="skill-reach"><p className="muted-value">{text(zhCN.componentsSkillsSkillReachPanel.workingItOut, "Working it out…")}</p></section>;
   }
   if (reach.isError) {
     return (
@@ -48,18 +49,18 @@ export function SkillReachPanel({
   return (
     <section className="skill-reach">
       <h4>
-        {text("会收到的技能", "Skills received")}
+        {text(zhCN.componentsSkillsSkillReachPanel.skillsReceived, "Skills received")}
         <span className="reach-count">{received.length}</span>
       </h4>
       <p className="reach-hint">
         {text(
-          "下次同步时安装到这个人的 agent 上。",
+          zhCN.componentsSkillsSkillReachPanel.whatTheNextSyncWouldInstallOnThisAgent,
           "What the next sync would install on this agent.",
         )}
       </p>
 
       {received.length === 0 ? (
-        <p className="muted-value">{text("目前一个技能也收不到。", "Receives nothing right now.")}</p>
+        <p className="muted-value">{text(zhCN.componentsSkillsSkillReachPanel.receivesNothingRightNow, "Receives nothing right now.")}</p>
       ) : (
         <ul className="reach-list">
           {received.map((entry) => (
@@ -82,29 +83,29 @@ export function SkillReachPanel({
             onClick={() => setShowWithheld((open) => !open)}
           >
             {showWithheld
-              ? text("收起收不到的技能", "Hide what is not received")
-              : text(`收不到的 ${withheld.length} 个技能，及原因`, `${withheld.length} not received — and why`)}
+              ? text(zhCN.componentsSkillsSkillReachPanel.hideWhatIsNotReceived, "Hide what is not received")
+              : text(zhCN.componentsSkillsSkillReachPanel.notReceivedAndWhy(`${withheld.length}`), `${withheld.length} not received — and why`)}
           </button>
 
           {showWithheld && (
             <div className="reach-withheld">
               {blocked.length > 0 && (
                 <>
-                  <h5>{text("缺少所需能力", "Missing the capability")}</h5>
+                  <h5>{text(zhCN.componentsSkillsSkillReachPanel.missingTheCapability, "Missing the capability")}</h5>
                   <ul className="reach-list">
                     {blocked.map((entry) => (
                       <li key={entry.name}>
                         <strong>{entry.title || entry.name}</strong>
                         <code>{entry.name}</code>
                         <small className="reach-reason">
-                          {text("需要 ", "Needs ")}
+                          {text(zhCN.componentsSkillsSkillReachPanel.needs, "Needs ")}
                           <code>{entry.required_capability}</code>
                           {entry.granted_by_roles.length > 0
                             ? text(
-                                `，目前持有该能力的角色：${entry.granted_by_roles.join("、")}`,
+                                zhCN.componentsSkillsSkillReachPanel.currentlyHeldBy(`${entry.granted_by_roles.join("、")}`),
                                 `, currently held by: ${entry.granted_by_roles.join(", ")}`,
                               )
-                            : text("，目前没有任何角色持有该能力", ", which no role currently holds")}
+                            : text(zhCN.componentsSkillsSkillReachPanel.whichNoRoleCurrentlyHolds, ", which no role currently holds")}
                         </small>
                         <SkillPurpose entry={entry} />
                       </li>
@@ -115,17 +116,17 @@ export function SkillReachPanel({
 
               {both.length > 0 && (
                 <>
-                  <h5>{text("能力和分发范围都不满足", "Blocked on both")}</h5>
+                  <h5>{text(zhCN.componentsSkillsSkillReachPanel.blockedOnBoth, "Blocked on both")}</h5>
                   <ul className="reach-list">
                     {both.map((entry) => (
                       <li key={entry.name}>
                         <strong>{entry.title || entry.name}</strong>
                         <code>{entry.name}</code>
                         <small className="reach-reason">
-                          {text("需要 ", "Needs ")}
+                          {text(zhCN.componentsSkillsSkillReachPanel.needs, "Needs ")}
                           <code>{entry.required_capability}</code>
                           {text(
-                            "，并且要被加入该技能的受众。只做其中一样仍然收不到。",
+                            zhCN.componentsSkillsSkillReachPanel.andToBeAddedToTheSkillSAudience,
                             ", and to be added to the skill's audience. Doing only one of the two still leaves it out of reach.",
                           )}
                         </small>
@@ -138,7 +139,7 @@ export function SkillReachPanel({
 
               {unnamed.length > 0 && (
                 <>
-                  <h5>{text("能力够，但不在分发范围内", "Allowed, but targeted elsewhere")}</h5>
+                  <h5>{text(zhCN.componentsSkillsSkillReachPanel.allowedButTargetedElsewhere, "Allowed, but targeted elsewhere")}</h5>
                   <ul className="reach-list">
                     {unnamed.map((entry) => (
                       <li key={entry.name}>
@@ -146,7 +147,7 @@ export function SkillReachPanel({
                         <code>{entry.name}</code>
                         <small className="reach-reason">
                           {text(
-                            "该技能为定向分发，在「技能」页把这里加入受众即可。",
+                            zhCN.componentsSkillsSkillReachPanel.thisSkillIsTargetedAddThisSubjectToIts,
                             "This skill is targeted; add this subject to its audience on the Skills page.",
                           )}
                         </small>
@@ -171,7 +172,7 @@ export function SkillReachPanel({
  * "Oryh Payroll" still has to guess whether HR needs it, and in the workspace
  * this was found in, the guess went the other way for months: the HR role held
  * no payroll verb, so the HR agent never received the skill and quietly filed
- * the wrong kind of record when asked to 做工资单.
+ * the wrong kind of record when asked to generate payslips.
  */
 function SkillPurpose({ entry }: { entry: SkillReachEntry }) {
   if (!entry.description) return null;
@@ -181,21 +182,21 @@ function SkillPurpose({ entry }: { entry: SkillReachEntry }) {
 function ReceivedReason({ entry }: { entry: SkillReachEntry }) {
   const { text } = useI18n();
   if (entry.reasons.includes("targeted_user")) {
-    return <small className="reach-reason">{text("单独指定", "Named individually")}</small>;
+    return <small className="reach-reason">{text(zhCN.componentsSkillsSkillReachPanel.namedIndividually, "Named individually")}</small>;
   }
   if (entry.reasons.includes("targeted_role")) {
     const role = entry.named_via.find((via) => via.startsWith("role:"))?.slice(5);
     return (
       <small className="reach-reason">
-        {role ? text(`通过角色 ${role} 指定`, `Named via the ${role} role`) : text("通过角色指定", "Named via a role")}
+        {role ? text(zhCN.componentsSkillsSkillReachPanel.namedViaTheRole(`${role}`), `Named via the ${role} role`) : text(zhCN.componentsSkillsSkillReachPanel.namedViaARole, "Named via a role")}
       </small>
     );
   }
   return (
     <small className="reach-reason muted-value">
       {entry.required_capability
-        ? text("按能力分发", "By capability")
-        : text("对所有人开放", "Open to everyone")}
+        ? text(zhCN.componentsSkillsSkillReachPanel.byCapability, "By capability")
+        : text(zhCN.componentsSkillsSkillReachPanel.openToEveryone, "Open to everyone")}
     </small>
   );
 }

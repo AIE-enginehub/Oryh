@@ -1,3 +1,4 @@
+import { zhCN } from "../../locales/zh-CN/console";
 import { useEffect, useId, useRef, type FormEvent, type ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { useFocusTrap } from "../useFocusTrap";
@@ -62,14 +63,14 @@ export function Drawer({
   if (!open) return null;
   return (
     <div className="drawer-layer">
-      <button className="drawer-scrim" type="button" aria-label={text("关闭编辑面板", "Close edit panel")} disabled={busy} onClick={onClose} />
+      <button className="drawer-scrim" type="button" aria-label={text(zhCN.componentsMasterDataDrawer.closeEditPanel, "Close edit panel")} disabled={busy} onClick={onClose} />
       <section ref={panelRef} className="data-drawer" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="drawer-header">
           <div>
             <h2 id={titleId}>{title}</h2>
             <p>{description}</p>
           </div>
-          <button className="drawer-close" type="button" aria-label={text("关闭", "Close")} disabled={busy} onClick={onClose}>×</button>
+          <button className="drawer-close" type="button" aria-label={text(zhCN.componentsMasterDataDrawer.close, "Close")} disabled={busy} onClick={onClose}>×</button>
         </header>
         <form className="drawer-form" onSubmit={onSubmit} noValidate>
           <div className="drawer-body">
@@ -77,9 +78,9 @@ export function Drawer({
             {children}
           </div>
           <footer className="drawer-footer">
-            <button className="button" type="button" disabled={busy} onClick={onClose}>{text("取消", "Cancel")}</button>
+            <button className="button" type="button" disabled={busy} onClick={onClose}>{text(zhCN.componentsMasterDataDrawer.cancel, "Cancel")}</button>
             <button className="button primary" type="submit" disabled={busy || submitDisabled}>
-              {busy ? text("正在保存…", "Saving…") : submitLabel}
+              {busy ? text(zhCN.componentsMasterDataDrawer.saving, "Saving…") : submitLabel}
             </button>
           </footer>
         </form>

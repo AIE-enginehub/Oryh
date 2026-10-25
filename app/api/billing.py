@@ -8,7 +8,7 @@ direction decides which counterparty is required, which capability scope is
 checked, which order the lines may bill, and — in the settlement path — what a
 payment may apply to. Everything else about a bill is the same either way.
 
-Payments and 核销 are the settlement half. A payment is money that moved; an
+Payments and settlement applications form the settlement half. A payment is money that moved; an
 application is one act of saying which document that money settles. The ledger
 is append-only, so a mistake is corrected by a counter-entry, never by editing
 history. AMOUNTS are guarded by the server — nothing may be over-applied, in
@@ -28,6 +28,8 @@ router.
 """
 
 from __future__ import annotations
+
+from app.locales.zh_CN import messages as zh_messages
 
 from decimal import Decimal
 
@@ -276,8 +278,8 @@ def hide_payroll_payments(stmt, actor: Actor):
 
     So the second clause gates on the payment itself: money that names another
     employee as payee is that person's business, whether or not anything has
-    been applied to it yet. It exempts the money handlers, because a 出纳
-    processing 报销付款 and 工资代发 has to see what they are paying — the
+    been applied to it yet. It exempts the money handlers, because a cashier
+    processing reimbursement payouts and salary disbursements has to see what they are paying — the
     exemption is the job, not a hole. Everyone else sees their own payouts and
     the company's ordinary customer and supplier payments.
 
@@ -311,13 +313,13 @@ def hide_payroll_payments(stmt, actor: Actor):
 
 
 def handles_money(actor: Actor) -> bool:
-    """Whether this credential's job is moving money. A 出纳 recording a payout,
-    a 会计 matching it, and the approver deciding whether it goes at all have to
+    """Whether this credential's job is moving money. A cashier recording a payout,
+    an accountant matching it, and the approver deciding whether it goes at all have to
     see payments made to people; an ordinary employee has no such reason.
 
     `payment.advance` is here because approving a payout you cannot see is not
     a weaker version of the job, it is none of it: the queue came back empty,
-    so a workspace whose workflow definition routed 工资发放 through payment
+    so a workspace whose workflow definition routed payroll disbursement through payment
     approval had a step nobody — human or flow agent — could ever reach. The
     exemption is the duty, same as for the other two.
 
@@ -326,7 +328,7 @@ def handles_money(actor: Actor) -> bool:
     Two things bound it. The first clause of `hide_payroll_payments` keeps its
     full strength regardless — once applied to a payslip, the amount IS net pay
     and only `payroll.read` sees it. And this reaches the payout alone; the
-    payslip behind it, with its line-by-line 社保/个税 breakdown, stays shut."""
+    payslip behind it, with its line-by-line social insurance/individual income tax breakdown, stays shut."""
     return (
         has_permission(actor, "payment.record")
         or has_permission(actor, "payment.apply")
@@ -426,7 +428,7 @@ def bulk_import_invoices(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Import 期初应收应付 keyed on each invoice's own `invoice_no`.
+    """Import opening receivables/payables keyed on each invoice's own `invoice_no`.
 
     Settlement is deliberately not part of a row: how much of an invoice was
     already collected is a payment fact, and importing it as a column would
@@ -446,7 +448,7 @@ def bulk_import_payments(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """Import historical收付款 keyed on each payment's own `payment_no`.
+    """Import historical receipts and payments keyed on each payment's own `payment_no`.
 
     Imported payments arrive fully unapplied — which invoice each one settled
     is recorded through `POST /payments/{id}/apply`, so the over-application,
@@ -490,7 +492,7 @@ CHARGE_OWNER_BY_DIRECTION = {"sales": "customer_id", "purchase": "vendor_id"}
 # document nobody classified", putting them in the same bucket as genuinely
 # unclassified receipts the next time somebody totals input tax.
 #
-# Sales and purchase are deliberately absent: which 发票 a supplier issued is a
+# Sales and purchase are deliberately absent: which invoice a supplier issued is a
 # fact about the paper, and the server has no business guessing it. There the
 # caller states it or it stays open.
 DEFAULT_INVOICE_TYPE_BY_DIRECTION = {
@@ -595,10 +597,10 @@ def ensure_invoice_order_link(db: Session, tenant_id: str, direction: str, updat
 def ensure_payroll_shape(db: Session, tenant_id: str, payload) -> None:
     """What a payslip is, beyond being an invoice.
 
-    The period is required because 双发工资 is the expensive mistake in this
+    The period is required because duplicate payroll is the expensive mistake in this
     family and the one-per-person-per-period index needs something to key on.
     A declared total is refused because net pay IS the sum of the lines —
-    stating a different number could only ever be wrong, unlike a 抹零 on a
+    stating a different number could only ever be wrong, unlike a rounding adjustment on a
     sales invoice."""
     if payload.period_start is None or payload.period_end is None:
         raise HTTPException(
@@ -626,7 +628,7 @@ def ensure_payroll_shape(db: Session, tenant_id: str, payload) -> None:
 
 
 def ensure_line_sign(db: Session, tenant_id: str, family: str, item_type: str, amount) -> None:
-    """On a payslip the sign IS the meaning. 个税 recorded as +2000 rather than
+    """On a payslip the sign IS the meaning. Individual income tax recorded as +2000 rather than
     -2000 pays the person 4000 too much, and nothing downstream would notice —
     so the vocabulary declares the direction and this refuses the other one."""
     if family not in SIGNED_TYPE_FAMILIES or amount is None:
@@ -696,8 +698,8 @@ def conflicting_invoice(
 def ensure_payslip_line_explains_itself(direction: str, notes, pay_history_id) -> None:
     """A payslip line has to say where its number came from.
 
-    This is the other half of a deliberate omission. 五险一金 rates, the 个税
-    累计预扣 table, the contribution ceilings — none of it is stored here,
+    This is the other half of a deliberate omission. Social-insurance and housing-fund rates, the individual income tax
+    cumulative withholding table, the contribution ceilings — none of it is stored here,
     because it is national policy the agent already knows and a records layer
     that quietly applied it would be inventing policy. The consequence is that
     the payslip is the ONLY place the arithmetic survives: nothing in this
@@ -705,7 +707,7 @@ def ensure_payslip_line_explains_itself(direction: str, notes, pay_history_id) -
 
     So a line either cites the pay record it came from — a salary line saying
     "this is that 15000" — or spells the calculation out in `notes`
-    ("缴费基数 12000.00 × 8% = 960.00"). A line that does neither is a number
+    ("contribution base 12000.00 × 8% = 960.00"). A line that does neither is a number
     nobody can check, which is the one thing a payslip may not contain.
     """
     if direction != "payroll" or pay_history_id is not None:
@@ -714,11 +716,7 @@ def ensure_payslip_line_explains_itself(direction: str, notes, pay_history_id) -
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
-                "a payslip line must show its working: either cite the pay record it "
-                "comes from (`pay_history_id`) or state the calculation in `notes` "
-                "— e.g. 缴费基数 12000.00 × 8% = 960.00. The server computes no "
-                "social-insurance or tax figure of its own, so this line is the only "
-                "record of how the number was reached"
+                zh_messages.BILLING_ENSURE_PAYSLIP_LINE_EXPLAINS_ITSELF_DETAIL
             ),
         )
 
@@ -734,7 +732,7 @@ def list_invoices(
     customer_id: str | None = None,
     vendor_id: str | None = None,
     employee_id: str | None = None,
-    # the person a payslip pays, as opposed to the 经办人 in `employee_id`
+    # the person a payslip pays, as opposed to the document owner in `employee_id`
     payee_employee_id: str | None = None,
     invoice_no: str | None = None,
     tax_invoice_number: str | None = None,
@@ -762,7 +760,7 @@ def list_invoices(
     not against a status: an invoice is outstanding while what it bills exceeds
     what has been applied to it. Combined with `direction` and `due_before` it
     is the overdue queue — `?direction=sales&outstanding=true&due_before=today`
-    is 逾期应收, and the purchase side is what is due to be paid.
+    is overdue receivables, and the purchase side is what is due to be paid.
     """
     tenant_id = actor.tenant_id
     validate_status_filter(db, tenant_id, "invoice", status_filter)
@@ -889,8 +887,7 @@ def create_invoice(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
-                "an invoice needs something to bill: send `items`, or a "
-                "`total_amount` when the amount is agreed as one figure (汇总开票)"
+                zh_messages.BILLING_CREATE_INVOICE_DETAIL
             ),
         )
     initial_status = require_machine_state(db, actor, Invoice, payload.status)
@@ -1092,7 +1089,7 @@ register_document_verbs(
 
 def invoice_line_amount(item: InvoiceItem) -> float | None:
     """The line's money: the stated amount, else quantity × unit price. A line
-    with neither (a description-only line on a 汇总开票) contributes nothing and
+    with neither (a description-only line on a summary invoice) contributes nothing and
     is not an error."""
     if item.amount is not None:
         return float(item.amount)
@@ -1105,7 +1102,7 @@ def invoice_billed_total(invoice: Invoice, items: list[InvoiceItem]) -> float:
     """What settlement is measured against: the declared header total when the
     tenant stated one, else the line sum. Same contract quotations and orders
     keep — and it is what makes a header-only invoice (no lines at all, which
-    is how most 汇总开票 arrive) settleable."""
+    is how most summary invoices arrive) settleable."""
     if invoice.total_amount is not None:
         return float(invoice.total_amount)
     return float(sum(amount for amount in map(invoice_line_amount, items) if amount is not None))
@@ -1134,9 +1131,9 @@ def invoice_applications(db: Session, tenant_id: str, invoice_id: str) -> list[P
 
 
 def invoice_order_match(db: Session, tenant_id: str, invoice: Invoice, items: list[InvoiceItem]):
-    """三单匹配 — 采购: ordered vs received vs billed, per order line.
+    """Three-way matching — procurement: ordered vs received vs billed, per order line.
 
-    Facts only. The tolerance question ("是不是差得太多了") is the agent's,
+    Facts only. The tolerance question ("is the discrepancy too large") is the agent's,
     against the tenant's workflow definition; a threshold here would be
     business policy living in the record layer.
 
@@ -1322,7 +1319,7 @@ def ensure_invoice_item_order_link(
 ) -> None:
     """A line may only bill a line of the order its own invoice bills — the
     direction's order type, and that specific order. Both halves matter: the
-    first keeps 销项/进项 apart, the second stops a line quietly billing a
+    first keeps sales-side/purchase-side apart, the second stops a line quietly billing a
     different customer's order and corrupting the match.
 
     A payslip has no order at all, so both links are refused on its lines."""
@@ -1942,7 +1939,7 @@ def create_billing_account(
                 SimpleNamespace(
                     amount=payload.opening_balance,
                     reason="initial",
-                    description="开户期初余额",
+                    description=zh_messages.BILLING_CREATE_BILLING_ACCOUNT_DESCRIPTION,
                     entity_type=None, entity_id=None, expires_at=None, effective_at=None,
                 )
             ],
@@ -2542,8 +2539,7 @@ def resolve_payment_counterparty(db: Session, tenant_id: str, values: dict) -> t
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
-                "a payment names exactly one counterparty: customer_id (收款), "
-                "vendor_id (付供应商) or payee_employee_id (付员工/报销)"
+                zh_messages.BILLING_RESOLVE_PAYMENT_COUNTERPARTY_DETAIL
             ),
         )
     field = named[0]
@@ -2553,7 +2549,7 @@ def resolve_payment_counterparty(db: Session, tenant_id: str, values: dict) -> t
     return resolved, party.name
 
 
-# --- payments and 核销: the settlement half ----------------------------------
+# --- payments and settlement application: the settlement half ----------------------------------
 
 
 @router.get("/payments", response_model=PaymentListEnvelope, response_model_exclude_unset=True)
@@ -2579,9 +2575,9 @@ def list_payments(
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
     extra: Annotated[ListFilters, Depends(list_filters(Payment, ranges=('created_at', 'paid_at', 'submitted_at'), equals=('attachment_id', 'contract_id', 'currency')))] = None,
 ):
-    """`unapplied=true` is the 认领队列: money that arrived or went out and has
-    not been matched to a document yet. On the inbound side that is 预收款 plus
-    every bank line nobody has identified; on the outbound side, 预付款."""
+    """`unapplied=true` is the unmatched-payment queue: money that arrived or went out and has
+    not been matched to a document yet. On the inbound side that is advance receipt plus
+    every bank line nobody has identified; on the outbound side, advance payment."""
     tenant_id = actor.tenant_id
     validate_status_filter(db, tenant_id, "payment", status_filter)
     stmt = select(Payment).where(Payment.tenant_id == tenant_id)
@@ -2638,7 +2634,7 @@ def create_payment(
     db: Annotated[Session, Depends(get_db)],
 ):
     """An outbound payment starts at the machine's `initial` and is walked
-    through 付款审批 — creating it further along takes `payment.advance`, the
+    through payment approval — creating it further along takes `payment.advance`, the
     grant that walk needs. An inbound receipt is money that already arrived,
     so a `payment.record` holder creates it directly in whatever state says
     so: there is nothing to approve."""
@@ -2840,7 +2836,7 @@ def apply_payment(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """核销: record which documents this payment settles.
+    """Settlement application: record which documents this payment settles.
 
     Facts only, no status magic — the twin of the purchase order's receive
     endpoint. Each line appends an immutable ledger row and moves the running
@@ -3095,9 +3091,9 @@ def apply_payment(
             # points.
             signed = delta * target_effect_sign(spec, payment, row)
             # A negative movement that funds another target in the SAME request
-            # is the account paying a document (词表: charge, 扣款), not money
+            # is the account paying a document (vocabulary: charge, debit), not money
             # leaving the relationship (refund). The distinction is what makes
-            # a statement readable: 划拨到发票 and 退款给客户 are different facts.
+            # a statement readable: charge to an invoice and refund to the customer are different facts.
             paying_out = any(kind != "billing_account" for _, kind, _ in resolved)
             post_account_entries(
                 db, actor, row,
@@ -3105,7 +3101,7 @@ def apply_payment(
                     SimpleNamespace(
                         amount=signed,
                         reason="deposit" if signed > 0 else ("charge" if paying_out else "refund"),
-                        description=f"{payment.payment_no} 核销",
+                        description=f'{payment.payment_no}{zh_messages.BILLING_TEXT}',
                         entity_type="payment",
                         entity_id=payment.id,
                         expires_at=None,
@@ -3258,7 +3254,7 @@ def get_invoice_attachment(
     actor: Annotated[Actor, Depends(get_actor)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    """The 发票原件 — a customer's PDF, a 增值税发票扫描件.
+    """The original invoice — a customer's PDF, a scanned VAT invoice.
 
     Payroll is why this must not be reachable by id alone: a payslip is an
     invoice, and its attachment is the payslip."""
@@ -3417,7 +3413,7 @@ def raise_reimbursement_invoice(
         invoice_no=allocate_number(db, Invoice, tenant_id),
         direction="reimbursement",
         # A document with no type reads as an unfinished one. This is not a
-        # tax instrument, so none of the 发票 values fit and `other` would be
+        # tax instrument, so none of the invoice values fit and `other` would be
         # a lie of a different kind — it means "a document nobody classified",
         # and would put reimbursements in the same bucket as genuinely
         # unclassified receipts the next time somebody totals input tax.

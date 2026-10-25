@@ -10,6 +10,13 @@ reason.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_import_respects_settlement.json').read_text(encoding="utf-8"))
+
+
 from conftest import make_client, provision_tenant
 
 
@@ -26,8 +33,8 @@ def test_a_settled_payment_is_not_rewritten_by_reimport() -> None:
     with make_client([]) as client:
         t = provision_tenant(client, company_name="Import Co", email="admin@import-co.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "出纳", "employee_code": "E-1"}, headers=admin).json()["data"]["id"]
-        cust = client.post("/api/v1/customers", json={"name": "医院", "customer_code": "C-1"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_6657E4FAF9330E19'], "employee_code": "E-1"}, headers=admin).json()["data"]["id"]
+        cust = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_1F6835C0D878FA0E'], "customer_code": "C-1"}, headers=admin).json()["data"]["id"]
         first = client.post("/api/v1/payments/bulk", json={"rows": [_payment_row()]}, headers=admin).json()["data"]
         assert first["summary"]["created"] == 1, first
         payment = client.get("/api/v1/payments", headers=admin).json()["data"][0]
@@ -36,7 +43,7 @@ def test_a_settled_payment_is_not_rewritten_by_reimport() -> None:
         assert corrected["results"][0]["outcome"] == "updated", "history nothing stands on may still be corrected"
 
         invoice = client.post("/api/v1/invoices", headers=admin, json={
-            "direction": "sales", "employee_id": emp, "customer_id": cust, "title": "货款",
+            "direction": "sales", "employee_id": emp, "customer_id": cust, "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'],
             "total_amount": 90.0, "status": "issued"}).json()["data"]
         applied = client.post(f"/api/v1/payments/{payment['id']}/apply", headers=admin, json={
             "lines": [{"applied_to_type": "invoice", "applied_to_id": invoice["id"], "amount_applied": 90.0}]})
@@ -56,9 +63,9 @@ def test_the_importer_refuses_another_tenants_ids() -> None:
         b = provision_tenant(client, company_name="Tenant B", email="admin@tenant-b.example")
         admin_a = {"X-API-Key": a["plain_text_api_key"]}
         admin_b = {"X-API-Key": b["plain_text_api_key"]}
-        client.post("/api/v1/customers", json={"name": "医院", "customer_code": "C-1"}, headers=admin_a)
-        mine = client.post("/api/v1/employees", json={"name": "我们的", "employee_code": "E-A"}, headers=admin_a).json()["data"]["id"]
-        theirs = client.post("/api/v1/employees", json={"name": "别人的", "employee_code": "E-B"}, headers=admin_b).json()["data"]["id"]
+        client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_1F6835C0D878FA0E'], "customer_code": "C-1"}, headers=admin_a)
+        mine = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_F2DA2B8B9236928D'], "employee_code": "E-A"}, headers=admin_a).json()["data"]["id"]
+        theirs = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_8360E4FAB71D7713'], "employee_code": "E-B"}, headers=admin_b).json()["data"]["id"]
 
         rows = [_payment_row(payment_no="PAY-X-1", employee_code=None, employee_id=theirs),
                 _payment_row(payment_no="PAY-X-2", employee_code=None, employee_id=mine)]

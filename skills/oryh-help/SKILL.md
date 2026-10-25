@@ -1,6 +1,6 @@
 ---
 name: oryh-help
-description: Use when someone asks a question ABOUT oryh rather than for work — "oryh 能不能…"、"这个权限是什么意思"、"为什么我被 403"、"哪个 skill 负责…". Answers from the shipped manual, capability map and FAQ in its references; touches the API only for a live fact. Needs no capability.
+description: Use when someone asks a question ABOUT oryh rather than for work — "can oryh…", "what does this permission mean", "why was I refused with 403", "which skill handles…". Answers from the shipped manual, capability map and FAQ in its references; touches the API only for a live fact. Needs no capability.
 ---
 
 # Oryh Help
@@ -79,3 +79,6 @@ role"), name the skill and the desk that does it; do not do it from here.
 - references/capabilities-skills-api.md: capability → API → skill
 - references/scoped-skill-capabilities.md: `verb:scope` grants
 - references/faq.md: questions people have asked, with the answers
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

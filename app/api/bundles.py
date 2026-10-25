@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import Actor, get_actor, get_api_key_actor, get_user_key_actor, require_permission
+from app.api.deps import Actor, ensure_may_act_on_user, get_actor, get_api_key_actor, get_user_key_actor, require_permission
 from app.core.config import settings
 from app.db.session import get_db
 from app.models import ApiKey, Tenant, User, generate_api_key, hash_api_key
@@ -315,6 +315,7 @@ def generate_skill_bundle(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if user.status != "active":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="user is not active")
+    ensure_may_act_on_user(db, actor, user)
 
     permissions = permissions_of_role(db, actor.tenant_id, user.role)
 

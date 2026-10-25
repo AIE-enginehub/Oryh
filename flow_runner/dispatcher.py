@@ -248,7 +248,11 @@ class Dispatcher:
         self.note_progress(
             subscription, queue_size=queue_size, result=result,
             advanced=advanced, entity_type=entity_type,
-            other_progress=other_progress,
+            # A failed final model response does not undo a todo or transition already committed.
+            # Only record-layer evidence can override failure: never the adapter's own claimed count.
+            other_progress=other_progress or (
+                "queue_remaining" in detail and (advanced or 0) > 0
+            ),
         )
         return self.client.close_run(
             run["id"],
@@ -350,7 +354,7 @@ class Dispatcher:
         reports again — but it does mean one extra run may be spent, which is the
         cheaper of the two ways to be wrong.
         """
-        moved = bool(result.ok and ((advanced or 0) > 0 or other_progress))
+        moved = bool(other_progress or (result.ok and (advanced or 0) > 0))
         unmoved = 0 if moved else int(subscription.get("unmoved_runs") or 0) + 1
         park = unmoved >= self.max_unmoved_runs
         reason = None

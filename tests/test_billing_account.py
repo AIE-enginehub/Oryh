@@ -16,6 +16,13 @@ with a limit. What must hold once points share the table:
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_billing_account.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 
 import pytest
@@ -42,17 +49,17 @@ def post(client: TestClient, path: str, body: dict, expect: int = 201) -> dict:
     return response.json()["data"]
 
 
-def customer(client: TestClient, name: str = "上海市第一医院") -> dict:
+def customer(client: TestClient, name: str = _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']) -> dict:
     return post(client, "/api/v1/customers", {"name": name})
 
 
-def employee(client: TestClient, name: str = "会员小李") -> str:
+def employee(client: TestClient, name: str = _ZH_TEXT['TEXT_6A4E63299AA70A9D']) -> str:
     return post(client, "/api/v1/employees", {"name": name})["id"]
 
 
 def money_account(client: TestClient, **overrides) -> dict:
     body = {
-        "name": "市一院挂账户",
+        "name": _ZH_TEXT['TEXT_02C01D3074470A06'],
         "unit_type": "currency",
         "unit": "CNY",
         "customer_id": overrides.pop("customer_id", None) or customer(client)["id"],
@@ -63,7 +70,7 @@ def money_account(client: TestClient, **overrides) -> dict:
 
 def points_account(client: TestClient, **overrides) -> dict:
     body = {
-        "name": "会员积分",
+        "name": _ZH_TEXT['TEXT_21FBBD71F0AF184D'],
         "unit_type": "points",
         "unit": "point",
         "customer_id": overrides.pop("customer_id", None) or customer(client)["id"],
@@ -79,7 +86,7 @@ def account_document(client: TestClient, reason: str, lines: list[dict], headers
     the ONLY way a reason outside the payment/expiry/opening doors reaches
     the ledger; the old direct `/entries` write is gone."""
     client.post("/api/v1/object-type-definitions", headers=headers, json={
-        "object_type": f"acct_{reason}", "title": f"账户单据 {reason}",
+        "object_type": f"acct_{reason}", "title": f"{_ZH_TEXT['TEXT_2B20B84392D50B55']}{reason}",
         "state_machine": {"initial": "approved", "states": ["approved"], "transitions": {"approved": []},
                           "account_effect": {"reason": reason, "state": "approved"}}})
     created = client.post("/api/v1/business-objects", headers=headers, json={
@@ -124,7 +131,7 @@ def test_an_account_starts_empty_and_allocates_its_own_code(client: TestClient) 
     assert account["credit_limit"] == 0
     assert account["available_amount"] == 0
     assert account["status"] == "active"
-    assert account["owner_name_snapshot"] == "上海市第一医院"
+    assert account["owner_name_snapshot"] == _ZH_TEXT['TEXT_5A2D4C09BB9CD8DC']
 
 
 def test_an_opening_balance_is_recorded_as_the_first_entry(client: TestClient) -> None:
@@ -145,13 +152,13 @@ def test_points_are_earned_and_redeemed_through_the_ledger(client: TestClient) -
 
     earned = entries(
         client, account["id"],
-        [{"amount": 500.0, "reason": "earned", "description": "消费 5000 元"}],
+        [{"amount": 500.0, "reason": "earned", "description": _ZH_TEXT['TEXT_6815B7425C8515AB']}],
     )
     assert earned["balance"] == 500.0
 
     redeemed = entries(
         client, account["id"],
-        [{"amount": -200.0, "reason": "redeemed", "description": "抵扣订单"}],
+        [{"amount": -200.0, "reason": "redeemed", "description": _ZH_TEXT['TEXT_80A4C34EAFFDDBD7']}],
     )
     assert redeemed["balance"] == 300.0
     assert redeemed["available_amount"] == 300.0
@@ -172,13 +179,13 @@ def test_a_points_account_cannot_be_overdrawn(client: TestClient) -> None:
 
 
 def test_a_credit_account_may_be_drawn_exactly_as_far_as_allowed(client: TestClient) -> None:
-    """挂账: the balance goes negative down to the credit line and no further."""
+    """credit charging: the balance goes negative down to the credit line and no further."""
     account = money_account(client, credit_limit=50000.0)
     assert account["available_amount"] == 50000.0
 
     charged = entries(
         client, account["id"],
-        [{"amount": -48000.0, "reason": "charge", "description": "本月货款挂账"}],
+        [{"amount": -48000.0, "reason": "charge", "description": _ZH_TEXT['TEXT_39BD47C577E777CB']}],
     )
     assert charged["balance"] == -48000.0
     assert charged["available_amount"] == 2000.0
@@ -227,7 +234,7 @@ def test_a_mistake_is_reversed_by_a_counter_entry(client: TestClient) -> None:
 
     entries(
         client, account["id"],
-        [{"amount": -500.0, "reason": "adjustment", "description": "发错人了",
+        [{"amount": -500.0, "reason": "adjustment", "description": _ZH_TEXT['TEXT_D1EA2700787F1DCB'],
           "entity_type": "billing_account_entry", "entity_id": entry_id}],
     )
 
@@ -254,7 +261,7 @@ def test_an_account_names_exactly_one_owner(client: TestClient) -> None:
 
     none_named = client.post(
         "/api/v1/billing-accounts",
-        json={"name": "无主账户", "unit_type": "points", "unit": "point"},
+        json={"name": _ZH_TEXT['TEXT_01E0D277FF6BAC31'], "unit_type": "points", "unit": "point"},
         headers=HEADERS,
     )
     assert none_named.status_code == 422
@@ -263,7 +270,7 @@ def test_an_account_names_exactly_one_owner(client: TestClient) -> None:
     two_named = client.post(
         "/api/v1/billing-accounts",
         json={
-            "name": "两个主", "unit_type": "points", "unit": "point",
+            "name": _ZH_TEXT['TEXT_1ECACFF9CAE6E123'], "unit_type": "points", "unit": "point",
             "customer_id": buyer["id"], "employee_id": person,
         },
         headers=HEADERS,
@@ -293,7 +300,7 @@ def test_the_unit_is_checked_against_the_right_vocabulary(client: TestClient) ->
     # and the vocabulary is tenant-extensible
     assert client.post(
         "/api/v1/type-options",
-        json={"family": "billing_account_unit", "name": "fuel_card", "title": "油卡额度"},
+        json={"family": "billing_account_unit", "name": "fuel_card", "title": _ZH_TEXT['TEXT_05A000C88B043BB5']},
         headers=HEADERS,
     ).status_code == 201
     assert points_account(client, unit="fuel_card", customer_id=buyer["id"])["unit"] == "fuel_card"
@@ -306,7 +313,7 @@ def test_the_unit_and_owner_are_immutable(client: TestClient) -> None:
 
     response = client.patch(
         f"/api/v1/billing-accounts/{account['id']}",
-        json={"unit_type": "currency", "unit": "CNY", "customer_id": customer(client, "别家")["id"]},
+        json={"unit_type": "currency", "unit": "CNY", "customer_id": customer(client, _ZH_TEXT['TEXT_EA0CF81B19342818'])["id"]},
         headers=HEADERS,
     )
     assert response.status_code == 422
@@ -332,7 +339,7 @@ def test_the_reason_vocabulary_is_gated_and_extensible(client: TestClient) -> No
 
     assert client.post(
         "/api/v1/type-options",
-        json={"family": "billing_account_entry_reason", "name": "birthday", "title": "生日赠送"},
+        json={"family": "billing_account_entry_reason", "name": "birthday", "title": _ZH_TEXT['TEXT_63C46AEAE3D1A43D']},
         headers=HEADERS,
     ).status_code == 201
     assert entries(client, account["id"], [{"amount": 88.0, "reason": "birthday"}])["balance"] == 88.0
@@ -371,7 +378,7 @@ def test_an_account_holding_a_balance_cannot_be_deleted(client: TestClient) -> N
 
 def test_the_over_limit_queue_finds_accounts_past_their_line(client: TestClient) -> None:
     within = money_account(client, credit_limit=50000.0)
-    past = money_account(client, credit_limit=1000.0, customer_id=customer(client, "欠款客户")["id"])
+    past = money_account(client, credit_limit=1000.0, customer_id=customer(client, _ZH_TEXT['TEXT_3E62FE8DF3324C69'])["id"])
     entries(client, within["id"], [{"amount": -20000.0, "reason": "charge"}])
     entries(client, past["id"], [{"amount": -1000.0, "reason": "charge"}])
 
@@ -382,12 +389,12 @@ def test_the_over_limit_queue_finds_accounts_past_their_line(client: TestClient)
 
 
 def test_one_owner_may_hold_several_accounts(client: TestClient) -> None:
-    """The '各种积分或credit' case: a customer with stored value, loyalty points
+    """The 'various points or credit' case: a customer with stored value, loyalty points
     and a coupon quota is three accounts, not three columns."""
     buyer = customer(client)
-    money_account(client, customer_id=buyer["id"], name="储值")
-    points_account(client, customer_id=buyer["id"], name="积分")
-    points_account(client, customer_id=buyer["id"], name="券额", unit="coupon")
+    money_account(client, customer_id=buyer["id"], name=_ZH_TEXT['TEXT_C3B404645CE32C62'])
+    points_account(client, customer_id=buyer["id"], name=_ZH_TEXT['TEXT_10939F5486458E14'])
+    points_account(client, customer_id=buyer["id"], name=_ZH_TEXT['TEXT_98F6F192B71B1631'], unit="coupon")
 
     held = client.get(
         f"/api/v1/billing-accounts?customer_id={buyer['id']}", headers=HEADERS
@@ -434,7 +441,7 @@ def test_the_expiry_sweep_is_idempotent(client: TestClient) -> None:
 
     # the sweep writes the expiry through the account's own door, naming the batch
     swept = client.post(f"/api/v1/billing-accounts/{account['id']}/expire", headers=HEADERS,
-                        json={"lines": [{"entry_id": batch_id, "amount": 300.0, "description": "2025 年积分到期"}]})
+                        json={"lines": [{"entry_id": batch_id, "amount": 300.0, "description": _ZH_TEXT['TEXT_CBE37D3E0A571A1C']}]})
     assert swept.status_code == 200, swept.text
     assert swept.json()["data"]["entries"][0]["entity_id"] == batch_id
     twice = client.post(f"/api/v1/billing-accounts/{account['id']}/expire", headers=HEADERS,
@@ -478,20 +485,20 @@ def test_a_money_account_has_no_expiry_block_in_its_detail(client: TestClient) -
 
 
 def test_posting_can_be_scoped_to_one_unit_type(scoped_client) -> None:
-    """财务管钱账、会员运营管积分账 — granting points is the fraud-prone action,
+    """finance manages monetary accounts, membership operations manages points — granting points is the fraud-prone action,
     so it is separable from moving money."""
     service, points_only = scoped_client
     buyer = service["client"].post(
-        "/api/v1/customers", json={"name": "市一院"}, headers=service["headers"]
+        "/api/v1/customers", json={"name": _ZH_TEXT['TEXT_A8F0CC3AAE7B7014']}, headers=service["headers"]
     ).json()["data"]
     money = service["client"].post(
         "/api/v1/billing-accounts",
-        json={"name": "储值", "unit_type": "currency", "unit": "CNY", "customer_id": buyer["id"]},
+        json={"name": _ZH_TEXT['TEXT_C3B404645CE32C62'], "unit_type": "currency", "unit": "CNY", "customer_id": buyer["id"]},
         headers=service["headers"],
     ).json()["data"]
     points = service["client"].post(
         "/api/v1/billing-accounts",
-        json={"name": "积分", "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
+        json={"name": _ZH_TEXT['TEXT_10939F5486458E14'], "unit_type": "points", "unit": "point", "customer_id": buyer["id"]},
         headers=service["headers"],
     ).json()["data"]
 

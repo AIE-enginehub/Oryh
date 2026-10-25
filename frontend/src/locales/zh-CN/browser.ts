@@ -1,0 +1,26 @@
+// Chinese browser locale fixtures. Preserve the original sample values.
+export const zhCN = {
+  e2eProductionEntrySpec: {
+    message: "企业邮箱" as const,
+    message2: "密码" as const,
+    name: "进入控制台" as const,
+    name2: "返回网站首页" as const,
+    name3: "业务对象" as const,
+    name4: "退出登录" as const,
+    name5: "语言" as const,
+    name6: "项目" as const,
+    name7: "新建项目" as const,
+    message3: "项目名称 *" as const,
+    message4: "项目编号" as const,
+    name8: "客户名称（文字）" as const,
+    name9: "创建项目" as const,
+    message5: "启用" as const,
+    name10: "归档" as const,
+    name11: (value0: string) => `归档“${value0}”？`,
+    name12: "确认归档" as const,
+    message6: "已归档" as const,
+    name13: "页面不存在" as const,
+    name14: "返回总览" as const,
+    name15: "总览" as const,
+  },
+} as const;

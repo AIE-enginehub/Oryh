@@ -14,7 +14,7 @@ one bridge: for every line that names a stock position (`inventory_item_id`
 ShipmentReceipt collapsed to its useful core), it posts one movement with
 the shipment line as provenance and the header's order FK carried through,
 then stamps `stock_posted_at` so it can never run twice. Lines without a
-position are 直发 legs and are reported as skipped, not failed.
+position are drop-ship legs and are reported as skipped, not failed.
 
 Freight is warehouse work: `inventory.manage` files, edits and advances
 (the purchase-order pattern — one functional grant, no owner). Reads are

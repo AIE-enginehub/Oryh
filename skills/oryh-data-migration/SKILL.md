@@ -1,6 +1,6 @@
 ---
 name: oryh-data-migration
-description: Use when a company moves HISTORICAL data into oryh in bulk — 老系统的历史报价单、销售订单, a workbook with thousands of rows, documents that already ended. Master data first, dry run, chunked resumable imports, a report of rows whose customer or product is gone. Not for today's documents (submit skills).
+description: Use when a company moves HISTORICAL data into oryh in bulk — historical quotations and sales orders from a retired system, a workbook with thousands of rows, documents that already ended. Master data first, dry run, chunked resumable imports, a report of rows whose customer or product is gone. Not for today's documents (submit skills).
 required_capability: tenant.act_for_any_employee
 ---
 
@@ -195,3 +195,6 @@ file reports `unchanged` and writes nothing. So:
 
 - [references/api.md](references/api.md): both bulk endpoints, the row shape,
   the report contract, and the chunking script.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

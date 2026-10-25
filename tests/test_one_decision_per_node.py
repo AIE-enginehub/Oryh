@@ -12,6 +12,13 @@ concurrency it exists for, which is why it is an index and not only a check.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_one_decision_per_node.json').read_text(encoding="utf-8"))
+
+
 from collections.abc import Generator
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -39,8 +46,8 @@ def queue(client: TestClient) -> dict:
     data = provision_tenant(client, company_name="Node Co", email="admin@node-co.com",
                             password="node-pass1234")
     headers = {"X-API-Key": data["plain_text_api_key"]}
-    approver = post(client, headers, "/employees", {"name": "审批人"})["id"]
-    owner = post(client, headers, "/employees", {"name": "王小明"})["id"]
+    approver = post(client, headers, "/employees", {"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']})["id"]
+    owner = post(client, headers, "/employees", {"name": _ZH_TEXT['TEXT_ACF979CC584E1CF9']})["id"]
     header_id = post(client, headers, "/timesheet-headers", {
         "employee_id": owner, "period_start": "2026-06-01", "period_end": "2026-06-07",
     })["id"]
@@ -59,8 +66,8 @@ def decide(queue: dict, action: str, comment: str = ""):
 
 
 def test_a_second_different_decision_on_one_step_is_refused(queue: dict) -> None:
-    assert decide(queue, "rejected", "工时不实").status_code == 201
-    clash = decide(queue, "approved", "看错了")
+    assert decide(queue, "rejected", _ZH_TEXT['TEXT_16D1513D4B44DD0F']).status_code == 201
+    clash = decide(queue, "approved", _ZH_TEXT['TEXT_B726B7B05F38D018'])
     assert clash.status_code == 409
     detail = clash.json()["detail"]
     # the message has to name what already stands, or an agent reads "conflict"
@@ -72,9 +79,9 @@ def test_repeating_the_same_decision_is_still_idempotent(queue: dict) -> None:
     """The behaviour the guard must not break. A retry — a dropped response, a
     stale session replaying its list — gets the recorded fact back, not a 409
     and not a duplicate."""
-    first = decide(queue, "approved", "同意")
+    first = decide(queue, "approved", _ZH_TEXT['TEXT_905819E2E3A059A0'])
     assert first.status_code == 201
-    again = decide(queue, "approved", "同意")
+    again = decide(queue, "approved", _ZH_TEXT['TEXT_905819E2E3A059A0'])
     assert again.status_code == 201
     assert again.json()["data"]["id"] == first.json()["data"]["id"]
 
@@ -88,14 +95,14 @@ def test_repeating_the_same_decision_is_still_idempotent(queue: dict) -> None:
 def test_a_comment_may_sit_beside_the_decision(queue: dict) -> None:
     """`commented` decides nothing, so it is outside the guard — an approver
     who objects and then approves anyway has said two true things."""
-    assert decide(queue, "commented", "下次提前报").status_code == 201
-    assert decide(queue, "approved", "这次放行").status_code == 201
+    assert decide(queue, "commented", _ZH_TEXT['TEXT_46B93B44DDF61AA9']).status_code == 201
+    assert decide(queue, "approved", _ZH_TEXT['TEXT_8637D15D4918A5B6']).status_code == 201
 
 
 def test_the_next_round_gets_its_own_decision(queue: dict) -> None:
     """Returned-and-resubmitted is a NEW round, and the guard is per step, not
     per document — otherwise a rework could never be decided."""
-    assert decide(queue, "returned", "补齐再交").status_code == 201
+    assert decide(queue, "returned", _ZH_TEXT['TEXT_A3A9505594A42C2F']).status_code == 201
     second = queue["client"].post("/api/v1/approval-records", json={
         "entity_type": "timesheet_header", "entity_id": queue["header_id"],
         "action": "approved", "round_no": 2, "sequence_no": 2,

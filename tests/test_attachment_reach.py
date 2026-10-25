@@ -1,7 +1,7 @@
 """Holding an attachment's id is not permission to read it.
 
 `GET /attachments/{id}/content` was tenant-scoped and nothing else, so any
-credential in the workspace could fetch any attachment's bytes. 工资条 is an
+credential in the workspace could fetch any attachment's bytes. payslip is an
 invoice and its attachment is the payslip, which makes that the exact read
 `test_payroll_visibility.py` opens by calling "the first read in this API that
 belonging to the workspace does not entitle you to" — and warns about in the
@@ -15,6 +15,13 @@ is the attachment served, and only if that document actually carries it.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_attachment_reach.json').read_text(encoding="utf-8"))
+
 
 import base64
 from collections.abc import Generator
@@ -57,24 +64,24 @@ def world() -> Generator[dict, None, None]:
         payslip_pdf = upload(admin, b"%PDF net pay 42000", "payslip.pdf")
         payslip = client.post("/api/v1/invoices", json={
             "direction": "payroll", "employee_id": alice, "payee_employee_id": alice,
-            "title": "2026-07 工资条", "period_start": "2026-07-01", "period_end": "2026-07-31",
+            "title": _ZH_TEXT['TEXT_5CEB461512A5B5B0'], "period_start": "2026-07-01", "period_end": "2026-07-31",
             "attachment_id": payslip_pdf,
             "items": [{"invoice_item_type": "payroll_salary",
-                       "product_name_snapshot": "基本工资", "amount": 42000,
-                       "notes": "月薪 42000.00"}]}, headers=admin)
+                       "product_name_snapshot": _ZH_TEXT['TEXT_91910663C1848F27'], "amount": 42000,
+                       "notes": _ZH_TEXT['TEXT_DE1CF6681885B231']}]}, headers=admin)
         assert payslip.status_code == 201, payslip.text
 
         # an expense claim with a receipt — the approver's normal case
         receipt_pdf = upload(admin, b"%PDF taxi 88", "receipt.pdf")
         claim = client.post("/api/v1/expense-claims", json={
-            "employee_id": alice, "title": "差旅", "items": [
+            "employee_id": alice, "title": _ZH_TEXT['TEXT_85A7226A9AA6B1DB'], "items": [
                 {"expense_date": "2026-07-02", "amount": 88, "category": "transport",
                  "attachment_id": receipt_pdf}]}, headers=admin).json()["data"]
 
         # a SECOND claim, whose receipt the first claim must never serve
         other_pdf = upload(admin, b"%PDF hotel 1200", "hotel.pdf")
         other_claim_r = client.post("/api/v1/expense-claims", json={
-            "employee_id": alice, "title": "住宿", "items": [
+            "employee_id": alice, "title": _ZH_TEXT['TEXT_76A1FE4965666697'], "items": [
                 {"expense_date": "2026-07-03", "amount": 1200, "category": "lodging",
                  "attachment_id": other_pdf}]}, headers=admin)
         assert other_claim_r.status_code == 201, other_claim_r.text
@@ -91,7 +98,7 @@ def world() -> Generator[dict, None, None]:
         # a DRAFT policy — visible only to policy.manage, and so is its file
         policy_pdf = upload(admin, b"%PDF draft handbook", "handbook.pdf")
         policy = client.post("/api/v1/business-rules", json={
-            "kind": "policy", "code": "HR-001", "title": "员工手册", "category": "hr", "body": "draft text",
+            "kind": "policy", "code": "HR-001", "title": _ZH_TEXT['TEXT_29DB8FCC1CCF1A6A'], "category": "hr", "body": "draft text",
             "attachment_id": policy_pdf}, headers=admin)
         assert policy.status_code == 201, policy.text
 
@@ -179,11 +186,11 @@ def _routed_approver(world, *claim_ids: str) -> dict:
     each claim. Reading a colleague's claim is not a property of the role
     (app/api/visibility.py) — it is what the todo grants."""
     client, admin = world["client"], world["admin"]
-    employee = client.post("/api/v1/employees", json={"name": "审批人"}, headers=admin).json()["data"]["id"]
+    employee = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']}, headers=admin).json()["data"]["id"]
     approver = world["key_holding"]("approval.record", employee_id=employee)
     for claim_id in claim_ids:
         made = client.post("/api/v1/todos", headers=admin, json={
-            "employee_id": employee, "entity_type": "expense_claim", "entity_id": claim_id, "title": "审批报销"})
+            "employee_id": employee, "entity_type": "expense_claim", "entity_id": claim_id, "title": _ZH_TEXT['TEXT_BFC2DE3D677A28E3']})
         assert made.status_code == 201, made.text
     return approver
 

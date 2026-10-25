@@ -25,6 +25,13 @@ against its ledger in a live database.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_coupled_facts.json').read_text(encoding="utf-8"))
+
+
 import ast
 import pathlib
 
@@ -48,9 +55,9 @@ FAMILY = "timesheet_header"
 def workspace(client: TestClient):
     ctx = provision_tenant(client, company_name="Coupled Co", email="admin@coupled-co.example")
     key = {"X-API-Key": ctx["plain_text_api_key"]}
-    submitter = client.post("/api/v1/employees", json={"name": "提交人"},
+    submitter = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_973F2EB1ED93D1BA']},
                             headers=key).json()["data"]["id"]
-    approver = client.post("/api/v1/employees", json={"name": "审批人"},
+    approver = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_13FEC5C6BAC26D4A']},
                            headers=key).json()["data"]["id"]
     return {"client": client, "key": key, "submitter": submitter, "approver": approver}
 
@@ -72,7 +79,7 @@ def open_todos(workspace, header: str) -> list[dict]:
 def add_todo(workspace, header: str, *, todo_type: str | None, employee: str) -> str:
     response = workspace["client"].post("/api/v1/todos", json={
         "employee_id": employee, "entity_type": "timesheet_header", "entity_id": header,
-        "title": f"{todo_type or 'ad hoc'} 工作", "todo_type": todo_type,
+        "title": f"{todo_type or 'ad hoc'}{_ZH_TEXT['TEXT_75098EB1C8A4CD88']}", "todo_type": todo_type,
     }, headers=workspace["key"])
     assert response.status_code == 201, response.text
     return response.json()["data"]["id"]
@@ -158,7 +165,7 @@ def test_resubmitting_completes_the_rework_todo(workspace) -> None:
     workspace["client"].post("/api/v1/approval-records", json={
         "entity_type": FAMILY, "entity_id": header, "round_no": 1, "sequence_no": 2,
         "action": "returned", "document_status": "returned",
-        "handoff": {"employee_id": workspace["submitter"], "title": "修改工时",
+        "handoff": {"employee_id": workspace["submitter"], "title": _ZH_TEXT['TEXT_CD79246FF5AB66E9'],
                     "todo_type": "rework"},
     }, headers=workspace["key"])
     rework = open_todos(workspace, header)

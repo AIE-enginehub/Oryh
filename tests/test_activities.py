@@ -11,6 +11,13 @@ the owner writes.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_activities.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 
@@ -27,9 +34,9 @@ def desk():
             who = invite_member(client, admin, f"role_{name}", permissions, employee=name)
             return {"employee_id": who.employee_id, "key": dict(who)}
 
-        customer = client.post("/api/v1/customers", json={"name": "市一医院"}, headers=admin).json()["data"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_85DED9E803B8D55E']}, headers=admin).json()["data"]
         contact = client.post("/api/v1/customer-contacts", headers=admin,
-                              json={"customer_id": customer["id"], "name": "王主任", "phone": "13900000001"}).json()["data"]
+                              json={"customer_id": customer["id"], "name": _ZH_TEXT['TEXT_2DFDF0F6DE583BB9'], "phone": "13900000001"}).json()["data"]
         yield {"client": client, "admin": admin, "person": person, "customer": customer, "contact": contact}
 
 
@@ -39,19 +46,19 @@ def test_an_activity_is_a_confirmed_contact_on_a_party_and_belongs_to_its_writer
     li = desk["person"]("li", ["crm.own"])
 
     nobody = client.post("/api/v1/activities", headers=zhang["key"], json={
-        "activity_type": "call", "occurred_at": "2026-09-10T09:00:00+08:00", "subject": "回访",
+        "activity_type": "call", "occurred_at": "2026-09-10T09:00:00+08:00", "subject": _ZH_TEXT['TEXT_DA7B5B38E4E2B61F'],
     })
     assert nobody.status_code == 422, "an activity hangs off a customer, a lead or a deal"
     bad_type = client.post("/api/v1/activities", headers=zhang["key"], json={
         "customer_id": desk["customer"]["id"], "activity_type": "telepathy",
-        "occurred_at": "2026-09-10T09:00:00+08:00", "subject": "回访",
+        "occurred_at": "2026-09-10T09:00:00+08:00", "subject": _ZH_TEXT['TEXT_DA7B5B38E4E2B61F'],
     })
     assert bad_type.status_code == 422
     made = client.post("/api/v1/activities", headers=zhang["key"], json={
         "customer_id": desk["customer"]["id"], "contact_id": desk["contact"]["id"],
         "activity_type": "call", "occurred_at": "2026-09-10T09:00:00+08:00",
-        "subject": "回访设备科", "content": "王主任说十月立项，先要报价。", "source_text": "王主任：十月立项，你们先报个价",
-        "outcome": "positive", "next_action": "发报价", "next_action_at": "2026-09-12T09:00:00+08:00",
+        "subject": _ZH_TEXT['TEXT_AF830923C866A95D'], "content": _ZH_TEXT['TEXT_AB920C30AB1F5A91'], "source_text": _ZH_TEXT['TEXT_EA39CB97F18F72BA'],
+        "outcome": "positive", "next_action": _ZH_TEXT['TEXT_1B0CA077EF6BF884'], "next_action_at": "2026-09-12T09:00:00+08:00",
     })
     assert made.status_code == 201, made.text
     activity = made.json()["data"]
@@ -63,7 +70,7 @@ def test_an_activity_is_a_confirmed_contact_on_a_party_and_belongs_to_its_writer
     assert client.get(f"/api/v1/activities/{activity['id']}", headers=li["key"]).status_code == 404
     listed = client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}&occurred_from=2026-09-01T00:00:00Z&order_by=-occurred_at&page=1&size=10",
                         headers=zhang["key"]).json()
-    assert listed["meta"]["total"] == 1 and listed["data"][0]["subject"] == "回访设备科"
+    assert listed["meta"]["total"] == 1 and listed["data"][0]["subject"] == _ZH_TEXT['TEXT_AF830923C866A95D']
     assert client.get(f"/api/v1/activities?customer_id={desk['customer']['id']}", headers=li["key"]).json()["data"] == [], \
         "a colleague's record of contact is read by its author, the account's owner, whoever reads the deal, or crm.read_all"
     gone = client.delete(f"/api/v1/activities/{activity['id']}", headers=zhang["key"])
@@ -76,12 +83,12 @@ def test_an_event_is_planned_with_its_people_and_logging_it_writes_the_activity(
     zhang = desk["person"]("zhang", ["crm.own"])
     li = desk["person"]("li", ["crm.own"])
     backwards = client.post("/api/v1/events", headers=zhang["key"], json={
-        "subject": "现场演示", "starts_at": "2026-09-15T14:00:00+08:00", "ends_at": "2026-09-15T13:00:00+08:00",
+        "subject": _ZH_TEXT['TEXT_AF82386692ED1AFD'], "starts_at": "2026-09-15T14:00:00+08:00", "ends_at": "2026-09-15T13:00:00+08:00",
     })
     assert backwards.status_code == 422
     made = client.post("/api/v1/events", headers=zhang["key"], json={
-        "subject": "现场演示", "event_type": "demo", "customer_id": desk["customer"]["id"],
-        "starts_at": "2026-09-15T14:00:00+08:00", "ends_at": "2026-09-15T16:00:00+08:00", "location": "设备科",
+        "subject": _ZH_TEXT['TEXT_AF82386692ED1AFD'], "event_type": "demo", "customer_id": desk["customer"]["id"],
+        "starts_at": "2026-09-15T14:00:00+08:00", "ends_at": "2026-09-15T16:00:00+08:00", "location": _ZH_TEXT['TEXT_D15D1AF246AFF7F1'],
     })
     assert made.status_code == 201, made.text
     event = made.json()["data"]
@@ -103,22 +110,22 @@ def test_an_event_is_planned_with_its_people_and_logging_it_writes_the_activity(
 
     # the machine: planned → held is the log's write; a raw jump to held is legal too but logs nothing
     logged = client.post(f"/api/v1/events/{event['id']}/log", headers=zhang["key"], json={
-        "content": "演示顺利，主任要求下周报价。", "outcome": "positive", "next_action": "报价", "next_action_at": "2026-09-22T09:00:00+08:00",
+        "content": _ZH_TEXT['TEXT_299A7138F26238AB'], "outcome": "positive", "next_action": _ZH_TEXT['TEXT_F618AD8512128788'], "next_action_at": "2026-09-22T09:00:00+08:00",
     })
     assert logged.status_code == 201, logged.text
     activity = logged.json()["data"]
     assert activity["event_id"] == event["id"] and activity["activity_type"] == "meeting"
     assert activity["contact_id"] == desk["contact"]["id"] and activity["customer_id"] == desk["customer"]["id"]
-    assert activity["subject"] == "现场演示" and activity["occurred_at"].startswith("2026-09-15T")
+    assert activity["subject"] == _ZH_TEXT['TEXT_AF82386692ED1AFD'] and activity["occurred_at"].startswith("2026-09-15T")
     held = client.get(f"/api/v1/events/{event['id']}", headers=li["key"]).json()["data"]
     assert held["status"] == "held"
     # held freezes the event's fields; logging twice is refused by the machine
-    assert client.patch(f"/api/v1/events/{event['id']}", headers=zhang["key"], json={"location": "别处"}).status_code == 409
+    assert client.patch(f"/api/v1/events/{event['id']}", headers=zhang["key"], json={"location": _ZH_TEXT['TEXT_3A1610DE52504ACD']}).status_code == 409
     again = client.post(f"/api/v1/events/{event['id']}/log", headers=zhang["key"], json={"content": "x"})
     assert again.status_code == 201, "a second log on a held event is another activity, not a state change"
 
     internal = client.post("/api/v1/events", headers=zhang["key"],
-                           json={"subject": "周会", "starts_at": "2026-09-16T09:00:00+08:00"}).json()["data"]
+                           json={"subject": _ZH_TEXT['TEXT_A7BEB1BF64F713B9'], "starts_at": "2026-09-16T09:00:00+08:00"}).json()["data"]
     assert client.post(f"/api/v1/events/{internal['id']}/log", headers=zhang["key"], json={}).status_code == 422
     window = client.get("/api/v1/events?starts_from=2026-09-15T00:00:00Z&starts_thru=2026-09-15T23:59:59Z&status=held",
                         headers=li["key"]).json()["data"]
@@ -129,7 +136,7 @@ def test_a_message_is_a_fact_with_a_party_and_one_row_per_message_id(desk) -> No
     client = desk["client"]
     zhang = desk["person"]("zhang", ["crm.own"])
     nobody = client.post("/api/v1/communication-events", headers=zhang["key"], json={
-        "channel": "email", "direction": "inbound", "occurred_at": "2026-09-10T10:00:00+08:00", "subject": "询价",
+        "channel": "email", "direction": "inbound", "occurred_at": "2026-09-10T10:00:00+08:00", "subject": _ZH_TEXT['TEXT_FCFAC6A94DBC5223'],
     })
     assert nobody.status_code == 422, "a message names who it was with"
     bad_channel = client.post("/api/v1/communication-events", headers=zhang["key"], json={
@@ -139,7 +146,7 @@ def test_a_message_is_a_fact_with_a_party_and_one_row_per_message_id(desk) -> No
     assert bad_channel.status_code == 422
     mail = client.post("/api/v1/communication-events", headers=zhang["key"], json={
         "channel": "email", "direction": "inbound", "occurred_at": "2026-09-10T10:00:00+08:00",
-        "subject": "询价：监护仪 20 台", "body": "请报价。", "from_address": "wang@hospital.example",
+        "subject": _ZH_TEXT['TEXT_809057BE4C1D3831'], "body": _ZH_TEXT['TEXT_E4A53FE1D8FCC062'], "from_address": "wang@hospital.example",
         "to_addresses": ["sales@desk.example"], "message_id": "<abc123@hospital.example>", "thread_id": "T-1",
         "customer_id": desk["customer"]["id"], "contact_id": desk["contact"]["id"],
     })
@@ -152,7 +159,7 @@ def test_a_message_is_a_fact_with_a_party_and_one_row_per_message_id(desk) -> No
     assert twice.status_code == 409 and mail.json()["data"]["id"] in twice.json()["detail"]
     reply = client.post("/api/v1/communication-events", headers=zhang["key"], json={
         "channel": "email", "direction": "outbound", "occurred_at": "2026-09-10T11:00:00+08:00",
-        "subject": "Re: 询价", "to_addresses": ["wang@hospital.example"], "thread_id": "T-1",
+        "subject": _ZH_TEXT['TEXT_5C08C276A7B82483'], "to_addresses": ["wang@hospital.example"], "thread_id": "T-1",
         "customer_id": desk["customer"]["id"],
     })
     assert reply.status_code == 201
@@ -161,7 +168,7 @@ def test_a_message_is_a_fact_with_a_party_and_one_row_per_message_id(desk) -> No
     # a follow-up activity names the message it came from
     follow = client.post("/api/v1/activities", headers=zhang["key"], json={
         "customer_id": desk["customer"]["id"], "activity_type": "message",
-        "occurred_at": "2026-09-10T11:00:00+08:00", "subject": "回复询价",
+        "occurred_at": "2026-09-10T11:00:00+08:00", "subject": _ZH_TEXT['TEXT_88AA783D73937DB4'],
         "communication_event_id": mail.json()["data"]["id"],
     })
     assert follow.status_code == 201, follow.text

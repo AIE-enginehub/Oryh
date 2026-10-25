@@ -11,6 +11,13 @@ bridge into the customer; and a geo change on a customer re-resolves.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_geo_territories.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant
@@ -42,13 +49,13 @@ def test_places_form_a_hierarchy_and_the_template_loads_once(desk) -> None:
     zhejiang = client.get("/api/v1/geos?geo_code=330000", headers=admin).json()["data"][0]
     cn = client.get("/api/v1/geos?geo_code=CN", headers=admin).json()["data"][0]
     assert zhejiang["parent_geo_id"] == cn["id"] and zhejiang["geo_type"] == "province"
-    hangzhou = _geo(client, admin, "3301", "杭州市", "city", zhejiang["id"])
-    xihu = _geo(client, admin, "330106", "西湖区", "district", hangzhou["id"])
+    hangzhou = _geo(client, admin, "3301", _ZH_TEXT['TEXT_38150FB2D76A683E'], "city", zhejiang["id"])
+    xihu = _geo(client, admin, "330106", _ZH_TEXT['TEXT_CA7A09F176FB62A9'], "district", hangzhou["id"])
     path = client.get(f"/api/v1/geos/{xihu['id']}/path", headers=admin).json()["data"]
-    assert [g["name"] for g in path][2:] == ["杭州市", "西湖区"]
+    assert [g["name"] for g in path][2:] == [_ZH_TEXT['TEXT_38150FB2D76A683E'], _ZH_TEXT['TEXT_CA7A09F176FB62A9']]
     # the template's own rows are named by the seed locale: Chinese in the
     # cloud assembly, English in the standalone one
-    assert [g["name"] for g in path][:2] in (["中国", "浙江省"], ["China", "Zhejiang"])
+    assert [g["name"] for g in path][:2] in ([_ZH_TEXT['TEXT_F0E9521611BB290D'], _ZH_TEXT['TEXT_5395AA56194876B9']], ["China", "Zhejiang"])
 
     assert client.post("/api/v1/geos", headers=admin,
                        json={"geo_code": "x", "name": "x", "geo_type": "planet"}).status_code == 422
@@ -62,20 +69,20 @@ def test_places_form_a_hierarchy_and_the_template_loads_once(desk) -> None:
 
 def test_coverage_is_by_containment_and_ambiguity_is_a_persons_call(desk) -> None:
     client, admin = desk["client"], desk["admin"]
-    cn = _geo(client, admin, "CN", "中国", "country")
-    zhejiang = _geo(client, admin, "33", "浙江省", "province", cn["id"])
-    jiangsu = _geo(client, admin, "32", "江苏省", "province", cn["id"])
-    hangzhou = _geo(client, admin, "3301", "杭州市", "city", zhejiang["id"])
-    ningbo = _geo(client, admin, "3302", "宁波市", "city", zhejiang["id"])
-    xihu = _geo(client, admin, "330106", "西湖区", "district", hangzhou["id"])
+    cn = _geo(client, admin, "CN", _ZH_TEXT['TEXT_F0E9521611BB290D'], "country")
+    zhejiang = _geo(client, admin, "33", _ZH_TEXT['TEXT_5395AA56194876B9'], "province", cn["id"])
+    jiangsu = _geo(client, admin, "32", _ZH_TEXT['TEXT_AC7240A660D14397'], "province", cn["id"])
+    hangzhou = _geo(client, admin, "3301", _ZH_TEXT['TEXT_38150FB2D76A683E'], "city", zhejiang["id"])
+    ningbo = _geo(client, admin, "3302", _ZH_TEXT['TEXT_3B79E1953B16287E'], "city", zhejiang["id"])
+    xihu = _geo(client, admin, "330106", _ZH_TEXT['TEXT_CA7A09F176FB62A9'], "district", hangzhou["id"])
 
-    manager = client.post("/api/v1/employees", json={"name": "东区经理"}, headers=admin).json()["data"]["id"]
+    manager = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A7D565C5497E26D1']}, headers=admin).json()["data"]["id"]
     east = client.post("/api/v1/territories", headers=admin,
-                       json={"territory_code": "EAST", "name": "华东区", "manager_employee_id": manager}).json()["data"]
+                       json={"territory_code": "EAST", "name": _ZH_TEXT['TEXT_97EFF0CAC859A646'], "manager_employee_id": manager}).json()["data"]
     zj = client.post("/api/v1/territories", headers=admin,
-                     json={"territory_code": "ZJ", "name": "浙江区", "parent_territory_id": east["id"]}).json()["data"]
+                     json={"territory_code": "ZJ", "name": _ZH_TEXT['TEXT_73FEEF98A9409142'], "parent_territory_id": east["id"]}).json()["data"]
     hz = client.post("/api/v1/territories", headers=admin,
-                     json={"territory_code": "HZ", "name": "杭州区", "parent_territory_id": zj["id"]}).json()["data"]
+                     json={"territory_code": "HZ", "name": _ZH_TEXT['TEXT_5DFB21FE060C957E'], "parent_territory_id": zj["id"]}).json()["data"]
     for territory, geo in ((east, zhejiang), (east, jiangsu), (zj, zhejiang), (hz, hangzhou)):
         cover = client.post("/api/v1/territory-geos", headers=admin,
                             json={"territory_id": territory["id"], "geo_id": geo["id"]})
@@ -85,7 +92,7 @@ def test_coverage_is_by_containment_and_ambiguity_is_a_persons_call(desk) -> Non
 
     # a district in Hangzhou: the city territory is the most specific answer
     resolved = client.get(f"/api/v1/territory-resolution?geo_id={xihu['id']}", headers=admin).json()["data"]
-    assert [g["name"] for g in resolved["geo_path"]] == ["西湖区", "杭州市", "浙江省", "中国"]
+    assert [g["name"] for g in resolved["geo_path"]] == [_ZH_TEXT['TEXT_CA7A09F176FB62A9'], _ZH_TEXT['TEXT_38150FB2D76A683E'], _ZH_TEXT['TEXT_5395AA56194876B9'], _ZH_TEXT['TEXT_F0E9521611BB290D']]
     assert resolved["territory"]["territory_code"] == "HZ" and resolved["ambiguous"] is False
     assert [(m["territory"]["territory_code"], m["depth"]) for m in resolved["matches"]] == [("HZ", 1), ("EAST", 2), ("ZJ", 2)]
     # Ningbo: nothing covers the city; the province is covered by two territories at the same depth
@@ -95,10 +102,10 @@ def test_coverage_is_by_containment_and_ambiguity_is_a_persons_call(desk) -> Non
 
     # a customer in Xihu gets HZ on its own; one in Ningbo gets nothing until a person decides
     xihu_customer = client.post("/api/v1/customers", headers=admin,
-                                json={"name": "西湖客户", "geo_id": xihu["id"], "payment_terms": "月结 30 天"}).json()["data"]
-    assert xihu_customer["territory_id"] == hz["id"] and xihu_customer["payment_terms"] == "月结 30 天"
+                                json={"name": _ZH_TEXT['TEXT_069C50413021644E'], "geo_id": xihu["id"], "payment_terms": _ZH_TEXT['TEXT_9A3BDFF21187AE7F']}).json()["data"]
+    assert xihu_customer["territory_id"] == hz["id"] and xihu_customer["payment_terms"] == _ZH_TEXT['TEXT_9A3BDFF21187AE7F']
     ningbo_customer = client.post("/api/v1/customers", headers=admin,
-                                  json={"name": "宁波客户", "geo_id": ningbo["id"]}).json()["data"]
+                                  json={"name": _ZH_TEXT['TEXT_651FCFF8EF10E1E4'], "geo_id": ningbo["id"]}).json()["data"]
     assert ningbo_customer["territory_id"] is None
     assigned = client.patch(f"/api/v1/customers/{ningbo_customer['id']}", headers=admin,
                             json={"territory_id": zj["id"], "owner_employee_id": manager})
@@ -108,7 +115,7 @@ def test_coverage_is_by_containment_and_ambiguity_is_a_persons_call(desk) -> Non
     moved = client.patch(f"/api/v1/customers/{ningbo_customer['id']}", headers=admin, json={"geo_id": hangzhou["id"]})
     assert moved.json()["data"]["territory_id"] == hz["id"]
     by_territory = client.get(f"/api/v1/customers?territory_id={hz['id']}", headers=admin).json()["data"]
-    assert {c["name"] for c in by_territory} == {"西湖客户", "宁波客户"}
+    assert {c["name"] for c in by_territory} == {_ZH_TEXT['TEXT_069C50413021644E'], _ZH_TEXT['TEXT_651FCFF8EF10E1E4']}
 
     member = client.post("/api/v1/territory-members", headers=admin,
                          json={"territory_id": hz["id"], "employee_id": manager, "role": "manager"})
@@ -121,17 +128,17 @@ def test_coverage_is_by_containment_and_ambiguity_is_a_persons_call(desk) -> Non
 
 def test_a_leads_place_and_owner_ride_the_bridge(desk) -> None:
     client, admin = desk["client"], desk["admin"]
-    cn = _geo(client, admin, "CN", "中国", "country")
-    zhejiang = _geo(client, admin, "33", "浙江省", "province", cn["id"])
-    zj = client.post("/api/v1/territories", headers=admin, json={"territory_code": "ZJ", "name": "浙江区"}).json()["data"]
+    cn = _geo(client, admin, "CN", _ZH_TEXT['TEXT_F0E9521611BB290D'], "country")
+    zhejiang = _geo(client, admin, "33", _ZH_TEXT['TEXT_5395AA56194876B9'], "province", cn["id"])
+    zj = client.post("/api/v1/territories", headers=admin, json={"territory_code": "ZJ", "name": _ZH_TEXT['TEXT_73FEEF98A9409142']}).json()["data"]
     client.post("/api/v1/territory-geos", headers=admin, json={"territory_id": zj["id"], "geo_id": zhejiang["id"]})
-    rep = client.post("/api/v1/employees", json={"name": "小张"}, headers=admin).json()["data"]["id"]
+    rep = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_84FA59AC87EDC647']}, headers=admin).json()["data"]["id"]
 
     ghost = client.post("/api/v1/leads", headers=admin, json={"employee_id": rep, "company_name": "x",
                                                                 "geo_id": "00000000-0000-0000-0000-000000000000"})
     assert ghost.status_code == 404
     lead = client.post("/api/v1/leads", headers=admin,
-                       json={"employee_id": rep, "company_name": "泵业公司", "geo_id": zhejiang["id"]}).json()["data"]
+                       json={"employee_id": rep, "company_name": _ZH_TEXT['TEXT_B3D94E4ACC7E624D'], "geo_id": zhejiang["id"]}).json()["data"]
     assert lead["geo_id"] == zhejiang["id"]
     client.patch(f"/api/v1/leads/{lead['id']}", headers=admin, json={"status": "qualified"})
     converted = client.post(f"/api/v1/leads/{lead['id']}/convert", headers=admin, json={})

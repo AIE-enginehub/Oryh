@@ -15,7 +15,7 @@ Two things are deliberately NOT parameters:
 
 * **The address.** It is resolved from the employee record. An agent cannot
   send to an address it chose, which is the structural version of the rule a
-  tenant's own notification skill had to state in prose ("绝不猜邮箱"): a
+  tenant's own notification skill had to state in prose ("never guess email addresses"): a
   message to a guessed address is worse than none, because it looks delivered.
 * **The body.** The caller supplies a title, an optional verbatim detail, and
   an event kind; the wording is assembled here. An endpoint that accepted
@@ -28,6 +28,8 @@ which the flow runner does not.
 """
 
 from __future__ import annotations
+
+from app.locales.zh_CN import messages as zh_messages
 
 from typing import Annotated
 
@@ -63,7 +65,7 @@ def send_notification(
 
     202, not 201: nothing is stored, and SMTP acceptance is not delivery. The
     response says what was attempted and to whom, so a flow agent can report
-    "told 张三" or "李四 has no address on file" rather than guessing.
+    "told Zhang San" or "Li Si has no address on file" rather than guessing.
     """
     require_permission(actor, "notification.send")
 
@@ -124,7 +126,7 @@ def send_notification(
     items = [todo.title for todo in todos]
     title = payload.title or (
         items[0] if len(items) == 1
-        else (f"{len(items)} 项工作" if settings.resolved_locale == "zh" else f"{len(items)} items")
+        else (f'{len(items)}{zh_messages.NOTIFICATIONS_TEXT}' if settings.resolved_locale == "zh" else f"{len(items)} items")
     )
     send_work_notification(
         to=employee.email,

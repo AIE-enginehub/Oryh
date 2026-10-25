@@ -2,8 +2,8 @@
 
 `oryh-skill-sync`'s own description says it runs "on session start" — but
 nothing tells an agent a session started. An agent reaches a skill because the
-person's words matched it, and nobody says "session start"; they say "我有什么
-要办的" or "帮我提交工时". So the check has to hang off the skills people
+person's words matched it, and nobody says "session start"; they say "what needs
+my attention" or "help me submit my timesheet". So the check has to hang off the skills people
 actually reach, or it never runs: reported from production, where installed
 skills stayed stale until someone thought to ask for an update by name.
 

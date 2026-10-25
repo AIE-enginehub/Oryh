@@ -1,0 +1,3 @@
+{
+  "description": "Use when someone asks a question ABOUT oryh rather than for work — \"oryh 能不能…\"、\"这个权限是什么意思\"、\"为什么我被 403\"、\"哪个 skill 负责…\". Answers from the shipped manual, capability map and FAQ in its references; touches the API only for a live fact. Needs no capability."
+}

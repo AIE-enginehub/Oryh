@@ -13,6 +13,13 @@ holds — my pipeline is mine to work, everyone's to read.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_crm_pipeline.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 
@@ -42,8 +49,8 @@ def test_a_lead_walks_its_machine_and_stays_its_owners(pipeline) -> None:
     assert nobody.status_code == 422, "a lead names SOMEBODY — a company or a person"
 
     made = client.post("/api/v1/leads", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "company_name": "泵业公司",
-        "contact_name": "刘工", "phone": "13800000000", "source": "展会"})
+        "employee_id": zhang["employee_id"], "company_name": _ZH_TEXT['TEXT_B3D94E4ACC7E624D'],
+        "contact_name": _ZH_TEXT['TEXT_47F07BDB9C1A148C'], "phone": "13800000000", "source": _ZH_TEXT['TEXT_70AD91994620A5CB']})
     assert made.status_code == 201, made.text
     lead = made.json()["data"]
     assert lead["lead_no"].startswith("LD-") and lead["status"] == "new"
@@ -57,7 +64,7 @@ def test_a_lead_walks_its_machine_and_stays_its_owners(pipeline) -> None:
                           json={"status": "converted"})
     assert jumped.status_code == 409, "converted is the bridge's write, never a bare status"
     dropped = client.patch(f"/api/v1/leads/{lead['id']}", headers=zhang["key"],
-                           json={"status": "disqualified", "remarks": "没预算"})
+                           json={"status": "disqualified", "remarks": _ZH_TEXT['TEXT_3885C04A83EC3768']})
     assert dropped.status_code == 200
     revived = client.patch(f"/api/v1/leads/{lead['id']}", headers=zhang["key"],
                            json={"status": "contacted"})
@@ -67,7 +74,7 @@ def test_a_lead_walks_its_machine_and_stays_its_owners(pipeline) -> None:
     assert frozen.status_code == 409, "the machine allows no way back to new"
 
     stolen = client.patch(f"/api/v1/leads/{lead['id']}", headers=li["key"],
-                          json={"remarks": "我的了"})
+                          json={"remarks": _ZH_TEXT['TEXT_B692F5D4492441E4']})
     assert stolen.status_code == 404, "my pipeline is mine to work — and mine to read"
     colleague = client.get("/api/v1/leads", headers=li["key"],
                            params={"employee_id": zhang["employee_id"]})
@@ -79,19 +86,19 @@ def test_the_bridge_converts_in_one_transaction(pipeline) -> None:
     client = pipeline["client"]
     zhang = pipeline["salesperson"]("zhang")
     lead = client.post("/api/v1/leads", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "company_name": "泵业公司",
-        "contact_name": "刘工", "phone": "13800000000", "wechat": "liu-gong",
+        "employee_id": zhang["employee_id"], "company_name": _ZH_TEXT['TEXT_B3D94E4ACC7E624D'],
+        "contact_name": _ZH_TEXT['TEXT_47F07BDB9C1A148C'], "phone": "13800000000", "wechat": "liu-gong",
         "status": "qualified"}).json()["data"]
 
     converted = client.post(f"/api/v1/leads/{lead['id']}/convert", headers=zhang["key"],
-                            json={"opportunity_title": "泵站改造",
+                            json={"opportunity_title": _ZH_TEXT['TEXT_072658A7AA2EB8C9'],
                                   "expected_amount": 200000})
     assert converted.status_code == 200, converted.text
     data = converted.json()["data"]
     assert data["lead"]["status"] == "converted"
-    assert data["customer"]["name"] == "泵业公司"
+    assert data["customer"]["name"] == _ZH_TEXT['TEXT_B3D94E4ACC7E624D']
     assert data["lead"]["converted_customer_id"] == data["customer"]["id"]
-    assert data["contact"]["name"] == "刘工" and data["contact"]["is_primary"], \
+    assert data["contact"]["name"] == _ZH_TEXT['TEXT_47F07BDB9C1A148C'] and data["contact"]["is_primary"], \
         "the lead's person lands in the rolodex"
     assert data["contact"]["phone"] == "13800000000"
     opp = data["opportunity"]
@@ -108,11 +115,11 @@ def test_the_bridge_respects_the_machine_and_master_data(pipeline) -> None:
     client, admin = pipeline["client"], pipeline["admin"]
     zhang = pipeline["salesperson"]("zhang")
     fresh = client.post("/api/v1/leads", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "contact_name": "王姐"}).json()["data"]
+        "employee_id": zhang["employee_id"], "contact_name": _ZH_TEXT['TEXT_978D0B9CFCB3B131']}).json()["data"]
     early = client.post(f"/api/v1/leads/{fresh['id']}/convert", headers=zhang["key"], json={})
     assert early.status_code == 409, "new → converted is not a legal transition: qualify first"
 
-    existing = client.post("/api/v1/customers", json={"name": "老客户"},
+    existing = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_68897FD84FB823D9']},
                            headers=admin).json()["data"]["id"]
     client.patch(f"/api/v1/leads/{fresh['id']}", headers=zhang["key"],
                  json={"status": "qualified"})
@@ -123,15 +130,15 @@ def test_the_bridge_respects_the_machine_and_master_data(pipeline) -> None:
     assert body["customer"]["id"] == existing
     # the lead's person joins the existing customer's rolodex too (F-03),
     # deduplicated by phone, so the deal's cast can name them
-    assert body["contact"]["customer_id"] == existing and body["contact"]["name"] == "王姐"
+    assert body["contact"]["customer_id"] == existing and body["contact"]["name"] == _ZH_TEXT['TEXT_978D0B9CFCB3B131']
 
 
 def test_an_opportunity_closes_with_a_stamp_and_freezes(pipeline) -> None:
     client = pipeline["client"]
     zhang = pipeline["salesperson"]("zhang")
     opp = client.post("/api/v1/opportunities", headers=zhang["key"], json={
-        "employee_id": zhang["employee_id"], "title": "泵站改造",
-        "customer_name_snapshot": "泵业公司", "expected_amount": 200000}).json()["data"]
+        "employee_id": zhang["employee_id"], "title": _ZH_TEXT['TEXT_072658A7AA2EB8C9'],
+        "customer_name_snapshot": _ZH_TEXT['TEXT_B3D94E4ACC7E624D'], "expected_amount": 200000}).json()["data"]
     assert opp["closed_at"] is None
 
     won = client.patch(f"/api/v1/opportunities/{opp['id']}", headers=zhang["key"],

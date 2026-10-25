@@ -1,10 +1,10 @@
-"""规章制度 — a published rule of the house, and the number an agent may act on.
+"""company policies — a published rule of the house, and the number an agent may act on.
 
 Two things have to hold here and they pull in opposite directions.
 
 A policy must be *readable*: an employee handbook nobody may open is not a
 handbook, so an internal policy needs no capability at all. And a policy must be
-*withholdable*: a draft 裁员方案 and a 薪酬管理办法 are the two documents a
+*withholdable*: a draft redundancy plan and a compensation policy are the two documents a
 workspace most wants unread, and "everyone in the tenant" is the wrong audience
 for both.
 
@@ -17,6 +17,13 @@ parsed by the server.
 """
 
 from __future__ import annotations
+
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_policies.json').read_text(encoding="utf-8"))
+
 
 from collections.abc import Generator
 
@@ -46,8 +53,8 @@ def draft(client: TestClient, expect: int = 201, **overrides) -> dict:
     body = {
         "code": "HR-001",
         "category": "hr",
-        "title": "员工手册",
-        "body": "# 员工手册\n\n第一条 ……",
+        "title": _ZH_TEXT['TEXT_29DB8FCC1CCF1A6A'],
+        "body": _ZH_TEXT['TEXT_DBA08A0930C1C1BF'],
     }
     body.update(overrides)
     return post(client, "/api/v1/business-rules", {"kind": "policy", **body}, expect=expect)
@@ -78,7 +85,7 @@ def test_a_new_version_closes_the_previous_one_the_day_before(client: TestClient
     first = draft(client)
     publish(client, first["id"], effective_from="2026-01-01")
 
-    second = draft(client, title="员工手册（2026 修订）", body="# 员工手册\n\n第一条 修订……")
+    second = draft(client, title=_ZH_TEXT['TEXT_247E579370ACFF82'], body=_ZH_TEXT['TEXT_1BE1552AE2968489'])
     assert second["version"] == 2
     assert second["supersedes_id"] == first["id"]
 
@@ -94,7 +101,7 @@ def test_what_applied_in_march_is_answerable(client: TestClient) -> None:
     is still the document that governed March."""
     first = draft(client)
     publish(client, first["id"], effective_from="2026-01-01")
-    second = draft(client, title="员工手册（2026 修订）", body="修订")
+    second = draft(client, title=_ZH_TEXT['TEXT_247E579370ACFF82'], body=_ZH_TEXT['TEXT_3C2E8A4C055A5B4E'])
     publish(client, second["id"], effective_from="2026-07-01")
 
     def in_force(on: str) -> list[int]:
@@ -106,7 +113,7 @@ def test_what_applied_in_march_is_answerable(client: TestClient) -> None:
 
 
 def test_only_one_published_version_per_code(client: TestClient) -> None:
-    """Two documents both claiming to be the current 报销制度 is the failure
+    """Two documents both claiming to be the current expense policy is the failure
     this table exists to prevent — and it is held by the database, not by the
     publish endpoint's good manners. Poke the old version back to `published`
     behind the API and the index refuses."""
@@ -141,7 +148,7 @@ def test_a_published_policy_is_not_edited_in_place(client: TestClient) -> None:
     publish(client, made["id"])
 
     response = client.patch(
-        f"/api/v1/business-rules/{made['id']}", json={"body": "偷偷改一句"}, headers=HEADERS
+        f"/api/v1/business-rules/{made['id']}", json={"body": _ZH_TEXT['TEXT_3A42E31C94919B62']}, headers=HEADERS
     )
     assert response.status_code == 409
     assert "new version" in response.json()["detail"]
@@ -187,10 +194,10 @@ def test_repealing_a_superseded_version_would_punch_a_hole(client: TestClient) -
 def test_a_draft_is_still_editable_and_deletable(client: TestClient) -> None:
     made = draft(client)
     edited = client.patch(
-        f"/api/v1/business-rules/{made['id']}", json={"title": "员工手册（草案）"}, headers=HEADERS
+        f"/api/v1/business-rules/{made['id']}", json={"title": _ZH_TEXT['TEXT_33A218B557B0AC04']}, headers=HEADERS
     )
     assert edited.status_code == 200
-    assert edited.json()["data"]["title"] == "员工手册（草案）"
+    assert edited.json()["data"]["title"] == _ZH_TEXT['TEXT_33A218B557B0AC04']
     assert client.delete(f"/api/v1/business-rules/{made['id']}", headers=HEADERS).status_code == 204
 
 
@@ -200,7 +207,7 @@ def test_a_restricted_policy_must_name_who_may_read_it(client: TestClient) -> No
     body = draft(client, code="HR-002", visibility="restricted", expect=422)
     assert "required_capability" in body["detail"]
 
-    ok = draft(client, code="HR-002", title="薪酬管理办法", category="payroll",
+    ok = draft(client, code="HR-002", title=_ZH_TEXT['TEXT_6EB14D5B59109360'], category="payroll",
                visibility="restricted", required_capability="payroll.read")
     assert ok["required_capability"] == "payroll.read"
 
@@ -257,20 +264,20 @@ def test_the_integrity_audits_policy_invariants_hold_on_real_policies(client: Te
 
     handbook = draft(client)
     publish(client, handbook["id"], effective_from="2026-01-01")
-    revised = draft(client, title="员工手册（修订）", body="修订")
+    revised = draft(client, title=_ZH_TEXT['TEXT_5AA97CF0AD67B1C0'], body=_ZH_TEXT['TEXT_3C2E8A4C055A5B4E'])
     publish(client, revised["id"], effective_from="2026-07-01")
 
-    pay = draft(client, code="PAY-001", category="payroll", title="薪酬管理办法",
+    pay = draft(client, code="PAY-001", category="payroll", title=_ZH_TEXT['TEXT_6EB14D5B59109360'],
                 visibility="restricted", required_capability="payroll.read")
     publish(client, pay["id"])
 
     draft(client, code="FIN-2026-03", category="external_standard",
-          title="上海市2026年度社保缴费基数标准",
-          body="依据沪人社规〔2026〕X号：上限 36921 元，下限 7384 元。",
+          title=_ZH_TEXT['TEXT_BE3F09F7F1CEDAC5'],
+          body=_ZH_TEXT['TEXT_F28899D3BF3B52B5'],
           rules_json={"social_insurance": {"base": {"cap": 36921, "floor": 7384}},
                       "housing_fund": {"base": {"cap": 36921, "floor": 2690}}})
 
-    old = draft(client, code="FIN-OLD", category="expense", title="旧差旅标准")
+    old = draft(client, code="FIN-OLD", category="expense", title=_ZH_TEXT['TEXT_07EC8AB5CDDD8083'])
     publish(client, old["id"], effective_from="2025-01-01")
     post(client, f"/api/v1/business-rules/{old['id']}/repeal", {"effective_thru": "2025-12-31"},
          expect=200)
@@ -310,8 +317,8 @@ def test_rules_json_rides_the_policy_it_restates(client: TestClient) -> None:
     the document."""
     made = draft(
         client, code="FIN-2026-03", category="external_standard",
-        title="上海市2026年度社保缴费基数标准",
-        body="依据沪人社规〔2026〕X号：上限 36921 元，下限 7384 元。",
+        title=_ZH_TEXT['TEXT_BE3F09F7F1CEDAC5'],
+        body=_ZH_TEXT['TEXT_F28899D3BF3B52B5'],
         rules_json={"social_insurance": {"base": {"cap": 36921, "floor": 7384}}},
     )
     assert made["rules_json"]["social_insurance"]["base"]["cap"] == 36921
@@ -330,7 +337,7 @@ def test_rules_json_rides_the_policy_it_restates(client: TestClient) -> None:
     # a new figure is a new version, published by a named person, and the old
     # one still answers for the period it governed
     nxt = draft(client, code="FIN-2026-03", category="external_standard",
-                title="上海市2027年度社保缴费基数标准", body="沪人社规〔2027〕X号",
+                title=_ZH_TEXT['TEXT_824CDBE6818DF692'], body=_ZH_TEXT['TEXT_1CE196F5E9ED6555'],
                 rules_json={"social_insurance": {"base": {"cap": 39000, "floor": 7800}}})
     publish(client, nxt["id"], effective_from="2027-07-01")
 
@@ -348,10 +355,10 @@ def test_rules_json_rides_the_policy_it_restates(client: TestClient) -> None:
 def test_rules_json_is_optional_and_never_interpreted(client: TestClient) -> None:
     """It has no more standing than `body`: any shape is accepted, and a policy
     with only prose is complete."""
-    prose_only = draft(client, code="HR-010", title="纯文字制度")
+    prose_only = draft(client, code="HR-010", title=_ZH_TEXT['TEXT_C4E98659690110D1'])
     assert prose_only["rules_json"] is None
 
-    odd = draft(client, code="HR-011", title="任意结构",
-                rules_json={"阶梯": [{"上限": 500000, "比例": 0.03}, {"比例": 0.05}],
-                            "备注": "服务端不解析这里的任何东西"})
-    assert odd["rules_json"]["阶梯"][1]["比例"] == 0.05
+    odd = draft(client, code="HR-011", title=_ZH_TEXT['TEXT_FC62BD28C2644B6D'],
+                rules_json={_ZH_TEXT['TEXT_F5FAD31729CE1F05']: [{_ZH_TEXT['TEXT_8E7DDBEEE310A5A5']: 500000, _ZH_TEXT['TEXT_82A59F3D1C16BBD2']: 0.03}, {_ZH_TEXT['TEXT_82A59F3D1C16BBD2']: 0.05}],
+                            _ZH_TEXT['TEXT_DAEDE9881787ABE7']: _ZH_TEXT['TEXT_ED1A8E58B50C0F29']})
+    assert odd["rules_json"][_ZH_TEXT['TEXT_F5FAD31729CE1F05']][1][_ZH_TEXT['TEXT_82A59F3D1C16BBD2']] == 0.05

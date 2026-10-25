@@ -19,6 +19,13 @@ past an approval boundary.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_skill_calibration.json').read_text(encoding="utf-8"))
+
+
 import io
 import zipfile
 
@@ -60,7 +67,7 @@ def test_calibrating_a_product_skill_does_not_fork_it(client, workspace):
     response = client.patch(
         "/api/v1/skills/oryh-my-work",
         headers=workspace,
-        json={"calibration": "报待办时只列标题、到期和状态，不展开关联对象详情。"},
+        json={"calibration": _ZH_TEXT['TEXT_F3929DF8C91B9E6C']},
     )
     assert response.status_code == 200, response.text
     after = response.json()["data"]
@@ -68,7 +75,7 @@ def test_calibrating_a_product_skill_does_not_fork_it(client, workspace):
     # The whole point: content keeps tracking the catalog.
     assert after["kind"] == "product", "calibration must not fork a shipped skill"
     assert after["version"] == before["version"] + 1
-    assert "只列标题" in after["calibration"]
+    assert _ZH_TEXT['TEXT_E2BB0FB518F29710'] in after["calibration"]
 
 
 def test_editing_files_still_forks(client, workspace):
@@ -88,11 +95,11 @@ def test_the_calibration_reaches_the_rendered_bundle(client, workspace):
     client.patch(
         "/api/v1/skills/oryh-my-work",
         headers=workspace,
-        json={"calibration": "报待办时只列标题。"},
+        json={"calibration": _ZH_TEXT['TEXT_C757902272A90336']},
     )
     rendered = _bundle_text(client, workspace)
     assert CALIBRATION_HEADING in rendered
-    assert "报待办时只列标题。" in rendered
+    assert _ZH_TEXT['TEXT_C757902272A90336'] in rendered
     # The section is last, so it reads after the rules it refines.
     assert rendered.index(CALIBRATION_HEADING) > rendered.index("## ")
 
@@ -102,7 +109,7 @@ def test_the_rendered_section_states_the_skill_wins(client, workspace):
     client.patch(
         "/api/v1/skills/oryh-my-work",
         headers=workspace,
-        json={"calibration": "凡事从简。"},
+        json={"calibration": _ZH_TEXT['TEXT_C0F4C2924C792052']},
     )
     rendered = _bundle_text(client, workspace)
     assert "the skill wins" in rendered
@@ -124,7 +131,7 @@ def test_calibration_moves_the_files_hash(client, workspace):
     """
     before = _skill(client, workspace)
     response = client.patch(
-        "/api/v1/skills/oryh-my-work", headers=workspace, json={"calibration": "从简。"}
+        "/api/v1/skills/oryh-my-work", headers=workspace, json={"calibration": _ZH_TEXT['TEXT_EB52D838752D743E']}
     )
     after = response.json()["data"]
     assert after["version"] == before["version"] + 1
@@ -138,7 +145,7 @@ def test_calibration_moves_the_files_hash(client, workspace):
 
 def test_clearing_calibration_removes_the_section(client, workspace):
     client.patch(
-        "/api/v1/skills/oryh-my-work", headers=workspace, json={"calibration": "从简。"}
+        "/api/v1/skills/oryh-my-work", headers=workspace, json={"calibration": _ZH_TEXT['TEXT_EB52D838752D743E']}
     )
     assert CALIBRATION_HEADING in _bundle_text(client, workspace)
 
@@ -160,19 +167,19 @@ def test_two_workspaces_calibrate_the_same_skill_differently(client):
     client.patch(
         "/api/v1/skills/oryh-my-work",
         headers=brief_headers,
-        json={"calibration": "只列标题、到期、状态。"},
+        json={"calibration": _ZH_TEXT['TEXT_195CB9D17261B293']},
     )
     client.patch(
         "/api/v1/skills/oryh-my-work",
         headers=full_headers,
-        json={"calibration": "同时带上每条待办关联单据的明细。"},
+        json={"calibration": _ZH_TEXT['TEXT_5C23175DB1325BE3']},
     )
 
     brief_text = _bundle_text(client, brief_headers)
     full_text = _bundle_text(client, full_headers)
-    assert "只列标题、到期、状态。" in brief_text
-    assert "只列标题、到期、状态。" not in full_text
-    assert "同时带上每条待办关联单据的明细。" in full_text
+    assert _ZH_TEXT['TEXT_195CB9D17261B293'] in brief_text
+    assert _ZH_TEXT['TEXT_195CB9D17261B293'] not in full_text
+    assert _ZH_TEXT['TEXT_5C23175DB1325BE3'] in full_text
     # Both still the shipped skill, both still tracking the catalog.
     assert _skill(client, brief_headers)["kind"] == "product"
     assert _skill(client, full_headers)["kind"] == "product"
@@ -241,7 +248,7 @@ def test_a_desk_may_calibrate_one_skill_without_the_registry() -> None:
         assert client.get("/api/v1/skills/oryh-crm", headers=desk).status_code == 403, "scoped to one skill"
 
         written = client.patch("/api/v1/skills/oryh-product-matching", headers=desk,
-                               json={"calibration": "Tmall titles: strip 包邮 before scoring."})
+                               json={"calibration": _ZH_TEXT['TEXT_B2E79E2B95840229']})
         assert written.status_code == 200, written.text
         assert written.json()["data"]["kind"] == "product", "a calibration never forks"
         assert client.patch("/api/v1/skills/oryh-crm", headers=desk, json={"calibration": "x"}).status_code == 403

@@ -196,7 +196,7 @@ def test_raising_it_takes_the_capability(client: TestClient) -> None:
     mutation run said exactly that.
 
     `invoice.manage:reimbursement` and not the bare verb: a workspace that
-    keeps 应收 and 应付 apart scopes this the same way, and an AR clerk holding
+    keeps receivables and payables apart scopes this the same way, and an AR clerk holding
     only `:sales` has no business filing a payable to an employee.
     """
     from app.services.emails import outbox
@@ -454,7 +454,7 @@ def test_an_employee_facing_invoice_states_what_kind_it_is(shop) -> None:
     """A document with no type reads as an unfinished one.
 
     Neither a payslip nor a reimbursement is a tax instrument, so none of the
-    发票 values fit — and `other` would be a different lie: it means "a
+    invoice values fit — and `other` would be a different lie: it means "a
     document nobody classified", which would put these in the same bucket as
     genuinely unclassified receipts the next time somebody totals input tax.
     Each gets a seeded value of its own.
@@ -486,7 +486,7 @@ def test_a_stated_type_is_never_overwritten(shop) -> None:
 
 
 def test_supplier_and_customer_invoices_are_left_open(shop) -> None:
-    """Which 发票 a supplier issued is a fact about the paper. The server has
+    """Which invoice a supplier issued is a fact about the paper. The server has
     no business guessing it, so those directions get no default — filling them
     in would be inventing evidence."""
     vendor = shop["post"]("/vendors", {"name": "Dell"})["id"]

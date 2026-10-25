@@ -13,7 +13,7 @@ things differ from the live create endpoints, each on purpose:
   half-finished migration resumes by simply running it again.
 
 - **Any state of the tenant's machine is accepted.** These documents already
-  ended (成交/流失/过期); walking them through the lifecycle would fabricate a
+  ended (won/lost/expired); walking them through the lifecycle would fabricate a
   history that did not happen.
 
 - **Master data is referenced by the tenant's own codes**, because that is
@@ -99,7 +99,7 @@ FAMILIES: dict[str, dict[str, Any]] = {
         "label": "purchase_order",
         "permission": "purchase_order.manage",
     },
-    # 期初应收应付: the open bills a company carries across the switch. No
+    # opening receivables/payables: the open bills a company carries across the switch. No
     # adjustment model — charges and allowances are line TYPES on an invoice
     # (OFBiz invoiceItemTypeId), so this family imports lines only.
     "invoice": {
@@ -120,7 +120,7 @@ FAMILIES: dict[str, dict[str, Any]] = {
     # single fact. What each imported payment SETTLED is deliberately not part
     # of a row: writing applications straight into the ledger would bypass the
     # over-application, direction and currency guards that make the ledger
-    # trustworthy. Import the money, then 核销 through POST /payments/{id}/apply.
+    # trustworthy. Import the money, then apply it through POST /payments/{id}/apply.
     "payment": {
         "model": Payment,
         "item_model": None,

@@ -31,6 +31,13 @@ still be true if somebody replaced the lock with something subtler.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / '../locales/zh-CN/postgres/test_settlement_concurrency.json').read_text(encoding="utf-8"))
+
+
 import threading
 import uuid
 
@@ -66,13 +73,13 @@ def account(pg_sessionmaker):
         tenant = Tenant(name="PG Co", email_domain="pg-co.example", slug="pg-co")
         db.add(tenant)
         db.flush()
-        customer = Customer(tenant_id=tenant.id, name="客户")
+        customer = Customer(tenant_id=tenant.id, name=_ZH_TEXT['TEXT_AD4AF312DBC2F593'])
         db.add(customer)
         db.flush()
         acct = BillingAccount(
             tenant_id=tenant.id,
             account_code="ACC-1",
-            name="客户预存账户",
+            name=_ZH_TEXT['TEXT_B66E1706AD2AA90E'],
             customer_id=customer.id,
             unit="CNY",
             unit_type="currency",
@@ -212,20 +219,23 @@ def payment_and_invoices(pg_sessionmaker):
         tenant = Tenant(name="Pay Co", email_domain="pay-co.example", slug="pay-co")
         db.add(tenant)
         db.flush()
-        customer = Customer(tenant_id=tenant.id, name="客户")
-        employee = Employee(tenant_id=tenant.id, name="开票人")
+        customer = Customer(tenant_id=tenant.id, name=_ZH_TEXT['TEXT_AD4AF312DBC2F593'])
+        employee = Employee(tenant_id=tenant.id, name=_ZH_TEXT['TEXT_91E55E73CF782868'])
         db.add_all([customer, employee])
         db.flush()
         payment = Payment(
             tenant_id=tenant.id, payment_no="PAY-1", direction="inbound",
             customer_id=customer.id, employee_id=employee.id,
-            amount=100, currency="CNY", status="draft",
+            # paid, as an inbound receipt is filed: since 2026-09-25 a draft
+            # takes part in no settlement, which refused BOTH applications
+            # before the race this test is about could begin
+            amount=100, currency="CNY", status="paid",
             payment_date=date(2026, 8, 16),
         )
         invoices = [
             Invoice(
                 tenant_id=tenant.id, invoice_no=f"INV-{n}", direction="sales",
-                customer_id=customer.id, employee_id=employee.id, title=f"发票 {n}",
+                customer_id=customer.id, employee_id=employee.id, title=f"{_ZH_TEXT['TEXT_9795A901156941B6']}{n}",
                 total_amount=100, currency="CNY", status="issued",
                 invoice_date=date(2026, 8, 16),
             )

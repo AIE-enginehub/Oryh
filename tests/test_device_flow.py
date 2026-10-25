@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_device_flow.json').read_text(encoding="utf-8"))
+
+
 import io
 import zipfile
 
@@ -15,7 +22,7 @@ def provision_member(client: TestClient) -> dict:
     """Tenant with one linked member; returns service headers + member login."""
     data = bootstrap_tenant(client, company_name="Device Co", email="admin@device-co.com", password="device-pass1")
     service = {"X-API-Key": data["plain_text_api_key"]}
-    wang = invite_member(client, service, "wang", role="member", email="wang@device-co.com", employee="小王",
+    wang = invite_member(client, service, "wang", role="member", email="wang@device-co.com", employee=_ZH_TEXT['TEXT_F5C982AE4094EF29'],
                          password="member-pass1", key=False)
     client.cookies.clear()
     return {"service": service, "user_id": wang.user_id, "email": wang.email, "password": wang.password}
@@ -58,8 +65,8 @@ def test_device_flow_happy_path(client: TestClient) -> None:
     assert "WorkBuddy on test" in page.text and grant["user_code"] in page.text
     # the shell's console link, in whichever language the shell is speaking
     assert 'href="/console/dashboard"' in page.text
-    assert "进入控制台" in page.text or "Open the console" in page.text
-    assert "进入 React 控制台" not in page.text
+    assert _ZH_TEXT['TEXT_567B91C0859B9637'] in page.text or "Open the console" in page.text
+    assert _ZH_TEXT['TEXT_FE2F211AED73C260'] not in page.text
 
     approved = client.post("/web/device/approve", data={"code": grant["user_code"]})
     assert approved.status_code == 200 and "Device connected" in approved.text

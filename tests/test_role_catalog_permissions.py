@@ -62,7 +62,7 @@ def test_a_fresh_role_records_what_it_was_given(member) -> None:
 
 def test_a_capability_shipped_later_reaches_the_role(db_session, tenant_id, member,
                                                      monkeypatch) -> None:
-    """The whole point. This is 请假 the day it shipped."""
+    """The whole point. This is leave the day it shipped."""
     shipped = list(DEFAULT_ROLE_PERMISSIONS["member"]) + ["sabbatical.submit_own"]
     _sync(db_session, tenant_id, shipped, monkeypatch)
 

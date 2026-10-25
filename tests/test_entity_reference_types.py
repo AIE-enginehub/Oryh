@@ -18,6 +18,13 @@ reached the constraint. A typo now gets a sentence.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_entity_reference_types.json').read_text(encoding="utf-8"))
+
+
 import re
 from collections.abc import Generator
 
@@ -84,7 +91,7 @@ def test_the_one_declaration_matches_both_registries() -> None:
     four scattered lists.
 
     Kind-split machine types are the stated exception: a sales_return is a
-    `sales_orders` row (退单跟订单一张表), so it has a MACHINE of its own but
+    `sales_orders` row (returns share the order table), so it has a MACHINE of its own but
     no family, no entity type, no table — a todo pointing at one says
     `sales_order` and lands on the same row. The declaration says whose table
     each split type lives in, and this pin holds machines == entity types ∪
@@ -114,10 +121,10 @@ def test_the_one_declaration_matches_both_registries() -> None:
 def test_a_payment_can_carry_an_approval_todo(client: TestClient) -> None:
     """The exact request that answered 500 in the test environment."""
     person = client.post(
-        "/api/v1/employees", json={"name": "出纳"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_6657E4FAF9330E19']}, headers=HEADERS
     ).json()["data"]["id"]
     payee = client.post(
-        "/api/v1/employees", json={"name": "员工"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_A1F5D5FCBDC4D510']}, headers=HEADERS
     ).json()["data"]["id"]
     payment = client.post(
         "/api/v1/payments",
@@ -129,7 +136,7 @@ def test_a_payment_can_carry_an_approval_todo(client: TestClient) -> None:
     todo = client.post(
         "/api/v1/todos",
         json={"entity_type": "payment", "entity_id": payment["id"],
-              "employee_id": person, "title": "审批工资发放"},
+              "employee_id": person, "title": _ZH_TEXT['TEXT_FA06915E3739E71D']},
         headers=HEADERS,
     )
     assert todo.status_code == 201, todo.text
@@ -146,22 +153,22 @@ def test_a_payment_can_carry_an_approval_todo(client: TestClient) -> None:
 
 def test_an_invoice_can_too(client: TestClient) -> None:
     person = client.post(
-        "/api/v1/employees", json={"name": "会计"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_D649E95568CAF62D']}, headers=HEADERS
     ).json()["data"]["id"]
     customer = client.post(
-        "/api/v1/customers", json={"name": "客户"}, headers=HEADERS
+        "/api/v1/customers", json={"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']}, headers=HEADERS
     ).json()["data"]["id"]
     invoice = client.post(
         "/api/v1/invoices",
         json={"direction": "sales", "employee_id": person, "customer_id": customer,
-              "title": "货款", "total_amount": 5000.0},
+              "title": _ZH_TEXT['TEXT_3ADE37EFD51F5E34'], "total_amount": 5000.0},
         headers=HEADERS,
     ).json()["data"]
 
     assert client.post(
         "/api/v1/todos",
         json={"entity_type": "invoice", "entity_id": invoice["id"],
-              "employee_id": person, "title": "开票复核"},
+              "employee_id": person, "title": _ZH_TEXT['TEXT_F827DEE0BF42B9F1']},
         headers=HEADERS,
     ).status_code == 201
     assert client.post(
@@ -177,13 +184,13 @@ def test_an_unknown_entity_type_is_a_sentence_not_a_500(client: TestClient) -> N
     """The approval if-chain had no `else`: a type it did not recognise skipped
     validation and hit the constraint, which answers in SQL."""
     person = client.post(
-        "/api/v1/employees", json={"name": "某人"}, headers=HEADERS
+        "/api/v1/employees", json={"name": _ZH_TEXT['TEXT_61EDB99C5B5ED0F5']}, headers=HEADERS
     ).json()["data"]["id"]
 
     for path, body in (
         ("/api/v1/todos",
          {"entity_type": "invoicce", "entity_id": person, "employee_id": person,
-          "title": "打错了"}),
+          "title": _ZH_TEXT['TEXT_38E5D3683CBFA08D']}),
         ("/api/v1/approval-records",
          {"entity_type": "invoicce", "entity_id": person, "round_no": 1,
           "sequence_no": 2, "action": "approved", "approver_id": person}),

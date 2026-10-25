@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { useRecordNotice } from "../components/master-data/RecordNotice";
 import { useListFilters } from "../components/master-data/useListFilters";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -134,11 +135,11 @@ export function ProjectsPage() {
     event.preventDefault();
     const name = form.name.trim();
     if (!name) {
-      setValidationError(text("项目名称不能为空。", "Project name is required."));
+      setValidationError(text(zhCN.pagesProjectsPage.projectNameIsRequired, "Project name is required."));
       return;
     }
     if (form.startDate && form.endDate && form.endDate < form.startDate) {
-      setValidationError(text("结束日期不能早于开始日期。", "End date cannot be earlier than the start date."));
+      setValidationError(text(zhCN.pagesProjectsPage.endDateCannotBeEarlierThanTheStartDate, "End date cannot be earlier than the start date."));
       return;
     }
     setValidationError(null);
@@ -163,19 +164,19 @@ export function ProjectsPage() {
       <header className="page-intro">
         <div>
           <span className="eyebrow">Project registry</span>
-          <h2>{text("项目资料", "Projects")}</h2>
-          <p>{text("维护项目编号、客户和有效周期，供工时、费用与代理流程引用。", "Maintain project codes, customers, and active dates for timesheets, expenses, and agent workflows.")}</p>
+          <h2>{text(zhCN.pagesProjectsPage.projects, "Projects")}</h2>
+          <p>{text(zhCN.pagesProjectsPage.maintainProjectCodesCustomersAndActiveDatesForTimesheets, "Maintain project codes, customers, and active dates for timesheets, expenses, and agent workflows.")}</p>
         </div>
       </header>
       {notice}
 
-      <section className="data-panel" aria-label={text("项目列表", "Project list")}>
+      <section className="data-panel" aria-label={text(zhCN.pagesProjectsPage.projectList, "Project list")}>
         <ListToolbar
           keyword={keyword}
           status={status}
-          placeholder={text("按项目名称搜索", "Search project names")}
-          createLabel={text("新建项目", "New project")}
-          statusOptions={[{ value: "active", label: text("启用", "Active") }, { value: "archived", label: text("已归档", "Archived") }]}
+          placeholder={text(zhCN.pagesProjectsPage.searchProjectNames, "Search project names")}
+          createLabel={text(zhCN.pagesProjectsPage.newProject, "New project")}
+          statusOptions={[{ value: "active", label: text(zhCN.pagesProjectsPage.active, "Active") }, { value: "archived", label: text(zhCN.pagesProjectsPage.archived, "Archived") }]}
           onCreate={openCreate}
           onApply={applyFilters}
         />
@@ -183,25 +184,25 @@ export function ProjectsPage() {
           loading={projects.isPending}
           error={projects.isError ? apiErrorMessage(projects.error) : null}
           empty={Boolean(result && result.data.length === 0)}
-          emptyTitle={keyword || status ? text("没有匹配的项目", "No matching projects") : text("还没有项目", "No projects yet")}
-          emptyDescription={keyword || status ? text("尝试调整搜索词或状态筛选。", "Try changing your search or status filter.") : text("新建第一个项目，让业务记录有清晰归属。", "Create your first project to give business records a clear home.")}
+          emptyTitle={keyword || status ? text(zhCN.pagesProjectsPage.noMatchingProjects, "No matching projects") : text(zhCN.pagesProjectsPage.noProjectsYet, "No projects yet")}
+          emptyDescription={keyword || status ? text(zhCN.pagesProjectsPage.tryChangingYourSearchOrStatusFilter, "Try changing your search or status filter.") : text(zhCN.pagesProjectsPage.createYourFirstProjectToGiveBusinessRecordsA, "Create your first project to give business records a clear home.")}
           onRetry={() => void projects.refetch()}
         >
           {result && (
             <>
               <div className="table-scroll">
                 <table className="data-table">
-                  <thead><tr><th>{text("项目", "Project")}</th><th>{text("客户", "Customer")}</th><th>{text("有效期", "Active period")}</th><th>{text("状态", "Status")}</th><th><span className="sr-only">{text("操作", "Actions")}</span></th></tr></thead>
+                  <thead><tr><th>{text(zhCN.pagesProjectsPage.project, "Project")}</th><th>{text(zhCN.pagesProjectsPage.customer, "Customer")}</th><th>{text(zhCN.pagesProjectsPage.activePeriod, "Active period")}</th><th>{text(zhCN.pagesProjectsPage.status, "Status")}</th><th><span className="sr-only">{text(zhCN.pagesProjectsPage.actions, "Actions")}</span></th></tr></thead>
                   <tbody>
                     {result.data.map((project) => (
                       <tr key={project.id}>
-                        <td><button className="record-name" type="button" onClick={() => openEdit(project)}>{project.project_name}</button><small>{project.project_code || text("未设置编号", "No code")}</small></td>
+                        <td><button className="record-name" type="button" onClick={() => openEdit(project)}>{project.project_name}</button><small>{project.project_code || text(zhCN.pagesProjectsPage.noCode, "No code")}</small></td>
                         <td>{project.client || <span className="muted-value">—</span>}</td>
-                        <td>{project.start_date || project.end_date ? `${project.start_date || "…"} → ${project.end_date || "…"}` : <span className="muted-value">{text("长期", "Ongoing")}</span>}</td>
+                        <td>{project.start_date || project.end_date ? `${project.start_date || "…"} → ${project.end_date || "…"}` : <span className="muted-value">{text(zhCN.pagesProjectsPage.ongoing, "Ongoing")}</span>}</td>
                         <td><StatusBadge status={project.status} /></td>
                         <td className="row-actions">
-                          <button className="text-action" type="button" onClick={() => openEdit(project)}>{text("编辑", "Edit")}</button>
-                          {project.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archive.reset(); setArchiving(project); }}>{text("归档", "Archive")}</button>}
+                          <button className="text-action" type="button" onClick={() => openEdit(project)}>{text(zhCN.pagesProjectsPage.edit, "Edit")}</button>
+                          {project.status !== "archived" && <button className="text-action danger-text" type="button" onClick={() => { archive.reset(); setArchiving(project); }}>{text(zhCN.pagesProjectsPage.archive, "Archive")}</button>}
                         </td>
                       </tr>
                     ))}
@@ -216,31 +217,31 @@ export function ProjectsPage() {
 
       <Drawer
         open={editing !== undefined}
-        title={editing ? text("编辑项目", "Edit project") : text("新建项目", "New project")}
-        description={editing ? text(`更新 ${editing.project_name} 的主数据。`, `Update master data for ${editing.project_name}.`) : text("创建可供业务记录引用的项目。", "Create a project that business records can reference.")}
-        submitLabel={editing ? text("保存更改", "Save changes") : text("创建项目", "Create project")}
+        title={editing ? text(zhCN.pagesProjectsPage.editProject, "Edit project") : text(zhCN.pagesProjectsPage.newProject, "New project")}
+        description={editing ? text(zhCN.pagesProjectsPage.updateMasterDataFor(`${editing.project_name}`), `Update master data for ${editing.project_name}.`) : text(zhCN.pagesProjectsPage.createAProjectThatBusinessRecordsCanReference, "Create a project that business records can reference.")}
+        submitLabel={editing ? text(zhCN.pagesProjectsPage.saveChanges, "Save changes") : text(zhCN.pagesProjectsPage.createProject, "Create project")}
         busy={save.isPending}
         error={validationError || (save.isError ? apiErrorMessage(save.error) : null)}
         onClose={closeDrawer}
         onSubmit={submit}
       >
         <div className="field-grid">
-          <div className="field span-2"><label htmlFor="project-name">{text("项目名称", "Project name")} <b>*</b></label><input id="project-name" required maxLength={200} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
-          <div className="field"><label htmlFor="project-code">{text("项目编号", "Project code")}</label><input id="project-code" maxLength={64} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></div>
-          <div className="field"><label htmlFor="project-status">{text("状态", "Status")}</label><select id="project-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ProjectForm["status"] })}><option value="active">{text("启用", "Active")}</option><option value="archived">{text("已归档", "Archived")}</option></select></div>
-          <div className="field"><label htmlFor="project-customer">{text("客户", "Customer")}</label><select id="project-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })}><option value="">{text("未关联", "Not linked")}</option>{(customers.data?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><small>{text("关联后项目能追到报价、合同与开票；留空时下面的名称只是文字。", "Linked, the project reaches its quotations, contract and invoices; unlinked, the name below is only text.")}</small></div>
-          <div className="field"><label htmlFor="project-owner">{text("负责人", "Owner")}</label><select id="project-owner" value={form.ownerEmployeeId} onChange={(event) => setForm({ ...form, ownerEmployeeId: event.target.value })}><option value="">{text("未指定", "Unassigned")}</option>{(employees.data?.data ?? []).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
-          <div className="field span-2"><label htmlFor="project-client">{text("客户名称（文字）", "Customer name (text)")}</label><input id="project-client" maxLength={200} value={form.client} onChange={(event) => setForm({ ...form, client: event.target.value })} placeholder={form.customerId ? text("留空则取客户名", "Empty takes the customer's name") : undefined} /></div>
-          {editing && (editing.opportunity_id || editing.contract_id) && <small className="span-2">{text(`来自商机 ${editing.opportunity_id ? "✓" : "—"} · 合同 ${editing.contract_id ? "✓" : "—"}（由成交桥与合同台维护）`, `From a deal ${editing.opportunity_id ? "✓" : "—"} · contract ${editing.contract_id ? "✓" : "—"} (set by the won-deal bridge and the contract desk)`)}</small>}
-          <div className="field"><label htmlFor="project-start">{text("开始日期", "Start date")}</label><input id="project-start" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></div>
-          <div className="field"><label htmlFor="project-end">{text("结束日期", "End date")}</label><input id="project-end" type="date" value={form.endDate} min={form.startDate || undefined} onChange={(event) => setForm({ ...form, endDate: event.target.value })} /></div>
+          <div className="field span-2"><label htmlFor="project-name">{text(zhCN.pagesProjectsPage.projectName, "Project name")} <b>*</b></label><input id="project-name" required maxLength={200} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
+          <div className="field"><label htmlFor="project-code">{text(zhCN.pagesProjectsPage.projectCode, "Project code")}</label><input id="project-code" maxLength={64} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></div>
+          <div className="field"><label htmlFor="project-status">{text(zhCN.pagesProjectsPage.status, "Status")}</label><select id="project-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ProjectForm["status"] })}><option value="active">{text(zhCN.pagesProjectsPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesProjectsPage.archived, "Archived")}</option></select></div>
+          <div className="field"><label htmlFor="project-customer">{text(zhCN.pagesProjectsPage.customer, "Customer")}</label><select id="project-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })}><option value="">{text(zhCN.pagesProjectsPage.notLinked, "Not linked")}</option>{(customers.data?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><small>{text(zhCN.pagesProjectsPage.linkedTheProjectReachesItsQuotationsContractAndInvoices, "Linked, the project reaches its quotations, contract and invoices; unlinked, the name below is only text.")}</small></div>
+          <div className="field"><label htmlFor="project-owner">{text(zhCN.pagesProjectsPage.owner, "Owner")}</label><select id="project-owner" value={form.ownerEmployeeId} onChange={(event) => setForm({ ...form, ownerEmployeeId: event.target.value })}><option value="">{text(zhCN.pagesProjectsPage.unassigned, "Unassigned")}</option>{(employees.data?.data ?? []).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
+          <div className="field span-2"><label htmlFor="project-client">{text(zhCN.pagesProjectsPage.customerNameText, "Customer name (text)")}</label><input id="project-client" maxLength={200} value={form.client} onChange={(event) => setForm({ ...form, client: event.target.value })} placeholder={form.customerId ? text(zhCN.pagesProjectsPage.emptyTakesTheCustomerSName, "Empty takes the customer's name") : undefined} /></div>
+          {editing && (editing.opportunity_id || editing.contract_id) && <small className="span-2">{text(zhCN.pagesProjectsPage.fromADealContractSetByTheWonDeal(`${editing.opportunity_id ? "✓" : "—"}`, `${editing.contract_id ? "✓" : "—"}`), `From a deal ${editing.opportunity_id ? "✓" : "—"} · contract ${editing.contract_id ? "✓" : "—"} (set by the won-deal bridge and the contract desk)`)}</small>}
+          <div className="field"><label htmlFor="project-start">{text(zhCN.pagesProjectsPage.startDate, "Start date")}</label><input id="project-start" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></div>
+          <div className="field"><label htmlFor="project-end">{text(zhCN.pagesProjectsPage.endDate, "End date")}</label><input id="project-end" type="date" value={form.endDate} min={form.startDate || undefined} onChange={(event) => setForm({ ...form, endDate: event.target.value })} /></div>
         </div>
       </Drawer>
 
       <ConfirmDialog
         open={Boolean(archiving)}
-        title={text(`归档“${archiving?.project_name ?? ""}”？`, `Archive “${archiving?.project_name ?? ""}”?`)}
-        description={text("归档后不会删除历史引用，但该项目将不再作为启用项使用。", "Archiving keeps historical references, but this project will no longer be available as active.")}
+        title={text(zhCN.pagesProjectsPage.archive2(`${archiving?.project_name ?? ""}`), `Archive “${archiving?.project_name ?? ""}”?`)}
+        description={text(zhCN.pagesProjectsPage.archivingKeepsHistoricalReferencesButThisProjectWillNo, "Archiving keeps historical references, but this project will no longer be available as active.")}
         busy={archive.isPending}
         error={archive.isError ? apiErrorMessage(archive.error) : null}
         onCancel={() => !archive.isPending && setArchiving(null)}

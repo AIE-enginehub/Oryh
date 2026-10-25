@@ -30,7 +30,7 @@ EmployeeStatus = Literal["active", "inactive"]
 ResourceStatus = Literal["active", "inactive", "archived"]
 VendorStatus = Literal["active", "archived"]
 CustomerStatus = Literal["active", "archived"]
-# 自然人 vs 组织 — the CLOSED axis of customer master data, and OFBiz's
+# person vs organization — the CLOSED axis of customer master data, and OFBiz's
 # Person/PartyGroup distinction without the Party table. Not a type option: the
 # distinction is universal rather than the tenant's to extend, so the database
 # constrains it. The open axis is `CustomerType` below, which IS one. Absent
@@ -57,12 +57,12 @@ OrderStatus = str
 TypeOptionName = Annotated[str, Field(pattern=TYPE_NAME_PATTERN)]
 WorkType = TypeOptionName
 ExpenseCategory = TypeOptionName
-# 零售/批发/经销/电商/政企 — how a tenant segments its own customer book.
+# retail/wholesale/distribution/e-commerce/government and enterprise — how a tenant segments its own customer book.
 CustomerType = TypeOptionName
 InvoiceType = Literal["vat_special", "vat_general", "vat_electronic", "receipt", "other"]
 # The invoice family's own tax-document kind. Same vocabulary as the literal
 # above (the `invoice_type` type-option family ships those names), but
-# tenant-extensible — a workspace that issues 形式发票 or its own 内部结算单
+# tenant-extensible — a workspace that issues pro forma invoice or its own internal settlement document
 # adds the value rather than waiting for a release.
 InvoiceTypeOption = TypeOptionName
 InvoiceItemType = TypeOptionName
@@ -521,7 +521,7 @@ TerritoryResolutionEnvelope = Envelope[TerritoryResolutionRead]
 class CustomerBase(RequestModel):
     customer_code: str | None = Field(default=None, max_length=64)
     name: str | None = Field(default=None, max_length=200)
-    # 自然人还是组织 — omit it rather than guessing; null is a legal answer
+    # person or organization — omit it rather than guessing; null is a legal answer
     customer_kind: CustomerKind | None = None
     # the tenant's own segmentation (customer_type vocabulary)
     customer_type: CustomerType | None = None
@@ -967,7 +967,7 @@ class BulkCustomerUpsertRequest(BulkUpsertRequest):
 # the live endpoints in three deliberate ways — the number is REQUIRED (a
 # historical document keeps its identity; nothing is server-allocated, which
 # also skips the per-tenant number lock that would serialize a 300k-row
-# import), any state of the tenant's machine is accepted (成交/流失 documents
+# import), any state of the tenant's machine is accepted (won/lost documents
 # are not walked through the lifecycle), and master data is referenced by the
 # tenant's own codes rather than ids, because that is what an export holds.
 
@@ -1081,7 +1081,7 @@ class BulkPurchaseOrderRow(RequestModel):
 
 class BulkInvoiceLineRow(RequestModel):
     """A historical invoice line. Unlike order lines, quantity and price are
-    both optional — a 运费 or 折扣 line has neither, and a 汇总开票 line carries
+    both optional — a freight or discount line has neither, and a summary invoice line carries
     an amount alone."""
 
     line_no: int | None = Field(default=None, ge=1, le=9999)
@@ -1101,13 +1101,13 @@ class BulkInvoiceLineRow(RequestModel):
 
 
 class BulkInvoiceRow(RequestModel):
-    """One historical invoice — 期初应收应付, the open bills a company carries
+    """One historical invoice — opening receivables/payables, the open bills a company carries
     across the switch. The direction decides which counterparty code is
     required; an unmatched one is reported per row like everywhere else.
 
     Settlement is NOT imported here: how much of this invoice was already paid
     is a payment fact, so it arrives as payments and their applications. An
-    invoice imported alone is simply fully outstanding, which is what 期初
+    invoice imported alone is simply fully outstanding, which is what opening
     balances are."""
 
     invoice_no: str = Field(min_length=1, max_length=64)
@@ -1855,7 +1855,7 @@ class CreateExternalDocumentLinkRequest(_NormalizesSource):
     entity_id: str
     # one platform number normally becomes ONE of our documents of a kind;
     # a second sales_order for the same number is refused unless the caller
-    # says it is a deliberate split (拆单) — then both links stand
+    # says it is a deliberate split (split shipment) — then both links stand
     split: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -1893,7 +1893,7 @@ InventoryMovementReason = Literal[
     "initial", "import_initial", "import_override", "received", "issued",
     "adjustment", "damaged", "returned", "transfer", "other",
     # the reservation pair: ATP-only rows. `reserved` holds goods for an
-    # order before anything ships (占货 — available drops, on-hand stays);
+    # order before anything ships (stock reservation — available drops, on-hand stays);
     # `reservation_released` gives the hold back (a cancelled order, or
     # post-stock consuming the hold as the goods actually leave)
     "reserved", "reservation_released",
@@ -2132,6 +2132,10 @@ class ContractBase(RequestModel):
     contract_type: str = Field(default="other", max_length=50)
     vendor_id: str | None = None
     customer_id: str | None = None
+    # purchase or sales: follows from vendor_id / customer_id, and is stated
+    # when neither is known yet — a factory not yet in master data is still
+    # a purchase, and the side decides which desk reads the contract
+    side: Literal["purchase", "sales"] | None = None
     # the deal this agreement closes; its parties are copied onto the contract
     opportunity_id: str | None = None
     upstream: UpstreamContractReference | None = None
@@ -2157,6 +2161,10 @@ class ContractBase(RequestModel):
                 "a contract has one counterparty — vendor_id (purchase side) or "
                 "customer_id (sales side), not both"
             )
+        if (self.vendor_id and self.side == "sales") or (self.customer_id and self.side == "purchase"):
+            raise ValueError(
+                "side follows the counterparty — a vendor is the purchase side, a customer the sales side"
+            )
         f, t = self.effective_from, self.effective_to
         if f is not None and t is not None and t < f:
             raise ValueError("effective_to must not precede effective_from")
@@ -2175,17 +2183,25 @@ class CreateContractRequest(ContractBase):
 
     @model_validator(mode="after")
     def _has_a_counterparty(self) -> "CreateContractRequest":
-        if not self.vendor_id and not self.customer_id and not (self.counterparty_name_snapshot or "").strip():
-            raise ValueError(
-                "a contract names its counterparty — a vendor, a customer, or at least "
-                "a name snapshot for one not yet in master data"
-            )
+        if not self.vendor_id and not self.customer_id:
+            if not (self.counterparty_name_snapshot or "").strip():
+                raise ValueError(
+                    "a contract names its counterparty — a vendor, a customer, or at least "
+                    "a name snapshot for one not yet in master data"
+                )
+            if self.side is None:
+                raise ValueError(
+                    "a contract naming its counterparty only by snapshot states its side — "
+                    "\"purchase\" (we buy) or \"sales\" (we sell)"
+                )
         return self
 
 
-class UpdateContractRequest(partial_model("UpdateContractRequestFields", ContractBase, exclude=("vendor_id", "customer_id"))):
-    # vendor/customer are the contract's identity (the side is derived from
-    # them); a contract for another party is another contract
+class UpdateContractRequest(partial_model("UpdateContractRequestFields", ContractBase)):
+    # vendor/customer/side are the contract's identity: settable only while
+    # it names no counterparty yet — linking the vendor a snapshot already
+    # described, or correcting the side such a contract was filed on. Once
+    # one is linked, a contract for another party is another contract
     title: str | None = Field(default=None, min_length=1, max_length=200)
 
 
@@ -2385,10 +2401,14 @@ ContractTermEnvelope = Envelope[ContractTermRead]
 class ContractExecutionRead(APIModel):
     """What has happened under the contract, derived on every call: orders
     placed against it, invoices billed, payments moved — never a stored
-    progress figure."""
+    progress figure. Counted: orders from confirmation on, invoices from
+    issue on, payments that are paid; nothing voided or cancelled. The
+    figures are in the contract's `currency`; documents in any other
+    currency are summed apart in `other_currencies`, never added in."""
 
     contract_id: str
     side: str
+    currency: str
     contracted_amount: float | None = None
     orders: int
     ordered_amount: float
@@ -2396,6 +2416,9 @@ class ContractExecutionRead(APIModel):
     invoiced_amount: float
     payments: int
     paid_amount: float
+    # {currency, orders, ordered_amount, invoices, invoiced_amount, payments,
+    # paid_amount} for each currency other than the contract's
+    other_currencies: list[dict[str, Any]] = Field(default_factory=list)
     # by product: contracted vs ordered quantity, for the lines that name one
     lines: list[dict[str, Any]]
 
@@ -2492,7 +2515,7 @@ class ShipmentItemBase(RequestModel):
     product_id: str
     sku_id: str | None = None
     quantity: float = Field(gt=0, le=9_999_999.99)
-    # the stock POSITION this line leaves or lands in; omit for 直发 legs
+    # the stock POSITION this line leaves or lands in; omit for drop-ship legs
     inventory_item_id: str | None = None
     description: str | None = Field(default=None, max_length=500)
 
@@ -4076,7 +4099,7 @@ class EmployeeBase(RequestModel):
     name: str | None = Field(default=None, max_length=200)
     email: str | None = Field(default=None, max_length=320)
     timezone: str | None = Field(default=None, max_length=100)
-    # 入职日期 — what 工龄 is measured from, and therefore what a leave
+    # employment start date — what length of service is measured from, and therefore what a leave
     # entitlement is computed against. Null means nobody stated it, which an
     # agent should ask about rather than guess around.
     hire_date: date | None = None
@@ -4367,9 +4390,9 @@ class BuiltinObjectTypeRead(APIModel):
     """One shipped collection, and the words that mean it.
 
     `also_called` carries the singular and the handful of synonyms people reach
-    for — enough for an agent to recognise "建一个 Product 对象" as this, and
+    for — enough for an agent to recognise "create a Product object" as this, and
     short enough that it is a hint rather than a claim to have thought of
-    everything. Semantic near-misses (`merchandise`, `货品`) are not in here and
+    everything. Semantic near-misses (`merchandise`, `goods`) are not in here and
     are not meant to be: that is the judgement this endpoint exists to inform,
     not to replace.
     """
@@ -4698,7 +4721,7 @@ class SkillReachEntry(APIModel):
     title: str | None = None
     # What the skill is FOR, in the words its author used. `title` is a label
     # ("Oryh Payroll"); this is the sentence an agent matches a request against
-    # — "生成工资条 for a period" is what makes 做工资单 find it. A withheld
+    # — "generate payslips for a period" is what makes prepare payroll find it. A withheld
     # entry without it is a name the agent cannot connect to anything it was
     # asked to do, which is the whole failure this field exists to prevent.
     description: str | None = None
@@ -5006,7 +5029,7 @@ class CreateEmployeeLeaveRequest(RequestModel):
     """One absence. Note what is NOT here: any statement about entitlement.
 
     The server is not told, and does not ask, how many days this person has —
-    that follows from the tenant's leave policy applied to their 工龄 and their
+    that follows from the tenant's leave policy applied to their length of service and their
     other leave, and it is recomputed every time somebody wants to know. A
     request that exceeds the allowance is still a legal record of a request;
     whether it is granted is the approver's call, informed by the same
@@ -5327,7 +5350,7 @@ class PurchaseRequestItemBase(RequestModel):
     unit: str | None = Field(default=None, max_length=50)
     unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
     amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
-    # 按单采购: the confirmed sales order line this purchase line fulfils
+    # procure-to-order: the confirmed sales order line this purchase line fulfils
     sales_order_item_id: str | None = None
     attachment_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
@@ -5383,7 +5406,7 @@ class PurchaseSkuReferenceRead(BaseModel):
 
 class PurchaseSalesOrderReferenceRead(BaseModel):
     """Where a procure-to-order line came from — the fact a purchase
-    reviewer routes on (按着订单审采购)."""
+    reviewer routes on (review procurement against the order)."""
 
     sales_order_item_id: str
     order_id: str
@@ -5395,7 +5418,7 @@ class PurchaseSalesOrderReferenceRead(BaseModel):
 
 class LinkedPurchaseOrderItemRead(BaseModel):
     """A PO line ordering this request line — with the PO's status and the
-    received progress, the two facts 按单采购 traceability runs on."""
+    received progress, the two facts procure-to-order traceability runs on."""
 
     id: str
     po_id: str
@@ -5596,7 +5619,7 @@ BulkTodoEnvelope = Envelope[BulkTodoResult]
 
 class TodoLastApproval(APIModel):
     """The newest approval fact on the todo's target — enough for the one-line
-    "经理已批，正在财务复核" a briefing needs, without a per-todo detail call."""
+    "manager approved, finance review in progress" a briefing needs, without a per-todo detail call."""
 
     action: str
     round_no: int
@@ -5746,7 +5769,7 @@ class PurchaseRequestDetailRead(BaseModel):
     estimated_total: float
     unpriced_item_count: int
     # lines whose product has SKUs but whose sku_id is still null — the
-    # variant (尺码配比 etc.) is undecided, a fact for approvers and the flow
+    # variant (size assortment etc.) is undecided, a fact for approvers and the flow
     pending_sku_count: int
 
 
@@ -6162,7 +6185,7 @@ class PurchaseOrderItemBase(RequestModel):
     amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
     tax_rate: float | None = Field(default=None, ge=0, le=100)
     promised_date: date | None = None
-    # 按单采购: the approved request line this PO line orders
+    # procure-to-order: the approved request line this PO line orders
     purchase_request_item_id: str | None = None
     attachment_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
@@ -6291,7 +6314,7 @@ class ReceivePurchaseOrderLine(RequestModel):
     po_item_id: str
     quantity: float = Field(gt=0, le=9_999_999.99)
     # give a facility to land the goods in the inventory ledger; omit it for
-    # 直发/零库存 receipts that never touch stock
+    # drop-ship/zero-inventory receipts that never touch stock
     facility: str | None = Field(default=None, max_length=100)
     lot_id: str | None = Field(default=None, max_length=64)
     bin_number: str | None = Field(default=None, max_length=64)
@@ -6327,7 +6350,7 @@ class InvoiceBase(RequestModel):
     # charged to the counterparty's standing account — see billing-accounts.md
     billing_account_id: str | None = None
     vendor_id: str | None = None
-    # 工资条: the person being paid. `employee_id` above is whoever ran payroll.
+    # payslip: the person being paid. `employee_id` above is whoever ran payroll.
     payee_employee_id: str | None = None
     counterparty_name_snapshot: str | None = Field(default=None, max_length=200)
     title: str | None = Field(default=None, max_length=200)
@@ -6446,7 +6469,7 @@ class InvoiceItemBase(RequestModel):
     sku_id: str | None = None
     product_name_snapshot: str | None = Field(default=None, max_length=200)
     spec: str | None = Field(default=None, max_length=200)
-    # both optional: a pure charge line (运费 300) has neither
+    # both optional: a pure charge line (freight 300) has neither
     quantity: float | None = Field(default=None, gt=0, le=9_999_999.99)
     unit: str | None = Field(default=None, max_length=50)
     unit_price: float | None = Field(default=None, ge=0, le=9_999_999.99)
@@ -6538,7 +6561,7 @@ class CreatePayHistoryRequest(RequestModel):
     # only for closing a record with no successor (someone leaving)
     effective_thru: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
-    # the person's own facts that are not the term itself — 社保缴费基数 lives
+    # the person's own facts that are not the term itself — social-insurance contribution base lives
     # here, where it inherits this table's effective dating for free
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -6615,7 +6638,7 @@ class RescopeBusinessRuleRequest(RequestModel):
     handbook answerable about what people were told. Who may read it is not the
     same kind of fact: it is a standing administrative decision that outlives
     the publication and legitimately changes when a department reorganizes, or
-    when a rule announced to管理层 becomes company-wide.
+    when a rule announced to management becomes company-wide.
 
     Treating the two as one thing left a workspace with no remedy at all for a
     policy published to a wider audience than intended: the edit is refused, a
@@ -6629,7 +6652,7 @@ class RescopeBusinessRuleRequest(RequestModel):
 
 
 class RepealBusinessRuleRequest(RequestModel):
-    """废止. `effective_thru` is when it STOPS applying, which is usually today
+    """Repeal. `effective_thru` is when it STOPS applying, which is usually today
     but need not be — a policy can be repealed retroactively to the day a law
     changed."""
 
@@ -6942,7 +6965,7 @@ ExpiringBillingAccountEntriesEnvelope = Envelope[ExpiringBillingAccountEntriesRe
 
 
 class PaymentApplicationRead(APIModel):
-    """One 核销 fact. Rows are immutable — a correction is a second row with a
+    """One settlement application fact. Rows are immutable — a correction is a second row with a
     negative amount, never an edit of this one."""
 
     id: str
@@ -6986,7 +7009,7 @@ class InvoiceOrderMatchLineRead(BaseModel):
 
 
 class InvoiceOrderMatchRead(BaseModel):
-    """三单匹配 as facts, not as a verdict. The server reports what was ordered,
+    """Three-way matching as facts, not as a verdict. The server reports what was ordered,
     what arrived and what has been billed; whether a gap is acceptable is the
     agent's judgment against the tenant's workflow definition — a tolerance
     baked in here would be business policy in the record layer."""
@@ -7013,9 +7036,9 @@ class InvoiceDetailRead(BaseModel):
     approval_records: list[ApprovalRecordRead]
     # present when the invoice names the order it bills
     order_match: InvoiceOrderMatchRead | None = None
-    # every 核销 against this invoice, oldest first — including counter-entries
+    # every settlement application against this invoice, oldest first — including counter-entries
     applications: list[PaymentApplicationRead]
-    # the line sum; the declared header total may legitimately differ (抹零,
+    # the line sum; the declared header total may legitimately differ (rounding adjustment,
     # a header-only invoice with no lines at all) — /detail reports both and
     # the agent judges the gap, as on quotations and orders
     computed_total: float
@@ -7082,7 +7105,7 @@ class PaymentRead(APIModel):
     payment_date: date | None = None
     amount: float
     currency: str
-    # amount - applied_amount is the 预收/预付 balance still looking for a home
+    # amount - applied_amount is the advance receipt/prepayment balance still looking for a home
     applied_amount: float
     bank_account: str | None = None
     counterparty_account: str | None = None
@@ -7137,8 +7160,8 @@ class PaymentDetailRead(BaseModel):
     # every application this payment made, oldest first, including reversals
     applications: list[PaymentApplicationDetailRead]
     applied_amount: float
-    # what is still looking for a document to settle: 预收款 on an inbound
-    # payment, 预付款 on an outbound one
+    # what is still looking for a document to settle: advance receipt on an inbound
+    # payment, advance payment on an outbound one
     unapplied_amount: float
 
 
@@ -7211,7 +7234,7 @@ class SalesQuotationDetailRead(BaseModel):
     # header- and line-level adjustments, oldest first
     adjustments: list[SalesQuotationAdjustmentRead]
     # pricing facts for the approval-flow agent's calibration: the line sum
-    # is arithmetic, the declared header total may legitimately differ (抹零)
+    # is arithmetic, the declared header total may legitimately differ (rounding adjustment)
     # — judging the gap is the agent's job
     computed_total: float
     # signed sum of adjustments, and the line sum with adjustments applied —
@@ -7396,9 +7419,9 @@ class SalesOrderItemRead(APIModel):
 
 
 class LinkedPurchaseItemRead(BaseModel):
-    """A purchase line filed to fulfil this order line (按单采购). The
+    """A purchase line filed to fulfil this order line (procure-to-order). The
     request's status is the supply signal a fulfilment agent reads before
-    shipping — a 零库存 order line with no ordered purchase behind it has
+    shipping — a zero-inventory order line with no ordered purchase behind it has
     nothing to ship."""
 
     id: str

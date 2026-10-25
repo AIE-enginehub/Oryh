@@ -1,6 +1,6 @@
 ---
 name: oryh-payroll
-description: Use when HR or compensation sets or changes someone's pay terms, produces payslips (工资条) for a period, and disburses pay (发放工资) matched to each payslip. Not for approving the payout (oryh-payment-approval-flow), reimbursement (oryh-expense-submit) or billing. Requires payroll.manage.
+description: Use when HR or compensation sets or changes someone's pay terms, produces payslips for a period, and disburses pay (disburse payroll) matched to each payslip. Not for approving the payout (oryh-payment-approval-flow), reimbursement (oryh-expense-submit) or billing. Requires payroll.manage.
 required_capability: payroll.manage
 ---
 
@@ -337,3 +337,6 @@ other.
 - [references/api.md](references/api.md): every endpoint, the pay-term shapes,
   the payslip item vocabulary with its signs, and the guards with the exact
   conditions that raise them.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

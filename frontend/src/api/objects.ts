@@ -1,3 +1,4 @@
+import { zhCN } from "../locales/zh-CN/console";
 import { apiRequest, apiRequestEnvelope, type PaginatedEnvelope, type PaginationMeta } from "./client";
 
 const API_ROOT = "/api/v1";
@@ -648,16 +649,16 @@ function localText(locale: ObjectLocale, chinese: string, english: string): stri
 }
 
 const BUILTIN_TITLES: Record<BuiltinObjectType, [string, string]> = {
-  timesheet_header: ["工时单", "Timesheet"],
-  expense_claim: ["报销单", "Expense claim"],
-  purchase_request: ["采购申请", "Purchase request"],
-  sales_quotation: ["销售报价", "Sales quotation"],
-  sales_order: ["销售订单", "Sales order"],
-  sales_return: ["销售退单", "Sales return"],
-  invoice: ["发票", "Invoice"],
-  payment: ["收付款", "Payment"],
-  billing_account: ["往来账户", "Billing account"],
-  resource_booking: ["资源预订", "Resource booking"],
+  timesheet_header: [zhCN.apiObjects.title4, "Timesheet"],
+  expense_claim: [zhCN.apiObjects.title3, "Expense claim"],
+  purchase_request: [zhCN.apiObjects.title42, "Purchase request"],
+  sales_quotation: [zhCN.apiObjects.title5, "Sales quotation"],
+  sales_order: [zhCN.apiObjects.title6, "Sales order"],
+  sales_return: [zhCN.apiObjects.message6, "Sales return"],
+  invoice: [zhCN.apiObjects.message7, "Invoice"],
+  payment: [zhCN.apiObjects.message8, "Payment"],
+  billing_account: [zhCN.apiObjects.message9, "Billing account"],
+  resource_booking: [zhCN.apiObjects.title7, "Resource booking"],
 };
 
 const BUILTIN_STATUSES: Record<BuiltinObjectType, string[]> = {
@@ -752,7 +753,7 @@ export async function getObjectDirectory(locale: ObjectLocale = "zh-CN"): Promis
       entityKind: "business_object",
       objectType,
       title: definition?.title || entry?.title || objectType,
-      description: definition?.description ?? (definition ? null : localText(locale, "已有数据，尚未设置字段规则。", "Data exists, but no field rules have been defined yet.")),
+      description: definition?.description ?? (definition ? null : localText(locale, zhCN.apiObjects.message11, "Data exists, but no field rules have been defined yet.")),
       status: definition?.status ?? "active",
       definitionVersion: definition?.version ?? null,
       hasWorkflow: workflowKeys.has(`business_object:${objectType}`),
@@ -963,7 +964,7 @@ export async function listObjectRecords(filters: ObjectListFilters): Promise<Pag
 }
 
 function errorMessage(error: unknown, locale: ObjectLocale): string {
-  return error instanceof Error ? error.message : localText(locale, "请求失败", "Request failed");
+  return error instanceof Error ? error.message : localText(locale, zhCN.apiObjects.message12, "Request failed");
 }
 
 async function optional<T>(
@@ -1048,7 +1049,7 @@ async function getPrimaryDetail(entityType: ObjectEntityType, recordId: string, 
     const detail = await apiRequest<TimesheetDetailResponse>(apiUrl(`/timesheet-headers/${id}/detail`, { include_deleted: true }));
     return {
       subject: { entityType, record: detail.header }, objectType: entityType,
-      heading: `${localText(locale, "工时单", "Timesheet")} ${detail.header.period_start} → ${detail.header.period_end}`,
+      heading: zhCN.apiObjects.heading(`${localText(locale, zhCN.apiObjects.title4, "Timesheet")}`, `${detail.header.period_start}`, `${detail.header.period_end}`),
       timesheetEntries: detail.entries, expenseItems: [], purchaseItems: [], salesQuotationItems: [], salesOrderItems: [], attachments: [],
       approvals: detail.approval_records, expenseTotals: null, purchaseTotals: null, salesQuotationTotals: null, salesOrderTotals: null, revisions: [], quotationLink: null,
     };
@@ -1176,11 +1177,11 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
     : Promise.resolve([] as BusinessObjectLink[]);
 
   const [rules, approvals, todos, audits, links] = await Promise.all([
-    optional(localText(locale, "业务规则", "Business rules"), rulePromise, [], issues, locale),
-    optional(localText(locale, "审批记录", "Approval history"), approvalPromise, primary.approvals, issues, locale),
-    optional(localText(locale, "待办", "Todos"), primary.related ? Promise.resolve(primary.related.todos) : listForAliases<Todo>("/todos", aliases, recordId), [], issues, locale),
-    optional(localText(locale, "审计轨迹", "Audit trail"), primary.related ? Promise.resolve(primary.related.audits) : listForAliases<AuditLog>("/audit-logs", aliases, recordId, { limit: 200 }), [], issues, locale),
-    optional(localText(locale, "关联对象", "Related objects"), linkPromise, [], issues, locale),
+    optional(localText(locale, zhCN.apiObjects.businessRules, "Business rules"), rulePromise, [], issues, locale),
+    optional(localText(locale, zhCN.apiObjects.approvalLog, "Approval history"), approvalPromise, primary.approvals, issues, locale),
+    optional(localText(locale, zhCN.apiObjects.toDo, "Todos"), primary.related ? Promise.resolve(primary.related.todos) : listForAliases<Todo>("/todos", aliases, recordId), [], issues, locale),
+    optional(localText(locale, zhCN.apiObjects.section, "Audit trail"), primary.related ? Promise.resolve(primary.related.audits) : listForAliases<AuditLog>("/audit-logs", aliases, recordId, { limit: 200 }), [], issues, locale),
+    optional(localText(locale, zhCN.apiObjects.relatedObject, "Related objects"), linkPromise, [], issues, locale),
   ]);
   const employeeIds = [
     ...primary.timesheetEntries.map((entry) => entry.employee_id),
@@ -1207,7 +1208,7 @@ export async function getObjectDetail(entityType: ObjectEntityType, recordId: st
     employeeIds.push(primary.subject.record.employee_id);
   }
   const names = await optional(
-    localText(locale, "人员名称", "Display names"),
+    localText(locale, zhCN.apiObjects.message18, "Display names"),
     resolveObjectDisplayNames(employeeIds, actorLabels),
     { employees: {}, actors: {} },
     issues,

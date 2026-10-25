@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 import hashlib
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,6 +72,17 @@ def read_skill_dir(skill_dir: Path) -> dict[str, str]:
             if problem:
                 raise ValueError(f"{skill_dir.name}/{path.relative_to(skill_dir)}: {problem}")
             files[str(path.relative_to(skill_dir))] = content
+    # Discovery text is runtime matching data. Preserve the original bilingual
+    # aliases while the maintained entrypoint and instructions stay English.
+    discovery = files.get("locales/zh-CN/discovery.json")
+    if discovery is not None and "SKILL.md" in files:
+        description = json.loads(discovery).get("description")
+        if not isinstance(description, str) or not description or "\n" in description:
+            raise ValueError(f"{skill_dir.name}: invalid localized discovery description")
+        files["SKILL.md"] = re.sub(
+            r"^description:.*$", lambda _: "description: " + description,
+            files["SKILL.md"], count=1, flags=re.MULTILINE,
+        )
     return files
 
 
@@ -216,14 +230,16 @@ def provision_product_skills(db: Session, tenant_id: str) -> int:
 def load_rule_catalog(locale: str | None = None) -> list[dict[str, str]]:
     """The shipped rule catalog, `rules/<kind>/<object_type>.md`, in one locale.
 
-    Each file is a frontmatter and a body in English, then `<!-- zh -->` and the
-    same body in Chinese; the half the deployment's locale asks for is the
-    body. Unlike the skills, the catalog has no include markers and no
+    Maintained rule files are English; Chinese titles and bodies live in the
+    adjacent locale catalog. Legacy files with a `<!-- zh -->` half remain
+    readable for existing catalogs and import fixtures. Unlike the skills, the catalog has no include markers and no
     delivery blocks: a rule is one paragraph an administrator reads and edits,
     not a contract an agent executes.
     """
     locale = locale or settings.resolved_locale
     entries: list[dict[str, str]] = []
+    localized_path = RULES_DIR / "locales" / "zh-CN" / "catalog.json"
+    localized = json.loads(localized_path.read_text()) if localized_path.is_file() else {}
     if not RULES_DIR.is_dir():
         return entries
     for path in sorted(RULES_DIR.glob("*/*.md")):
@@ -240,7 +256,9 @@ def load_rule_catalog(locale: str | None = None) -> list[dict[str, str]]:
         _, _, after = text[4:].partition("\n---\n")
         body_en, _, body_zh = after.partition("<!-- zh -->")
         body_en, body_zh = body_en.strip(), body_zh.strip()
-        if not body_en or not body_zh:
+        translation = localized.get(path.relative_to(RULES_DIR).as_posix(), {})
+        body_zh = translation.get("body", body_zh)
+        if not body_en or not isinstance(body_zh, str) or not body_zh:
             raise ValueError(f"{path}: both language halves are required")
         chinese = locale != "en"
         entries.append({
@@ -248,7 +266,7 @@ def load_rule_catalog(locale: str | None = None) -> list[dict[str, str]]:
             "entity_kind": meta["entity_kind"],
             "object_type": meta["object_type"],
             "name": meta.get("name") or "default",
-            "title": (meta.get("title_zh") or meta["title"]) if chinese else meta["title"],
+            "title": (translation.get("title") or meta.get("title_zh") or meta["title"]) if chinese else meta["title"],
             "visibility": meta.get("visibility") or "internal",
             "body": body_zh if chinese else body_en,
         })
@@ -409,10 +427,7 @@ BUILTIN_TITLES: dict[str, tuple[str, str]] = {
     ),
     "employee_leave": (
         "Employee Leave",
-        "Lifecycle of 请假 requests; edit to add tenant-specific review steps. "
-        "Entitlement rules are NOT here — they live in the tenant's leave policy and "
-        "are applied by an agent, because a balance that was stored would outlive the "
-        "rule it was computed under.",
+        zh_messages.PROVISIONING_BUILTIN_TITLES,
     ),
     "expense_claim": (
         "Expense Claim",
@@ -502,14 +517,11 @@ BUILTIN_TITLES: dict[str, tuple[str, str]] = {
     ),
     "invoice": (
         "Invoice",
-        "Lifecycle of invoices in both directions (销项/进项); 'paid' is a flow marker only "
-        "— how much is settled comes from the payment applications, so a partly-paid "
-        "invoice needs no state.",
+        zh_messages.PROVISIONING_BUILTIN_TITLES_2,
     ),
     "payment": (
         "Payment",
-        "Lifecycle of payments; the approval half serves outbound payments (付款审批), "
-        "while an inbound receipt is created directly in the terminal state.",
+        zh_messages.PROVISIONING_BUILTIN_TITLES_3,
     ),
 }
 assert set(BUILTIN_TITLES) == set(BUILTIN_MACHINES), set(BUILTIN_TITLES) ^ set(BUILTIN_MACHINES)

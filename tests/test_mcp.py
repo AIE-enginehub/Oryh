@@ -6,6 +6,13 @@ resources are the caller's skills, by the caller's reach."""
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_mcp.json').read_text(encoding="utf-8"))
+
+
 import io
 import zipfile
 
@@ -47,12 +54,12 @@ def test_tools_are_the_rest_contract_bound_and_dispatched_as_the_same_principal(
         tools = {tool["name"] for tool in _rpc(client, bearer, "tools/list").json()["result"]["tools"]}
         assert {"oryh_request", "oryh_list", "oryh_get", "builtin_object_types", "upload_attachment"} <= tools
 
-        client.post("/api/v1/customers", json={"name": "市一医院"}, headers=admin)
+        client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_85DED9E803B8D55E']}, headers=admin)
         listed = _rpc(client, bearer, "tools/call", {"name": "oryh_list", "arguments": {"collection": "customers"}}).json()["result"]
-        assert not listed.get("isError") and listed["structuredContent"]["data"][0]["name"] == "市一医院", listed
+        assert not listed.get("isError") and listed["structuredContent"]["data"][0]["name"] == _ZH_TEXT['TEXT_85DED9E803B8D55E'], listed
 
         forbidden = _rpc(client, bearer, "tools/call", {"name": "oryh_request", "arguments": {
-            "method": "POST", "path": "/customers", "body": {"name": "影子"}}}).json()["result"]
+            "method": "POST", "path": "/customers", "body": {"name": _ZH_TEXT['TEXT_337DBF6CB6F623DF']}}}).json()["result"]
         assert forbidden["isError"] and forbidden["structuredContent"]["detail"].startswith("requires") or "master_data.manage" in forbidden["content"][0]["text"], \
             "the REST 403 comes through the tool unchanged — same guards, same principal"
 
@@ -64,20 +71,20 @@ def test_tools_are_the_rest_contract_bound_and_dispatched_as_the_same_principal(
 
         admin_bearer = {"Authorization": f"Bearer {t['plain_text_api_key']}"}
         created = _rpc(client, admin_bearer, "tools/call", {"name": "oryh_request", "arguments": {
-            "method": "POST", "path": "/customers", "body": {"name": "钢厂"}}}).json()["result"]
-        assert not created.get("isError") and created["structuredContent"]["data"]["name"] == "钢厂"
+            "method": "POST", "path": "/customers", "body": {"name": _ZH_TEXT['TEXT_7FEB5082185D6023']}}}).json()["result"]
+        assert not created.get("isError") and created["structuredContent"]["data"]["name"] == _ZH_TEXT['TEXT_7FEB5082185D6023']
         audit = client.get("/api/v1/audit-logs", params={"entity_type": "customer"}, headers=admin)
         if audit.status_code == 200:
             assert any(row.get("entity_id") == created["structuredContent"]["data"]["id"] for row in audit.json()["data"]), \
                 "a write through MCP leaves the same audit row a REST write does"
 
         # a write cut off mid-call is repeated with the same idempotency_key and lands once
-        args = {"method": "POST", "path": "/customers", "body": {"name": "纸厂"}, "idempotency_key": "mcp-paper-1"}
+        args = {"method": "POST", "path": "/customers", "body": {"name": _ZH_TEXT['TEXT_9F05995737530266']}, "idempotency_key": "mcp-paper-1"}
         first = _rpc(client, admin_bearer, "tools/call", {"name": "oryh_request", "arguments": args}).json()["result"]
         again = _rpc(client, admin_bearer, "tools/call", {"name": "oryh_request", "arguments": args}).json()["result"]
         assert again["structuredContent"] == first["structuredContent"], "the retry is answered from the first attempt"
         names = [c["name"] for c in client.get("/api/v1/customers", headers=admin).json()["data"]]
-        assert names.count("纸厂") == 1
+        assert names.count(_ZH_TEXT['TEXT_9F05995737530266']) == 1
 
 
 def test_prompts_and_resources_are_the_callers_skills() -> None:

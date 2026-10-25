@@ -1,7 +1,7 @@
 """The treasury desk: fin accounts and the bank register.
 
 Where the company's money actually sits and moves — bank accounts, the cash
-box, third-party payment balances (微信支付/支付宝/PayPal). The register is
+box, third-party payment balances (WeChat Pay/Alipay/PayPal). The register is
 the bank's truth: rows append, never edit; a wrong row is a counter-entry;
 the account's balance is a running sum with exactly one write path
 (`post_fin_account_trans`). Reconciliation state is derived — an unlinked
@@ -9,7 +9,7 @@ row is one whose links are null, and nothing stores "reconciled" anywhere.
 
 Everything here, reads included, sits behind `fin_account.manage` — the
 cashier's desk, split from the accountant's `payment.record` on purpose
-(钱账分离): cash position and salary payout lines are payroll-grade
+(separation of treasury and accounting): cash position and salary payout lines are payroll-grade
 sensitive, so the member surface deliberately never sees them.
 
 oryh holds no PSP credentials and pulls no statements: the tenant's own

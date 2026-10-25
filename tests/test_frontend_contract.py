@@ -179,3 +179,12 @@ def test_the_data_browser_catalogue_matches_the_api() -> None:
         "frontend/src/api/data-catalog.json drifted — run "
         "`uv run python scripts/export_console_catalog.py`"
     )
+
+
+def test_the_data_browser_locale_labels_match_the_source() -> None:
+    from scripts.export_console_catalog import console_catalog_labels
+
+    locale = REPO_ROOT / "frontend/src/locales/zh-CN/data-catalog.json"
+    assert json.loads(locale.read_text(encoding="utf-8")) == console_catalog_labels(), (
+        "Regenerate both catalog artifacts with scripts/export_console_catalog.py"
+    )

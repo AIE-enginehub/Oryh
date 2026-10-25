@@ -11,6 +11,13 @@ amount is a new document.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_settlement_idempotency.json').read_text(encoding="utf-8"))
+
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,15 +28,15 @@ from conftest import provision_tenant
 def account(client: TestClient):
     ctx = provision_tenant(client, company_name="Idem Co", email="admin@idem-co.example")
     key = {"X-API-Key": ctx["plain_text_api_key"]}
-    customer = client.post("/api/v1/customers", json={"name": "客户"},
+    customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_AD4AF312DBC2F593']},
                            headers=key).json()["data"]["id"]
     account = client.post("/api/v1/billing-accounts", json={
-        "account_code": "ACC-1", "name": "预存账户", "customer_id": customer,
+        "account_code": "ACC-1", "name": _ZH_TEXT['TEXT_434A9F047178EB74'], "customer_id": customer,
         "unit": "CNY", "unit_type": "currency", "credit_limit": 0,
     }, headers=key)
     assert account.status_code == 201, account.text
     client.post("/api/v1/object-type-definitions", headers=key, json={
-        "object_type": "balance_adjustment", "title": "余额调整单",
+        "object_type": "balance_adjustment", "title": _ZH_TEXT['TEXT_0BDD291D1A7C739D'],
         "state_machine": {"initial": "draft", "states": ["draft", "approved"],
                           "transitions": {"draft": ["approved"], "approved": []},
                           "account_effect": {"reason": "adjustment", "state": "approved"}}})
@@ -38,7 +45,7 @@ def account(client: TestClient):
 
 def document(account, lines, status="approved"):
     r = account["client"].post("/api/v1/business-objects", headers=account["key"], json={
-        "object_type": "balance_adjustment", "title": "调整", "status": status,
+        "object_type": "balance_adjustment", "title": _ZH_TEXT['TEXT_F65C42A2540BEFE5'], "status": status,
         "payload": {"lines": [{"billing_account_id": account["id"], **line} for line in lines]}})
     assert r.status_code == 201, r.text
     return r.json()["data"]["id"]

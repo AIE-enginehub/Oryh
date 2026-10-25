@@ -37,6 +37,8 @@ over this table and were removed with migration 0098 (2026-10-07).
 
 from __future__ import annotations
 
+from app.locales.zh_CN import messages as zh_messages
+
 import hashlib
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
@@ -45,6 +47,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, st
 from sqlalchemy import and_, exists, func, or_, select, text
 from sqlalchemy.orm import Session, aliased
 
+from app.core.business_date import business_today
 from app.api.common import (
     ListFilters,
     list_filters,
@@ -146,7 +149,7 @@ def require_rule_publisher(actor: Actor, kind: str) -> None:
 def may_read_rule(actor: Actor, rule: BusinessRule) -> bool:
     """Three gates, in the order they matter.
 
-    A DRAFT is invisible to everyone but its authors — the draft 裁员方案 is
+    A DRAFT is invisible to everyone but its authors — the draft layoff plan is
     more dangerous than the published one, and a workspace that could read
     drafts would learn what is coming before it is decided.
 
@@ -211,7 +214,7 @@ def visible_rule_filter(db: Session, actor: Actor, tenant_id: str, *, historical
 
 
 def ensure_rule_visible(actor: Actor, rule: BusinessRule) -> None:
-    """404, not 403. That a 薪酬管理办法 exists at all is part of what a
+    """404, not 403. That a compensation policy exists at all is part of what a
     restricted rule is hiding."""
     if not may_read_rule(actor, rule):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business rule not found")
@@ -337,7 +340,7 @@ def resolve_rule_identity(db: Session, tenant_id: str, payload: CreateBusinessRu
         if not payload.code:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="a policy needs its own `code` (the workspace's 制度编号)",
+                detail=zh_messages.BUSINESS_RULES_RESOLVE_RULE_IDENTITY_DETAIL,
             )
         if not payload.category:
             raise HTTPException(
@@ -574,7 +577,7 @@ def publish_rule(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"{RULE_KIND_NOUNS[rule.kind]} {rule.code} v{rule.version} is already {rule.status}",
         )
-    effective_from = effective_from or rule.effective_from or date.today()
+    effective_from = effective_from or rule.effective_from or business_today()
     if rule.effective_thru and rule.effective_thru < effective_from:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -674,7 +677,7 @@ def rescope_rule(
 def repeal_rule(
     db: Session, actor: Actor, rule: BusinessRule, *, effective_thru: date | None, note: str | None
 ) -> None:
-    """废止 — it stops applying and leaves the default list; it is not
+    """Repeal — it stops applying and leaves the default list; it is not
     deleted, and stays readable by id and by date."""
     require_rule_publisher(actor, rule.kind)
     if rule.status != "published":
@@ -689,7 +692,7 @@ def repeal_rule(
                 "Repeal the version that is currently published instead"
             )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-    effective_thru = effective_thru or date.today()
+    effective_thru = effective_thru or business_today()
     if rule.effective_from and effective_thru < rule.effective_from:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -794,7 +797,7 @@ def has_published_approval_flow(db: Session, tenant_id: str, entity_kind: str, o
             BusinessRule.kind == "approval_flow",
             BusinessRule.entity_kind == entity_kind,
             BusinessRule.object_type == object_type,
-            in_force_filter(date.today()),
+            in_force_filter(business_today()),
         ).limit(1)
     ) is not None
 
@@ -808,7 +811,7 @@ def published_rule_index(
     stmt = select(BusinessRule).where(
         BusinessRule.tenant_id == tenant_id,
         BusinessRule.kind != "policy",
-        in_force_filter(date.today()),
+        in_force_filter(business_today()),
     ).order_by(BusinessRule.version.asc())
     if entity_kind is not None:
         stmt = stmt.where(BusinessRule.entity_kind == entity_kind)
@@ -818,7 +821,7 @@ def published_rule_index(
     return index
 
 
-REQUIREMENTS_HEADINGS = ("提交要求", "submission requirement", "submission requirements")
+REQUIREMENTS_HEADINGS = (zh_messages.BUSINESS_RULES_REQUIREMENTS_HEADINGS, "submission requirement", "submission requirements")
 
 
 def flow_text_carries_requirements(body: str) -> bool:
@@ -833,7 +836,7 @@ def families_with_published_approval_flow(db: Session, tenant_id: str, entity_ki
     stmt = select(BusinessRule.object_type).where(
         BusinessRule.tenant_id == tenant_id,
         BusinessRule.kind == "approval_flow",
-        in_force_filter(date.today()),
+        in_force_filter(business_today()),
     )
     if entity_kind is not None:
         stmt = stmt.where(BusinessRule.entity_kind == entity_kind)

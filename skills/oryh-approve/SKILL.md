@@ -1,6 +1,6 @@
 ---
 name: oryh-approve
-description: Use when an approver's agent records ONE approval decision on any oryh document — 审批/驳回/退回 a timesheet, expense, purchase request, quotation, order, payment or invoice ("审批这张报销单"、"退回去重算"). Reviews what that type demands first. Never changes status or routes; that is the flow agent's.
+description: Use when an approver's agent records ONE approval decision on any oryh document — approve/reject/return a timesheet, expense, purchase request, quotation, order, payment or invoice ("approve this expense claim", "return it for recalculation"). Reviews what that type demands first. Never changes status or routes; that is the flow agent's.
 required_capability: approval.record
 ---
 
@@ -73,7 +73,21 @@ next free one in the round.
 
 {{include:_common/stay-current.md}}
 
+{{include:_common/sales-promotions.md}}
+
+For promotion review, the supporting reads are
+`GET /business-rules?kind=policy&category=promotion&in_force_on=<business-date>`
+(or the workspace's named category/code), `GET /business-rules/{rule_id}` for
+cited versions, `GET /customers/{customer_id}` and
+`GET /customer-products?customer_id={customer_id}` for eligibility/agreements,
+`GET /products/{product_id}` / `GET /product-skus/{sku_id}` for product facts,
+and `GET /stores/{store_id}` when a channel/store clause requires it.
+Only fetch facts the applicable clauses need; these are reads, not permission
+to change master data or policies.
+
 ## Steps
+
+To locate your approval todo, use `GET /todos?employee_id={me}&status=open&todo_type=approval&entity_type={type}&entity_id={id}` with known ids. `todo_type=approval` filters the work; `include=target` optionally expands the linked document. Omit `include` otherwise: `include=approval` is invalid. Copy the round and sequence from the matching todo metadata.
 
 1. **Read context** — the document's own `/detail`, which returns the lines,
    the totals, and the prior approval trail in one call:
@@ -195,6 +209,10 @@ it is acceptable. Line by line:
   - `revisions` with `revision_no > 1` means the customer already negotiated —
     compare against the superseded revision to see what moved.
 
+  For policy promotions, perform the policy and calculation review above and
+  name its basis in your decision comment. A documented discount is still
+  subject to any approval authority the workspace requires.
+
   Once you approve, the rep sends this document to a customer: a wrong price
   approved here is a price the company has offered.
 
@@ -205,7 +223,9 @@ quote number); for line-level comparison fetch
 missing `contract_no` on a contract-required tenant, or a `ship_to_address`
 that does not match are exactly what this node exists to catch before goods
 move. Drift must be **named in the comment** — a legitimate additional clause
-is not the same as a price changed without authority.
+is not the same as a price changed without authority. Compare carried
+promotion adjustments and gifts as well as line prices; review a no-quotation
+order against its own applicable policies using the promotion method above.
 
 **Payment request (`payment`) — the account is the attack surface.** This is the one
 node where the standing fraud is aimed directly at you: payment-diversion fraud
@@ -252,3 +272,6 @@ side, the same `order_match` reasoning as above. Note that
 
 - [references/api.md](references/api.md): request templates, the action
   catalog, and the per-type read endpoints.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

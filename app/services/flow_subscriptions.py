@@ -93,7 +93,7 @@ def derived_driver_skill(db: Session, tenant_id: str, entity_type: str) -> str |
     One-to-one across the shipped catalog since the invoice flow was split out
     of the payment one, and `tests/test_new_document_family.py` keeps it that
     way. But the catalog is not the whole registry: a tenant may author a skill
-    gating on the same verb, and one really did — 晶诚's `jc-warranty-card-flow`
+    gating on the same verb, and one really did — Jingcheng's `jc-warranty-card-flow`
     holds `timesheet.advance` and sorts before `oryh-timesheet-approval-flow`,
     so picking by name alone made a customer's own skill the platform's driver
     for a builtin family. Nobody asked for that and nobody would have seen it.

@@ -1,6 +1,6 @@
 ---
 name: oryh-channel-order-import
-description: Use when a seller's agent lands a file of e-commerce platform orders (天猫/京东/抖音/亚马逊 exports — "电商订单导入", "把这批平台订单导进来", "今天的天猫订单") in oryh as DRAFTS — dedup by the platform's number, translate every line through the product map, propose the likeliest catalog product for the rest, have the person confirm every proposal in one message, then create the drafts and link the numbers. Requires order.submit_own. Matching rules are oryh-product-matching's calibration; one listing to sort out by hand is oryh-product-matching; an order filed today in conversation, or submitting a draft, is oryh-order-submit.
+description: Use when a seller's agent lands a file of e-commerce platform orders (Tmall/JD.com/Douyin/Amazon exports — "e-commerce order import", "import this batch of platform orders", "today's Tmall orders") in oryh as DRAFTS — dedup by the platform's number, translate every line through the product map, propose the likeliest catalog product for the rest, have the person confirm every proposal in one message, then create the drafts and link the numbers. Requires order.submit_own. Matching rules are oryh-product-matching's calibration; one listing to sort out by hand is oryh-product-matching; an order filed today in conversation, or submitting a draft, is oryh-order-submit.
 required_capability: order.submit_own
 ---
 
@@ -189,3 +189,6 @@ conversations.
 ## Reference
 
 - [references/api.md](references/api.md): the calls, the line's `custom_fields` shape, and the read-back table.
+
+Chinese request aliases and original example wording are available in
+[locale examples](locales/zh-CN/examples.json); preserve user-provided names and text.

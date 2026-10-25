@@ -13,6 +13,13 @@ already there.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_stores_facilities.json').read_text(encoding="utf-8"))
+
+
 import pytest
 
 from conftest import make_client, provision_tenant, invite_member
@@ -26,7 +33,7 @@ def town():
 
         member = invite_member(client, admin, "nobody", [])
         client.post("/api/v1/sales-channels", headers=admin, json={
-            "channel_code": "tmall", "name": "天猫", "channel_kind": "marketplace"})
+            "channel_code": "tmall", "name": _ZH_TEXT['TEXT_650D7BCACD9B4DDB'], "channel_kind": "marketplace"})
 
         yield {"client": client, "admin": admin, "member": member}
 
@@ -34,59 +41,59 @@ def town():
 def test_a_facility_is_typed_by_the_vocabulary_and_named_once(town) -> None:
     client, admin = town["client"], town["admin"]
     bent = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "主仓", "facility_type": "spaceship"})
+        "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "spaceship"})
     assert bent.status_code == 422
     assert "warehouse" in bent.json()["detail"], "the refusal hands over the options"
 
     made = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "主仓", "facility_type": "warehouse", "facility_code": "FAC-MAIN"})
+        "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "warehouse", "facility_code": "FAC-MAIN"})
     assert made.status_code == 201, made.text
 
     doubled = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "主仓", "facility_type": "office"})
-    assert doubled.status_code == 409, "the stock ledger joins on the name — one live 主仓"
+        "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "office"})
+    assert doubled.status_code == 409, _ZH_TEXT['TEXT_E0CF87B8C59C929E']
     client.delete(f"/api/v1/facilities/{made.json()['data']['id']}", headers=admin)
     freed = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "主仓", "facility_type": "warehouse"})
+        "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "warehouse"})
     assert freed.status_code == 201, "archiving frees the name — the old row is history"
 
     listed = client.get("/api/v1/facilities", headers=town["member"],
                         params={"facility_type": "warehouse", "status": "active"})
     assert listed.status_code == 200, "facilities are master data — everyone reads them"
-    assert [r["name"] for r in listed.json()["data"]] == ["主仓"]
+    assert [r["name"] for r in listed.json()["data"]] == [_ZH_TEXT['TEXT_4EF25FA2BFE1BF2C']]
     refused = client.post("/api/v1/facilities", headers=town["member"],
-                          json={"name": "私仓", "facility_type": "warehouse"})
+                          json={"name": _ZH_TEXT['TEXT_D4BFDB688B17746E'], "facility_type": "warehouse"})
     assert refused.status_code == 403
 
 
 def test_a_store_names_its_channel_and_its_source_key(town) -> None:
     client, admin = town["client"], town["admin"]
     sideways = client.post("/api/v1/stores", headers=admin, json={
-        "name": "天猫旗舰店", "channel": "wechat"})
+        "name": _ZH_TEXT['TEXT_9FF35AEF8AA0B90B'], "channel": "wechat"})
     assert sideways.status_code == 422, "offline/online is a closed pair"
 
     online = client.post("/api/v1/stores", headers=admin, json={
-        "name": "天猫旗舰店", "channel": "online", "source": "  TMALL "})
+        "name": _ZH_TEXT['TEXT_9FF35AEF8AA0B90B'], "channel": "online", "source": "  TMALL "})
     assert online.status_code == 201, online.text
     assert online.json()["data"]["source"] == "tmall", \
         "source lowercases into the external channels' own join key"
     shop = client.post("/api/v1/stores", headers=admin, json={
-        "name": "南京西路店", "channel": "offline", "address": "南京西路100号"})
+        "name": _ZH_TEXT['TEXT_A68C3CF81D784074'], "channel": "offline", "address": _ZH_TEXT['TEXT_E09C07CDBC17792A']})
     assert shop.status_code == 201
 
     by_source = client.get("/api/v1/stores", headers=town["member"],
                            params={"source": "Tmall"})
-    assert [r["name"] for r in by_source.json()["data"]] == ["天猫旗舰店"]
+    assert [r["name"] for r in by_source.json()["data"]] == [_ZH_TEXT['TEXT_9FF35AEF8AA0B90B']]
 
 
 def test_the_fulfilment_link_is_the_stores_standing_answer(town) -> None:
     client, admin = town["client"], town["admin"]
     store = client.post("/api/v1/stores", headers=admin, json={
-        "name": "天猫旗舰店", "channel": "online", "source": "tmall"}).json()["data"]
+        "name": _ZH_TEXT['TEXT_9FF35AEF8AA0B90B'], "channel": "online", "source": "tmall"}).json()["data"]
     main = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "主仓", "facility_type": "warehouse"}).json()["data"]
+        "name": _ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], "facility_type": "warehouse"}).json()["data"]
     backup = client.post("/api/v1/facilities", headers=admin, json={
-        "name": "华南仓", "facility_type": "warehouse"}).json()["data"]
+        "name": _ZH_TEXT['TEXT_57F05ADBE0F4D4E2'], "facility_type": "warehouse"}).json()["data"]
 
     first = client.post("/api/v1/store-facilities", headers=admin, json={
         "store_id": store["id"], "facility_id": backup["id"], "priority": 2})
@@ -102,7 +109,7 @@ def test_the_fulfilment_link_is_the_stores_standing_answer(town) -> None:
 
     detail = client.get(f"/api/v1/stores/{store['id']}", headers=town["member"]).json()["data"]
     names = [row["facility_name"] for row in detail["fulfilment_facilities"]]
-    assert names == ["主仓", "华南仓"], \
+    assert names == [_ZH_TEXT['TEXT_4EF25FA2BFE1BF2C'], _ZH_TEXT['TEXT_57F05ADBE0F4D4E2']], \
         "the store's read answers who ships for it, preferred first"
 
     ghost = client.post("/api/v1/store-facilities", headers=admin, json={
@@ -113,25 +120,25 @@ def test_the_fulfilment_link_is_the_stores_standing_answer(town) -> None:
 def test_a_sales_order_names_the_front_it_came_through(town) -> None:
     client, admin = town["client"], town["admin"]
     store = client.post("/api/v1/stores", headers=admin, json={
-        "name": "天猫旗舰店", "channel": "online", "source": "tmall"}).json()["data"]
+        "name": _ZH_TEXT['TEXT_9FF35AEF8AA0B90B'], "channel": "online", "source": "tmall"}).json()["data"]
     retired = client.post("/api/v1/stores", headers=admin, json={
-        "name": "老店", "channel": "offline"}).json()["data"]
+        "name": _ZH_TEXT['TEXT_5C33F632A797F9E4'], "channel": "offline"}).json()["data"]
     client.delete(f"/api/v1/stores/{retired['id']}", headers=admin)
-    emp = client.post("/api/v1/employees", json={"name": "店长"},
+    emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_47FAC7C4EC3505EA']},
                       headers=admin).json()["data"]["id"]
 
     onto_archived = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "一单", "store_id": retired["id"]})
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA'], "store_id": retired["id"]})
     assert onto_archived.status_code == 409
 
     made = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "天猫一单", "store_id": store["id"]})
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_36AA5DF58A7F0118'], "store_id": store["id"]})
     assert made.status_code == 201, made.text
     order = made.json()["data"]
-    assert order["store_id"] == store["id"] and order["store_name"] == "天猫旗舰店"
+    assert order["store_id"] == store["id"] and order["store_name"] == _ZH_TEXT['TEXT_9FF35AEF8AA0B90B']
 
     bare = client.post("/api/v1/sales-orders", headers=admin, json={
-        "employee_id": emp, "title": "无店订单"})
+        "employee_id": emp, "title": _ZH_TEXT['TEXT_6EB44B3E81A9A777']})
     assert bare.status_code == 201, "an order with no store is a legal fact"
 
     filtered = client.get("/api/v1/sales-orders", headers=admin,

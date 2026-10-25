@@ -7,6 +7,13 @@ the key is scoped to the credential; a 5xx is forgotten so the retry runs.
 
 from __future__ import annotations
 
+from json import loads as _load_locale_json
+from pathlib import Path as _LocalePath
+
+# Exact multilingual fixtures; keep formatting and decisions at call sites.
+_ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/zh-CN/test_idempotency.json').read_text(encoding="utf-8"))
+
+
 import uuid
 from datetime import timedelta
 
@@ -23,10 +30,10 @@ def shop():
     with make_stack([]) as (client, engine):
         t = provision_tenant(client, company_name="Retry Co", email="admin@retry.example")
         admin = {"X-API-Key": t["plain_text_api_key"]}
-        emp = client.post("/api/v1/employees", json={"name": "小李"}, headers=admin).json()["data"]["id"]
-        customer = client.post("/api/v1/customers", json={"name": "买家"}, headers=admin).json()["data"]["id"]
+        emp = client.post("/api/v1/employees", json={"name": _ZH_TEXT['TEXT_3FA37BBC8A2C8B5E']}, headers=admin).json()["data"]["id"]
+        customer = client.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_6D6A63F93C43899E']}, headers=admin).json()["data"]["id"]
         yield {"client": client, "admin": admin, "employee": emp, "customer": customer,
-               "order": {"employee_id": emp, "customer_id": customer, "title": "一单"}}
+               "order": {"employee_id": emp, "customer_id": customer, "title": _ZH_TEXT['TEXT_14DD2CDE0CB435EA']}}
 
 
 def test_a_retry_with_the_same_key_replays_and_writes_nothing(shop) -> None:
@@ -49,7 +56,7 @@ def test_the_same_key_with_a_different_request_is_a_client_bug(shop) -> None:
     c, admin = shop["client"], shop["admin"]
     key = "order-2026-09-15-001"
     assert c.post("/api/v1/sales-orders", json=shop["order"], headers={**admin, "Idempotency-Key": key}).status_code == 201
-    other = c.post("/api/v1/sales-orders", json={**shop["order"], "title": "另一单"}, headers={**admin, "Idempotency-Key": key})
+    other = c.post("/api/v1/sales-orders", json={**shop["order"], "title": _ZH_TEXT['TEXT_539059A5366F1752']}, headers={**admin, "Idempotency-Key": key})
     assert other.status_code == 422 and other.json()["detail"][0]["type"] == "idempotency_key_reused"
     assert len(c.get("/api/v1/sales-orders", headers=admin).json()["data"]) == 1
     # same key, same body, different path: a different request too
@@ -60,12 +67,12 @@ def test_the_same_key_with_a_different_request_is_a_client_bug(shop) -> None:
 def test_the_key_is_scoped_to_the_credential(shop) -> None:
     c, admin = shop["client"], shop["admin"]
     key = "shared-key"
-    assert c.post("/api/v1/customers", json={"name": "甲"}, headers={**admin, "Idempotency-Key": key}).status_code == 201
+    assert c.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_33E3580C093111E1']}, headers={**admin, "Idempotency-Key": key}).status_code == 201
     other_tenant = provision_tenant(c, company_name="Other Co", email="admin@other.example")
     other = {"X-API-Key": other_tenant["plain_text_api_key"]}
-    r = c.post("/api/v1/customers", json={"name": "乙"}, headers={**other, "Idempotency-Key": key})
+    r = c.post("/api/v1/customers", json={"name": _ZH_TEXT['TEXT_71530D4C49F12C48']}, headers={**other, "Idempotency-Key": key})
     assert r.status_code == 201 and "Idempotency-Replayed" not in r.headers, "another credential's key is another key"
-    assert [x["name"] for x in c.get("/api/v1/customers", headers=other).json()["data"]] == ["乙"]
+    assert [x["name"] for x in c.get("/api/v1/customers", headers=other).json()["data"]] == [_ZH_TEXT['TEXT_71530D4C49F12C48']]
 
 
 def test_errors_are_replayed_too_but_a_server_error_is_not_remembered(shop, monkeypatch) -> None:

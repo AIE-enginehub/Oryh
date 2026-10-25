@@ -19,7 +19,7 @@ CAN diverge, in the source, before anything ships.
 
 `total_amount` is not in the list and must not be. On a quotation, order, or
 invoice it is the AGREED document total — a negotiated fact that legitimately
-differs from the line sum (抹零, a discount granted verbally), which is why
+differs from the line sum (rounding adjustment, a discount granted verbally), which is why
 `/detail` reports both and lets an agent judge the gap. Materializing it would
 destroy the distinction the design is built on.
 """
@@ -111,7 +111,7 @@ def test_the_agreed_total_is_not_treated_as_a_sum() -> None:
     """A regression guard on the DESIGN, not the code. If `total_amount` ever
     joins the map above, someone has decided the agreed total is a derived
     number — which contradicts every `/detail` in the sales and billing modules
-    and makes 抹零 unrepresentable. That is a decision to argue, not to slip in
+    and makes rounding adjustment unrepresentable. That is a decision to argue, not to slip in
     with a dict entry."""
     assert "total_amount" not in SINGLE_WRITER
     assert "billed_total" not in SINGLE_WRITER
