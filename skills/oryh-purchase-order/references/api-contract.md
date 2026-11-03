@@ -158,6 +158,50 @@ Explode Bill Of Materials
 | `with_stock` | query | boolean | no |  |
 | `facility_id` | query | string | no |  |
 
+## GET /budget-impact
+
+Budget Impact
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entity_type` | query | string | yes |  |
+| `entity_id` | query | string | yes |  |
+
+## GET /budget-lines
+
+List Budget Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `budget_id` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `owner_employee_id` | query | string | no |  |
+
+## GET /budget-lines/{line_id}/availability
+
+Budget Line Availability
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `amount` | query | number (≥0) | no |  |
+
+## GET /budget-lines/{line_id}/documents
+
+Budget Line Documents
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `stage` | query | string | no |  |
+
 ## GET /contract-terms
 
 List Contract Terms
@@ -635,6 +679,26 @@ Body:
 | `status` | `active` | `archived` | `draft` | optional |  |
 | `version` | string (≤50 chars) | optional |  |
 
+## PATCH /budget-lines/{line_id}
+
+Update Budget Line
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+
 ## PATCH /contract-terms/{term_id}
 
 Update Contract Term
@@ -771,6 +835,7 @@ Body:
 |---|---|---|---|
 | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
 | `attachment_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
@@ -800,6 +865,7 @@ Body:
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
 | `contract_no` | string (≤64 chars) | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `delivery_terms` | string (≤2000 chars) | optional |  |
@@ -826,6 +892,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `needed_by` | date | optional |  |
@@ -989,6 +1056,29 @@ Body:
   | `quantity` | number | optional |  |
   | `scrap_rate` | number | optional |  |
   | `unit` | string | optional |  |
+
+## POST /budget-lines
+
+Create Budget Line
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `budget_id` | string | required |  |
+| `line_code` | string (≤64 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `customer_id` | string | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `employee_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `parent_line_id` | string | optional |  |
+| `product_category_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+| `territory_id` | string | optional |  |
 
 ## POST /contract-terms
 
@@ -1256,6 +1346,7 @@ Body:
 | `quantity` | number (≤9999999.99) | required |  |
 | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
 | `attachment_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
@@ -1294,6 +1385,7 @@ Body:
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
 | `contract_no` | string (≤64 chars) | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `delivery_terms` | string (≤2000 chars) | optional |  |
@@ -1301,6 +1393,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `line_no` | integer (≥1.0) | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
@@ -1433,6 +1526,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional |  |
   | `line_no` | integer (≥1.0) | optional |  |
@@ -1472,12 +1566,14 @@ Body:
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
   | `product_id` | string | optional |  |
@@ -1528,6 +1624,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |

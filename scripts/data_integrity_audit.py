@@ -391,10 +391,6 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
            ) as drifted""",
     ),
     (
-        "no billing account is drawn past its credit limit",
-        "select count(*) from billing_accounts where balance < -credit_limit - 0.005",
-    ),
-    (
         "billing account names exactly one owner",
         """select count(*) from billing_accounts
             where (case when customer_id is null then 0 else 1 end)
@@ -664,11 +660,41 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
               where i.deleted_at is null and (a.unit_type <> 'currency' or a.unit <> i.currency)
            ) as mismatched""",
     ),
+    # Points redeemed on an order (docs/billing-accounts.md): a points
+    # discount exists only with the redemption that paid for it, and a
+    # redemption is never given back beyond what it spent. The write paths
+    # refuse both; a non-zero count is a write that went around them.
+    (
+        "points discounts and points lines name their redemption",
+        """select count(*) from (
+             select adj.id from sales_order_adjustments adj
+              where adj.deleted_at is null
+                and (adj.adjustment_type = 'points') <> (adj.billing_account_entry_id is not null)
+             union all
+             select it.id from invoice_items it
+              where it.deleted_at is null
+                and (it.invoice_item_type = 'points') <> (it.billing_account_entry_id is not null)
+           ) as unthreaded""",
+    ),
+    (
+        "redemptions given back beyond what they spent",
+        """select count(*) from billing_account_entries r
+            where r.reason = 'redeemed'
+              and (select coalesce(sum(g.amount), 0) from billing_account_entries g
+                    where g.reason = 'redemption_reversed' and g.entity_type = 'billing_account_entry'
+                      and g.entity_id = r.id) > -r.amount + 0.005""",
+    ),
 )
 
 # Disagreements worth a human's attention that are NOT integrity violations —
 # the flow legitimately lags the ledger for a while. Reported, never fatal.
 ADVISORY_CHECKS: tuple[tuple[str, str], ...] = (
+    # A limit may be lowered under what is drawn: that is a decision, and this
+    # is the queue it leaves.
+    (
+        "billing accounts drawn past their credit limit",
+        "select count(*) from billing_accounts where balance < -credit_limit - 0.005",
+    ),
     (
         "invoices marked paid with an outstanding balance",
         """select count(*) from (
@@ -857,6 +883,22 @@ ADVISORY_CHECKS: tuple[tuple[str, str], ...] = (
                 select coalesce(sum(it.amount), 0) from invoice_items it
                  where it.invoice_id = i.id and it.deleted_at is null
               ) - 0.005""",
+    ),
+    # Points spent on an order whose discount no longer stands — the order
+    # cancelled or deleted, or the discount removed — and not given back.
+    # Whether a cancelled order's points come back is the workspace's rule,
+    # so this is the detector for a forgotten restore-points, not a verdict.
+    (
+        "points spent on orders where no discount stands, not given back",
+        """select count(*) from billing_account_entries r
+            where r.reason = 'redeemed' and r.entity_type = 'sales_order'
+              and not exists (select 1 from sales_order_adjustments adj
+                                join sales_orders o on o.id = adj.order_id
+                               where adj.billing_account_entry_id = r.id and adj.deleted_at is null
+                                 and o.deleted_at is null and o.status <> 'cancelled')
+              and -r.amount - (select coalesce(sum(g.amount), 0) from billing_account_entries g
+                                where g.reason = 'redemption_reversed' and g.entity_type = 'billing_account_entry'
+                                  and g.entity_id = r.id) > 0.005""",
     ),
 )
 

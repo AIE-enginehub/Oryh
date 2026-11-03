@@ -1,0 +1,3 @@
+{
+  "description": "Use to plan and follow a workspace's budget in oryh — 编制年度预算（市场费用、人工成本、销售目标）, 调整预算, 看预算执行 — building the plan, posting changes with their reasons, reading planned against requested, committed, actual, paid and the sales gap. Requires budget.manage (reading needs budget.read_all; labour actuals also payroll.read)."
+}

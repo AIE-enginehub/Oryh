@@ -303,6 +303,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |
@@ -505,6 +506,7 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `name` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |

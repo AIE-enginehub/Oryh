@@ -426,7 +426,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |

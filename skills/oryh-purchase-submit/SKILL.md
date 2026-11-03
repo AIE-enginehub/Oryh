@@ -135,6 +135,17 @@ numbers and the options (prepay more / ask for a higher line / shrink the
 order). Cancelling a kept PO releases by clearing the field; removed lines and
 deletion release by themselves.
 
+## Budget Lines
+
+A budget ($oryh-budget) collects marketing, labour and sales by itself. Other
+spend reaches a budget line only when a line names one: when the principal
+says what a purchase is for in budget terms ("this goes on the office line"),
+read `GET /budget-lines?status=active` (codes and names, no amounts) and set
+`budget_line_id` on the line. Never pick one by guessing; say which line and
+why in the read-back. A line that does not fit — another currency, a date
+outside the budget's year, a closed line — is a 422 naming why. Being over
+budget is never refused: whoever approves reads `GET /budget-impact`.
+
 ## What This Skill Never Does
 
 - Approve, decide routing, pick the winning vendor, or touch the request status (`/submit` is the only transition it makes).

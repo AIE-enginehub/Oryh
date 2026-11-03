@@ -266,6 +266,7 @@ def create_purchase_request(
     request = PurchaseRequest(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
+        cost_center_id=payload.cost_center_id,
         title=payload.title,
         request_date=payload.request_date,
         needed_by=payload.needed_by,
@@ -597,6 +598,7 @@ def create_purchase_order(
         vendor_id=payload.vendor_id,
         vendor_name_snapshot=payload.vendor_name_snapshot or vendor.name,
         employee_id=payload.employee_id,
+        cost_center_id=payload.cost_center_id,
         title=payload.title,
         contract_no=payload.contract_no,
         order_date=payload.order_date,

@@ -489,6 +489,19 @@ BUILTIN_TITLES: dict[str, tuple[str, str]] = {
         "arrived at the destination; rename or extend freely — the stock effect is "
         "posted to the inventory ledger via /post-stock, not implied by any state.",
     ),
+    "budget": (
+        "Budget",
+        "Lifecycle of a budget — draft, active (spending is collected and tagged), "
+        "frozen (paused while it is reviewed), closed. Its figures move only through "
+        "posted budget changes; what it consumed is read from the documents.",
+    ),
+    "budget_change": (
+        "Budget change",
+        "Lifecycle of a change to a budget's plan. The owner posts a draft directly; "
+        "a workspace that wants changes approved removes draft -> posted and routes "
+        "them submitted -> approved -> posted under its own approval flow. Reaching "
+        "posted writes the plan ledger.",
+    ),
     "campaign": (
         "Campaign",
         "Lifecycle of marketing campaigns — planned, active, completed/cancelled. What "

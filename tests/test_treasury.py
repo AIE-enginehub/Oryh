@@ -168,7 +168,7 @@ def test_the_reconciliation_link_moves_money_the_same_way(desk) -> None:
                          headers=admin).json()["data"]["id"]
     payment = client.post("/api/v1/payments", headers=admin, json={
         "direction": "outbound", "employee_id": emp, "vendor_id": vendor,
-        "amount": 80.0}).json()["data"]
+        "amount": 80.0, "status": "paid"}).json()["data"]
 
     line = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": desk["account"]["id"], "amount": -80.0,
@@ -206,7 +206,7 @@ def test_one_debit_settles_a_batch_of_payments(desk) -> None:
                              headers=admin).json()["data"]["id"]
         r = client.post("/api/v1/payments", headers=admin, json={
             "direction": "outbound", "employee_id": officer, "payee_employee_id": person,
-            "amount": net, "reference_no": "PAYROLL-2026-08"})
+            "amount": net, "reference_no": "PAYROLL-2026-08", "status": "paid"})
         assert r.status_code == 201, r.text
 
     short = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
@@ -270,7 +270,7 @@ def test_bank_fees_are_register_facts_not_payments(desk) -> None:
                            headers=admin).json()["data"]["id"]
     payment = client.post("/api/v1/payments", headers=admin, json={
         "direction": "inbound", "employee_id": emp, "customer_id": customer,
-        "amount": 10000.0}).json()["data"]
+        "amount": 10000.0, "status": "paid"}).json()["data"]
     netted = client.post("/api/v1/fin-account-transactions", headers=cashier, json={
         "fin_account_id": account, "gross_amount": 10000.0, "fee_amount": 15.0,
         "amount": 9985.0, "counterparty": _ZH_TEXT['TEXT_DA7A4643ED2DC857']})

@@ -454,6 +454,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |
@@ -477,6 +478,7 @@ Body:
 | `attachment_id` | string | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
+| `cost_center_id` | string | optional |  |
 | `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
@@ -596,7 +598,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |
@@ -728,6 +730,7 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `name` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |
@@ -753,6 +756,7 @@ Body:
 | `attachment_id` | string | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
+| `cost_center_id` | string | optional |  |
 | `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
@@ -765,6 +769,8 @@ Body:
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥-9999999.99, ≤9999999.99) | optional |  |
+  | `billing_account_entry_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `invoice_id` | string | optional |  |
   | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
@@ -874,6 +880,8 @@ Body:
 | `items` | array of objects (fields below) | required |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number | optional |  |
+  | `billing_account_entry_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional | a live row to keep; absent = a new row |
   | `invoice_id` | string | optional |  |

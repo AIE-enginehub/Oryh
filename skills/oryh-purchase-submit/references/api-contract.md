@@ -190,6 +190,50 @@ Get Expiring Billing Account Entries
 | `account_id` | path | string | yes |  |
 | `before` | query | date-time | no |  |
 
+## GET /budget-impact
+
+Budget Impact
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entity_type` | query | string | yes |  |
+| `entity_id` | query | string | yes |  |
+
+## GET /budget-lines
+
+List Budget Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `budget_id` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `owner_employee_id` | query | string | no |  |
+
+## GET /budget-lines/{line_id}/availability
+
+Budget Line Availability
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `amount` | query | number (≥0) | no |  |
+
+## GET /budget-lines/{line_id}/documents
+
+Budget Line Documents
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `stage` | query | string | no |  |
+
 ## GET /business-rules
 
 List Business Rules
@@ -457,6 +501,14 @@ Get Sales Order Detail
 | `order_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
 
+## GET /sales-orders/{order_id}/points-redemptions
+
+List Points Redemptions
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
 ## GET /todos
 
 List Todos
@@ -544,6 +596,26 @@ Body:
 | `valid_from` | date | optional |  |
 | `valid_until` | date | optional |  |
 
+## PATCH /budget-lines/{line_id}
+
+Update Budget Line
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+
 ## PATCH /business-rules/{rule_id}
 
 Update Business Rule
@@ -624,6 +696,7 @@ Body:
 |---|---|---|---|
 | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
 | `attachment_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
 | `product_id` | string | optional |  |
@@ -647,6 +720,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `needed_by` | date | optional |  |
@@ -747,7 +821,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |
@@ -823,6 +897,29 @@ Restore Billing Account
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
+
+## POST /budget-lines
+
+Create Budget Line
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `budget_id` | string | required |  |
+| `line_code` | string (≤64 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `customer_id` | string | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `employee_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `parent_line_id` | string | optional |  |
+| `product_category_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+| `territory_id` | string | optional |  |
 
 ## POST /business-rules
 
@@ -1027,6 +1124,7 @@ Body:
 | `request_id` | string | required |  |
 | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
 | `attachment_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
 | `product_id` | string | optional |  |
@@ -1051,12 +1149,14 @@ Body:
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
   | `product_id` | string | optional |  |
@@ -1107,6 +1207,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
@@ -1267,6 +1368,24 @@ Body:
 | `on_error` | `abort` | `skip` | optional |  |
 | `on_missing_reference` | `error` | `snapshot` | optional |  |
 
+## POST /sales-orders/{order_id}/redeem-points
+
+Redeem Points
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `billing_account_id` | string | required |  |
+| `discount_amount` | number (≤9999999.99) | required |  |
+| `points` | number (≤999999999.99) | required |  |
+| `description` | string (≤500 chars) | optional |  |
+| `order_item_id` | string | optional |  |
+
 ## POST /sales-orders/{order_id}/release
 
 Release Stock For Order
@@ -1315,6 +1434,24 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `restored_by` | string (≤100 chars) | optional |  |
+
+## POST /sales-orders/{order_id}/restore-points
+
+Restore Points
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤500 chars) | optional |  |
+| `entry_id` | string | optional |  |
+| `expires_at` | date-time | optional |  |
+| `points` | number (≥0.0, ≤999999999.99) | optional |  |
+| `remove_discount` | boolean | optional |  |
 
 ## POST /sales-orders/{order_id}/revise
 

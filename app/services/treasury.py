@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import update
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import FinAccount, FinAccountTrans
+from app.models import FinAccount, FinAccountTrans, Payment
+from app.services.state_machines import editable_states, get_builtin_machine, state_for_role
 
 
 def post_fin_account_trans(
@@ -64,3 +65,64 @@ def post_fin_account_trans(
     )
     db.expire(account, ["current_balance"])
     return trans
+
+
+# --- how a register line relates to a payment (review 2026-10-26) -----------
+#
+# A line names one payment (`payment_id`), or one batch of payments by their
+# shared `reference_no` (`payment_reference_no`). These are the rules both
+# links obey and the payment's own detail reads back.
+
+
+def linkable_payment_states(db: Session, tenant_id: str) -> frozenset[str]:
+    """A bank line records money that moved, so it links a payment that is
+    paid — or approved, because the bank debit often shows before the
+    accountant marks it paid, and the cashier holding the register does not
+    hold `payment.record`. Never a draft, one in approval, a cancelled or a
+    voided one: that link would say money moved for a payment that did not
+    move it. `paid` by its role; `approved` by its place in the machine, the
+    state past editing that leads to `paid`."""
+    machine = get_builtin_machine(db, tenant_id, "payment")
+    paid = state_for_role(machine, "payment", "paid")
+    editable = editable_states(machine, "payment")
+    return frozenset({paid} | {state for state, onward in (machine.get("transitions") or {}).items()
+                               if paid in onward and state not in editable})
+
+
+def line_coverage(line: FinAccountTrans) -> float:
+    """How much of a payment one line carries: the gross the bank recorded
+    before netting its fee, else the line's own amount; unsigned."""
+    value = line.gross_amount if line.gross_amount is not None else line.amount
+    return abs(float(value or 0))
+
+
+def payment_landings(db: Session, tenant_id: str, payment: Payment) -> list[tuple[FinAccountTrans, str]]:
+    """Every register line that carries this payment: its own lines
+    (`direct`), and the line that settles its batch (`batch`)."""
+    lines = [
+        (line, "direct")
+        for line in db.scalars(
+            select(FinAccountTrans).options(selectinload(FinAccountTrans.account))
+            .where(FinAccountTrans.tenant_id == tenant_id, FinAccountTrans.payment_id == payment.id)
+            .order_by(FinAccountTrans.trans_date.asc().nulls_last(), FinAccountTrans.created_at.asc())
+        )
+    ]
+    if payment.reference_no:
+        lines += [
+            (line, "batch")
+            for line in db.scalars(
+                select(FinAccountTrans).options(selectinload(FinAccountTrans.account))
+                .where(FinAccountTrans.tenant_id == tenant_id,
+                       FinAccountTrans.payment_reference_no == payment.reference_no)
+                .order_by(FinAccountTrans.created_at.asc())
+            )
+        ]
+    return lines
+
+
+def landed_amount(payment: Payment, landings: list[tuple[FinAccountTrans, str]]) -> float:
+    """What the bank has carried of this payment: a batch line settles each
+    member in full; its own lines carry what they cover."""
+    if any(via == "batch" for _, via in landings):
+        return round(float(payment.amount), 2)
+    return round(sum(line_coverage(line) for line, _ in landings), 2)

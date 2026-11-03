@@ -16,6 +16,8 @@ _ZH_TEXT = _load_locale_json((_LocalePath(__file__).resolve().parent / 'locales/
 import io
 import zipfile
 
+import pytest
+
 from fastapi.testclient import TestClient
 
 from conftest import make_client, provision_tenant, invite_member
@@ -174,3 +176,45 @@ def test_the_prompt_carries_the_workspace_calibration_like_a_bundle_does() -> No
         after = _rpc(client, bearer, "prompts/get", {"name": "oryh-payables"}).json()["result"]["messages"][0]["content"]["text"]
         assert after.index("## Workspace calibration") > after.index("# ")
         assert "never bills an expense claim" in after and "the skill wins" in after
+
+
+@pytest.mark.parametrize("version", ["2025-11-25", "2025-06-18", "2025-03-26"])
+def test_protocol_negotiation_and_tool_discovery(version):
+    """Exercise a strict client handshake against an isolated synthetic tenant."""
+    with make_client([]) as client:
+        tenant = provision_tenant(client, company_name="Protocol Test", email="protocol@example.test")
+        headers = {"Authorization": f"Bearer {tenant['plain_text_api_key']}"}
+        init = _rpc(client, headers, "initialize", {
+            "protocolVersion": version, "capabilities": {},
+            "clientInfo": {"name": "strict-desktop-test", "version": "1"},
+        })
+        assert init.status_code == 200
+        assert init.json()["result"]["protocolVersion"] == version
+        assert "MCP-Protocol-Version" not in init.headers
+        headers["MCP-Protocol-Version"] = version
+        notification = client.post("/mcp", headers=headers, json={
+            "jsonrpc": "2.0", "method": "notifications/initialized",
+        })
+        assert notification.status_code == 202 and not notification.content
+        listed = _rpc(client, headers, "tools/list")
+        assert listed.status_code == 200
+        tools = listed.json()["result"]["tools"]
+        assert len(tools) == 8
+        assert "oryh_request" in {tool["name"] for tool in tools}
+        assert all(tool["inputSchema"]["type"] == "object" for tool in tools)
+
+
+def test_unknown_initialize_version_falls_back_but_invalid_transport_version_is_rejected():
+    with make_client([]) as client:
+        tenant = provision_tenant(client, company_name="Fallback Test", email="fallback@example.test")
+        headers = {"X-API-Key": tenant["plain_text_api_key"]}
+        for requested in ["2026-07-28", "unknown", ""]:
+            init = _rpc(client, headers, "initialize", {"protocolVersion": requested})
+            assert init.status_code == 200
+            assert init.json()["result"]["protocolVersion"] == "2025-11-25"
+        for invalid in ["2026-07-28", "unknown", ""]:
+            rejected = _rpc(client, {**headers, "MCP-Protocol-Version": invalid}, "tools/list")
+            assert rejected.status_code == 400
+            assert "unsupported MCP-Protocol-Version" in rejected.json()["error"]["message"]
+        # Legacy clients without a version header still reach discovery.
+        assert _rpc(client, headers, "tools/list").status_code == 200

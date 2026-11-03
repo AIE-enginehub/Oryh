@@ -275,6 +275,30 @@ List Bom Items
 | `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
 | `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
 
+## GET /cost-centers
+
+List Cost Centers
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `parent_id` | query | string | no |  |
+| `cost_center_code` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+
+## GET /cost-centers/{cost_center_id}
+
+Get Cost Center
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `cost_center_id` | path | string | yes |  |
+
 ## GET /customer-contacts
 
 List Customer Contacts
@@ -411,6 +435,31 @@ Get Employee
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
+
+## GET /employees/{employee_id}/pay-history
+
+Get Employee Pay History
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+| `component` | query | string | no |  |
+| `in_force_on` | query | date | no |  |
+
+## GET /employees/{employee_id}/todos
+
+List Employee Todos
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+| `status` | query | string | no |  |
+| `entity_type` | query | string | no |  |
+| `entity_id` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
 
 ## GET /external-document-links
 
@@ -1031,6 +1080,24 @@ Body:
 | `scrap_rate` | number (≥0.0, ≤99.99) | optional |  |
 | `unit` | string (≤50 chars) | optional |  |
 
+## PATCH /cost-centers/{cost_center_id}
+
+Update Cost Center
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `cost_center_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤4000 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `parent_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## PATCH /customer-contacts/{contact_id}
 
 Update Customer Contact
@@ -1120,6 +1187,27 @@ Body:
 | `status` | `active` | `archived` | optional |  |
 | `tax_id` | string (≤64 chars) | optional |  |
 | `territory_id` | string | optional |  |
+
+## PATCH /employees/{employee_id}
+
+Update Employee
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `employee_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `cost_center_id` | string | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `employee_code` | string (≤64 chars) | optional |  |
+| `hire_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `status` | `active` | `inactive` | optional |  |
+| `timezone` | string (≤100 chars) | optional |  |
 
 ## PATCH /external-product-maps/{map_id}
 
@@ -1576,6 +1664,21 @@ Body:
 | `scrap_rate` | number (≥0.0, ≤99.99) | optional |  |
 | `unit` | string (≤50 chars) | optional |  |
 
+## POST /cost-centers
+
+Create Cost Center
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `cost_center_code` | string (≤64 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `description` | string (≤4000 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `parent_id` | string | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## POST /customer-contacts
 
 Create Customer Contact
@@ -1681,6 +1784,23 @@ Body:
   | `territory_id` | string | optional |  |
 | `dry_run` | boolean | optional |  |
 | `on_error` | `abort` | `skip` | optional |  |
+
+## POST /employees
+
+Create Employee
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
+| `email` | string (≤320 chars) | optional |  |
+| `employee_code` | string (≤64 chars) | optional |  |
+| `hire_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `status` | `active` | `inactive` | optional |  |
+| `timezone` | string (≤100 chars) | optional |  |
 
 ## POST /external-document-links
 

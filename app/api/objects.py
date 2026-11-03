@@ -80,6 +80,8 @@ from app.models import (
     InventoryItem,
     InventoryItemDetail,
     Invoice,
+    Budget,
+    BudgetChange,
     Campaign,
     Event,
     Lead,
@@ -809,6 +811,8 @@ def get_object_directory(
         "picklist": visible_count(Picklist),
         "lead": visible_count(Lead),
         "campaign": visible_count(Campaign),
+        "budget": visible_count(Budget),
+        "budget_change": visible_count(BudgetChange),
         "event": visible_count(Event),
         "opportunity": visible_count(Opportunity),
         # "how many payslips did this company issue" is itself worth hiding

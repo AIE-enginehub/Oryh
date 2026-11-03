@@ -22,8 +22,11 @@ from app.api.query_guard import reject_unknown_query_params
 from app.api.purchasing import router as purchasing_router
 from app.api.resources import router as resources_router
 from app.api.contracts import router as contracts_router
+from app.api.budgets import router as budgets_router
 from app.api.activities import router as activities_router
+from app.api.cost_centers import router as cost_centers_router
 from app.api.geo import router as geo_router
+from app.api.points import router as points_router
 from app.api.parties import router as parties_router
 from app.api.crm import router as crm_router
 from app.api.shipments import router as shipments_router
@@ -117,9 +120,12 @@ app.include_router(people_router, prefix=API_PREFIX)
 app.include_router(business_rules_router, prefix=API_PREFIX)
 app.include_router(resources_router, prefix=API_PREFIX)
 app.include_router(contracts_router, prefix=API_PREFIX)
+app.include_router(budgets_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(activities_router, prefix=API_PREFIX)
+app.include_router(cost_centers_router, prefix=API_PREFIX)
 app.include_router(geo_router, prefix=API_PREFIX)
+app.include_router(points_router, prefix=API_PREFIX)
 app.include_router(parties_router, prefix=API_PREFIX)
 app.include_router(shipments_router, prefix=API_PREFIX)
 app.include_router(treasury_router, prefix=API_PREFIX)

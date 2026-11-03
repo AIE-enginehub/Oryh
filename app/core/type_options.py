@@ -235,12 +235,42 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
     "sales_adjustment_type": (
         ("discount", "Discount", "An allowance on the whole document or on a line"),
         ("promotion", "Promotion", "A reduction from a campaign"),
+        ("points", "Points redeemed", "A discount the customer paid for with points; names the redemption"),
         ("tax", "Tax", "A tax adjustment"),
         ("shipping", "Shipping", "Freight and logistics charges"),
         ("fee", "Fee", "A service or handling fee"),
         ("surcharge", "Surcharge", "An additional charge"),
         ("rounding", "Rounding", "Rounding the total off"),
         ("other", "Other", "Uncategorised total adjustments"),
+    ),
+    # Budgets (plan docs/plans/budgets-2026-10-27.md). A budget line of a
+    # collecting category — labour, marketing, sales — gathers its documents
+    # by rule; the server reads those three names, so they may be retitled,
+    # not renamed. Every other category receives only tagged spend.
+    "budget_type": (
+        ("operating", "Operating", "The year's running costs"),
+        ("sales", "Sales", "The income the year is planned to bring in"),
+        ("capex", "Capital spending", "Equipment and other long-lived purchases"),
+        ("project", "Project", "One project's spending"),
+        ("other", "Other", "Any other budget"),
+    ),
+    "budget_category": (
+        ("labour", "Labour", "Gross pay plus the employer's social insurance and housing fund; collected from payslips and remittance invoices"),
+        ("marketing", "Marketing", "Advertising, promotion and events; collected from marketing expenses and invoice lines"),
+        ("sales", "Sales", "Income from sales; collected from issued sales invoices"),
+        ("office", "Office", "Office running costs"),
+        ("travel", "Travel", "Business travel"),
+        ("rent", "Rent", "Premises"),
+        ("equipment", "Equipment", "Equipment and tools"),
+        ("services", "Services", "Outside services"),
+        ("other", "Other", "Uncategorised"),
+    ),
+    "budget_change_type": (
+        ("original", "Original", "The plan as first set"),
+        ("increase", "Increase", "More money for a line"),
+        ("decrease", "Decrease", "Less money for a line"),
+        ("transfer", "Transfer", "Money moved between lines of one budget; nets to zero"),
+        ("carry_forward", "Carry forward", "Unspent money moved into the next period's budget"),
     ),
     "expense_category": (
         ("travel", "Travel", "Business-travel spending"),
@@ -250,6 +280,7 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("office", "Office", "Office supplies and consumables"),
         ("entertainment", "Entertainment", "Business hospitality"),
         ("communication", "Communication", "Phone and internet"),
+        ("marketing", "Marketing", "Advertising, promotion and marketing events"),
         ("other", "Other", "Uncategorised expenses"),
     ),
     "invoice_type": (
@@ -267,8 +298,13 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("service", "Service", "A service or labour line"),
         ("shipping", "Shipping", "A freight or logistics line"),
         ("discount", "Discount", "An allowance line, negative amount"),
+        ("points", "Points redeemed", "The order's points discount, billed; names the redemption"),
         ("tax", "Tax", "A separately stated tax line"),
         ("rounding", "Rounding", "A rounding line"),
+        ("marketing", "Marketing", "Advertising, promotion and marketing events"),
+        ("employer_social_insurance", "Employer social insurance", "The employer's own social-insurance contribution on a remittance"),
+        ("employer_housing_fund", "Employer housing fund", "The employer's own housing-fund contribution on a remittance"),
+        ("withheld_remittance", "Withheld amounts passed on", "Employee shares and income tax withheld from pay and passed on to the authority; already inside gross pay"),
         ("other", "Other", "Uncategorised invoice lines"),
     ),
     "billing_account_unit": (
@@ -282,6 +318,7 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("refund", "Refund", "Money returned from the account"),
         ("earned", "Earned", "Points or coupon value gained through purchases or campaigns"),
         ("redeemed", "Redeemed", "Points or coupon value spent"),
+        ("redemption_reversed", "Redemption given back", "Points returned to the customer, naming the redemption they came from"),
         ("expired", "Expired", "Lapsed on expiry, written by the expiry sweep and naming the entry it expired"),
         ("adjustment", "Adjustment", "A manual correction"),
         ("transfer", "Transfer", "A move between accounts"),

@@ -157,7 +157,9 @@ from app.services.audit import record_audit
 from app.services.state_machines import (
     editable_states,
     get_builtin_machine,
+    is_terminal_state,
     state_for_role,
+    states_reached_from,
     validate_status_filter,
     validate_transition,
 )
@@ -259,6 +261,46 @@ def normalize_order_quotation_context(
     quotation = get_scoped_or_404(db, SalesQuotation, tenant_id, quotation_id)
     ensure_document_not_deleted(quotation)
     return quotation.id, quote_number_snapshot or quotation.quote_number
+
+
+# Quotation states an order can no longer fulfil: the customer said no, the
+# offer lapsed, or a revision replaced it. Matched by the shipped names, with
+# `superseded` by its role; a draft or one still in approval stays orderable,
+# as the module's own contract has it (the order freezes it as the baseline).
+
+
+def ensure_order_fits_quotation(
+    db: Session, tenant_id: str, quotation_id: str | None, customer_id: str | None, currency: str | None,
+) -> None:
+    """An order fulfils a quotation made to the same customer, in the same
+    currency, that is still alive. Without this an order for Acme in CNY
+    could name Other Corp's USD quotation, and the drift the approval flow
+    reads compared 7,000 CNY with 1,000 USD as +600% (sales review
+    2026-10-26, finding 2)."""
+    if not quotation_id:
+        return
+    quotation = db.get(SalesQuotation, quotation_id)
+    if quotation is None:
+        return
+    if quotation.customer_id and customer_id and quotation.customer_id != customer_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"quotation {quotation.quote_number} was made to another customer — an order fulfils its own customer's quotation",
+        )
+    if currency and quotation.currency and quotation.currency.upper() != currency.upper():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"quotation {quotation.quote_number} is in {quotation.currency}, the order in {currency} — the drift between them would mean nothing",
+        )
+    machine = get_builtin_machine(db, tenant_id, "sales_quotation")
+    # finished, and not on the accepted branch: the workspace's words for
+    # rejected, declined, expired, superseded
+    agreed = states_reached_from(machine, state_for_role(machine, "sales_quotation", "accepted"))
+    if is_terminal_state(machine, quotation.status) and quotation.status not in agreed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"quotation {quotation.quote_number} is {quotation.status!r} — order against the live quotation, or quote again",
+        )
 
 
 @router.post(
@@ -1021,6 +1063,7 @@ def create_sales_order(
     customer_id, customer_name_snapshot = normalize_customer_context(
         db, tenant_id, payload.customer_id, payload.customer_name_snapshot
     )
+    ensure_order_fits_quotation(db, tenant_id, quotation_id, customer_id, payload.currency)
     require_active_row(db, Store, tenant_id, payload.store_id, "store")
     require_contract_for(db, tenant_id, payload.contract_id, "sales")
     if payload.project_id:
@@ -1143,6 +1186,7 @@ def update_sales_order(
     # flow advancement is the workflow admin's write (service/admin credential)
     enforce_member_employee(actor, order.employee_id)
     updates = payload.model_dump(exclude_unset=True)
+    touched_quote_fit = bool({"quotation_id", "customer_id", "currency"} & set(updates))
     ensure_content_edit_allowed(actor, "order", updates)
     # F-05: past its editable states an order's CONTENT is closed — only the
     # fulfilment facts that arrive after confirmation (carrier, tracking,
@@ -1255,6 +1299,9 @@ def update_sales_order(
         order.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
         setattr(order, field, value)
+    if touched_quote_fit:
+        # judged on the merged order, whichever side of the pair moved
+        ensure_order_fits_quotation(db, tenant_id, order.quotation_id, order.customer_id, order.currency)
     # any edit to a charged order re-runs the occupation guard: amounts grow
     recheck_charged_document(db, order, label="sales order")
     db.commit()
@@ -1418,25 +1465,36 @@ def revise_sales_order(
             SalesOrderAdjustment.deleted_at.is_(None),
         )
     ).all()
+    from app.api.points import redemption_bridge  # the points module reads this one
+
     for adjustment in adjustments:
         if adjustment.order_item_id and adjustment.order_item_id not in copied_items:
             continue
-        db.add(
-            SalesOrderAdjustment(
-                tenant_id=tenant_id,
-                order_id=revision.id,
-                order_item_id=(
-                    copied_items[adjustment.order_item_id].id
-                    if adjustment.order_item_id
-                    else None
-                ),
-                adjustment_type=adjustment.adjustment_type,
-                description=adjustment.description,
-                amount=adjustment.amount,
-                source_percentage=adjustment.source_percentage,
-                metadata_jsonb=dict(adjustment.metadata_jsonb or {}),
+        redemption = adjustment.billing_account_entry_id
+        with redemption_bridge(db):
+            if redemption:
+                # a points discount moves to the revision with the points
+                # that paid for it: one live discount per redemption
+                adjustment.deleted_at = datetime.now(timezone.utc)
+                db.flush()
+            db.add(
+                SalesOrderAdjustment(
+                    tenant_id=tenant_id,
+                    order_id=revision.id,
+                    order_item_id=(
+                        copied_items[adjustment.order_item_id].id
+                        if adjustment.order_item_id
+                        else None
+                    ),
+                    adjustment_type=adjustment.adjustment_type,
+                    description=adjustment.description,
+                    amount=adjustment.amount,
+                    source_percentage=adjustment.source_percentage,
+                    billing_account_entry_id=redemption,
+                    metadata_jsonb=dict(adjustment.metadata_jsonb or {}),
+                )
             )
-        )
+            db.flush()
     # the platform numbers the source was imported under now also name the
     # replacement — a merge or split is many links, and this is one more
     links = db.scalars(

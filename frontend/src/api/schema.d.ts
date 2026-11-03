@@ -1278,6 +1278,366 @@ export interface paths {
         patch: operations["update_bom_item_api_v1_bom_items__item_id__patch"];
         trace?: never;
     };
+    "/api/v1/budget-cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget Cash
+         * @description The combined cash budget: planned income less planned spend, and cash
+         *     received less cash paid, per month with running totals. Name an income
+         *     budget, a spend budget, or both (one currency).
+         */
+        get: operations["budget_cash_api_v1_budget_cash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Budget Changes */
+        get: operations["list_budget_changes_api_v1_budget_changes_get"];
+        put?: never;
+        /** Create Budget Change */
+        post: operations["create_budget_change_api_v1_budget_changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-changes/{change_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Budget Change */
+        get: operations["get_budget_change_api_v1_budget_changes__change_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Budget Change */
+        delete: operations["delete_budget_change_api_v1_budget_changes__change_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Budget Change */
+        patch: operations["update_budget_change_api_v1_budget_changes__change_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/budget-changes/{change_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Budget Change */
+        post: operations["restore_budget_change_api_v1_budget_changes__change_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-changes/{change_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Budget Change Lines
+         * @description The change's lines restated in one act, as a diff under its revision.
+         */
+        post: operations["save_budget_change_lines_api_v1_budget_changes__change_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-changes/{change_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Budget Change */
+        post: operations["submit_budget_change_api_v1_budget_changes__change_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Budget Entries
+         * @description The plan ledger, read-only: every posted figure and the change that
+         *     posted it.
+         */
+        get: operations["list_budget_entries_api_v1_budget_entries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget Impact
+         * @description Which budget lines a spending document draws on, and what each has
+         *     left before and after it. Read by whoever approves such documents and by
+         *     the budget readers; never a refusal — the workspace's approval flow
+         *     decides what an overrun means.
+         */
+        get: operations["budget_impact_api_v1_budget_impact_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Budget Lines
+         * @description The directory: codes, names and categories, no amounts — readable by
+         *     every member, who tags spend no collection rule reaches.
+         */
+        get: operations["list_budget_lines_api_v1_budget_lines_get"];
+        put?: never;
+        /** Create Budget Line */
+        post: operations["create_budget_line_api_v1_budget_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-lines/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Budget Line */
+        patch: operations["update_budget_line_api_v1_budget_lines__line_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/budget-lines/{line_id}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget Line Availability
+         * @description What an agent asks before filing spend: what the line has left now,
+         *     and after this amount.
+         */
+        get: operations["budget_line_availability_api_v1_budget_lines__line_id__availability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budget-lines/{line_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget Line Documents
+         * @description The documents behind a line's figures, one row per document and stage.
+         */
+        get: operations["budget_line_documents_api_v1_budget_lines__line_id__documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Budgets */
+        get: operations["list_budgets_api_v1_budgets_get"];
+        put?: never;
+        /** Create Budget */
+        post: operations["create_budget_api_v1_budgets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{budget_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Budget */
+        get: operations["get_budget_api_v1_budgets__budget_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Budget */
+        delete: operations["delete_budget_api_v1_budgets__budget_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Budget */
+        patch: operations["update_budget_api_v1_budgets__budget_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/budgets/{budget_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Budget
+         * @description Close at period end, and read back what each spend line left unspent
+         *     — the figures a carry-forward change into next year's budget starts from.
+         *     Nothing carries forward by itself.
+         */
+        post: operations["close_budget_api_v1_budgets__budget_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{budget_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget Execution
+         * @description Every figure per line and month: planned, and for spend requested,
+         *     committed, actual, available, paid and unbudgeted; for income ordered,
+         *     invoiced, gap, received and the pipeline forecast. Labour figures beyond
+         *     their plan need payroll.read.
+         */
+        get: operations["budget_execution_api_v1_budgets__budget_id__execution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{budget_id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Budget Plan
+         * @description A plan from a spreadsheet: missing lines are created; every new
+         *     line-month rides one change (original if the budget has no figures yet,
+         *     else increase); a line-month already planned is `unchanged` at the same
+         *     figure and an error at another — a different figure is a change with a
+         *     reason. Posted when asked; a dry run writes nothing.
+         */
+        post: operations["import_budget_plan_api_v1_budgets__budget_id__import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{budget_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Budget */
+        post: operations["restore_budget_api_v1_budgets__budget_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/builtin-object-types": {
         parameters: {
             query?: never;
@@ -2065,7 +2425,7 @@ export interface paths {
          * @description What has happened under the contract — orders placed, invoices
          *     billed, payments moved, contracted vs ordered quantity by product —
          *     derived from the documents that point at it, stored nowhere. Only what
-         *     happened counts (see `_counted_states`), and money is summed per
+         *     happened counts (see `counted_states` in app/services/state_machines.py), and money is summed per
          *     currency: the contract's own currency in the top-level figures, any
          *     other in `other_currencies`, never added together.
          */
@@ -2115,6 +2475,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-centers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Cost Centers */
+        get: operations["list_cost_centers_api_v1_cost_centers_get"];
+        put?: never;
+        /** Create Cost Center */
+        post: operations["create_cost_center_api_v1_cost_centers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-centers/{cost_center_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cost Center */
+        get: operations["get_cost_center_api_v1_cost_centers__cost_center_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Cost Center
+         * @description Rename, move in the tree, or archive. Archiving keeps every document
+         *     and budget that names the centre; only new assignments are refused.
+         */
+        patch: operations["update_cost_center_api_v1_cost_centers__cost_center_id__patch"];
         trace?: never;
     };
     "/api/v1/customer-contacts": {
@@ -4039,11 +4439,11 @@ export interface paths {
         /**
          * Quote Opportunity
          * @description The one orchestration between the pipeline and the quotation: a draft
-         *     quotation from the deal's own lines, priced from each line's stated
-         *     price, else the customer's agreement, else the catalog — the response
-         *     says which per line — with the deal's primary contact on it and the
-         *     deal moved to its `quoting` state, one transaction. Needs the quoting
-         *     grant as well as the deal: the draft is a quotation like any other.
+         *     quotation from the deal's own lines, carrying a price the line stated and
+         *     otherwise left unpriced, with the customer's agreed price and the catalog
+         *     price reported beside it, and the deal's primary contact on it. The deal's
+         *     stage stays the salesperson's. Needs the quoting grant as well as the
+         *     deal: the draft is a quotation like any other.
          */
         post: operations["quote_opportunity_api_v1_opportunities__opportunity_id__quote_post"];
         delete?: never;
@@ -5660,6 +6060,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sales-orders/{order_id}/points-redemptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Points Redemptions
+         * @description Each redemption the order carries: points spent, given back,
+         *     outstanding, and the discount that stands for it (null once removed).
+         */
+        get: operations["list_points_redemptions_api_v1_sales_orders__order_id__points_redemptions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-orders/{order_id}/redeem-points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem Points
+         * @description Spend the customer's points for a discount on this order, in one act.
+         *     Needs the order's adjustment grant (order.submit_own, own orders for a
+         *     member) and billing_account.post:points; the order must still be
+         *     editable, and the discount may not take the order (or the line) below
+         *     zero.
+         */
+        post: operations["redeem_points_api_v1_sales_orders__order_id__redeem_points_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales-orders/{order_id}/release": {
         parameters: {
             query?: never;
@@ -5720,6 +6165,30 @@ export interface paths {
         put?: never;
         /** Restore Sales Order */
         post: operations["restore_sales_order_api_v1_sales_orders__order_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sales-orders/{order_id}/restore-points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Points
+         * @description Give back points from a redemption on this order. `entry_id` names it
+         *     when the order carries more than one. `points` defaults to all not yet
+         *     given back; 0 gives none. With `remove_discount` the discount comes off
+         *     too, on an order still editable; how many points return with it is the
+         *     workspace's rule.
+         */
+        post: operations["restore_points_api_v1_sales_orders__order_id__restore_points_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7285,7 +7754,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "budget" | "budget_change" | "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             /**
              * Historical Conflict Closed
              * @default false
@@ -7700,6 +8169,274 @@ export interface components {
         BrowserLoginEnvelope: {
             data: components["schemas"]["BrowserLoginData"];
             meta?: components["schemas"]["BrowserEnvelopeMeta"];
+        };
+        /** BudgetChangeLineBase */
+        BudgetChangeLineBase: {
+            /** Amount */
+            amount: number;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
+            /** Line Code */
+            line_code?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Period Month
+             * Format: date
+             */
+            period_month: string;
+        };
+        /** BudgetChangeLineRead */
+        BudgetChangeLineRead: {
+            /** Amount */
+            amount: number;
+            /** Budget Line Id */
+            budget_line_id: string;
+            /** Change Id */
+            change_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Line No */
+            line_no?: number | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Period Month
+             * Format: date
+             */
+            period_month: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** BudgetChangeRead */
+        BudgetChangeRead: {
+            /** Budget Id */
+            budget_id: string;
+            /** Change No */
+            change_no: string;
+            /** Change Type */
+            change_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Deleted At */
+            deleted_at?: string | null;
+            /** Employee Id */
+            employee_id: string;
+            /** Id */
+            id: string;
+            /** Lines */
+            lines?: components["schemas"]["BudgetChangeLineRead"][] | null;
+            /** Posted At */
+            posted_at?: string | null;
+            /** Posted By */
+            posted_by?: string | null;
+            /** Reason */
+            reason: string;
+            /** Revision */
+            revision?: string | null;
+            /** Source Budget Id */
+            source_budget_id?: string | null;
+            /** Status */
+            status: string;
+            /** Submitted At */
+            submitted_at?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** BudgetEntryRead */
+        BudgetEntryRead: {
+            /** Amount */
+            amount: number;
+            /** Budget Id */
+            budget_id: string;
+            /** Budget Line Id */
+            budget_line_id: string;
+            /** Change Id */
+            change_id: string;
+            /** Change Line Id */
+            change_line_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Entry Type */
+            entry_type: string;
+            /** Id */
+            id: string;
+            /**
+             * Period Month
+             * Format: date
+             */
+            period_month: string;
+        };
+        /**
+         * BudgetImportRequest
+         * @description A plan from a spreadsheet the agent parsed: missing lines are created,
+         *     and one change carries every new line-month; a line-month that already
+         *     has a planned amount is `unchanged` when equal and an error when not —
+         *     a different figure is a change with a reason, never an overwrite.
+         */
+        BudgetImportRequest: {
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Employee Id */
+            employee_id: string;
+            /**
+             * Post
+             * @default false
+             */
+            post: boolean;
+            /** Reason */
+            reason: string;
+            /** Rows */
+            rows: components["schemas"]["BudgetImportRow"][];
+        };
+        /** BudgetImportRow */
+        BudgetImportRow: {
+            /** Amount */
+            amount: number;
+            /** Category */
+            category?: string | null;
+            /** Line Code */
+            line_code: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Period Month
+             * Format: date
+             */
+            period_month: string;
+        };
+        /** BudgetLineRead */
+        BudgetLineRead: {
+            /** Budget Id */
+            budget_id: string;
+            /** Category */
+            category: string;
+            /**
+             * Collects
+             * @default false
+             */
+            collects: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Id */
+            id: string;
+            /** Line Code */
+            line_code: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Product Category Id */
+            product_category_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Status */
+            status: string;
+            /** Territory Id */
+            territory_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** BudgetRead */
+        BudgetRead: {
+            /** Activated At */
+            activated_at?: string | null;
+            /** Budget No */
+            budget_no: string;
+            /** Budget Type */
+            budget_type: string;
+            /** Closed At */
+            closed_at?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Custom Fields */
+            custom_fields: {
+                [key: string]: unknown;
+            };
+            /** Deleted At */
+            deleted_at?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Direction */
+            direction: string;
+            /** Id */
+            id: string;
+            /** Lines */
+            lines?: components["schemas"]["BudgetLineRead"][] | null;
+            /** Name */
+            name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * BuiltinObjectTypeRead
@@ -8826,8 +9563,10 @@ export interface components {
          * CampaignDetailRead
          * @description The campaign and what it produced, read live from the leads and
          *     opportunities that name it — attribution is a count, never a stored
-         *     number. `won_expected_amount` sums the won deals' ESTIMATES: real money
-         *     lives in the orders and invoices those deals produced.
+         *     number. `won_expected_amount` sums the won deals' ESTIMATES in the
+         *     campaign's own currency; deals in any other currency are summed apart in
+         *     `won_expected_other_currencies`, never added in. Real money lives in the
+         *     orders and invoices those deals produced.
          */
         CampaignDetailRead: {
             campaign: components["schemas"]["CampaignRead"];
@@ -8847,6 +9586,10 @@ export interface components {
             opportunities_won: number;
             /** Won Expected Amount */
             won_expected_amount: number;
+            /** Won Expected Other Currencies */
+            won_expected_other_currencies?: {
+                [key: string]: number;
+            };
         };
         /** CampaignMemberRead */
         CampaignMemberRead: {
@@ -9436,6 +10179,35 @@ export interface components {
             /** Opportunity Title */
             opportunity_title?: string | null;
         };
+        /** CostCenterRead */
+        CostCenterRead: {
+            /** Cost Center Code */
+            cost_center_code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** CreateActivityRequest */
         CreateActivityRequest: {
             /** Activity Type */
@@ -9515,7 +10287,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
+            entity_type: "budget" | "budget_change" | "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object";
             handoff?: components["schemas"]["ApprovalHandoffRequest"] | null;
             /** Metadata */
             metadata?: {
@@ -9660,6 +10432,119 @@ export interface components {
             scrap_rate?: number | null;
             /** Unit */
             unit?: string | null;
+        };
+        /** CreateBudgetChangeRequest */
+        CreateBudgetChangeRequest: {
+            /** Budget Id */
+            budget_id: string;
+            /** Change No */
+            change_no?: string | null;
+            /**
+             * Change Type
+             * @default original
+             */
+            change_type: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Employee Id */
+            employee_id: string;
+            /** Lines */
+            lines: components["schemas"]["BudgetChangeLineBase"][];
+            /** Reason */
+            reason: string;
+            /** Source Budget Id */
+            source_budget_id?: string | null;
+            /** Status */
+            status?: string | null;
+        };
+        /** CreateBudgetLineRequest */
+        CreateBudgetLineRequest: {
+            /** Budget Id */
+            budget_id: string;
+            /**
+             * Category
+             * @default other
+             */
+            category: string;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Line Code */
+            line_code: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Parent Line Id */
+            parent_line_id?: string | null;
+            /** Product Category Id */
+            product_category_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "closed";
+            /** Territory Id */
+            territory_id?: string | null;
+        };
+        /** CreateBudgetRequest */
+        CreateBudgetRequest: {
+            /** Budget No */
+            budget_no?: string | null;
+            /**
+             * Budget Type
+             * @default operating
+             */
+            budget_type: string;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+            /** Description */
+            description?: string | null;
+            /**
+             * Direction
+             * @default spend
+             * @enum {string}
+             */
+            direction: "spend" | "income";
+            /** Lines */
+            lines?: components["schemas"]["InlineBudgetLine"][];
+            /** Name */
+            name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Status */
+            status?: string | null;
         };
         /** CreateBusinessObjectLinkRequest */
         CreateBusinessObjectLinkRequest: {
@@ -10004,6 +10889,27 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** CreateCostCenterRequest */
+        CreateCostCenterRequest: {
+            /** Cost Center Code */
+            cost_center_code: string;
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+        };
         /** CreateCustomerContactRequest */
         CreateCustomerContactRequest: {
             /** Customer Id */
@@ -10193,6 +11099,8 @@ export interface components {
         };
         /** CreateEmployeeRequest */
         CreateEmployeeRequest: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Email */
             email?: string | null;
             /** Employee Code */
@@ -10323,6 +11231,8 @@ export interface components {
         CreateExpenseClaimRequest: {
             /** Claim Date */
             claim_date?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -10349,6 +11259,8 @@ export interface components {
             amount: number;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Category
              * @default other
@@ -10638,6 +11550,10 @@ export interface components {
         CreateInvoiceItemRequest: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -10686,6 +11602,8 @@ export interface components {
             billing_account_id?: string | null;
             /** Contract Id */
             contract_id?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -11249,6 +12167,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -11290,6 +12210,8 @@ export interface components {
             contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -11342,6 +12264,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -11369,6 +12293,8 @@ export interface components {
         };
         /** CreatePurchaseRequestRequest */
         CreatePurchaseRequestRequest: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Currency
              * @default CNY
@@ -12082,7 +13008,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "budget" | "budget_change" | "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -12605,6 +13531,8 @@ export interface components {
         };
         /** EmployeeRead */
         EmployeeRead: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -12782,6 +13710,21 @@ export interface components {
             data: components["schemas"]["BomItemRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[BudgetChangeRead] */
+        Envelope_BudgetChangeRead_: {
+            data: components["schemas"]["BudgetChangeRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[BudgetLineRead] */
+        Envelope_BudgetLineRead_: {
+            data: components["schemas"]["BudgetLineRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[BudgetRead] */
+        Envelope_BudgetRead_: {
+            data: components["schemas"]["BudgetRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[BulkDocumentImportResult] */
         Envelope_BulkDocumentImportResult_: {
             data: components["schemas"]["BulkDocumentImportResult"];
@@ -12875,6 +13818,11 @@ export interface components {
         /** Envelope[ContractTermRead] */
         Envelope_ContractTermRead_: {
             data: components["schemas"]["ContractTermRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[CostCenterRead] */
+        Envelope_CostCenterRead_: {
+            data: components["schemas"]["CostCenterRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[CreateApiKeyResponse] */
@@ -13090,6 +14038,11 @@ export interface components {
         /** Envelope[PicklistRead] */
         Envelope_PicklistRead_: {
             data: components["schemas"]["PicklistRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[PointsRedemptionRead] */
+        Envelope_PointsRedemptionRead_: {
+            data: components["schemas"]["PointsRedemptionRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[PostBillingAccountEntriesResult] */
@@ -13445,6 +14398,8 @@ export interface components {
         ExpenseClaimRead: {
             /** Claim Date */
             claim_date?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -13479,6 +14434,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Category
              * @default other
@@ -13526,6 +14483,8 @@ export interface components {
             amount: number;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Category */
             category: string;
             /** Claim Id */
@@ -14003,6 +14962,28 @@ export interface components {
             /** Source Percentage */
             source_percentage?: number | null;
         };
+        /** InlineBudgetLine */
+        InlineBudgetLine: {
+            /**
+             * Category
+             * @default other
+             */
+            category: string;
+            /** Description */
+            description?: string | null;
+            /** Line Code */
+            line_code: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /** InlineContractDocument */
         InlineContractDocument: {
             /** Attachment Id */
@@ -14218,6 +15199,8 @@ export interface components {
             billing_account_id?: string | null;
             /** Contract Id */
             contract_id?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -14325,6 +15308,10 @@ export interface components {
         InvoiceItemBase: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -14369,6 +15356,10 @@ export interface components {
         InvoiceItemDetailRead: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -14424,6 +15415,10 @@ export interface components {
         InvoiceItemRead: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -14541,6 +15536,8 @@ export interface components {
             billing_account_id?: string | null;
             /** Contract Id */
             contract_id?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /**
@@ -14779,6 +15776,30 @@ export interface components {
             data: components["schemas"]["BomItemRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[BudgetChangeRead] */
+        ListEnvelope_BudgetChangeRead_: {
+            /** Data */
+            data: components["schemas"]["BudgetChangeRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[BudgetEntryRead] */
+        ListEnvelope_BudgetEntryRead_: {
+            /** Data */
+            data: components["schemas"]["BudgetEntryRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[BudgetLineRead] */
+        ListEnvelope_BudgetLineRead_: {
+            /** Data */
+            data: components["schemas"]["BudgetLineRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[BudgetRead] */
+        ListEnvelope_BudgetRead_: {
+            /** Data */
+            data: components["schemas"]["BudgetRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[BuiltinObjectTypeRead] */
         ListEnvelope_BuiltinObjectTypeRead_: {
             /** Data */
@@ -14843,6 +15864,12 @@ export interface components {
         ListEnvelope_ContractTermRead_: {
             /** Data */
             data: components["schemas"]["ContractTermRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[CostCenterRead] */
+        ListEnvelope_CostCenterRead_: {
+            /** Data */
+            data: components["schemas"]["CostCenterRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[CustomerContactRead] */
@@ -15717,9 +16744,50 @@ export interface components {
             applied_amount: number;
             /** Approval Records */
             approval_records: components["schemas"]["ApprovalRecordRead"][];
+            /** Cash Landings */
+            cash_landings?: components["schemas"]["PaymentLandingRead"][];
+            /**
+             * Landed Amount
+             * @default 0
+             */
+            landed_amount: number;
             payment: components["schemas"]["PaymentRead"];
             /** Unapplied Amount */
             unapplied_amount: number;
+            /**
+             * Unlanded Amount
+             * @default 0
+             */
+            unlanded_amount: number;
+        };
+        /**
+         * PaymentLandingRead
+         * @description One register line that carries the payment: its own line (`direct`)
+         *     or the line that settles its batch (`batch`). The bank's facts about this
+         *     payment only — never the account's balance or its other lines.
+         */
+        PaymentLandingRead: {
+            /** Amount */
+            amount: number;
+            /** Fee Amount */
+            fee_amount?: number | null;
+            /** Fin Account Id */
+            fin_account_id: string;
+            /** Fin Account Name */
+            fin_account_name?: string | null;
+            /** Gross Amount */
+            gross_amount?: number | null;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Trans Date */
+            trans_date?: string | null;
+            /** Trans Id */
+            trans_id: string;
+            /**
+             * Via
+             * @enum {string}
+             */
+            via: "direct" | "batch";
         };
         /** PaymentRead */
         PaymentRead: {
@@ -15908,6 +16976,24 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** PointsRedemptionRead */
+        PointsRedemptionRead: {
+            adjustment?: components["schemas"]["SalesOrderAdjustmentRead"] | null;
+            /** Balance */
+            balance: number;
+            /** Billing Account Id */
+            billing_account_id: string;
+            /** Entry Id */
+            entry_id: string;
+            /** Given Back */
+            given_back: number;
+            /** Order Id */
+            order_id: string;
+            /** Outstanding */
+            outstanding: number;
+            /** Points */
+            points: number;
         };
         /** PostBillingAccountEntriesResult */
         PostBillingAccountEntriesResult: {
@@ -16374,6 +17460,8 @@ export interface components {
             contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16453,6 +17541,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -16490,6 +17580,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16549,6 +17641,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16602,6 +17696,8 @@ export interface components {
             contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16703,6 +17799,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -16737,6 +17835,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16783,6 +17883,8 @@ export interface components {
         };
         /** PurchaseRequestRead */
         PurchaseRequestRead: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -16968,6 +18070,25 @@ export interface components {
             po_item_id: string;
             /** Received Quantity */
             received_quantity: number;
+        };
+        /**
+         * RedeemPointsRequest
+         * @description Points spent for a discount on this order, as one act: the customer's
+         *     points account is drawn down by `points` (`redeemed`) and the order gains
+         *     a `points` discount of `discount_amount` naming that entry. The rate
+         *     between them is the workspace's rule — the server converts nothing.
+         */
+        RedeemPointsRequest: {
+            /** Billing Account Id */
+            billing_account_id: string;
+            /** Description */
+            description?: string | null;
+            /** Discount Amount */
+            discount_amount: number;
+            /** Order Item Id */
+            order_item_id?: string | null;
+            /** Points */
+            points: number;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -17226,6 +18347,30 @@ export interface components {
             /** Restored By */
             restored_by?: string | null;
         };
+        /**
+         * RestorePointsRequest
+         * @description Points given back from a redemption on this order (`redemption_reversed`,
+         *     naming it). `remove_discount` also takes the discount off an order still
+         *     being edited; `points` says how many come back with it (default all not
+         *     yet given back, 0 for none) — the workspace's rule, not the server's.
+         *     Without it the discount stays (a return after billing gives back part of
+         *     the points; the credit note handles the money).
+         */
+        RestorePointsRequest: {
+            /** Description */
+            description?: string | null;
+            /** Entry Id */
+            entry_id?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Points */
+            points?: number | null;
+            /**
+             * Remove Discount
+             * @default false
+             */
+            remove_discount: boolean;
+        };
         /** RestorePurchaseRequestRequest */
         RestorePurchaseRequestRequest: {
             /** Restored By */
@@ -17348,6 +18493,8 @@ export interface components {
             adjustment_type: string;
             /** Amount */
             amount: number;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -17959,6 +19106,33 @@ export interface components {
             /** Items */
             items: components["schemas"]["SaveBomItemRow"][];
         };
+        /** SaveBudgetChangeLineRow */
+        SaveBudgetChangeLineRow: {
+            /** Amount */
+            amount?: number | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
+            /**
+             * Id
+             * @description a live row to keep; absent = a new row
+             */
+            id?: string | null;
+            /** Line Code */
+            line_code?: string | null;
+            /** Line No */
+            line_no?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Period Month */
+            period_month?: string | null;
+        };
+        /** SaveBudgetChangeLinesRequest */
+        SaveBudgetChangeLinesRequest: {
+            /** Expected Revision */
+            expected_revision: string;
+            /** Items */
+            items: components["schemas"]["SaveBudgetChangeLineRow"][];
+        };
         /** SaveContractItemRow */
         SaveContractItemRow: {
             /** Currency */
@@ -18023,6 +19197,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Category */
             category?: string | null;
             /** Claim Id */
@@ -18067,6 +19243,10 @@ export interface components {
         SaveInvoiceItemRow: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -18190,6 +19370,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -18238,6 +19420,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -19318,7 +20502,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
+            entity_type: "budget" | "budget_change" | "campaign" | "contract" | "employee_leave" | "event" | "expense_claim" | "invoice" | "lead" | "opportunity" | "payment" | "picklist" | "purchase_order" | "purchase_request" | "sales_order" | "sales_quotation" | "shipment" | "timesheet_header" | "approval_target" | "business_object" | "project";
             /** Id */
             id: string;
             /** Metadata */
@@ -19538,6 +20722,63 @@ export interface components {
             scrap_rate?: number | null;
             /** Unit */
             unit?: string | null;
+        };
+        /** UpdateBudgetChangeRequest */
+        UpdateBudgetChangeRequest: {
+            /** Change Type */
+            change_type?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status?: string | null;
+        };
+        /** UpdateBudgetLineRequest */
+        UpdateBudgetLineRequest: {
+            /** Category */
+            category?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Status */
+            status?: ("active" | "closed") | null;
+        };
+        /** UpdateBudgetRequest */
+        UpdateBudgetRequest: {
+            /** Budget Type */
+            budget_type?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Custom Fields */
+            custom_fields?: {
+                [key: string]: unknown;
+            } | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Period End */
+            period_end?: string | null;
+            /** Period Start */
+            period_start?: string | null;
+            /** Status */
+            status?: string | null;
         };
         /** UpdateBusinessObjectRequest */
         UpdateBusinessObjectRequest: {
@@ -19772,6 +21013,21 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** UpdateCostCenterRequest */
+        UpdateCostCenterRequest: {
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+        };
         /** UpdateCustomerContactRequest */
         UpdateCustomerContactRequest: {
             /** Email */
@@ -19914,6 +21170,8 @@ export interface components {
         };
         /** UpdateEmployeeRequest */
         UpdateEmployeeRequest: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Email */
             email?: string | null;
             /** Employee Code */
@@ -19979,6 +21237,8 @@ export interface components {
         UpdateExpenseClaimRequest: {
             /** Claim Date */
             claim_date?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Currency */
             currency?: string | null;
             /** Custom Fields */
@@ -19998,6 +21258,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Category */
             category?: string | null;
             /** Client */
@@ -20157,6 +21419,10 @@ export interface components {
         UpdateInvoiceItemRequest: {
             /** Amount */
             amount?: number | null;
+            /** Billing Account Entry Id */
+            billing_account_entry_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -20200,6 +21466,8 @@ export interface components {
             billing_account_id?: string | null;
             /** Contract Id */
             contract_id?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Counterparty Name Snapshot */
             counterparty_name_snapshot?: string | null;
             /** Currency */
@@ -20622,6 +21890,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -20659,6 +21929,8 @@ export interface components {
             contract_id?: string | null;
             /** Contract No */
             contract_no?: string | null;
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Currency */
             currency?: string | null;
             /** Custom Fields */
@@ -20694,6 +21966,8 @@ export interface components {
             amount?: number | null;
             /** Attachment Id */
             attachment_id?: string | null;
+            /** Budget Line Id */
+            budget_line_id?: string | null;
             /** Custom Fields */
             custom_fields?: {
                 [key: string]: unknown;
@@ -20719,6 +21993,8 @@ export interface components {
         };
         /** UpdatePurchaseRequestRequest */
         UpdatePurchaseRequestRequest: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
             /** Currency */
             currency?: string | null;
             /** Custom Fields */
@@ -24735,6 +26011,1100 @@ export interface operations {
             };
         };
     };
+    budget_cash_api_v1_budget_cash_get: {
+        parameters: {
+            query?: {
+                income_budget_id?: string | null;
+                spend_budget_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_budget_changes_api_v1_budget_changes_get: {
+        parameters: {
+            query?: {
+                budget_id?: string | null;
+                change_type?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose submitted_at is at or after this */
+                submitted_at_from?: string | null;
+                /** @description rows whose submitted_at is at or before this */
+                submitted_at_thru?: string | null;
+                /** @description rows whose posted_at is at or after this */
+                posted_at_from?: string | null;
+                /** @description rows whose posted_at is at or before this */
+                posted_at_thru?: string | null;
+                employee_id?: string | null;
+                source_budget_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BudgetChangeRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_budget_change_api_v1_budget_changes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBudgetChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetChangeRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_budget_change_api_v1_budget_changes__change_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetChangeRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_budget_change_api_v1_budget_changes__change_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_budget_change_api_v1_budget_changes__change_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBudgetChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetChangeRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_budget_change_api_v1_budget_changes__change_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_budget_change_lines_api_v1_budget_changes__change_id__save_post: {
+        parameters: {
+            query?: {
+                validate_only?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveBudgetChangeLinesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_budget_change_api_v1_budget_changes__change_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                change_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_budget_entries_api_v1_budget_entries_get: {
+        parameters: {
+            query?: {
+                budget_id?: string | null;
+                budget_line_id?: string | null;
+                change_id?: string | null;
+                period_month?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose period_month is on or after this */
+                period_month_from?: string | null;
+                /** @description rows whose period_month is on or before this */
+                period_month_thru?: string | null;
+                entry_type?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BudgetEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_impact_api_v1_budget_impact_get: {
+        parameters: {
+            query: {
+                entity_type: string;
+                entity_id: string;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_budget_lines_api_v1_budget_lines_get: {
+        parameters: {
+            query?: {
+                budget_id?: string | null;
+                category?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                owner_employee_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BudgetLineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_budget_line_api_v1_budget_lines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBudgetLineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetLineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_budget_line_api_v1_budget_lines__line_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                line_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBudgetLineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetLineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_line_availability_api_v1_budget_lines__line_id__availability_get: {
+        parameters: {
+            query?: {
+                amount?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                line_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_line_documents_api_v1_budget_lines__line_id__documents_get: {
+        parameters: {
+            query?: {
+                stage?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                line_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_budgets_api_v1_budgets_get: {
+        parameters: {
+            query?: {
+                direction?: string | null;
+                budget_type?: string | null;
+                status?: string | null;
+                include_deleted?: boolean;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose period_start is on or after this */
+                period_start_from?: string | null;
+                /** @description rows whose period_start is on or before this */
+                period_start_thru?: string | null;
+                /** @description rows whose period_end is on or after this */
+                period_end_from?: string | null;
+                /** @description rows whose period_end is on or before this */
+                period_end_thru?: string | null;
+                /** @description rows whose activated_at is at or after this */
+                activated_at_from?: string | null;
+                /** @description rows whose activated_at is at or before this */
+                activated_at_thru?: string | null;
+                /** @description rows whose closed_at is at or after this */
+                closed_at_from?: string | null;
+                /** @description rows whose closed_at is at or before this */
+                closed_at_thru?: string | null;
+                currency?: string | null;
+                owner_employee_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_BudgetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_budget_api_v1_budgets_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_budget_api_v1_budgets__budget_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_budget_api_v1_budgets__budget_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_budget_api_v1_budgets__budget_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BudgetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_budget_api_v1_budgets__budget_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    budget_execution_api_v1_budgets__budget_id__execution_get: {
+        parameters: {
+            query?: {
+                by_month?: boolean;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_budget_plan_api_v1_budgets__budget_id__import_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_budget_api_v1_budgets__budget_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                budget_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_builtin_object_types_api_v1_builtin_object_types_get: {
         parameters: {
             query?: never;
@@ -27669,6 +30039,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_SavedLinesRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cost_centers_api_v1_cost_centers_get: {
+        parameters: {
+            query?: {
+                parent_id?: string | null;
+                cost_center_code?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_CostCenterRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cost_center_api_v1_cost_centers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCostCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CostCenterRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cost_center_api_v1_cost_centers__cost_center_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                cost_center_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CostCenterRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_cost_center_api_v1_cost_centers__cost_center_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                cost_center_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCostCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CostCenterRead_"];
                 };
             };
             /** @description Validation Error */
@@ -40791,6 +43335,88 @@ export interface operations {
             };
         };
     };
+    list_points_redemptions_api_v1_sales_orders__order_id__points_redemptions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    redeem_points_api_v1_sales_orders__order_id__redeem_points_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemPointsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PointsRedemptionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     release_stock_for_order_api_v1_sales_orders__order_id__release_post: {
         parameters: {
             query?: never;
@@ -40910,6 +43536,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_points_api_v1_sales_orders__order_id__restore_points_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestorePointsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PointsRedemptionRead_"];
                 };
             };
             /** @description Validation Error */

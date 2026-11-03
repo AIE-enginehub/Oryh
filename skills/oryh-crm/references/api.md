@@ -73,7 +73,7 @@ PATCH  /opportunity-contacts/{id}       → role, is_primary (demotes the previo
 DELETE /opportunity-contacts/{id}
 POST   /opportunities/{id}/quote        → {title?, quote_date?, valid_until?, payment_terms?, delivery_terms?, remarks?}
                                           201: the quotation draft with items, each carrying price_basis
-                                          (opportunity_line | customer_agreement | price_book | unpriced); the deal enters quoting
+                                          (opportunity_line | unpriced) and agreed_price; the deal's stage does not move
 ```
 
 `PATCH /opportunities/{id}` also takes `probability` (0–100), `lost_reason`

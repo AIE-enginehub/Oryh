@@ -425,7 +425,7 @@ the person's; you record what they said, with the date they gave.
 A **project** links to the customer it is for (`customer_id`; `client`
 follows the customer's name unless typed), the deal it came from, the
 contract it runs under and its owner (`owner_employee_id`). Projects are
-`project.manage`'s, which `master_data.manage` includes; a won deal opens
+`project.manage`'s, which `master_data.manage` includes; a deal opens
 its own project through the sales desk's bridge ($oryh-crm).
 
 ## Customer Price Agreements
@@ -523,6 +523,22 @@ Where a customer is, and whose it therefore is, are two facts kept apart:
   the account's salesperson; the conversion bridge sets it to the lead's
   owner and a manager reassigns it. `payment_terms` is free text the order
   and invoice desks copy in by default.
+
+## Cost Centres
+
+`/cost-centers` are where money is spent inside the company — Sales,
+Operations, Operations / Warehouse — as a tree (`parent_id`). The
+`cost_center_code` is the workspace's own, asked for like every code. Give
+each employee a home centre with `PATCH /employees/{id} {"cost_center_id"}`.
+That is a fact you read, not a default: the server books a document only
+against the centre its writer names (`cost_center_id` on the claim, request,
+order or invoice). Which one to name is the workspace's rule — usually the
+employee's home centre for a claim or request, the request's for the order
+that buys it, the order's for its bill, the payee's for a payslip. Read the
+rule; if none is written, name what the source shows and say so.
+Archive a centre (`status: archived`) rather than delete it; what already
+names it keeps it, nothing new may. A centre's budget is planned through
+$oryh-budget.
 
 ## What This Skill Never Does
 

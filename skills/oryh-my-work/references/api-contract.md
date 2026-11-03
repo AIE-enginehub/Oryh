@@ -395,6 +395,14 @@ Get Sales Order Detail
 | `order_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
 
+## GET /sales-orders/{order_id}/points-redemptions
+
+List Points Redemptions
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
 ## GET /sales-quotations
 
 List Sales Quotations
@@ -571,6 +579,7 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `claim_date` | date | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
@@ -607,6 +616,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `needed_by` | date | optional |  |
@@ -734,7 +744,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |
@@ -807,12 +817,14 @@ Body:
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
 | `claim_date` | date | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
   | `claim_id` | string | optional |  |
   | `client` | string (≤200 chars) | optional |  |
@@ -871,6 +883,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `category` | string | optional |  |
   | `claim_id` | string | optional |  |
   | `client` | string | optional |  |
@@ -938,12 +951,14 @@ Body:
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
   | `product_id` | string | optional |  |
@@ -994,6 +1009,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
@@ -1154,6 +1170,24 @@ Body:
 | `on_error` | `abort` | `skip` | optional |  |
 | `on_missing_reference` | `error` | `snapshot` | optional |  |
 
+## POST /sales-orders/{order_id}/redeem-points
+
+Redeem Points
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `billing_account_id` | string | required |  |
+| `discount_amount` | number (≤9999999.99) | required |  |
+| `points` | number (≤999999999.99) | required |  |
+| `description` | string (≤500 chars) | optional |  |
+| `order_item_id` | string | optional |  |
+
 ## POST /sales-orders/{order_id}/release
 
 Release Stock For Order
@@ -1202,6 +1236,24 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `restored_by` | string (≤100 chars) | optional |  |
+
+## POST /sales-orders/{order_id}/restore-points
+
+Restore Points
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `order_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `description` | string (≤500 chars) | optional |  |
+| `entry_id` | string | optional |  |
+| `expires_at` | date-time | optional |  |
+| `points` | number (≥0.0, ≤999999999.99) | optional |  |
+| `remove_discount` | boolean | optional |  |
 
 ## POST /sales-orders/{order_id}/revise
 
@@ -1618,7 +1670,7 @@ Body:
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
 | `title` | string (≤200 chars) | required |  |
 | `created_by` | string (≤100 chars) | optional |  |
 | `description` | string (≤2000 chars) | optional |  |
@@ -1639,7 +1691,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `employee_id` | string | required |  |
   | `entity_id` | string | required |  |
-  | `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+  | `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
   | `title` | string (≤200 chars) | required |  |
   | `created_by` | string (≤100 chars) | optional |  |
   | `description` | string (≤2000 chars) | optional |  |

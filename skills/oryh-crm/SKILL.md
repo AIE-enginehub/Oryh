@@ -107,7 +107,8 @@ oryh:
 6. **Drive the deal**: `PATCH /opportunities/{id}` — stage moves, estimate
    updates, `remarks` for why. On `won`/`lost`, say the why in `remarks`
    out loud before writing it; `closed_at` stamps itself.
-7. **Open the project** once it is won: `POST /opportunities/{id}/project`
+7. **Open the project** when the workspace's rule says, usually once it is
+   won, sometimes earlier for a pilot: `POST /opportunities/{id}/project`
    — one project from the deal, its customer, its parties and its owner
    (the deal's salesperson unless `owner_employee_id` says otherwise), the
    signed contract that names the deal when there is one; a second call
@@ -187,12 +188,14 @@ An opportunity is more than a title and an estimate once it is real:
   `competitor` when it is lost, `source` for a deal that came without a
   lead. Say the reason out loud before writing `lost`.
 - **The quote bridge** — `POST /opportunities/{id}/quote` — is the ONE
-  way a deal becomes a quotation draft: the lines are copied, each priced
-  from its own stated price, else the customer's agreed price, else the
-  catalog (the response names the basis per line, `unpriced` when none
-  applies), the primary contact goes on the quotation, and the deal moves
-  to `quoting`, one transaction. It needs `quotation.submit_own` as well
-  as the deal. From then on the quotation is the priced truth — work it
+  way a deal becomes a quotation draft: the lines are copied, a price the
+  deal line stated comes with them (`price_basis: opportunity_line`), and
+  every other line stays `unpriced` with its `agreed_price` and
+  `list_price_snapshot` beside it; the primary contact goes on the
+  quotation. Which price applies is the workspace's rule, so price those
+  lines yourself ($oryh-quotation-submit). The deal's stage does not move:
+  advance it to `quoting` yourself if it has reached there. It needs
+  `quotation.submit_own` as well as the deal. From then on the quotation is the priced truth — work it
   with $oryh-quotation-submit; the deal's lines stay its original
   expectation. `GET /opportunities/{id}/detail` reads all of it — lines,
   cast with names, quotations, orders, campaign — in one call.
@@ -213,6 +216,11 @@ the bus company as `end_client`, the friend as `referrer`. The bus company
 is a customer record with no documents of its own, which is exactly the
 fact; its relation to the friend is the catalog desk's ($oryh-master-data,
 `customer_relations`).
+
+Changing a deal's customer is refused (409) while people on its cast
+(`opportunity-contacts`) belong to no remaining party — the next quotation
+would go to the new customer addressed to the old one's buyer. Take them
+off the deal, or file their customer as a party, first.
 
 - The contracting party is never filed as a row: it IS `customer_id`, and
   the detail read shows it first, marked `derived`. To change who signs,

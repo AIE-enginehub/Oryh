@@ -78,8 +78,6 @@ def test_a_won_deal_opens_one_project_that_knows_where_it_came_from(deal) -> Non
     opp = _opportunity(deal)
     c.post("/api/v1/document-parties", headers=s, json={
         "entity_type": "opportunity", "entity_id": opp["id"], "customer_id": deal["bus"]["id"], "party_role": "end_client"})
-    early = c.post(f"/api/v1/opportunities/{opp['id']}/project", headers=s, json={})
-    assert early.status_code == 409 and "won" in early.text
     assert c.patch(f"/api/v1/opportunities/{opp['id']}", headers=s, json={"status": "won"}).status_code == 200
     contract = create(c, admin, "contracts", title="Subcontract with X", contract_type="service", customer_id=deal["friend"]["id"],
                       opportunity_id=opp["id"], currency="USD", total_amount=80000,

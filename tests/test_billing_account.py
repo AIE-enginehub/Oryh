@@ -345,20 +345,18 @@ def test_the_reason_vocabulary_is_gated_and_extensible(client: TestClient) -> No
     assert entries(client, account["id"], [{"amount": 88.0, "reason": "birthday"}])["balance"] == 88.0
 
 
-def test_the_credit_limit_cannot_be_cut_below_what_is_drawn(client: TestClient) -> None:
+def test_cutting_a_credit_limit_below_what_is_drawn_is_a_decision_the_ledger_takes(client: TestClient) -> None:
     account = money_account(client, credit_limit=50000.0)
     entries(client, account["id"], [{"amount": -30000.0, "reason": "charge"}])
 
-    response = client.patch(
-        f"/api/v1/billing-accounts/{account['id']}", json={"credit_limit": 10000.0}, headers=HEADERS
-    )
-    assert response.status_code == 409
-    assert "already drawn" in response.json()["detail"]
+    cut = client.patch(f"/api/v1/billing-accounts/{account['id']}", json={"credit_limit": 10000.0}, headers=HEADERS)
+    assert cut.status_code == 200, cut.text
 
-    # raising it, or lowering it to something still covered, is fine
-    assert client.patch(
-        f"/api/v1/billing-accounts/{account['id']}", json={"credit_limit": 40000.0}, headers=HEADERS
-    ).status_code == 200
+    entries(client, account["id"], [{"amount": -1.0, "reason": "charge"}], expect=409)  # nothing more is drawn
+    assert entries(client, account["id"], [{"amount": 5000.0, "reason": "adjustment"}])["balance"] == -25000.0, \
+        "and it can still be paid down"
+    listed = client.get("/api/v1/billing-accounts", params={"over_limit": "true"}, headers=HEADERS)
+    assert [row["id"] for row in listed.json()["data"]] == [account["id"]], "the credit-risk queue names it"
 
 
 def test_an_account_holding_a_balance_cannot_be_deleted(client: TestClient) -> None:
@@ -547,3 +545,36 @@ def test_the_ledger_and_the_balance_are_quantised_once(client: TestClient) -> No
     balance = float(client.get(f"/api/v1/billing-accounts/{acct['id']}", headers=HEADERS).json()["data"]["balance"])
     rows = client.get("/api/v1/billing-account-entries", params={"billing_account_id": acct["id"]}, headers=HEADERS).json()["data"]
     assert balance == 0.7 and round(sum(float(r["amount"]) for r in rows), 2) == 0.7, (balance, rows)
+
+
+@pytest.mark.parametrize("amount", [0.025, 0.005, -0.025])
+def test_opening_balance_rejects_fractional_cents(client, amount):
+    buyer = customer(client)
+    response = client.post("/api/v1/billing-accounts", headers=HEADERS, json={
+        "name": "Precise points", "unit_type": "points", "unit": "point",
+        "customer_id": buyer["id"], "opening_balance": amount,
+    })
+    assert response.status_code == 422, response.text
+    assert client.get("/api/v1/billing-accounts", headers=HEADERS).json()["data"] == []
+
+
+def test_expiry_rejects_fractional_cents_without_consuming_the_batch(client):
+    from decimal import Decimal
+
+    account = points_account(client, opening_balance=0.02)
+    earned = entries(client, account["id"], [
+        {"amount": 1, "reason": "earned", "expires_at": "2020-01-01T00:00:00Z"}])
+    batch = earned["entries"][0]["id"]
+    url = f"/api/v1/billing-accounts/{account['id']}"
+    response = client.post(f"{url}/expire", headers=HEADERS,
+                           json={"lines": [{"entry_id": batch, "amount": 0.025}]})
+    assert response.status_code == 422, response.text
+    detail = client.get(f"{url}/detail", headers=HEADERS).json()["data"]
+    assert detail["balance"] == 1.02
+    assert len(detail["entries"]) == 2
+    assert detail["expiring_entry_count"] == 1
+    response = client.post(f"{url}/expire", headers=HEADERS,
+                           json={"lines": [{"entry_id": batch, "amount": 0.03}]})
+    assert response.status_code == 200, response.text
+    detail = client.get(f"{url}/detail", headers=HEADERS).json()["data"]
+    assert Decimal(str(detail["balance"])) == sum(Decimal(str(e["amount"])) for e in detail["entries"]) == Decimal("0.99")

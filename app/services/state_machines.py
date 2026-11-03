@@ -387,6 +387,42 @@ DEFAULT_CONTRACT_MACHINE: dict = {
     "editable_states": ["draft", "negotiating"],
 }
 
+# Shipped default for a budget (plan docs/plans/budgets-2026-10-27.md). Its
+# figures move only through posted budget changes; the header's life is
+# whether spending is collected against it: active collects, frozen pauses
+# while finance reviews, closed is final.
+DEFAULT_BUDGET_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "active", "frozen", "closed"],
+    "transitions": {
+        "draft": ["active"],
+        "active": ["frozen", "closed"],
+        "frozen": ["active", "closed"],
+        "closed": [],
+    },
+    "editable_states": ["draft"],
+}
+
+# Shipped default for a change to a budget's plan. `draft -> posted` is the
+# small business's path: the owner sets the plan and posts it. A workspace
+# that wants changes approved drops that transition from its own machine and
+# routes them `draft -> submitted -> approved -> posted` under its approval
+# flow. Reaching `posted` (by role) is what writes the ledger.
+DEFAULT_BUDGET_CHANGE_MACHINE: dict = {
+    "initial": "draft",
+    "states": ["draft", "submitted", "approved", "returned", "rejected", "posted", "cancelled"],
+    "transitions": {
+        "draft": ["submitted", "posted", "cancelled"],
+        "submitted": ["approved", "returned", "rejected"],
+        "returned": ["submitted", "cancelled"],
+        "approved": ["posted", "cancelled"],
+        "rejected": [],
+        "posted": [],
+        "cancelled": [],
+    },
+    "editable_states": ["draft", "returned"],
+}
+
 # Fallback statuses for custom business object types without a machine —
 # the pre-existing free mode.
 DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "archived"}
@@ -397,6 +433,8 @@ DEFAULT_BUSINESS_OBJECT_STATES = {"open", "in_review", "approved", "rejected", "
 # keeps the same anchors — its machine still starts at draft and the console
 # and skills lean on those two names existing.
 BUILTIN_MACHINES: dict[str, dict] = {
+    "budget": DEFAULT_BUDGET_MACHINE,
+    "budget_change": DEFAULT_BUDGET_CHANGE_MACHINE,
     "timesheet_header": DEFAULT_TIMESHEET_MACHINE,
     "employee_leave": DEFAULT_LEAVE_MACHINE,
     "expense_claim": DEFAULT_EXPENSE_MACHINE,
@@ -454,8 +492,9 @@ STATE_ROLES: dict[str, tuple[str, ...]] = {
 }
 STATE_ROLES["invoice"] = ("submitted", "issued")
 # revising a quotation steps the source aside, and /send marks it delivered —
-# the server writes both states
-STATE_ROLES["sales_quotation"] = ("submitted", "superseded", "sent")
+# the server writes both states. `accepted` it only reads: an order may fulfil
+# a quotation on that branch of the machine, and no other finished one
+STATE_ROLES["sales_quotation"] = ("submitted", "superseded", "sent", "accepted")
 STATE_ROLES["payment"] = ("submitted", "paid")
 # the server writes `confirmed` when no human node stands between submit and
 # fulfilment, and `cancelled` when a replacement order supersedes one — both
@@ -470,15 +509,20 @@ STATE_ROLES["picklist"] = ()
 # a contract is never submitted-for-approval by the server: signing is
 # recorded, review is the tenant's own todos and approval facts
 STATE_ROLES["contract"] = ()
+# a budget is never submitted; its figures move through its changes. The
+# server reads two states: `active` takes new tags and stamps activated_at,
+# `closed` stops the plan moving
+STATE_ROLES["budget"] = ("active", "closed")
+# reaching `posted` writes the plan ledger, whatever the workspace calls it
+STATE_ROLES["budget_change"] = ("submitted", "posted")
 # the pipeline has no submit: the salesperson records and advances their own.
 # The lead keeps one anchor — the conversion bridge writes `converted` — and
-# the opportunity none: won/lost are the salesperson's PATCH, and closed_at
-# stamps on the literal names (the shipment convention: renamed states move
-# without stamping, and the fact is PATCHed by whoever knows it)
+# the opportunity writes none: won/lost are the salesperson's PATCH, and
+# closed_at stamps on the literal names (the shipment convention: renamed
+# states move without stamping, and the fact is PATCHed by whoever knows it)
 STATE_ROLES["lead"] = ("converted",)
-# the quotation bridge moves a deal to `quoting` — the one state the server
-# writes on an opportunity, and the one a rename must map
-STATE_ROLES["opportunity"] = ("quoting", "won")
+# no state of a deal is written by the server; `won` is read, by the funnel
+STATE_ROLES["opportunity"] = ("won",)
 # a campaign has no server anchor: nothing is written to it by a bridge
 STATE_ROLES["campaign"] = ()
 # the log bridge (/events/{id}/log) lands the event in `held`
@@ -515,7 +559,8 @@ STOCK_DOCUMENT_REASONS = frozenset(
 # account-ledger reasons that have their own door and may not be posted by a
 # tenant-defined account document: money moves through payments, expiry
 # through the sweep, opening balances through the account's creation
-RESERVED_ACCOUNT_REASONS = frozenset({"deposit", "charge", "refund", "expired", "initial", "import_initial"})
+RESERVED_ACCOUNT_REASONS = frozenset({"deposit", "charge", "refund", "expired", "initial", "import_initial",
+                                      "redemption_reversed"})
 
 
 def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: str) -> None:
@@ -579,7 +624,7 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
         if not isinstance(account, dict) or not isinstance(account.get("reason"), str) or not account.get("reason"):
             fail("account_effect must be an object {reason, state}")
         if account["reason"] in RESERVED_ACCOUNT_REASONS:
-            fail(f"account_effect.reason {account['reason']!r} has its own door (payments, the expiry sweep, the account's opening balance)")
+            fail(f"account_effect.reason {account['reason']!r} has its own door (payments, the expiry sweep, the account's opening balance, restore-points)")
         if account.get("state") not in state_set:
             fail("account_effect.state must be one of states — the state whose entry lets the lines post")
     if entity_kind == "builtin":
@@ -601,6 +646,47 @@ def ensure_valid_state_machine(machine: dict, *, entity_kind: str, object_type: 
                     f"the {role!r} role resolves to no state: rename it with "
                     f'`"roles": {{"{role}": "<state>"}}` or keep a state named {role!r}'
                 )
+
+
+# A voided or cancelled document never happened. No machine role marks
+# these, so they are matched by the shipped names; a tenant that renames
+# them keeps them out by never reaching them from the anchors below.
+NEVER_HAPPENED = frozenset({"void", "cancelled"})
+
+
+def states_reached_from(machine: dict, start: str | None) -> frozenset[str]:
+    """`start` and every state reachable from it, minus the ones that
+    never happened. With no `start`, every state past the initial one."""
+    if start is None:
+        reached = set(machine.get("states", ())) - {machine.get("initial")}
+    else:
+        reached, todo = set(), [start]
+        while todo:
+            state = todo.pop()
+            if state not in reached:
+                reached.add(state)
+                todo.extend(machine.get("transitions", {}).get(state, ()))
+    return frozenset(reached - NEVER_HAPPENED)
+
+
+def counted_states(db: Session, tenant_id: str, object_type: str) -> frozenset[str]:
+    """The states in which a document's money counts as having happened —
+    read by contract execution (review 2026-10-24, finding 2) and by budget
+    consumption (plan 2026-10-27): an order from its confirmation on (a draft
+    or one still in approval is not yet ordered), an invoice from its issue
+    on, a payment only where money has moved, a claim or a request from its
+    approval on. Found by role where the machine has one, by the shipped
+    name otherwise."""
+    machine = get_builtin_machine(db, tenant_id, object_type)
+    if object_type == "invoice":
+        return states_reached_from(machine, state_for_role(machine, "invoice", "issued"))
+    if object_type == "payment":
+        return frozenset({state_for_role(machine, "payment", "paid")})
+    if object_type == "sales_order":
+        return states_reached_from(machine, state_for_role(machine, "sales_order", "confirmed"))
+    named = {"purchase_order": "confirmed", "expense_claim": "approved", "purchase_request": "approved"}
+    anchor = named.get(object_type)
+    return states_reached_from(machine, anchor if anchor in machine.get("states", ()) else None)
 
 
 def get_definition(

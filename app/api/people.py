@@ -226,6 +226,7 @@ def create_employee(
         timezone=payload.timezone,
         hire_date=payload.hire_date,
         status=payload.status,
+        cost_center_id=payload.cost_center_id,
         metadata_jsonb=payload.metadata,
     )
     db.add(employee)

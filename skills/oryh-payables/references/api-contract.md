@@ -221,6 +221,50 @@ Get Expiring Billing Account Entries
 | `account_id` | path | string | yes |  |
 | `before` | query | date-time | no |  |
 
+## GET /budget-impact
+
+Budget Impact
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `entity_type` | query | string | yes |  |
+| `entity_id` | query | string | yes |  |
+
+## GET /budget-lines
+
+List Budget Lines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `budget_id` | query | string | no |  |
+| `category` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `owner_employee_id` | query | string | no |  |
+
+## GET /budget-lines/{line_id}/availability
+
+Budget Line Availability
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `amount` | query | number (≥0) | no |  |
+
+## GET /budget-lines/{line_id}/documents
+
+Budget Line Documents
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+| `stage` | query | string | no |  |
+
 ## GET /business-rules
 
 List Business Rules
@@ -752,6 +796,26 @@ Body:
 | `valid_from` | date | optional |  |
 | `valid_until` | date | optional |  |
 
+## PATCH /budget-lines/{line_id}
+
+Update Budget Line
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `line_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `metadata` | object | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+
 ## PATCH /business-rules/{rule_id}
 
 Update Business Rule
@@ -846,6 +910,7 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `claim_date` | date | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
@@ -865,6 +930,8 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `amount` | number (≥-9999999.99, ≤9999999.99) | optional |  |
+| `billing_account_entry_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
@@ -897,6 +964,7 @@ Body:
 | `attachment_id` | string | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
+| `cost_center_id` | string | optional |  |
 | `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
@@ -982,6 +1050,7 @@ Body:
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
 | `contract_no` | string (≤64 chars) | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `delivery_terms` | string (≤2000 chars) | optional |  |
@@ -1047,7 +1116,7 @@ Body:
 |---|---|---|---|
 | `action` | `submitted` | `approved` | `rejected` | `returned` | `commented` | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | required |  |
 | `acted_at` | date-time | optional |  |
 | `approver_id` | string | optional |  |
 | `approver_role` | string (≤100 chars) | optional |  |
@@ -1123,6 +1192,29 @@ Restore Billing Account
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
+
+## POST /budget-lines
+
+Create Budget Line
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `budget_id` | string | required |  |
+| `line_code` | string (≤64 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
+| `customer_id` | string | optional |  |
+| `description` | string (≤2000 chars) | optional |  |
+| `employee_id` | string | optional |  |
+| `metadata` | object | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `parent_line_id` | string | optional |  |
+| `product_category_id` | string | optional |  |
+| `sort_order` | integer (≥0.0, ≤9999.0) | optional |  |
+| `status` | `active` | `closed` | optional |  |
+| `territory_id` | string | optional |  |
 
 ## POST /business-rules
 
@@ -1359,12 +1451,14 @@ Body:
 | `employee_id` | string | required |  |
 | `title` | string (≤200 chars) | required |  |
 | `claim_date` | date | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `category` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
   | `claim_id` | string | optional |  |
   | `client` | string (≤200 chars) | optional |  |
@@ -1423,6 +1517,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `category` | string | optional |  |
   | `claim_id` | string | optional |  |
   | `client` | string | optional |  |
@@ -1470,6 +1565,8 @@ Body:
 |---|---|---|---|
 | `invoice_id` | string | required |  |
 | `amount` | number (≥-9999999.99, ≤9999999.99) | optional |  |
+| `billing_account_entry_id` | string | optional |  |
+| `budget_line_id` | string | optional |  |
 | `custom_fields` | object | optional |  |
 | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
@@ -1505,6 +1602,7 @@ Body:
 | `attachment_id` | string | optional |  |
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
+| `cost_center_id` | string | optional |  |
 | `counterparty_name_snapshot` | string (≤200 chars) | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
@@ -1517,6 +1615,8 @@ Body:
 | `items` | array of objects (fields below) | optional |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥-9999999.99, ≤9999999.99) | optional |  |
+  | `billing_account_entry_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `invoice_id` | string | optional |  |
   | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
@@ -1626,6 +1726,8 @@ Body:
 | `items` | array of objects (fields below) | required |  |
 | ↳ each `items[]` item: | | | |
   | `amount` | number | optional |  |
+  | `billing_account_entry_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional | a live row to keep; absent = a new row |
   | `invoice_id` | string | optional |  |
@@ -1795,6 +1897,7 @@ Body:
 | `billing_account_id` | string | optional |  |
 | `contract_id` | string | optional |  |
 | `contract_no` | string (≤64 chars) | optional |  |
+| `cost_center_id` | string | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `delivery_terms` | string (≤2000 chars) | optional |  |
@@ -1802,6 +1905,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `line_no` | integer (≥1.0) | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
@@ -1934,6 +2038,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `amount` | number (≥0.0, ≤9999999.99) | optional |  |
   | `attachment_id` | string | optional |  |
+  | `budget_line_id` | string | optional |  |
   | `custom_fields` | object | optional |  |
   | `id` | string | optional |  |
   | `line_no` | integer (≥1.0) | optional |  |

@@ -712,6 +712,7 @@ def create_expense_claim(
     claim = ExpenseClaim(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
+        cost_center_id=payload.cost_center_id,
         title=payload.title,
         claim_date=payload.claim_date,
         currency=payload.currency,
@@ -1004,6 +1005,7 @@ def build_expense_item(
         client=payload.client,
         attachment_id=payload.attachment_id,
         extracted_fields_jsonb=payload.extracted_fields,
+        budget_line_id=payload.budget_line_id,
         notes=payload.notes,
         custom_fields_jsonb=payload.custom_fields,
     )

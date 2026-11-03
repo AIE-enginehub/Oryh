@@ -56,6 +56,9 @@ movement, including payment settlement.
 |---|---|
 | `POST /business-objects/{id}/post-entries` | post an account document (the type's `account_effect` names the reason) — once |
 | `POST /billing-accounts/{account_id}/expire` | the expiry sweep's write |
+| `POST /sales-orders/{order_id}/redeem-points` | `{billing_account_id, points, discount_amount, order_item_id?, description?}` → the `redeemed` entry and the order's `points` discount naming it |
+| `POST /sales-orders/{order_id}/restore-points` | `{entry_id?, points?, remove_discount?, expires_at?, description?}` → a `redemption_reversed` entry naming the redemption; `points` defaults to all outstanding |
+| `GET /sales-orders/{order_id}/points-redemptions` | each redemption the order carries: points, given_back, outstanding, the discount standing for it |
 | `GET /billing-account-entries?billing_account_id={id}` | the ledger (read only) |
 | `GET /billing-account-entries?reason=expired` | one kind of movement |
 | `GET /billing-account-entries?entity_type=payment&entity_id={id}` | what a document caused |
@@ -86,12 +89,16 @@ expiry sweep, or an account document posted once.
 
 - `amount` is signed; zero is a 422
 - `reason` from `GET /type-options?family=billing_account_entry_reason`:
-  `deposit`, `charge`, `refund`, `earned`, `redeemed`, `expired`, `adjustment`,
-  `transfer`, `initial`, `import_initial`, `other` — the workspace extends it
+  `deposit`, `charge`, `refund`, `earned`, `redeemed`, `redemption_reversed`,
+  `expired`, `adjustment`, `transfer`, `initial`, `import_initial`, `other` —
+  the workspace extends it
 - `expires_at` is a 422 on a currency account
 - `account_effect.reason` may not be `deposit`, `charge`, `refund`, `expired`,
-  `initial` or `import_initial` — those have their own doors (422 at the
-  definition)
+  `initial`, `import_initial` or `redemption_reversed` — those have their own
+  doors (422 at the definition)
+- an order adjustment or invoice line typed `points` must name its
+  redemption (`billing_account_entry_id`); one that does is changed only
+  through redeem-points / restore-points (409)
 - a document posts once (409 after); editing a posted document moves nothing
 - there is no PATCH and no DELETE on entries: a correction is a counter-document
 
@@ -149,7 +156,6 @@ the response reports `balance` and `available_amount` instead of
 | `expires_at` on a currency account | 422 |
 | unknown `reason` or points `unit` | 422 listing the active options |
 | owner not exactly one | 422 |
-| lowering `credit_limit` below what is drawn | 409 |
 | deleting an account that still holds a balance | 409 |
 
 ## Related

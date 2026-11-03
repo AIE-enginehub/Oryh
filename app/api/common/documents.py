@@ -28,6 +28,8 @@ from app.api.deps import (
 from app.models import (
     ApprovalRecord,
     Campaign,
+    Budget,
+    BudgetChange,
     Contract,
     EmployeeLeave,
     Event,
@@ -50,6 +52,8 @@ from app.models import (
 from app.schemas import (
     EmployeeLeaveRead,
     ExpenseClaimRead,
+    BudgetChangeRead,
+    BudgetRead,
     ContractRead,
     InvoiceRead,
     CampaignRead,
@@ -182,6 +186,27 @@ DOCUMENT_FAMILIES: dict[type, DocumentFamily] = {
         permission_scope=lambda d: d.side,
         owner_checked=False, attributed_delete=False,
         number_prefix="CT-", number_field="contract_no", lock_scope="contract_number",
+    ),
+    Budget: DocumentFamily(
+        # the finance desk's, run for the whole workspace: one functional
+        # grant files and advances; reads are gated by the budget grants
+        "budget", "budget lines", "budget",
+        "budget.manage", BudgetRead, "budget",
+        lambda d: {"budget_no": d.budget_no, "name": d.name, "direction": d.direction},
+        "budget", advance_permission=None,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="BG-", number_field="budget_no", lock_scope="budget_number",
+    ),
+    BudgetChange: DocumentFamily(
+        # filed with budget.manage; the posting and the approval moves are
+        # checked by the endpoint, which knows which of the two paths
+        # (the owner's draft -> posted, or the routed one) a move belongs to
+        "budget_change", "budget change lines", "change",
+        "budget.manage", BudgetChangeRead, "budget_change",
+        lambda d: {"change_no": d.change_no, "budget_id": d.budget_id, "change_type": d.change_type},
+        "budget change", advance_permission=None,
+        owner_checked=False, attributed_delete=False,
+        number_prefix="BC-", number_field="change_no", lock_scope="budget_change_number",
     ),
     Picklist: DocumentFamily(
         # warehouse work like the shipment: one functional grant files AND

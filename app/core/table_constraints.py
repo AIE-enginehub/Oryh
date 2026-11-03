@@ -50,7 +50,8 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("document_parties", "entity_type"): ("contract", "opportunity", "project"),
     ("approval_records", "entity_type"): (
-        "approval_target", "business_object", "campaign", "contract", "employee_leave", "event", "expense_claim",
+        "approval_target", "budget", "budget_change", "business_object", "campaign", "contract", "employee_leave",
+        "event", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",
@@ -111,11 +112,18 @@ COLUMN_VOCABULARIES: dict[tuple[str, str], tuple[str, ...]] = {
     # `20260813_0054` drops it; `tests/test_table_constraints.py` keeps any
     # extensible family from acquiring one again.
     ("todos", "entity_type"): (
-        "approval_target", "business_object", "campaign", "contract", "employee_leave", "event", "expense_claim",
+        "approval_target", "budget", "budget_change", "business_object", "campaign", "contract", "employee_leave",
+        "event", "expense_claim",
         "invoice", "lead", "opportunity", "payment", "picklist", "project",
         "purchase_order", "purchase_request", "sales_order", "sales_quotation",
         "shipment", "timesheet_header",
     ),
+    ("budget_entries", "entry_type"): (
+        "carry_forward_in", "carry_forward_out", "decrease", "increase", "original", "transfer_in", "transfer_out",
+    ),
+    ("budget_lines", "status"): ("active", "closed"),
+    ("budgets", "direction"): ("income", "spend"),
+    ("cost_centers", "status"): ("active", "archived"),
     ("communication_events", "direction"): ("inbound", "outbound"),
     ("contracts", "side"): ("purchase", "sales"),
     ("shipments", "direction"): ("inbound", "outbound"),
@@ -174,6 +182,11 @@ TABLE_INVARIANTS: dict[str, tuple[str, str]] = {
     "attachments_size_chk": ("attachments", "size_bytes >= 0"),
     "billing_accounts_credit_limit_ck": ("billing_accounts", "credit_limit >= 0"),
     "business_object_links_distinct_objects_chk": ("business_object_links", "source_object_id <> target_object_id"),
+    "budget_change_lines_amount_chk": ("budget_change_lines", "amount <> 0"),
+    "budget_entries_sign_chk": ("budget_entries", "((entry_type in ('original', 'increase', 'transfer_in', 'carry_forward_in')) AND (amount > 0)) OR ((entry_type in ('decrease', 'transfer_out', 'carry_forward_out')) AND (amount < 0))"),
+    "budget_lines_dimension_chk": ("budget_lines", "((parent_line_id IS NULL) AND (employee_id IS NULL) AND (territory_id IS NULL) AND (customer_id IS NULL) AND (product_category_id IS NULL)) OR ((parent_line_id IS NOT NULL) AND (((employee_id IS NOT NULL) AND (territory_id IS NULL) AND (customer_id IS NULL) AND (product_category_id IS NULL)) OR ((employee_id IS NULL) AND (territory_id IS NOT NULL) AND (customer_id IS NULL) AND (product_category_id IS NULL)) OR ((employee_id IS NULL) AND (territory_id IS NULL) AND (customer_id IS NOT NULL) AND (product_category_id IS NULL)) OR ((employee_id IS NULL) AND (territory_id IS NULL) AND (customer_id IS NULL) AND (product_category_id IS NOT NULL))))"),
+    "budgets_period_chk": ("budgets", "period_end >= period_start"),
+    "cost_centers_not_own_parent_chk": ("cost_centers", "(parent_id IS NULL) OR (parent_id <> id)"),
     "contracts_side_counterparty_chk": ("contracts", "((side = 'purchase') AND (customer_id IS NULL)) OR ((side = 'sales') AND (vendor_id IS NULL))"),
     "customers_kind_ck": ("customers", "(customer_kind IS NULL) OR (customer_kind in ('person', 'company'))"),
     "employee_leaves_duration_ck": ("employee_leaves", "duration_days > 0"),

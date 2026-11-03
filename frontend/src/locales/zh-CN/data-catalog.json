@@ -417,6 +417,26 @@
       "label": "对象类型定义",
       "related": {}
     },
+    "budget-changes": {
+      "label": "Budget changes",
+      "related": {}
+    },
+    "budget-entries": {
+      "label": "Budget entries",
+      "related": {}
+    },
+    "budget-lines": {
+      "label": "Budget lines",
+      "related": {}
+    },
+    "budgets": {
+      "label": "Budgets",
+      "related": {}
+    },
+    "cost-centers": {
+      "label": "Cost centers",
+      "related": {}
+    },
     "customer-relations": {
       "label": "Customer relations",
       "related": {}

@@ -1,0 +1,11 @@
+{
+  "SKILL.md": [
+    "description: Use to plan and follow a workspace's budget in oryh — 编制年度预算（市场费用、人工成本、销售目标）, 调整预算, 看预算执行 — building the plan, posting changes with their reasons, reading planned against requested, committed, actual, paid and the sales gap. Requires budget.manage (reading needs budget.read_all; labour actuals also payroll.read).",
+    "今年市场费用全年 30 万，人工成本每月 8 万，销售目标 500 万",
+    "市场费用还剩多少？",
+    "从办公费调 2000 到市场费用",
+    "年底结账，没花完的结转到明年",
+    "把销售目标按销售员拆分：Ana 300 万，Ben 200 万",
+    "市场费用超过 80% 时提醒我，再给我看今年的现金计划"
+  ]
+}

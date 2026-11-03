@@ -854,6 +854,7 @@ Body:
 
 | field | type | | notes |
 |---|---|---|---|
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |
@@ -1328,6 +1329,7 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `name` | string (≤200 chars) | required |  |
+| `cost_center_id` | string | optional |  |
 | `email` | string (≤320 chars) | optional |  |
 | `employee_code` | string (≤64 chars) | optional |  |
 | `hire_date` | date | optional |  |
@@ -1623,7 +1625,7 @@ Body:
 |---|---|---|---|
 | `employee_id` | string | required |  |
 | `entity_id` | string | required |  |
-| `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+| `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
 | `title` | string (≤200 chars) | required |  |
 | `created_by` | string (≤100 chars) | optional |  |
 | `description` | string (≤2000 chars) | optional |  |
@@ -1644,7 +1646,7 @@ Body:
 | ↳ each `items[]` item: | | | |
   | `employee_id` | string | required |  |
   | `entity_id` | string | required |  |
-  | `entity_type` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
+  | `entity_type` | `budget` | `budget_change` | `campaign` | `contract` | `employee_leave` | `event` | `expense_claim` | `invoice` | `lead` | `opportunity` | `payment` | `picklist` | `purchase_order` | `purchase_request` | `sales_order` | `sales_quotation` | `shipment` | `timesheet_header` | `approval_target` | `business_object` | `project` | required |  |
   | `title` | string (≤200 chars) | required |  |
   | `created_by` | string (≤100 chars) | optional |  |
   | `description` | string (≤2000 chars) | optional |  |

@@ -59,7 +59,12 @@ from app.schemas import (
     LinkFinAccountTransRequest,
     UpdateFinAccountRequest,
 )
-from app.services.treasury import post_fin_account_trans
+from app.services.treasury import (
+    line_coverage,
+    linkable_payment_states,
+    payment_landings,
+    post_fin_account_trans,
+)
 from app.services.type_options import require_type_option
 
 def require_entity_uuid(entity_id: str | None) -> None:
@@ -119,17 +124,40 @@ def _require_same_currency(account: FinAccount, payment: Payment) -> None:
         )
 
 
+def _require_live_payment(db: Session, tenant_id: str, payment: Payment) -> None:
+    """A bank line links a payment that moved — or is approved to move —
+    money, and one that still exists (review 2026-10-26, finding 2)."""
+    if payment.deleted_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"payment {payment.payment_no} is deleted — a bank line links a live payment")
+    if payment.status not in linkable_payment_states(db, tenant_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"payment {payment.payment_no} is {payment.status!r} — a bank line links a payment that is "
+                "approved or paid; money the bank moved for a draft, a cancelled or a voided payment is "
+                "the accountant's question first"
+            ),
+        )
+
+
 def _require_link_coherence(
-    db: Session, tenant_id: str, account: FinAccount, payment_id: str | None, amount: float
+    db: Session, tenant_id: str, account: FinAccount, payment_id: str | None, amount: float,
+    *, gross_amount: float | None = None, line_id: str | None = None,
 ) -> None:
     """A register line linked to a payment must move money the way the
     payment says it moves: outbound documents land as negative lines,
     inbound as positive. Amounts may differ (fees, partial legs) — the sign
     may not, because a backwards link is a wrong answer the three-way reader
-    would repeat. The currency may not differ either."""
+    would repeat. The currency may not differ either. And the payment lands
+    once: its lines together carry no more than its amount, and a payment
+    its batch line already settles takes no line of its own (review
+    2026-10-26, finding 1). `line_id` is the line being re-linked, which
+    does not count against itself."""
     if payment_id is None:
         return
     payment = get_scoped_or_404(db, Payment, tenant_id, payment_id)
+    _require_live_payment(db, tenant_id, payment)
     _require_same_currency(account, payment)
     wanted = -1 if payment.direction == "outbound" else 1
     if amount * wanted <= 0:
@@ -141,10 +169,32 @@ def _require_link_coherence(
                 f"not {amount}"
             ),
         )
+    others = [(line, via) for line, via in payment_landings(db, tenant_id, payment) if line.id != line_id]
+    batch = next((line for line, via in others if via == "batch"), None)
+    if batch is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"payment {payment.payment_no} already lands through batch line {batch.id} "
+                f"({payment.reference_no}) — one payment, one landing"
+            ),
+        )
+    carried = sum(line_coverage(line) for line, _ in others)
+    this = abs(float(gross_amount if gross_amount is not None else amount))
+    if carried + this > float(payment.amount) + 0.005:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"payment {payment.payment_no} is {float(payment.amount):.2f}; its lines already carry "
+                f"{carried:.2f}, and this one {this:.2f} would make {carried + this:.2f} — a payment lands "
+                "once. A bank charge is the line's fee_amount or its own `fee` line"
+            ),
+        )
 
 
 def _require_batch_coherence(
-    db: Session, tenant_id: str, account: FinAccount, reference_no: str, amount: float
+    db: Session, tenant_id: str, account: FinAccount, reference_no: str, amount: float,
+    *, line_id: str | None = None,
 ) -> tuple[int, float]:
     """One bank line settling a BATCH: every live payment sharing this
     reference_no must move money the way the line does, and they must sum
@@ -152,17 +202,24 @@ def _require_batch_coherence(
     one debit of the batch total, and the bank's own charge for it is a
     separate `fee` line. A mismatch is a person's question: the refusal
     names the count, the sum and the difference."""
+    # live members only: a voided member was bounced and reissued, a draft
+    # never left — neither is part of what the bank debited (review
+    # 2026-10-26, finding 3)
     members = db.scalars(
         select(Payment).where(
             Payment.tenant_id == tenant_id,
             Payment.reference_no == reference_no,
             Payment.deleted_at.is_(None),
+            Payment.status.in_(linkable_payment_states(db, tenant_id)),
         )
     ).all()
     if not members:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"no payments share reference_no {reference_no!r} — a batch link names the payments' own batch number",
+            detail=(
+                f"no approved or paid payments share reference_no {reference_no!r} — a batch link names "
+                "the payments' own batch number"
+            ),
         )
     for member in members:
         _require_same_currency(account, member)
@@ -184,6 +241,28 @@ def _require_batch_coherence(
                 f"{abs(amount)} — a difference of {round(abs(amount) - total, 2)}. A batch settles "
                 "exactly; a bank charge is its own `fee` line, a bounced member is voided and "
                 "reissued, never absorbed here"
+            ),
+        )
+    # the landing rules last: a backwards or short batch says so first
+    taken = db.scalar(select(FinAccountTrans.id).where(
+        FinAccountTrans.tenant_id == tenant_id, FinAccountTrans.payment_reference_no == reference_no,
+        *([FinAccountTrans.id != line_id] if line_id else []),
+    ).limit(1))
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"batch {reference_no!r} already lands on line {taken} — one batch, one landing",
+        )
+    alone = db.scalars(select(Payment.payment_no).join(FinAccountTrans, FinAccountTrans.payment_id == Payment.id).where(
+        FinAccountTrans.tenant_id == tenant_id, Payment.id.in_([m.id for m in members]),
+        *([FinAccountTrans.id != line_id] if line_id else []),
+    )).all()
+    if alone:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{', '.join(sorted(set(alone)))} already land on lines of their own — a payment lands once; "
+                "unlink those lines or settle the batch without them"
             ),
         )
     return len(members), total
@@ -441,7 +520,8 @@ def create_fin_account_trans(
             ),
         )
     require_entity_uuid(payload.entity_id)
-    _require_link_coherence(db, tenant_id, account, payload.payment_id, payload.amount)
+    _require_link_coherence(db, tenant_id, account, payload.payment_id, payload.amount,
+                            gross_amount=payload.gross_amount)
     trans_type = _derived_type(payload.amount, payload.trans_type)
     sign_problem = _sign_error(payload.amount, trans_type)
     if sign_problem:
@@ -510,11 +590,13 @@ def link_fin_account_trans(
     if "entity_id" in updates:
         require_entity_uuid(updates["entity_id"])
     if "payment_id" in updates and updates["payment_id"] is not None:
-        _require_link_coherence(db, actor.tenant_id, trans.account, updates["payment_id"], float(trans.amount))
+        _require_link_coherence(db, actor.tenant_id, trans.account, updates["payment_id"], float(trans.amount),
+                                gross_amount=trans.gross_amount, line_id=trans.id)
     settled = None
     if updates.get("payment_reference_no") is not None:
         settled = _require_batch_coherence(
-            db, actor.tenant_id, trans.account, updates["payment_reference_no"], float(trans.amount)
+            db, actor.tenant_id, trans.account, updates["payment_reference_no"], float(trans.amount),
+            line_id=trans.id,
         )
     if (updates.get("payment_id", trans.payment_id) is not None
             and updates.get("payment_reference_no", trans.payment_reference_no) is not None):

@@ -77,7 +77,11 @@ Everything else comes from conversation: the receipts, the purpose, the amounts.
    `items`** (`expense_date` = the date on the receipt, `amount`, `category`,
    `merchant`, `invoice_number`, `invoice_type`, `attachment_id` from step 6,
    full extraction in `extracted_fields`; `claim_id`/`employee_id` are
-   implied — do not repeat them). One bad item — a duplicated invoice
+   implied — do not repeat them). Advertising, promotion and marketing
+   events are `category: "marketing"`: that is how a marketing budget
+   collects them, with nobody tagging anything. Name a `budget_line_id`
+   (from `GET /budget-lines`) only when the principal says which budget
+   line an expense belongs to and no category reaches it. One bad item — a duplicated invoice
    included — rolls the whole claim back; a 409 on `invoice_number` means
    the server caught a duplicate you missed: surface it, don't work around
    it.

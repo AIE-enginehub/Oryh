@@ -200,7 +200,13 @@ are the next step, not part of the payslip: file them as an ordinary
 **purchase** invoice against the authority as vendor, with one line per
 contribution type, and settle it with an outbound payment. Social insurance is
 collected by the tax authority and the housing fund by the fund centre — two
-payables, two payments.
+payables, two payments. Type every line by whose money it is: the employer's
+own share as `employer_social_insurance` or `employer_housing_fund`, and what
+was withheld from the people and is only being passed on (their `_ee` shares,
+the income tax) as `withheld_remittance`. A labour budget ($oryh-budget)
+counts gross pay from the payslips plus the employer lines, and nothing else
+of the remittance — a line typed `service` or `other` is invisible to it, and
+a withheld amount typed as the employer's is counted twice.
 
 **Read for everybody at once, then file per person**: the terms in force
 (`GET /employees/{id}/pay-history?in_force_on=2026-07-01`) for every person

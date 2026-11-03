@@ -44,7 +44,9 @@ from app.services.delivery import for_delivery
 
 router = APIRouter(include_in_schema=False)
 
-PROTOCOL_VERSIONS = ("2026-07-28", "2025-06-18", "2025-03-26")
+# Only advertise implemented, published protocol revisions. Unknown clients
+# negotiate the preferred revision instead of an invented future version.
+PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
 SERVER_INFO = {"name": "oryh", "version": "1"}
 INSTRUCTIONS = (
     "oryh is an AI-native ERP/CRM. Tools are the mechanics — the REST contract, "
@@ -382,6 +384,11 @@ async def mcp_endpoint(
     db: Annotated[Session, Depends(get_db)],
     actor: Annotated[Actor, Depends(_mcp_actor)],
 ):
+    protocol_version = request.headers.get("mcp-protocol-version")
+    if protocol_version is not None and protocol_version not in PROTOCOL_VERSIONS:
+        return JSONResponse(
+            _err(None, -32600, "unsupported MCP-Protocol-Version"), status_code=400,
+        )
     try:
         payload = await request.json()
     except ValueError:
@@ -393,7 +400,9 @@ async def mcp_endpoint(
     if not replies:
         return Response(status_code=status.HTTP_202_ACCEPTED)
     body = replies if isinstance(payload, list) else replies[0]
-    return JSONResponse(body, headers={"MCP-Protocol-Version": PROTOCOL_VERSIONS[0]})
+    # The protocol header belongs to subsequent client requests. The initialize
+    # result is authoritative; do not contradict it with a fixed response header.
+    return JSONResponse(body)
 
 
 @router.get("/mcp")

@@ -23,6 +23,8 @@ from __future__ import annotations
 # `common.documents.DOCUMENT_FAMILIES`, `document_import.FAMILIES` and
 # `visibility.FAMILIES` assert against it when they are imported.
 DOCUMENT_ENTITY_TYPES: tuple[str, ...] = (
+    "budget",
+    "budget_change",
     "campaign",
     "contract",
     "employee_leave",

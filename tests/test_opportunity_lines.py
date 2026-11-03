@@ -126,12 +126,12 @@ def test_the_quote_bridge_prices_each_line_with_a_basis_and_the_order_inherits_t
     assert bases[_ZH_TEXT['TEXT_CC6C546CF36EBA2F']] == (3000.0, "opportunity_line")
     assert bases[_ZH_TEXT['TEXT_0DA78C1D48E35BAB']] == (None, "unpriced")
     priced = next(v for k, v in bases.items() if k == deal["product"]["id"] or k == _ZH_TEXT['TEXT_2CF991FD264FDDEC'])
-    assert priced == (11000.0, "customer_agreement"), "the customer's agreed price beats the catalog's 12000"
+    assert priced == (None, "unpriced"), "which price applies is the workspace's rule"
     catalog = next(i for i in quotation["items"] if i["product_id"] == deal["product"]["id"])
-    assert catalog["list_price_snapshot"] == 12000.0
+    assert (catalog["list_price_snapshot"], catalog["agreed_price"]) == (12000.0, 11000.0), "both reported as facts"
 
     moved = client.get(f"/api/v1/opportunities/{opp['id']}", headers=zhang["key"]).json()["data"]
-    assert moved["status"] == "quoting"
+    assert moved["status"] == opp["status"], "the deal's stage stays the salesperson's"
 
     # an order raised from that quotation carries the deal without being told
     order = client.post("/api/v1/sales-orders", headers=zhang["key"], json={

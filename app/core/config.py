@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # actually came in on (see app.core.request_context). Set it in production
     # to the real console domain so links are stable behind proxies.
     base_url: str = ""
+    # Opt-in public-client registration for desktop MCP hosts such as WorkBuddy.
+    oauth_dynamic_registration_enabled: bool = False
     # "console" prints to stdout (dev); "smtp" delivers via the SMTP settings
     # below. smtp_security supports implicit TLS ("ssl") and SMTP STARTTLS
     # ("starttls"). Credentials are optional for IP-authenticated relays such

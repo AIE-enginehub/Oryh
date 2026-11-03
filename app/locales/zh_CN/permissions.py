@@ -237,6 +237,28 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "录入合同与原件、定位条款、推进状态、挂接订单/发票/付款;可按方向作用域"
         "(contract.manage:purchase 仅采购侧,:sales 仅销售侧);读取同样需要此能力",
     ),
+    # Budgets (plan docs/plans/budgets-2026-10-27.md): the plan is a ledger
+    # moved only by posted changes, the consumption is derived. Labour figures
+    # additionally need payroll.read — with two employees a labour total IS a
+    # salary. None of the three is seeded to `member`.
+    (
+        "budget.manage",
+        False,
+        "预算管理",
+        "编制预算与预算行、提交并过账预算调整；读取全部预算数据（人工成本实际数另需 payroll.read）",
+    ),
+    (
+        "budget.read_all",
+        False,
+        "查看全部预算",
+        "读取全部预算的计划与执行数（人工成本实际数另需 payroll.read）；预算管理隐含此能力",
+    ),
+    (
+        "budget.advance",
+        False,
+        "审批预算调整",
+        "在需要审批的工作空间中推进预算调整单（批准、退回、驳回、过账）",
+    ),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力；只能授出自己持有的权限，不能把人请进 admin 或造出比自己更宽的角色——那是管理员的事"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用个人访问凭证；不能为管理员或持有自己没有的用户/凭证/Skill 管理权限的人签发，工作空间凭证只由管理员签发"),

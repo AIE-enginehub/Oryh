@@ -11,14 +11,15 @@ tell it that the row does not.
 
 Deliberately absent: scopes (the token carries the person, permissions are
 their role's), third-party clients (every client acts as its own user),
-dynamic client registration (retired; the client id is a URL — CIMD — and
-the redirect must be that host or loopback).
+unrestricted client registration. URL clients retain the existing same-host
+or loopback policy; opt-in desktop registration binds callbacks exactly.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import urlencode, urlsplit
@@ -32,10 +33,11 @@ from app.api import auth as auth_api
 from app.api import device as device_api
 from app.web.routes import get_web_actor, render
 from app.core.browser_auth import SESSION_COOKIE
+from app.core.config import settings
 from app.core.request_context import resolved_base_url
 from app.core.security import generate_token, hash_token
 from app.db.session import bind_tenant_context, get_db
-from app.models import ApiKey, OAuthAuthorizationCode, User, generate_api_key, hash_api_key
+from app.models import ApiKey, OAuthPublicClient, OAuthAuthorizationCode, User, generate_api_key, hash_api_key
 from app.schemas import DeviceStartRequest, DeviceTokenRequest, TokenRefreshRequest
 from app.services import interactive_keys
 from app.services.audit import record_audit
@@ -65,6 +67,8 @@ def mcp_resource() -> str:
 def authorization_server_metadata():
     base = issuer()
     return {
+        **({"registration_endpoint": f"{base}/oauth/register"}
+           if settings.oauth_dynamic_registration_enabled else {}),
         "issuer": base,
         "authorization_endpoint": f"{base}/oauth/authorize",
         "token_endpoint": f"{base}/oauth/token",
@@ -99,6 +103,66 @@ def protected_resource_metadata_for_mcp():
     return _protected_resource_document()
 
 
+REGISTERED_CLIENT_PREFIX = "urn:oryh:oauth-client:"
+
+
+def _desktop_redirect_allowed(uri: str) -> bool:
+    if len(uri) > 1000 or any(ord(c) < 33 for c in uri) or "\\" in uri:
+        return False
+    try:
+        p = urlsplit(uri)
+        port = p.port
+    except ValueError:
+        return False
+    if p.fragment or p.username or p.password:
+        return False
+    if p.scheme == "http" and p.hostname in {"127.0.0.1", "::1"}:
+        return port is not None and 0 < port < 65536 and p.path == "/oauth/callback" and not p.query
+    return (p.scheme == "workbuddy" and p.netloc == "workbuddy" and not p.query
+            and p.path.startswith("/mcp/") and p.path.endswith("/oauth/callback"))
+
+
+@router.post("/oauth/register", status_code=201)
+async def register_public_client(request: Request, db: Annotated[Session, Depends(get_db)]):
+    # Registration only records metadata. Login, consent and S256 remain mandatory.
+    if not settings.oauth_dynamic_registration_enabled:
+        raise HTTPException(404, "Dynamic client registration is disabled")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 16384:
+            return _oauth_error(400, "invalid_client_metadata", "Registration body is too large")
+    try:
+        data = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        return _oauth_error(400, "invalid_client_metadata", "Expected a JSON object")
+    if not isinstance(data, dict):
+        return _oauth_error(400, "invalid_client_metadata", "Expected a JSON object")
+    uris = data.get("redirect_uris")
+    if (not isinstance(uris, list) or not 1 <= len(uris) <= 10
+            or any(not isinstance(u, str) or not _desktop_redirect_allowed(u) for u in uris)):
+        return _oauth_error(400, "invalid_redirect_uri", "Use a WorkBuddy callback or IP loopback /oauth/callback")
+    if (data.get("token_endpoint_auth_method", "none") != "none"
+            or data.get("response_types", ["code"]) != ["code"]
+            or not isinstance(data.get("grant_types", ["authorization_code"]), list)
+            or "authorization_code" not in data.get("grant_types", ["authorization_code"])
+            or any(g not in ("authorization_code", "refresh_token") for g in data.get("grant_types", []))
+            or data.get("scope")):
+        return _oauth_error(400, "invalid_client_metadata", "Only public authorization-code clients with PKCE are supported")
+    name = data.get("client_name", "Desktop MCP client")
+    if not isinstance(name, str) or not 1 <= len(name) <= 200 or any(ord(c) < 32 for c in name):
+        return _oauth_error(400, "invalid_client_metadata", "Invalid client_name")
+    row = OAuthPublicClient(redirect_uris=list(dict.fromkeys(uris)), client_name=name)
+    db.add(row)
+    db.commit()
+    return JSONResponse(status_code=201, headers={"Cache-Control": "no-store"}, content={
+        "client_id": REGISTERED_CLIENT_PREFIX + row.id,
+        "client_name": row.client_name, "redirect_uris": row.redirect_uris,
+        "token_endpoint_auth_method": "none", "response_types": ["code"],
+        "grant_types": data.get("grant_types", ["authorization_code"]),
+    })
+
+
 # --- helpers ------------------------------------------------------------------
 
 
@@ -117,10 +181,18 @@ def _client_host(client_id: str) -> str | None:
     return parts.hostname.lower() if parts.hostname else None
 
 
-def _redirect_allowed(client_id: str, redirect_uri: str) -> bool:
+def _redirect_allowed(client_id: str, redirect_uri: str, db: Session | None = None) -> bool:
     """CIMD-lite: the client is a URL, and it may only be sent back to its
     own host over https — or to a loopback address on any port, which is
     how desktop and CLI agents receive a code."""
+    if client_id.startswith(REGISTERED_CLIENT_PREFIX):
+        from uuid import UUID
+        try:
+            client_key = str(UUID(client_id[len(REGISTERED_CLIENT_PREFIX):]))
+        except ValueError:
+            return False
+        row = db.get(OAuthPublicClient, client_key) if db is not None else None
+        return row is not None and redirect_uri in row.redirect_uris
     host = _client_host(client_id)
     parts = urlsplit(redirect_uri)
     if host is None or parts.fragment or not parts.hostname:
@@ -199,12 +271,12 @@ def _authorize_context(request: Request) -> dict[str, str]:
     }
 
 
-def _validate_authorize(p: dict[str, str]):
+def _validate_authorize(p: dict[str, str], db: Session):
     """The client and its redirect are checked BEFORE anything is sent back
     to them; every other problem is reported to the redirect, as the spec
     has it. Returns a redirect response for reportable errors, None when
     the request is sound."""
-    if not _redirect_allowed(p["client_id"], p["redirect_uri"]):
+    if not _redirect_allowed(p["client_id"], p["redirect_uri"], db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="client_id must be an https URL and redirect_uri its own https host or a loopback address",
@@ -228,7 +300,7 @@ def _validate_authorize(p: dict[str, str]):
 def authorize_page(request: Request, db: Annotated[Session, Depends(get_db)]):
 
     p = _authorize_context(request)
-    problem = _validate_authorize(p)
+    problem = _validate_authorize(p, db)
     if problem is not None:
         return problem
     actor = get_web_actor(db, request.cookies.get(SESSION_COOKIE))
@@ -253,7 +325,7 @@ def authorize_page(request: Request, db: Annotated[Session, Depends(get_db)]):
     db.commit()
     return render(
         "oauth_authorize.html", request, actor, db,
-        user=user, params=p, consent=nonce, client_host=_client_host(p["client_id"]),
+        user=user, params=p, consent=nonce, client_host=_client_host(p["client_id"]) or "Registered desktop client (unverified publisher)",
         redirect_host=urlsplit(p["redirect_uri"]).hostname,
     )
 
@@ -267,7 +339,7 @@ async def authorize_decide(request: Request, db: Annotated[Session, Depends(get_
         "code_challenge_method", "state", "scope", "resource",
     )}
     p["code_challenge_method"] = p["code_challenge_method"] or "S256"
-    problem = _validate_authorize(p)
+    problem = _validate_authorize(p, db)
     if problem is not None:
         return problem
     if not _same_origin(request):
@@ -296,7 +368,7 @@ async def authorize_decide(request: Request, db: Annotated[Session, Depends(get_
         joiner = "&" if urlsplit(p["redirect_uri"]).query else "?"
         page = render(
             "oauth_consent_expired.html", request, actor, db,
-            client_host=_client_host(p["client_id"]),
+            client_host=_client_host(p["client_id"]) or "Registered desktop client (unverified publisher)",
             reopen_url=f"/oauth/authorize?{urlencode(p)}",
             client_url=p["redirect_uri"] + joiner + urlencode({
                 "error": "access_denied", "error_description": "the consent expired", "state": p["state"],

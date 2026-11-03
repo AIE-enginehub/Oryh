@@ -99,7 +99,7 @@ from app.schemas import (
     SavedLinesEnvelope,
     ContractItemBase,
 )
-from app.services.state_machines import editable_states, get_builtin_machine, state_for_role, validate_status_filter
+from app.services.state_machines import counted_states, editable_states, get_builtin_machine, validate_status_filter
 from app.services.type_options import require_type_option
 
 router = APIRouter()
@@ -556,43 +556,6 @@ def get_contract_attachment(
     return serve_document_attachment(db, actor.tenant_id, contract, attachment_id)
 
 
-# A voided or cancelled document never happened. No machine role marks
-# these, so they are matched by the shipped names; a tenant that renames
-# them keeps them out by never reaching them from the anchors below.
-NEVER_HAPPENED = frozenset({"void", "cancelled"})
-
-
-def _states_from(machine: dict, start: str | None) -> frozenset[str]:
-    """`start` and every state reachable from it, minus the ones that
-    never happened. With no `start`, every state past the initial one."""
-    if start is None:
-        reached = set(machine.get("states", ())) - {machine.get("initial")}
-    else:
-        reached, todo = set(), [start]
-        while todo:
-            state = todo.pop()
-            if state not in reached:
-                reached.add(state)
-                todo.extend(machine.get("transitions", {}).get(state, ()))
-    return frozenset(reached - NEVER_HAPPENED)
-
-
-def _counted_states(db: Session, tenant_id: str, object_type: str) -> frozenset[str]:
-    """What counts as having happened under a contract (review 2026-10-24,
-    finding 2): an order from its confirmation on (a draft or one still
-    in approval is not yet ordered), an invoice from its issue on, a
-    payment only in the state where money has moved."""
-    machine = get_builtin_machine(db, tenant_id, object_type)
-    if object_type == "invoice":
-        return _states_from(machine, state_for_role(machine, "invoice", "issued"))
-    if object_type == "payment":
-        return frozenset({state_for_role(machine, "payment", "paid")})
-    if object_type == "sales_order":
-        return _states_from(machine, state_for_role(machine, "sales_order", "confirmed"))
-    # the purchase order's machine names no confirmation role
-    return _states_from(machine, "confirmed" if "confirmed" in machine.get("states", ()) else None)
-
-
 @router.get("/contracts/{contract_id}/execution", response_model=ContractExecutionEnvelope,
             response_model_exclude_unset=True)
 def contract_execution(
@@ -603,7 +566,7 @@ def contract_execution(
     """What has happened under the contract — orders placed, invoices
     billed, payments moved, contracted vs ordered quantity by product —
     derived from the documents that point at it, stored nowhere. Only what
-    happened counts (see `_counted_states`), and money is summed per
+    happened counts (see `counted_states` in app/services/state_machines.py), and money is summed per
     currency: the contract's own currency in the top-level figures, any
     other in `other_currencies`, never added together."""
     tenant_id = actor.tenant_id
@@ -614,7 +577,7 @@ def contract_execution(
         return list(db.scalars(select(model).where(
             model.tenant_id == tenant_id, model.contract_id == contract.id,
             model.deleted_at.is_(None),
-            model.status.in_(_counted_states(db, tenant_id, object_type)),
+            model.status.in_(counted_states(db, tenant_id, object_type)),
         )))
 
     orders = counted(order_model, "purchase_order" if contract.side == "purchase" else "sales_order")

@@ -160,6 +160,7 @@ from app.schemas import (
     PaymentApplicationRead,
     PaymentDetailEnvelope,
     PaymentDetailRead,
+    PaymentLandingRead,
     PaymentEnvelope,
     PaymentListEnvelope,
     PaymentRead,
@@ -178,6 +179,7 @@ from app.schemas import (
     InvoiceItemBase,
 )
 from app.services.audit import record_audit
+from app.services.treasury import landed_amount, payment_landings
 from app.core.type_options import SIGNED_TYPE_FAMILIES
 from app.services.type_options import require_type_option, type_option_sign
 from app.services.state_machines import (
@@ -899,6 +901,7 @@ def create_invoice(
         direction=payload.direction,
         invoice_type=invoice_type,
         employee_id=payload.employee_id,
+        cost_center_id=payload.cost_center_id,
         counterparty_name_snapshot=payload.counterparty_name_snapshot or party_name,
         title=payload.title,
         period_start=payload.period_start,
@@ -1466,6 +1469,8 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
         sales_order_item_id=payload.sales_order_item_id,
         purchase_order_item_id=payload.purchase_order_item_id,
         pay_history_id=payload.pay_history_id,
+        budget_line_id=payload.budget_line_id,
+        billing_account_entry_id=payload.billing_account_entry_id,
         notes=payload.notes,
         custom_fields_jsonb=payload.custom_fields,
     )
@@ -1692,8 +1697,14 @@ def post_account_entries(
                 "reactivate it before recording movement"
             ),
         )
-    delta = Decimal("0")
+    amounts: list[Decimal] = []
     for line in lines:
+        amount = Decimal(str(line.amount))
+        if not amount.is_finite() or amount != amount.quantize(CENT_D):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="amount must be finite and carry at most two decimals — the ledger records cents",
+            )
         if abs(line.amount) < CENT:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -1705,12 +1716,14 @@ def post_account_entries(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="expires_at only means something on a points account",
             )
-        delta += Decimal(str(line.amount)).quantize(CENT_D)
+        amounts.append(amount.quantize(CENT_D))
 
     balance = Decimal(str(account.balance or 0)).quantize(CENT_D)
     floor = -Decimal(str(account.credit_limit or 0))
-    after = balance + delta
-    if after < floor:
+    after = balance + sum(amounts, Decimal("0"))
+    # money coming in is always taken: an account past a limit lowered under
+    # it is paid down through the same door
+    if after < floor and after < balance:
         available = balance - floor
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1725,7 +1738,7 @@ def post_account_entries(
         entry = BillingAccountEntry(
             tenant_id=tenant_id,
             billing_account_id=account.id,
-            amount=line.amount,
+            amount=amounts[seq],
             reason=line.reason,
             description=getattr(line, "description", None),
             entity_type=getattr(line, "entity_type", None),
@@ -1743,7 +1756,7 @@ def post_account_entries(
         written.append(entry)
     # the same quantised figures the rows carry, summed in Decimal: the
     # balance IS the sum of the ledger, by construction rather than by luck
-    account.balance = float(after)
+    account.balance = after
     record_audit(
         db,
         tenant_id=tenant_id,
@@ -1755,7 +1768,7 @@ def post_account_entries(
             "account_code": account.account_code,
             "unit": account.unit,
             "lines": [{"amount": line.amount, "reason": line.reason} for line in lines],
-            "balance": account.balance,
+            "balance": float(account.balance),
         },
     )
     return written
@@ -1932,7 +1945,7 @@ def create_billing_account(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"account_code {account_code!r} already exists in this workspace",
         )
-    if payload.opening_balance is not None and abs(payload.opening_balance) >= CENT:
+    if payload.opening_balance is not None and payload.opening_balance != 0:
         post_account_entries(
             db, actor, account,
             [
@@ -1975,17 +1988,6 @@ def update_billing_account(
     require_permission(actor, "billing_account.manage")
     account = get_active_account_or_404(db, tenant_id, account_id)
     updates = payload.model_dump(exclude_unset=True)
-    if "credit_limit" in updates and updates["credit_limit"] is not None:
-        # narrowing the line below what is already drawn would strand the
-        # account outside its own guard
-        if float(account.balance or 0) < -float(updates["credit_limit"]) - CENT:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    f"{account.account_code} is already drawn to {float(account.balance):.2f}; "
-                    "settle it before lowering the credit limit"
-                ),
-            )
     if "custom_fields" in updates:
         account.custom_fields_jsonb = updates.pop("custom_fields")
     for field, value in updates.items():
@@ -2806,6 +2808,8 @@ def get_payment_detail(
             continue
         summaries[key] = settlement_target_read(db, row.applied_to_type, target)
     applied = float(payment.applied_amount or 0)
+    landings = payment_landings(db, tenant_id, payment)
+    landed = landed_amount(payment, landings)
     detail = PaymentDetailRead(
         payment=PaymentRead.model_validate(payment),
         approval_records=[
@@ -2821,6 +2825,19 @@ def get_payment_detail(
         ],
         applied_amount=round(applied, 2),
         unapplied_amount=round(float(payment.amount) - applied, 2),
+        cash_landings=[
+            PaymentLandingRead(
+                trans_id=line.id, via=via, fin_account_id=line.fin_account_id,
+                fin_account_name=line.account.name if line.account is not None else None,
+                trans_date=line.trans_date, amount=float(line.amount),
+                gross_amount=float(line.gross_amount) if line.gross_amount is not None else None,
+                fee_amount=float(line.fee_amount) if line.fee_amount is not None else None,
+                reference_no=line.reference_no,
+            )
+            for line, via in landings
+        ],
+        landed_amount=landed,
+        unlanded_amount=round(float(payment.amount) - landed, 2),
     )
     return envelope(detail.model_dump(by_alias=True))
 
@@ -3035,7 +3052,7 @@ def apply_payment(
         floor, ceiling = spec.bounds(db, row)
         running = float(getattr(row, spec.running_column) or 0)
         after = running + delta * target_effect_sign(spec, payment, row)
-        if after < floor - CENT:
+        if after < floor - CENT and after < running:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(

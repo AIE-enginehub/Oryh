@@ -27,14 +27,18 @@ rows. This skill files ONE quotation the principal is working on now.
 
 ## A Draft The Deal Bridge Made
 
-`POST /opportunities/{id}/quote` ($oryh-crm) hands you a draft with the
-deal's lines already priced and the basis per line. Before you touch it,
-read it back as if a colleague wrote it: the product names (a line from
-the catalog carries the catalog's name; a free-text line carries what the
-deal said), each `unit_price` against its `price_basis`, the `quantity`,
-and the totals — then edit lines, add adjustments, and submit as any
-quotation. What the bridge did not copy on purpose: the deal lines'
-internal `notes`.
+`POST /opportunities/{id}/quote` ($oryh-crm) hands you a draft carrying
+only the prices the deal stated (`price_basis: opportunity_line`). Every
+other line is `unpriced`, with the facts beside it: `agreed_price` (the
+customer's agreement) and `list_price_snapshot` (the catalog). Choose by the
+workspace's pricing rule and say which you applied; with no rule, and the
+two disagreeing, ask. Read the draft back as if a colleague wrote it: the
+product names (a line from the catalog carries the catalog's name; a
+free-text line carries what the deal said), the `quantity` and the totals
+— then edit lines, add adjustments, and submit as any quotation. What the
+bridge did not copy on purpose: the deal lines' internal `notes`. Both
+prices are reported only in the deal's currency: with neither, pricing the
+line is your question to ask, never a conversion to guess.
 
 ## Revising Under A Condition
 

@@ -4588,6 +4588,10 @@
           "type": "number"
         },
         {
+          "name": "billing_account_entry_id",
+          "type": "string"
+        },
+        {
           "name": "created_at",
           "type": "string",
           "format": "date-time"
@@ -6017,6 +6021,38 @@
       "remove": true,
       "actions": [
         {
+          "verb": "redeem-points",
+          "path": "/api/v1/sales-orders/{order_id}/redeem-points",
+          "summary": "Redeem Points",
+          "fields": [
+            {
+              "name": "billing_account_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "name": "points",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "name": "discount_amount",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "name": "order_item_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        {
           "verb": "release",
           "path": "/api/v1/sales-orders/{order_id}/release",
           "summary": "Release Stock For Order",
@@ -6050,6 +6086,39 @@
           "fields": [
             {
               "name": "restored_by",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "verb": "restore-points",
+          "path": "/api/v1/sales-orders/{order_id}/restore-points",
+          "summary": "Restore Points",
+          "fields": [
+            {
+              "name": "entry_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "points",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "name": "remove_discount",
+              "required": false,
+              "type": "boolean"
+            },
+            {
+              "name": "expires_at",
+              "required": false,
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "name": "description",
               "required": false,
               "type": "string"
             }
@@ -7075,6 +7144,10 @@
           "type": "string"
         },
         {
+          "name": "budget_line_id",
+          "type": "string"
+        },
+        {
           "name": "notes",
           "type": "string"
         },
@@ -7157,6 +7230,11 @@
           "type": "string"
         },
         {
+          "name": "budget_line_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "attachment_id",
           "required": false,
           "type": "string"
@@ -7226,6 +7304,11 @@
         },
         {
           "name": "purchase_request_item_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "budget_line_id",
           "required": false,
           "type": "string"
         },
@@ -7355,6 +7438,10 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
           "name": "order_kind",
           "type": "string"
         },
@@ -7457,6 +7544,11 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "title",
           "required": false,
           "type": "string"
@@ -7547,6 +7639,11 @@
         },
         {
           "name": "vendor_name_snapshot",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "cost_center_id",
           "required": false,
           "type": "string"
         },
@@ -7787,6 +7884,10 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
           "name": "title",
           "type": "string"
         },
@@ -7843,6 +7944,11 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "title",
           "required": true,
           "type": "string",
@@ -7888,6 +7994,11 @@
         }
       ],
       "update": [
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
         {
           "name": "title",
           "required": false,
@@ -10185,6 +10296,10 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
           "name": "title",
           "type": "string"
         },
@@ -10228,6 +10343,11 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "title",
           "required": true,
           "type": "string",
@@ -10257,6 +10377,11 @@
         }
       ],
       "update": [
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
         {
           "name": "title",
           "required": false,
@@ -10689,6 +10814,14 @@
           "type": "string"
         },
         {
+          "name": "budget_line_id",
+          "type": "string"
+        },
+        {
+          "name": "billing_account_entry_id",
+          "type": "string"
+        },
+        {
           "name": "notes",
           "type": "string"
         },
@@ -10785,6 +10918,16 @@
           "type": "string"
         },
         {
+          "name": "budget_line_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "billing_account_entry_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "notes",
           "required": false,
           "type": "string"
@@ -10863,6 +11006,16 @@
         },
         {
           "name": "pay_history_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "budget_line_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "billing_account_entry_id",
           "required": false,
           "type": "string"
         },
@@ -11102,6 +11255,10 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
           "name": "direction",
           "type": "string",
           "enum": [
@@ -11262,6 +11419,11 @@
           "type": "string"
         },
         {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "customer_id",
           "required": false,
           "type": "string"
@@ -11397,6 +11559,11 @@
         },
         {
           "name": "invoice_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "cost_center_id",
           "required": false,
           "type": "string"
         },
@@ -12197,6 +12364,10 @@
           ]
         },
         {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
           "name": "created_at",
           "type": "string",
           "format": "date-time"
@@ -12243,6 +12414,11 @@
             "active",
             "inactive"
           ]
+        },
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
         }
       ],
       "update": [
@@ -12280,6 +12456,11 @@
             "active",
             "inactive"
           ]
+        },
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
         }
       ],
       "actions": [],
@@ -17029,6 +17210,8 @@
           "name": "entity_type",
           "type": "string",
           "enum": [
+            "budget",
+            "budget_change",
             "campaign",
             "contract",
             "employee_leave",
@@ -17115,6 +17298,8 @@
           "required": true,
           "type": "string",
           "enum": [
+            "budget",
+            "budget_change",
             "campaign",
             "contract",
             "employee_leave",
@@ -18155,6 +18340,8 @@
           "name": "entity_type",
           "type": "string",
           "enum": [
+            "budget",
+            "budget_change",
             "campaign",
             "contract",
             "employee_leave",
@@ -18241,6 +18428,8 @@
           "required": true,
           "type": "string",
           "enum": [
+            "budget",
+            "budget_change",
             "campaign",
             "contract",
             "employee_leave",
@@ -19437,6 +19626,1067 @@
       "remove": true,
       "actions": [],
       "recordPath": "/api/v1/object-type-definitions/{definition_id}",
+      "related": []
+    },
+    {
+      "key": "budget-changes",
+      "path": "/api/v1/budget-changes",
+      "group": "other",
+      "label": [
+        "Budget changes",
+        "Budget changes"
+      ],
+      "filters": [
+        {
+          "name": "budget_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "change_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "include_deleted",
+          "description": "",
+          "type": "boolean"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_from",
+          "description": "rows whose submitted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "submitted_at_thru",
+          "description": "rows whose submitted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at_from",
+          "description": "rows whose posted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at_thru",
+          "description": "rows whose posted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_budget_id",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "change_no",
+          "type": "string"
+        },
+        {
+          "name": "budget_id",
+          "type": "string"
+        },
+        {
+          "name": "change_type",
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "submitted_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_by",
+          "type": "string"
+        },
+        {
+          "name": "source_budget_id",
+          "type": "string"
+        },
+        {
+          "name": "deleted_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "revision",
+          "type": "string"
+        }
+      ],
+      "create": [
+        {
+          "name": "budget_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "change_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": true,
+          "type": "string",
+          "maxLength": 4000
+        },
+        {
+          "name": "source_budget_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "change_no",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "change_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [
+        {
+          "verb": "restore",
+          "path": "/api/v1/budget-changes/{change_id}/restore",
+          "summary": "Restore Budget Change",
+          "fields": []
+        },
+        {
+          "verb": "save",
+          "path": "/api/v1/budget-changes/{change_id}/save",
+          "summary": "Save Budget Change Lines",
+          "fields": [
+            {
+              "name": "expected_revision",
+              "required": true,
+              "type": "string",
+              "maxLength": 64
+            }
+          ],
+          "unsupported": [
+            "items"
+          ]
+        },
+        {
+          "verb": "submit",
+          "path": "/api/v1/budget-changes/{change_id}/submit",
+          "summary": "Submit Budget Change",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/budget-changes/{change_id}",
+      "related": []
+    },
+    {
+      "key": "budget-entries",
+      "path": "/api/v1/budget-entries",
+      "group": "other",
+      "label": [
+        "Budget entries",
+        "Budget entries"
+      ],
+      "filters": [
+        {
+          "name": "budget_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "budget_line_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "change_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "period_month",
+          "description": "",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_month_from",
+          "description": "rows whose period_month is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_month_thru",
+          "description": "rows whose period_month is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "entry_type",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "budget_id",
+          "type": "string"
+        },
+        {
+          "name": "budget_line_id",
+          "type": "string"
+        },
+        {
+          "name": "change_id",
+          "type": "string"
+        },
+        {
+          "name": "change_line_id",
+          "type": "string"
+        },
+        {
+          "name": "entry_type",
+          "type": "string"
+        },
+        {
+          "name": "period_month",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "amount",
+          "type": "number"
+        },
+        {
+          "name": "created_by",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "related": []
+    },
+    {
+      "key": "budget-lines",
+      "path": "/api/v1/budget-lines",
+      "group": "other",
+      "label": [
+        "Budget lines",
+        "Budget lines"
+      ],
+      "filters": [
+        {
+          "name": "budget_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "budget_id",
+          "type": "string"
+        },
+        {
+          "name": "line_code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "type": "string"
+        },
+        {
+          "name": "collects",
+          "type": "boolean"
+        },
+        {
+          "name": "owner_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "sort_order",
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "parent_line_id",
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
+          "type": "string"
+        },
+        {
+          "name": "territory_id",
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "type": "string"
+        },
+        {
+          "name": "product_category_id",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "line_code",
+          "required": true,
+          "type": "string",
+          "maxLength": 64
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "category",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "closed"
+          ]
+        },
+        {
+          "name": "budget_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "parent_line_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "territory_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "customer_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "product_category_id",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "category",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "closed"
+          ]
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/budget-lines/{line_id}",
+      "related": []
+    },
+    {
+      "key": "budgets",
+      "path": "/api/v1/budgets",
+      "group": "other",
+      "label": [
+        "Budgets",
+        "Budgets"
+      ],
+      "filters": [
+        {
+          "name": "direction",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "budget_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "include_deleted",
+          "description": "",
+          "type": "boolean"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_start_from",
+          "description": "rows whose period_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_thru",
+          "description": "rows whose period_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_from",
+          "description": "rows whose period_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_thru",
+          "description": "rows whose period_end is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "activated_at_from",
+          "description": "rows whose activated_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "activated_at_thru",
+          "description": "rows whose activated_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at_from",
+          "description": "rows whose closed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at_thru",
+          "description": "rows whose closed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "budget_no",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "direction",
+          "type": "string"
+        },
+        {
+          "name": "budget_type",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "period_start",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "owner_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "activated_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "cost_center_id",
+          "type": "string"
+        },
+        {
+          "name": "deleted_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "direction",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "spend",
+            "income"
+          ]
+        },
+        {
+          "name": "budget_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "required": false,
+          "type": "string",
+          "maxLength": 3
+        },
+        {
+          "name": "period_start",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "budget_no",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "budget_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "period_start",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [
+        {
+          "verb": "close",
+          "path": "/api/v1/budgets/{budget_id}/close",
+          "summary": "Close Budget",
+          "fields": []
+        },
+        {
+          "verb": "import",
+          "path": "/api/v1/budgets/{budget_id}/import",
+          "summary": "Import Budget Plan",
+          "fields": [
+            {
+              "name": "employee_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "name": "reason",
+              "required": true,
+              "type": "string",
+              "maxLength": 4000
+            },
+            {
+              "name": "post",
+              "required": false,
+              "type": "boolean"
+            },
+            {
+              "name": "dry_run",
+              "required": false,
+              "type": "boolean"
+            }
+          ],
+          "unsupported": [
+            "rows"
+          ]
+        },
+        {
+          "verb": "restore",
+          "path": "/api/v1/budgets/{budget_id}/restore",
+          "summary": "Restore Budget",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/budgets/{budget_id}",
+      "related": []
+    },
+    {
+      "key": "cost-centers",
+      "path": "/api/v1/cost-centers",
+      "group": "other",
+      "label": [
+        "Cost centers",
+        "Cost centers"
+      ],
+      "filters": [
+        {
+          "name": "parent_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "cost_center_code",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "cost_center_code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "parent_id",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "parent_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        },
+        {
+          "name": "cost_center_code",
+          "required": true,
+          "type": "string",
+          "maxLength": 64
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "parent_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/cost-centers/{cost_center_id}",
       "related": []
     },
     {

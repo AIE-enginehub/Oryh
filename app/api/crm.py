@@ -587,6 +587,8 @@ def update_opportunity(
             updates.pop("customer_id", opportunity.customer_id),
             updates.pop("customer_name_snapshot", opportunity.customer_name_snapshot),
         )
+        if customer_id != opportunity.customer_id:
+            _ensure_cast_belongs(db, tenant_id, opportunity, customer_id)
         opportunity.customer_id = customer_id
         opportunity.customer_name_snapshot = snapshot
     if "lead_id" in updates and updates["lead_id"] is not None:
@@ -676,10 +678,17 @@ def _campaign_fields(db: Session, tenant_id: str, payload, *, current: Campaign 
     if fields.get("campaign_type"):
         require_type_option(db, tenant_id, "campaign_type", fields["campaign_type"])
     if fields.get("parent_campaign_id"):
-        if current is not None and fields["parent_campaign_id"] == current.id:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                                detail="a campaign cannot be its own parent")
-        get_active_document_or_404(db, Campaign, tenant_id, fields["parent_campaign_id"])
+        parent = get_active_document_or_404(db, Campaign, tenant_id, fields["parent_campaign_id"])
+        # walk up from the new parent: reaching this campaign is a loop at
+        # any depth, not only the direct self-reference (sales review
+        # 2026-10-26, finding 5)
+        seen: set[str] = set()
+        while parent is not None and parent.id not in seen:
+            if current is not None and parent.id == current.id:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                    detail="a campaign cannot be its own parent, directly or through its children")
+            seen.add(parent.id)
+            parent = db.get(Campaign, parent.parent_campaign_id) if parent.parent_campaign_id else None
     start = fields.get("start_date", current.start_date if current else None)
     end = fields.get("end_date", current.end_date if current else None)
     if start and end and end < start:
@@ -781,9 +790,19 @@ def get_campaign_detail(
         Opportunity.deleted_at.is_(None),
     ), Opportunity)
     deals_total = db.scalar(select(func.count()).select_from(live_deals.subquery())) or 0
-    won = live_deals.where(Opportunity.status == "won").subquery()
+    # the tenant's name for won, by role
+    won_state = state_for_role(get_builtin_machine(db, tenant_id, "opportunity"), "opportunity", "won")
+    won = live_deals.where(Opportunity.status == won_state).subquery()
     deals_won = db.scalar(select(func.count()).select_from(won)) or 0
-    won_amount = db.scalar(select(func.coalesce(func.sum(won.c.expected_amount), 0))) or 0
+    # one total per currency, never one sum across them (sales review
+    # 2026-10-26, finding 4)
+    won_by_currency = {
+        (currency or campaign.currency): float(amount or 0)
+        for currency, amount in db.execute(
+            select(won.c.currency, func.coalesce(func.sum(won.c.expected_amount), 0)).group_by(won.c.currency)
+        )
+    }
+    won_amount = won_by_currency.pop(campaign.currency, 0.0)
     detail = CampaignDetailRead(
         campaign=CampaignRead.model_validate(campaign),
         members_total=sum(by_status.values()),
@@ -793,6 +812,7 @@ def get_campaign_detail(
         opportunities_total=int(deals_total),
         opportunities_won=int(deals_won),
         won_expected_amount=float(won_amount),
+        won_expected_other_currencies={currency: round(amount, 2) for currency, amount in sorted(won_by_currency.items())},
     )
     return envelope(detail.model_dump(by_alias=True))
 
@@ -1153,6 +1173,33 @@ def _contact_of_deal(db: Session, tenant_id: str, opportunity: Opportunity, cont
     return contact
 
 
+def _ensure_cast_belongs(db: Session, tenant_id: str, opportunity: Opportunity, customer_id: str | None) -> None:
+    """A deal's people belong to its parties — the rule `_contact_of_deal`
+    holds when someone is added, held again when the customer changes:
+    otherwise the old customer's buyer stays on the deal, and the next
+    quotation goes to the new customer addressed to them (sales review
+    2026-10-26, finding 3)."""
+    allowed = party_customer_ids(db, tenant_id, "opportunity", opportunity.id)
+    if customer_id:
+        allowed.add(customer_id)
+    if not allowed:
+        return
+    strays = db.scalars(
+        select(CustomerContact.name)
+        .join(OpportunityContact, OpportunityContact.contact_id == CustomerContact.id)
+        .where(OpportunityContact.tenant_id == tenant_id, OpportunityContact.opportunity_id == opportunity.id,
+               CustomerContact.customer_id.not_in(allowed))
+    ).all()
+    if strays:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"{', '.join(sorted(strays))} belong to a customer that would no longer be a party to this deal — "
+                "take them off the deal (DELETE /opportunity-contacts/{id}) or file their customer as a party first"
+            ),
+        )
+
+
 def _demote_other_primaries(db: Session, tenant_id: str, opportunity_id: str, keep: str | None) -> None:
     for row in db.scalars(select(OpportunityContact).where(
         OpportunityContact.tenant_id == tenant_id,
@@ -1339,11 +1386,6 @@ def project_from_opportunity(
     existing = db.scalar(select(Project).where(Project.tenant_id == tenant_id, Project.opportunity_id == opportunity.id))
     if existing is not None:
         return envelope(ProjectRead.model_validate(existing).model_dump(by_alias=True))
-    machine = get_builtin_machine(db, tenant_id, "opportunity")
-    won = state_for_role(machine, "opportunity", "won")
-    if opportunity.status != won:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail=f"the deal is {opportunity.status!r}; a project is opened from a deal that is {won!r}")
     fields = payload.model_dump(exclude_unset=True)
     if fields.get("owner_employee_id"):
         get_scoped_or_404(db, Employee, tenant_id, fields["owner_employee_id"])
@@ -1379,14 +1421,20 @@ def project_from_opportunity(
     return envelope(ProjectRead.model_validate(project).model_dump(by_alias=True))
 
 
-def _agreed_price(db: Session, tenant_id: str, customer_id: str | None, product_id: str | None) -> float | None:
+def _agreed_price(db: Session, tenant_id: str, customer_id: str | None, product_id: str | None,
+                  currency: str) -> float | None:
+    """The customer's agreed price for the product, in the deal's currency.
+    An agreement in another currency answers nothing: 45 CNY quoted as 45 USD
+    is a price nobody agreed to (sales review 2026-10-26, finding 1)."""
     if not (customer_id and product_id):
         return None
     row = db.scalar(select(CustomerProduct).where(
         CustomerProduct.tenant_id == tenant_id, CustomerProduct.customer_id == customer_id,
         CustomerProduct.product_id == product_id, CustomerProduct.status == "active",
     ))
-    return float(row.agreed_price) if row is not None and row.agreed_price is not None else None
+    if row is None or row.agreed_price is None or (row.currency or "").upper() != currency.upper():
+        return None
+    return float(row.agreed_price)
 
 
 @router.post("/opportunities/{opportunity_id}/quote", response_model_exclude_unset=True,
@@ -1398,11 +1446,11 @@ def quote_opportunity(
     payload: QuoteOpportunityRequest = Body(default=None),
 ):
     """The one orchestration between the pipeline and the quotation: a draft
-    quotation from the deal's own lines, priced from each line's stated
-    price, else the customer's agreement, else the catalog — the response
-    says which per line — with the deal's primary contact on it and the
-    deal moved to its `quoting` state, one transaction. Needs the quoting
-    grant as well as the deal: the draft is a quotation like any other."""
+    quotation from the deal's own lines, carrying a price the line stated and
+    otherwise left unpriced, with the customer's agreed price and the catalog
+    price reported beside it, and the deal's primary contact on it. The deal's
+    stage stays the salesperson's. Needs the quoting grant as well as the
+    deal: the draft is a quotation like any other."""
     payload = payload or QuoteOpportunityRequest()
     tenant_id = actor.tenant_id
     require_permission(actor, "quotation.submit_own")
@@ -1414,8 +1462,6 @@ def quote_opportunity(
     if not items:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail="the opportunity has no lines to quote — add opportunity items first")
-    machine = get_builtin_machine(db, tenant_id, "opportunity")
-    quoting = state_for_role(machine, "opportunity", "quoting")
     primary = db.scalar(
         select(CustomerContact).join(OpportunityContact, OpportunityContact.contact_id == CustomerContact.id)
         .where(OpportunityContact.tenant_id == tenant_id, OpportunityContact.opportunity_id == opportunity.id)
@@ -1444,18 +1490,18 @@ def quote_opportunity(
     )
     db.add(quotation)
     db.flush()
-    lines, bases = [], []
+    lines, facts = [], []
     for index, item in enumerate(items, start=1):
-        list_price = catalog_list_price(db, tenant_id, item.product_id, item.sku_id) if (item.product_id or item.sku_id) else None
-        agreed = _agreed_price(db, tenant_id, opportunity.customer_id, item.product_id)
-        if item.unit_price is not None:
-            unit_price, basis = float(item.unit_price), "opportunity_line"
-        elif agreed is not None:
-            unit_price, basis = agreed, "customer_agreement"
-        elif list_price is not None:
-            unit_price, basis = list_price, "price_book"
-        else:
-            unit_price, basis = None, "unpriced"
+        # both in the deal's currency or not at all — the catalog's own guard
+        # (E-20) was there, but this bridge never passed the currency to it
+        list_price = (catalog_list_price(db, tenant_id, item.product_id, item.sku_id, currency=opportunity.currency)
+                      if (item.product_id or item.sku_id) else None)
+        agreed = _agreed_price(db, tenant_id, opportunity.customer_id, item.product_id, opportunity.currency)
+        # a price the deal stated is copied; otherwise which price applies is
+        # the workspace's rule, so the line stays unpriced with the candidates
+        # reported beside it
+        unit_price = float(item.unit_price) if item.unit_price is not None else None
+        basis = "opportunity_line" if unit_price is not None else "unpriced"
         line = SalesQuotationItem(
             tenant_id=tenant_id,
             quotation_id=quotation.id,
@@ -1478,12 +1524,7 @@ def quote_opportunity(
         )
         db.add(line)
         lines.append(line)
-        bases.append(basis)
-    if opportunity.status != quoting and quoting in (machine.get("transitions") or {}).get(opportunity.status, []):
-        # F-04: a deal already past quoting (negotiating) keeps its stage;
-        # the bridge does not walk it backwards
-        apply_status_change(db, actor, opportunity, quoting)
-        opportunity.status = quoting
+        facts.append({"price_basis": basis, "agreed_price": agreed})
     record_audit(db, tenant_id=tenant_id, action="opportunity.quoted", entity_type="opportunity",
                  entity_id=opportunity.id, actor=actor.label,
                  detail={"opportunity_no": opportunity.opportunity_no, "quotation_id": quotation.id,
@@ -1492,8 +1533,8 @@ def quote_opportunity(
     db.refresh(quotation)
     data = SalesQuotationRead.model_validate(quotation).model_dump(by_alias=True)
     data["items"] = [
-        {**SalesQuotationItemRead.model_validate(line).model_dump(by_alias=True), "price_basis": basis}
-        for line, basis in zip(lines, bases)
+        {**SalesQuotationItemRead.model_validate(line).model_dump(by_alias=True), **fact}
+        for line, fact in zip(lines, facts)
     ]
     return envelope(data)
 

@@ -41,6 +41,10 @@ UNAUDITED: dict[str, str] = {
     "device.py POST /start": "issues a device code, not a business record",
     "oauth.py POST /oauth/authorize": "the consent yields a code; the token exchange that mints the key IS audited (oauth.authorized)",
     "oauth.py POST /oauth/device_authorization": "issues a device code, not a business record",
+    "oauth.py POST /oauth/register": (
+        "opt-in public-client metadata, with no tenant actor, secret or access grant; "
+        "login, consent and PKCE remain required, and token issuance is audited"
+    ),
     "mcp.py POST /mcp": "a transport: every write it carries runs the REST endpoint, which audits it",
     "auth.py POST /token/refresh": (
         "the rotation IS audited — by the ORM trail, as api_key.updated with both"
@@ -131,6 +135,8 @@ UNAUDITED: dict[str, str] = {
     "treasury.py PATCH /fin-account-transactions/{trans_id}": "reconciliation link annotation unaudited — known gap",
     "contracts.py POST /contracts": "contract document write unaudited — known gap",
     "contracts.py POST /contracts/{contract_id}/restore": "restore unaudited — known gap",
+    "budgets.py POST /budgets/{budget_id}/restore": "restore unaudited — known gap, as every family's",
+    "budgets.py POST /budget-changes/{change_id}/restore": "restore unaudited — known gap, as every family's",
     "contracts.py POST /contract-items": "contract line write unaudited — known gap",
     "contracts.py PATCH /contract-items/{item_id}": "contract line write unaudited — known gap",
     "contracts.py DELETE /contract-items/{item_id}": "contract line removal while editable — the contract is the record",

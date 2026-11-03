@@ -97,13 +97,13 @@ ITEM_FAMILIES: dict[type, ItemFamily] = {
     ),
     PurchaseOrderItem: ItemFamily(
         PurchaseOrder, "po_id", "purchase_order.manage", False, PurchaseOrderItemRead,
-        ("line_no", "tax_rate", "promised_date"),
+        ("line_no", "tax_rate", "promised_date", "budget_line_id"),
         link_field="purchase_request_item_id", link_validator=_purchase_request_item_for_po_link,
         list_order=lambda m: (m.line_no.asc().nulls_last(), m.created_at.asc(), m.id.asc()),
     ),
     PurchaseRequestItem: ItemFamily(
         PurchaseRequest, "request_id", "purchase.submit_own", True, PurchaseRequestItemRead,
-        (),
+        ("budget_line_id",),
         link_field="sales_order_item_id", link_validator=_sales_order_item_for_link,
         list_order=lambda m: (m.created_at.desc(),),
     ),

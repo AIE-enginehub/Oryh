@@ -36,6 +36,9 @@ import pytest
 from conftest import invite_member, make_client, provision_tenant
 
 MEMBER_READS: dict[tuple[str, str], str] = {
+    # the budget line directory: codes, names and categories, never an
+    # amount — a member tags the spend no collection rule reaches with it
+    ("GET", "/api/v1/budget-lines"): "budget line directory, no amounts",
     # --- business documents: tenant-visible by design; payroll filtered inside
     **{("GET", f"/api/v1/{r}"): "business documents are the workspace's"
        for r in (
@@ -65,7 +68,7 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
        for r in ("customers", "customer-contacts", "customer-relations", "vendors", "employees", "products", "product-skus", "product-categories",
-                 "facilities", "sales-channels", "stores", "store-facilities",
+                 "cost-centers", "facilities", "sales-channels", "stores", "store-facilities",
                  "bills-of-materials", "bom-items", "product-images",
                  "product-prices", "supplier-products", "customer-products", "external-product-maps",
                  "type-options")},

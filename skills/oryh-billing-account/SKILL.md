@@ -36,6 +36,7 @@ Four facts shape everything:
 - "City First Hospital prepaid 100,000" / "how much credit do they have left?"
 - "Add 300 points to the customer for this order"
 - "Redeem points against this invoice"
+- "Use 500 of her points for ¥5 off this order" / "the order was cancelled — give the points back"
 - "Run the points expiry" / "last year's points should be cleared"
 - "Freeze this member's account"
 
@@ -91,6 +92,8 @@ that causes it, and carries that act:
 | A customer paid in, we refunded out, an account settled an invoice | `POST /payments/{id}/apply` (below) | `deposit` / `refund` / `charge` |
 | The account was opened with a balance | `opening_balance` on `POST /billing-accounts` | `initial` |
 | A points batch lapsed | `POST /billing-accounts/{id}/expire` (below) | `expired` |
+| Points spent for a discount on a sales order | `POST /sales-orders/{id}/redeem-points` (below) | `redeemed` |
+| Points from such a redemption given back | `POST /sales-orders/{id}/restore-points` (below) | `redemption_reversed` |
 | Points earned or redeemed, a balance adjusted, a transfer between accounts, anything else | an **account document** the tenant defined, posted once: `POST /business-objects/{id}/post-entries` | the document type's own reason |
 
 A movement you cannot place in this table is a question for the person —
@@ -217,16 +220,59 @@ GET /business-rules?kind=policy&in_force_on=<today>&keyword=points
 …or whatever category that workspace filed its membership rules under. If nothing states a
 rate, ask — do not invent one.
 
-**Redeeming against a document is two facts, never one conversion:**
+**Redeeming on an order is two facts, written in one act — never one
+conversion.** "500 points for ¥5 off":
 
-1. a points redemption document (an account document whose type posts `redeemed`) with a
-   minus line of 500 and the order it paid in its payload, posted once;
-2. a `discount` line on that document for the money value (¥5), or a payment
-   for it.
+```text
+POST /sales-orders/{id}/redeem-points
+{"billing_account_id": "<the customer's points account>", "points": 500, "discount_amount": 5}
+```
 
-The server will not turn 500 points into ¥5 for you. That rate is a business
-rule, and a record layer that quietly applied one would be inventing policy —
-the same reason cross-currency settlement is refused rather than converted.
+writes a `redeemed` entry of -500 and a `points` discount of -5 on the order
+that names it (`billing_account_entry_id`), together or not at all. You
+supply both numbers from the workspace's rate; the server will not turn 500
+points into ¥5 — that rate is a business rule, and a record layer that
+quietly applied one would be inventing policy. The order must still be
+editable, the points must be there (the floor is 0), and the discount may
+not take the order below zero. Whose points may pay for an order — the
+customer's own, a family's, a company pool — is the workspace's rule: read it,
+and if nothing says, use the order's customer's own account.
+Points are spent when the order is placed, so they cannot pay two open
+orders. Send an `Idempotency-Key`: a retried redemption must not spend
+twice.
+
+- **Billing it**: on the sales invoice the discount is a line typed `points`
+  naming the same `billing_account_entry_id`, amount -5. It moves no
+  points, and the order's discount is billed at most once (a credit note
+  line gives it back).
+- **The discount changes only with its points**: editing or deleting it as
+  an ordinary adjustment is refused. To change it, take it off and redeem
+  again.
+- **Giving points back**: `POST /sales-orders/{id}/restore-points`.
+  - The order is still being edited and the customer changes their mind:
+    `{"remove_discount": true}` — the discount comes off and, by default,
+    every outstanding point returns with it. If the workspace's rule forfeits
+    some, send `points` (0 for none) and say which rule you applied; the
+    audit will then name those points as spent with no discount standing.
+  - The order was cancelled: `{}` returns everything outstanding; the
+    discount stays on the cancelled order as history.
+  - A partial return after billing: `{"points": 200}` — how many is the
+    workspace's rule (pro rata, or none); say which you applied. The money
+    goes back on the credit note.
+  - Returned points are a fresh batch: set `expires_at` by the workspace's
+    rule (the original batch's date, or a new window), or leave it unset.
+  - Never more than was spent: the server refuses the excess. Name the
+    redemption with `entry_id` when the order carries more than one
+    (`GET /sales-orders/{id}/points-redemptions` lists them with what is
+    outstanding).
+- A revised order carries its points discount, still naming the same
+  redemption.
+- Whether a cancelled order's points come back is the workspace's call, and
+  yours to write; the integrity audit lists points spent where no discount
+  stands and nothing was given back.
+
+Points spent on something other than an order (a gift, a voucher) still go
+through an account document whose type posts `redeemed`.
 
 **The expiry sweep**:
 
@@ -264,7 +310,9 @@ rule you applied when you report.
   retry the same numbers.
 - A `frozen` or `closed` account refuses every movement, including settlement.
   Freezing is deliberate; ask before reactivating.
-- Lowering a credit limit below what is already drawn is a 409.
+- A credit limit may be lowered below what is drawn: that is the owner's call.
+  The account then takes no new charge but can still be paid down, and it
+  shows in `GET /billing-accounts?over_limit=true`. Say so before you write it.
 - An account still holding a balance cannot be deleted.
 
 ## What This Skill Never Does

@@ -202,6 +202,64 @@ cross-currency settlement a 409 rather than a conversion.
 The same line holds for earning rules, tiers, birthday multipliers and which
 products earn at all. None of them are here.
 
+## Redeeming points on an order
+
+"Use 500 points for ¥5 off the next order" keeps the two facts and adds what
+held them together only in an agent's head: the act that writes both, and
+the thread from one to the other. Built 2026-10-28 (migration
+`20261028_0105`, `app/api/points.py`).
+
+| Act | Writes |
+|---|---|
+| `POST /sales-orders/{id}/redeem-points` `{billing_account_id, points, discount_amount, order_item_id?}` | a `redeemed` entry of `-points` naming the order, and a `points` adjustment of `-discount_amount` whose `billing_account_entry_id` names that entry — one transaction, under the account's lock and floor |
+| a `points` line on the sales invoice | bills the order's discount, naming the same entry; moves no points |
+| `POST /sales-orders/{id}/restore-points` `{entry_id?, points?, remove_discount?, expires_at?}` | a `redemption_reversed` entry of `+points` naming the redemption (`entity_type = billing_account_entry`), as an expiry names its batch; with `remove_discount`, the discount comes off too |
+| `GET /sales-orders/{id}/points-redemptions` | per redemption: spent, given back, outstanding, the discount standing for it |
+
+The tables gain two columns and no table: `billing_account_entry_id` on
+`sales_order_adjustments` (one live discount per redemption,
+`sales_order_adjustments_redemption_uk`) and on `invoice_items`. Points given
+back point at their redemption through the entry's own provenance pair, so
+the ledger is unchanged.
+
+The rules, and why each holds where it does:
+
+- **Spent when the order is placed, not when it is billed.** The gap between
+  order and invoice is where the same points would otherwise back two
+  orders — the same reason a charged order occupies credit before its
+  invoice. The order must still be editable; the floor (0) is checked
+  under the account lock; the discount may not take the order, or its
+  line, below zero. Whose points may pay for an order (the customer's own,
+  a family's, a company pool) is the workspace's rule, not the server's.
+  The invoice that bills the discount is the discounted order's customer's.
+- **The server still converts nothing.** The caller states both the points
+  and the money; the rate is the workspace's rule.
+- **The discount changes only with its points.** A `points` adjustment must
+  name a redemption, and one that does is refused by every ordinary path —
+  PATCH, DELETE, the whole-order save (409) — at flush, whichever endpoint
+  wrote it. Taking it off is `restore-points` with `remove_discount`, with
+  as many points as the workspace's rule gives back in the same act
+  (default all outstanding; `points: 0` for none). A revision moves the
+  discount, still naming the redemption, to the new order.
+- **Given back, never beyond what was spent.** Each `redemption_reversed`
+  entry names its redemption, and the sum of them is held to what it spent
+  under the account lock. Which cancellations or removed discounts return
+  points, and how many of a partial return's, is the workspace's rule — the agent's write, as
+  releasing a cancelled order's credit is.
+- **Billed at most once.** A `points` invoice line names the redemption; the
+  live points lines of all invoices for one redemption net to between zero
+  and its discount, so a credit note's positive line gives it back.
+- **Returned points are a fresh batch.** `expires_at` on the give-back is
+  the workspace's rule (the original batch's date, or a new window): which
+  batch a redemption drew from is still not tracked (below).
+
+`redemption_reversed` joins the reasons with their own door, so no account
+document may post it. The integrity audit holds the thread — every `points`
+adjustment and invoice line names a redemption, and no redemption is given
+back beyond what it spent — and names, as advice, points spent on an order
+where no discount stands (cancelled, deleted, removed) that were not given
+back: the detector for a forgotten `restore-points`.
+
 ## Expiry: facts, and a queue
 
 Entries carry `expires_at` (points only). Expiry itself is a negative `expired`
@@ -241,5 +299,8 @@ run the expiry sweep. Neither capability is in the `member` default.
   share one account (a group credit line). Collapsed to a single owner, as `payments` is.
 - **`BillingAccountTerm`.** Payment terms live on the documents, not the account.
 - **Points-to-money conversion, in any direction.** See above.
-- **Batch-level consumption tracking.** See above.
+- **Batch-level consumption tracking.** See above; still out with order
+  redemption. Exact expiry per batch would need an allocation table
+  (redemption, earn batch, points) and a drawing order written into the
+  server.
 - **Tiers and membership levels.** Tenant-defined objects, not a fixed schema.

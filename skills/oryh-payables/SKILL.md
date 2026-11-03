@@ -230,6 +230,12 @@ POST /payments/{payment_id}/apply
   fact rather than a floating one — see `$oryh-billing-account`.
 - A wrong match is reversed with a negative `amount_applied` and a `note`. Both
   rows stay in the ledger.
+- Whether the bank actually carried a payment is a different question from
+  what it settles: `GET /payments/{payment_id}/detail` → `cash_landings` (the
+  register lines the cashier linked, `direct` or through its `batch`),
+  `landed_amount` and `unlanded_amount`. A paid payment with nothing landed
+  is the cashier's reconciliation question ($oryh-treasury), not yours to
+  answer by editing the payment.
 
 {{include:_common/attachment-evidence.md}}
 
@@ -265,6 +271,19 @@ nothing yet to apply it to; later invoices under the same contract carry
 it too, so `GET /contracts/{id}/execution` shows paid against invoiced.
 Pay what the clause says, on the event it names — never a round number
 because the invoice arrived.
+
+## Budget Lines
+
+Type a supplier invoice's lines for what they are: advertising, promotion and
+marketing events `marketing` — a marketing budget ($oryh-budget) collects
+those by itself; the authorities' remittances by whose money each line is
+(`employer_social_insurance`, `employer_housing_fund`, `withheld_remittance`
+— see $oryh-payroll). Lines made from a purchase order inherit its
+`budget_line_id`. Anything else goes to a budget line only when the
+principal names one: `GET /budget-lines?status=active`, then
+`budget_line_id` on the invoice line, said in the read-back. Being over
+budget is never a reason to hold an invoice — whoever approves reads
+`GET /budget-impact`.
 
 ## What This Skill Never Does
 

@@ -507,6 +507,10 @@ POST   /geos                          → {geo_code, name, geo_type, parent_geo_
 PATCH  /geos/{id}                     → name, geo_type, parent_geo_id, abbreviation, status (active | archived)
 GET    /geos/{id}/path                → the geo and its ancestors, root first
 POST   /geos/seed-template            → {"template": "cn_provinces"} → {created, existing}
+GET    /cost-centers?parent_id=&cost_center_code=&status=&keyword=
+POST   /cost-centers                  → {cost_center_code, name, parent_id?, description?}
+PATCH  /cost-centers/{id}             → name, parent_id, description, status (active | archived)
+PATCH  /employees/{id}                → {cost_center_id} the home centre
 GET    /territories?parent_territory_id=&manager_employee_id=&status=&keyword=
 POST   /territories                   → {territory_code, name, parent_territory_id?, manager_employee_id?, description?}
 PATCH  /territories/{id}

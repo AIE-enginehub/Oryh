@@ -273,7 +273,7 @@ def test_every_family_shares_the_funnel() -> None:
     # go unwatched.
     collections = {path.strip("/") for path in BUILTIN_QUEUE_PATHS.values()} | {
         "purchase-orders", "shipments", "picklists", "leads", "opportunities", "contracts",
-        "campaigns", "events",
+        "campaigns", "events", "budgets", "budget-changes",
     }
     assert len(collections) == len(DOCUMENT_ENTITY_TYPES), (
         f"{len(collections)} collections for {len(DOCUMENT_ENTITY_TYPES)} document families — "
@@ -281,7 +281,10 @@ def test_every_family_shares_the_funnel() -> None:
     )
 
     submits = [(route, fn, calls) for route, fn, calls in endpoints if route.endswith("/submit")]
-    assert len(submits) == len(BUILTIN_QUEUE_PATHS), (
+    # submittable but never hosted: a budget change is routed only in a
+    # workspace that wants its budget changes approved, by its own people
+    submittable_unhosted = {"budget-changes"}
+    assert len(submits) == len(BUILTIN_QUEUE_PATHS) + len(submittable_unhosted), (
         f"{len(submits)} submit endpoints for {len(BUILTIN_QUEUE_PATHS)} submittable families — "
         "one of them is not where this test can see it"
     )

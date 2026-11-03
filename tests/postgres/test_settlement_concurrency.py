@@ -311,3 +311,33 @@ def test_a_payment_cannot_be_applied_twice_over(pg_sessionmaker, payment_and_inv
     assert ledger <= 100.0, f"the ledger records {ledger} applied from a 100 payment"
     assert applied == ledger, f"stored {applied} != ledger {ledger}"
     assert len(errors) == 1, f"exactly one application should have been refused; {len(errors)} were"
+
+
+@pytest.mark.parametrize("amount", [0.025, -0.025])
+def test_account_entry_precision_is_checked_before_numeric_storage(pg_sessionmaker, account, amount):
+    """The common writer also guards callers without a two-decimal request schema."""
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from fastapi import HTTPException
+    from app.api.billing import post_account_entries
+
+    with pg_sessionmaker() as db:
+        acct = db.get(BillingAccount, account["account_id"])
+        with pytest.raises(HTTPException) as refused:
+            post_account_entries(db, make_actor(account["tenant_id"]), acct,
+                                 [SimpleNamespace(amount=amount, reason="adjustment")], check_permission=False)
+        assert refused.value.status_code == 422
+        db.rollback()
+    assert ledger_and_balance(pg_sessionmaker, account["account_id"]) == (0, 100)
+    with pg_sessionmaker() as db:
+        acct = db.get(BillingAccount, account["account_id"])
+        post_account_entries(db, make_actor(account["tenant_id"]), acct,
+                             [SimpleNamespace(amount=value, reason="adjustment") for value in (0.03, -0.01)],
+                             check_permission=False)
+        db.commit()
+    with pg_sessionmaker() as db:
+        total = db.scalar(select(func.sum(BillingAccountEntry.amount)).where(
+            BillingAccountEntry.billing_account_id == account["account_id"]))
+        balance = db.scalar(select(BillingAccount.balance).where(BillingAccount.id == account["account_id"]))
+        assert total == Decimal("0.02") and balance == Decimal("100") + total

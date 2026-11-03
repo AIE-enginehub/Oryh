@@ -108,11 +108,22 @@ oryh:
      transfers explain themselves by type and are never listed). For each,
      find the paid payment it settles (the amount signs must agree; when
      the bank netted a charge, record it as `fee_amount` on the line and
-     say the difference out loud) and `PATCH {"payment_id": ...}`.
+     say the difference out loud) and `PATCH {"payment_id": ...}`. The
+     server holds the rest: the payment is `approved` or paid (never a
+     draft, one in approval, a cancelled, voided or deleted one — that is
+     the accountant's question first), and it lands once — its lines
+     together carry no more than its amount (a netted line carries its
+     `gross_amount`), and a payment its batch line settles takes no line of
+     its own. `GET /payments/{id}/detail` reads it back from the payment's
+     side: `cash_landings` (each line, `direct` or `batch`),
+     `landed_amount` and `unlanded_amount`.
    - **One debit, many payments** — payroll, a supplier payment run: the
      payments share a `reference_no` (the bank batch number), and that IS
      the batch. Link the line to it, not to any one member:
      `PATCH {"payment_reference_no": "PAYROLL-2026-08"}`. The server
+     counts only approved or paid members (a voided or draft one is not part
+     of what the bank debited), lands a batch on one line, and refuses a
+     batch whose member already has a line of its own. It
      accepts only when the members sum to the line exactly; a 422 names
      the count, the sum and the difference — take it to the person. The
      bank's charge for the batch is its own `fee` line; a member the bank

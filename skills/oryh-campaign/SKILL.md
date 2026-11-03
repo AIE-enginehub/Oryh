@@ -60,8 +60,10 @@ oryh:
    they respond, attend, convert or decline.
 6. **What it produced**: `GET /campaigns/{id}/detail` — `members_total`,
    `members_by_status`, `leads_total`, `leads_converted`,
-   `opportunities_total`, `opportunities_won`, `won_expected_amount`. Say
-   out loud that the last is the won deals' ESTIMATES; the money is in
+   `opportunities_total`, `opportunities_won`, `won_expected_amount` (in the
+   campaign's currency) and `won_expected_other_currencies` (one total per
+   other currency — report each beside it, never add them). Say
+   out loud that these are the won deals' ESTIMATES; the money is in
    their orders (`GET /sales-orders?opportunity_id=` — read by the deal's
    owner or a holder of `order.read_all`; marketing's own grant does not
    open the order list, so say whose numbers you could not see).

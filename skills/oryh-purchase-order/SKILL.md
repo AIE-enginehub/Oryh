@@ -163,6 +163,18 @@ product. What is different is what you bring to the order:
    and the deposit ride the same `contract_id` ($oryh-payables), so
    `GET /contracts/{id}/execution` answers "how far along is this deal".
 
+## Budget Lines
+
+A budget ($oryh-budget) collects marketing, labour and sales by itself. Other
+spend reaches a budget line only when a line names one: when the principal
+says what a purchase is for in budget terms ("this goes on the office line"),
+read `GET /budget-lines?status=active` (codes and names, no amounts) and set
+`budget_line_id` on the line. An order line made from a request line inherits its
+`budget_line_id`; do not restate it. Never pick one by guessing; say which line and
+why in the read-back. A line that does not fit — another currency, a date
+outside the budget's year, a closed line — is a 422 naming why. Being over
+budget is never refused: whoever approves reads `GET /budget-impact`.
+
 ## What This Skill Never Does
 
 - Order without a decided vendor, or invent vendors/products to make a line pass.

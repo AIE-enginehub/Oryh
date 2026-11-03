@@ -81,6 +81,9 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "shipment.manage": ("Ship and receive parcels", "File, advance and post-stock shipments (sales dispatch, return receipt, purchase-return dispatch); no positions, counts or stock documents"),
     "fin_account.manage": ("Fin accounts and bank statements", "Record fin accounts (bank, cash, payment platforms) and their register lines, import statements, link payments for reconciliation; not the payment documents themselves"),
     "contract.manage": ("Manage contracts", "File contracts and originals, locate clauses, advance status, link orders, invoices and payments; scopable by side (contract.manage:purchase, :sales); reading needs it too"),
+    "budget.manage": ("Manage budgets", "Build budgets and their lines, file and post budget changes; read every budget figure (labour actuals also need payroll.read)"),
+    "budget.read_all": ("Read all budgets", "Read every budget's plan and execution (labour actuals also need payroll.read); budget.manage implies it"),
+    "budget.advance": ("Approve budget changes", "In a workspace that routes budget changes for approval, advance them: approve, return, reject, post"),
     "employees.manage": ("Manage employees", "Create and maintain employee records"),
     "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities — within the holder's own grants: inviting into admin or building a wider role is the administrator's"),
     "keys.manage": ("Manage access credentials", "Issue, view and disable personal credentials — never for an administrator or for someone holding a users.manage, keys.manage or skills.manage grant the holder lacks; workspace credentials are the administrator's"),
@@ -172,6 +175,9 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
     "shipment.manage": ("shipments", "shipment-items", "fulfilment-backlog"),
     "fin_account.manage": ("fin-accounts", "fin-account-transactions"),
     "contract.manage": ("contracts", "contract-items", "contract-terms", "contract-documents"),
+    "budget.manage": ("budgets", "budget-lines", "budget-changes", "budget-entries"),
+    "budget.read_all": ("budgets", "budget-lines", "budget-changes", "budget-entries"),
+    "budget.advance": ("budget-changes",),
     "employees.manage": ("employees",),
     "users.manage": ("auth/users", "roles", "capabilities"),
     "keys.manage": ("tenant/api-keys",),
@@ -329,6 +335,8 @@ DEFAULT_ROLE_PERMISSIONS[HOSTED_FLOW_AGENT_ROLE] = HOSTED_FLOW_AGENT_PERMISSIONS
 IMPLIED_BY: dict[str, tuple[str, ...]] = {
     "shipment.manage": ("inventory.manage",),
     "project.manage": ("master_data.manage",),
+    # whoever builds the budget reads it
+    "budget.read_all": ("budget.manage",),
 }
 
 

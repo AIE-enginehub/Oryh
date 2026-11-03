@@ -120,6 +120,9 @@ class Employee(TenantRecord, MetadataJsonbMixin, Base):
     name: Mapped[str] = mapped_column(String(200))
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     timezone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # the person's home cost centre: what their spending documents book
+    # against unless one names another
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     # When this person's employment started. A real column rather than a custom
     # field because it is universal to employment and because a computation
     # depends on it: annual leave entitlement is a function of length of service, and an agent that
@@ -293,6 +296,14 @@ class IdempotencyRecord(IdMixin, CreatedAtMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class OAuthPublicClient(IdMixin, CreatedAtMixin, Base):
+    """Registered desktop callback metadata, never a credential or a grant."""
+
+    __tablename__ = "oauth_public_clients"
+    redirect_uris: Mapped[list] = mapped_column(JsonType)
+    client_name: Mapped[str] = mapped_column(String(200))
+
+
 class OAuthAuthorizationCode(IdMixin, CreatedAtMixin, Base):
     """One OAuth 2.1 authorization code: the browser consent's receipt, spent
     exactly once at the token endpoint against its PKCE challenge. A platform
@@ -435,6 +446,26 @@ class Territory(TenantRecord, MetadataJsonbMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="active")
 
     parent: Mapped["Territory | None"] = relationship(remote_side="Territory.id")
+
+
+class CostCenter(TenantRecord, MetadataJsonbMixin, Base):
+    """Where money is spent inside the company — Sales, Operations,
+    Operations / Warehouse. A tree (`parent_id`), master data any module may
+    book against. An employee has a home cost centre; a spending document
+    takes it unless it names another; a budget scoped to a cost centre reads
+    that centre's share — the subtree's — of what the company budget
+    collects (plan docs/plans/budgets-2026-10-27.md §13)."""
+
+    __tablename__ = "cost_centers"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "cost_center_code", name="cost_centers_code_uk"),
+    )
+
+    cost_center_code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
 
 
 class TerritoryGeo(TenantRecord, MetadataJsonbMixin, Base):
@@ -1683,6 +1714,151 @@ class ContractTerm(TenantRecord, MetadataJsonbMixin, Base):
     sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class Budget(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """An amount of money planned for a purpose over a period — plan
+    docs/plans/budgets-2026-10-27.md. The plan half is the ledger in
+    BudgetEntry, moved only by posted BudgetChange documents; the consumption
+    half is derived from the business documents on every read and stored
+    nowhere (app/services/budgets.py). `direction` says which reading
+    applies: a spend budget is a limit, an income budget a target."""
+
+    __tablename__ = "budgets"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "budget_no", name="budgets_budget_no_uk"),
+    )
+
+    budget_no: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    direction: Mapped[str] = mapped_column(String(10), default="spend")
+    budget_type: Mapped[str] = mapped_column(String(50), default="operating")
+    currency: Mapped[str] = mapped_column(String(3), default="CNY")
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # a cost-centre budget (phase 3): reads the centre's share of what the
+    # company budget collects, beside it and never added to it
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
+
+
+_COLLECTOR_WHERE = "status = 'active' AND parent_line_id IS NULL AND category IN ('labour', 'marketing', 'sales')"
+_SUB_TARGET_WHERE = "status = 'active' AND parent_line_id IS NOT NULL"
+
+
+class BudgetLine(TenantRecord, MetadataJsonbMixin, Base):
+    """What a budget is divided into. A line of a collecting category
+    (`labour`, `marketing`, `sales`) gathers its documents by rule; any other
+    line receives only what is tagged to it. One active collector per
+    category per budget, so a document's line has one answer.
+
+    A sub-target (phase 2) hangs under the sales line (`parent_line_id`) and
+    names exactly one dimension — a salesperson, a territory, a customer or
+    a product category. It reads the part of its parent's documents that
+    match, beside the parent; its plan never adds to the budget's total, so a
+    salesperson split and a territory split may stand side by side."""
+
+    __tablename__ = "budget_lines"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "budget_id", "line_code", name="budget_lines_code_uk"),
+        Index(
+            "budget_lines_collector_uk",
+            "tenant_id", "budget_id", "category",
+            unique=True,
+            postgresql_where=text(_COLLECTOR_WHERE),
+            sqlite_where=text(_COLLECTOR_WHERE),
+        ),
+        Index(
+            "budget_lines_sub_target_uk",
+            "tenant_id", "parent_line_id",
+            text("coalesce(employee_id, territory_id, customer_id, product_category_id)"),
+            unique=True,
+            postgresql_where=text(_SUB_TARGET_WHERE),
+            sqlite_where=text(_SUB_TARGET_WHERE),
+        ),
+    )
+
+    budget_id: Mapped[str] = mapped_column(ForeignKey("budgets.id"), index=True)
+    line_code: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(50), default="other")
+    owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parent_line_id: Mapped[str | None] = mapped_column(ForeignKey("budget_lines.id"), nullable=True, index=True)
+    # a sub-target's one dimension (budget_lines_dimension_chk)
+    employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    territory_id: Mapped[str | None] = mapped_column(ForeignKey("territories.id"), nullable=True, index=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    product_category_id: Mapped[str | None] = mapped_column(
+        ForeignKey("product_categories.id"), nullable=True, index=True
+    )
+
+    budget: Mapped[Budget] = relationship()
+
+
+class BudgetChange(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
+    """Every change to a budget's plan is a document with its reason: the
+    original allocation, an increase, a decrease, a transfer, a carry-forward.
+    Reaching its machine's `posted` role writes one BudgetEntry per line."""
+
+    __tablename__ = "budget_changes"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "change_no", name="budget_changes_change_no_uk"),
+    )
+
+    change_no: Mapped[str] = mapped_column(String(64))
+    budget_id: Mapped[str] = mapped_column(ForeignKey("budgets.id"), index=True)
+    change_type: Mapped[str] = mapped_column(String(50), default="original")
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    posted_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source_budget_id: Mapped[str | None] = mapped_column(ForeignKey("budgets.id"), nullable=True, index=True)
+
+    budget: Mapped[Budget] = relationship(foreign_keys=[budget_id])
+
+
+class BudgetChangeLine(TenantRecord, Base):
+    """One line of a change: this budget line, this month, this signed amount."""
+
+    __tablename__ = "budget_change_lines"
+
+    change_id: Mapped[str] = mapped_column(ForeignKey("budget_changes.id"), index=True)
+    line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    budget_line_id: Mapped[str] = mapped_column(ForeignKey("budget_lines.id"), index=True)
+    # the first day of the month the amount belongs to
+    period_month: Mapped[date] = mapped_column(Date)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class BudgetEntry(IdMixin, TenantMixin, CreatedAtMixin, Base):
+    """The plan ledger: appended when a change posts, never updated or
+    deleted. A line's planned amount is the sum of its entries — there is no
+    planned column anywhere to drift from it."""
+
+    __tablename__ = "budget_entries"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "change_line_id", name="budget_entries_change_line_uk"),
+        Index("budget_entries_line_month_idx", "tenant_id", "budget_line_id", "period_month"),
+    )
+
+    budget_id: Mapped[str] = mapped_column(ForeignKey("budgets.id"), index=True)
+    budget_line_id: Mapped[str] = mapped_column(ForeignKey("budget_lines.id"), index=True)
+    change_id: Mapped[str] = mapped_column(ForeignKey("budget_changes.id"), index=True)
+    change_line_id: Mapped[str] = mapped_column(ForeignKey("budget_change_lines.id"))
+    entry_type: Mapped[str] = mapped_column(String(20))
+    period_month: Mapped[date] = mapped_column(Date)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2))
+    created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+
 class Shipment(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     """One freight leg: goods physically moving in a parcel or a truck —
     Modeled on OFBiz Shipment, reduced to the agent-native shape (one leg,
@@ -2807,6 +2983,9 @@ class ExpenseClaim(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
     __tablename__ = "expense_claims"
 
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # the cost centre this document books against (budgets phase 3); defaulted
+    # from the employee whose spend it is when nobody names one
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     claim_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="CNY")
@@ -2844,6 +3023,10 @@ class ExpenseItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     # full structured extraction from the receipt (tax-invoice code, buyer's tax identifier, …);
     # the typed columns above are the queryable subset
     extracted_fields_jsonb: Mapped[dict] = mapped_column("extracted_fields_jsonb", JsonType, default=dict)
+    # the budget line this spend is sent to when no collection rule reaches it
+    # (plan docs/plans/budgets-2026-10-27.md, B6); checked and copied forward
+    # by app/services/budgets.py
+    budget_line_id: Mapped[str | None] = mapped_column(ForeignKey("budget_lines.id"), nullable=True, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     claim: Mapped[ExpenseClaim] = relationship(back_populates="items")
@@ -2856,6 +3039,9 @@ class PurchaseRequest(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJson
     __tablename__ = "purchase_requests"
 
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # the cost centre this document books against (budgets phase 3); defaulted
+    # from the employee whose spend it is when nobody names one
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     request_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     needed_by: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -2900,6 +3086,10 @@ class PurchaseRequestItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin,
     unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
+    # the budget line this spend is sent to when no collection rule reaches it
+    # (plan docs/plans/budgets-2026-10-27.md, B6); checked and copied forward
+    # by app/services/budgets.py
+    budget_line_id: Mapped[str | None] = mapped_column(ForeignKey("budget_lines.id"), nullable=True, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     request: Mapped[PurchaseRequest] = relationship(back_populates="items")
@@ -3043,6 +3233,9 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
     vendor_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # the procurement officer who placed it
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # the cost centre this document books against (budgets phase 3); defaulted
+    # from the employee whose spend it is when nobody names one
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contract_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
     order_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -3096,6 +3289,10 @@ class PurchaseOrderItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, B
     )
     received_quantity: Mapped[float] = mapped_column(Numeric(12, 2), default=0)
     attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True, index=True)
+    # the budget line this spend is sent to when no collection rule reaches it
+    # (plan docs/plans/budgets-2026-10-27.md, B6); checked and copied forward
+    # by app/services/budgets.py
+    budget_line_id: Mapped[str | None] = mapped_column(ForeignKey("budget_lines.id"), nullable=True, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     po: Mapped[PurchaseOrder] = relationship(back_populates="items")
@@ -3309,6 +3506,16 @@ class SalesOrderAdjustment(TenantRecord, SoftDeleteMixin, MetadataJsonbMixin, Ba
     order line."""
 
     __tablename__ = "sales_order_adjustments"
+    __table_args__ = (
+        # a redemption pays for one live discount
+        Index(
+            "sales_order_adjustments_redemption_uk",
+            "tenant_id", "billing_account_entry_id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL AND billing_account_entry_id IS NOT NULL"),
+            sqlite_where=text("deleted_at IS NULL AND billing_account_entry_id IS NOT NULL"),
+        ),
+    )
 
     order_id: Mapped[str] = mapped_column(ForeignKey("sales_orders.id"), index=True)
     order_item_id: Mapped[str | None] = mapped_column(
@@ -3318,6 +3525,12 @@ class SalesOrderAdjustment(TenantRecord, SoftDeleteMixin, MetadataJsonbMixin, Ba
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(12, 2))
     source_percentage: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
+    # a `points` discount: the `redeemed` entry on the customer's points
+    # account that paid for it (docs/billing-accounts.md). Written and
+    # removed only by redeem-points / restore-points and the revision bridge
+    billing_account_entry_id: Mapped[str | None] = mapped_column(
+        ForeignKey("billing_account_entries.id"), nullable=True, index=True
+    )
 
     order: Mapped[SalesOrder] = relationship()
     item: Mapped[SalesOrderItem | None] = relationship()
@@ -3398,6 +3611,9 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     invoice_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     # the person who owns the document, as in every other family
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
+    # the cost centre this document books against (budgets phase 3); defaulted
+    # from the employee whose spend it is when nobody names one
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
     # payslip (direction='payroll'): the person being paid. Distinct from
@@ -3526,6 +3742,15 @@ class InvoiceItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
     # which is what keeps an issued payslip explainable a year later
     pay_history_id: Mapped[str | None] = mapped_column(
         ForeignKey("pay_histories.id"), nullable=True, index=True
+    )
+    # the budget line this spend is sent to when no collection rule reaches it
+    # (plan docs/plans/budgets-2026-10-27.md, B6); checked and copied forward
+    # by app/services/budgets.py
+    budget_line_id: Mapped[str | None] = mapped_column(ForeignKey("budget_lines.id"), nullable=True, index=True)
+    # a `points` discount line: the `redeemed` entry that paid for it — the
+    # order's points discount, billed; billing it moves no points
+    billing_account_entry_id: Mapped[str | None] = mapped_column(
+        ForeignKey("billing_account_entries.id"), nullable=True, index=True
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
@@ -416,6 +416,40 @@ class CreateTerritoryRequest(TerritoryBase):
 
 UpdateTerritoryRequest = partial_model("UpdateTerritoryRequest", TerritoryBase)
 
+
+
+class CostCenterBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_id: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    status: Literal["active", "archived"] = "active"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateCostCenterRequest(CostCenterBase):
+    cost_center_code: str = Field(min_length=1, max_length=64)
+
+
+UpdateCostCenterRequest = partial_model("UpdateCostCenterRequest", CostCenterBase)
+
+
+class CostCenterRead(APIModel):
+    id: str
+    cost_center_code: str
+    name: str
+    parent_id: str | None = None
+    description: str | None = None
+    status: str
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+CostCenterEnvelope = Envelope[CostCenterRead]
+CostCenterListEnvelope = ListEnvelope[CostCenterRead]
 
 class TerritoryRead(APIModel):
     id: str
@@ -2426,6 +2460,284 @@ class ContractExecutionRead(APIModel):
 ContractExecutionEnvelope = Envelope[ContractExecutionRead]
 
 
+# --- budgets (plan docs/plans/budgets-2026-10-27.md) ----------------------
+
+BudgetDirection = Literal["spend", "income"]
+MONEY_MAX = 999_999_999_999.99
+
+
+def _whole_months(start: date | None, end: date | None) -> None:
+    """A budget's period runs from the first of a month to the last day of a
+    month: its figures are phased by month, and a half-month would make every
+    monthly figure a question."""
+    if start is not None and start.day != 1:
+        raise ValueError("period_start is the first day of a month")
+    if end is not None and (end + timedelta(days=1)).day != 1:
+        raise ValueError("period_end is the last day of a month")
+    if start is not None and end is not None and end < start:
+        raise ValueError("period_end must not precede period_start")
+
+
+BUDGET_DIMENSIONS = ("employee_id", "territory_id", "customer_id", "product_category_id")
+
+
+class BudgetBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    direction: BudgetDirection = "spend"
+    budget_type: TypeOptionName = "operating"
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
+    period_start: date
+    period_end: date
+    owner_employee_id: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+    # a spend budget for one cost centre: reads that centre's share of what
+    # the company budget collects, beside it
+    cost_center_id: str | None = None
+
+    @model_validator(mode="after")
+    def _months(self) -> "BudgetBase":
+        _whole_months(self.period_start, self.period_end)
+        return self
+
+
+class InlineBudgetLine(RequestModel):
+    line_code: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=200)
+    category: TypeOptionName = "other"
+    owner_employee_id: str | None = None
+    sort_order: int | None = Field(default=None, ge=0, le=9999)
+    description: str | None = Field(default=None, max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateBudgetRequest(BudgetBase):
+    budget_no: str | None = Field(default=None, max_length=64)
+    status: str | None = Field(default=None, max_length=50)
+    lines: list[InlineBudgetLine] = Field(default_factory=list, max_length=200)
+
+
+class UpdateBudgetRequest(partial_model("UpdateBudgetRequestFields", BudgetBase, exclude=("direction",))):
+    status: str | None = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def _months(self) -> "UpdateBudgetRequest":
+        _whole_months(self.period_start, self.period_end)
+        return self
+
+
+class BudgetRead(APIModel):
+    id: str
+    budget_no: str
+    name: str
+    direction: str
+    budget_type: str
+    currency: str
+    period_start: date
+    period_end: date
+    owner_employee_id: str | None = None
+    status: str
+    activated_at: datetime | None = None
+    closed_at: datetime | None = None
+    description: str | None = None
+    cost_center_id: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    deleted_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    # present on the single read
+    lines: list["BudgetLineRead"] | None = None
+
+
+class BudgetLineBase(InlineBudgetLine):
+    status: Literal["active", "closed"] = "active"
+
+
+class CreateBudgetLineRequest(BudgetLineBase):
+    budget_id: str
+    # a sub-target: under the sales line, naming exactly one dimension — the
+    # salesperson (employee_id), territory, customer or product category
+    parent_line_id: str | None = None
+    employee_id: str | None = None
+    territory_id: str | None = None
+    customer_id: str | None = None
+    product_category_id: str | None = None
+
+    @model_validator(mode="after")
+    def _one_dimension(self) -> "CreateBudgetLineRequest":
+        named = [name for name in BUDGET_DIMENSIONS if getattr(self, name)]
+        if self.parent_line_id and len(named) != 1:
+            raise ValueError(f"a sub-target names exactly one of {', '.join(BUDGET_DIMENSIONS)}")
+        if not self.parent_line_id and named:
+            raise ValueError(f"{named[0]} splits a sales target — name the sales line as parent_line_id")
+        return self
+
+
+UpdateBudgetLineRequest = partial_model("UpdateBudgetLineRequest", BudgetLineBase, exclude=("line_code",))
+
+
+class BudgetLineRead(APIModel):
+    id: str
+    budget_id: str
+    line_code: str
+    name: str
+    category: str
+    # whether this line gathers its documents by rule (labour, marketing,
+    # sales) or receives only what is tagged to it
+    collects: bool = False
+    owner_employee_id: str | None = None
+    status: str
+    sort_order: int | None = None
+    description: str | None = None
+    # a sub-target's parent and its one dimension
+    parent_line_id: str | None = None
+    employee_id: str | None = None
+    territory_id: str | None = None
+    customer_id: str | None = None
+    product_category_id: str | None = None
+    metadata_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("metadata_jsonb", "metadata"),
+        serialization_alias="metadata",
+    )
+    created_at: datetime
+    updated_at: datetime
+
+
+class BudgetChangeLineBase(RequestModel):
+    # the line by id, or by its code within the change's budget
+    budget_line_id: str | None = None
+    line_code: str | None = Field(default=None, max_length=64)
+    period_month: date
+    amount: float = Field(ge=-MONEY_MAX, le=MONEY_MAX)
+    line_no: int | None = Field(default=None, ge=1, le=9999)
+    note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _names_a_line(self) -> "BudgetChangeLineBase":
+        if not self.budget_line_id and not self.line_code:
+            raise ValueError("a change line names its budget line — budget_line_id, or line_code")
+        if self.period_month.day != 1:
+            raise ValueError("period_month is the first day of a month")
+        if self.amount == 0:
+            raise ValueError("a change line moves money — amount is not 0")
+        return self
+
+
+class CreateBudgetChangeRequest(RequestModel):
+    budget_id: str
+    change_type: TypeOptionName = "original"
+    employee_id: str
+    reason: str = Field(min_length=1, max_length=4000)
+    source_budget_id: str | None = None
+    # null starts in the machine's initial state; `posted` files and posts in
+    # one call, the owner's path (needs budget.manage)
+    status: str | None = Field(default=None, max_length=50)
+    change_no: str | None = Field(default=None, max_length=64)
+    lines: list[BudgetChangeLineBase] = Field(min_length=1, max_length=2000)
+    custom_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateBudgetChangeRequest(RequestModel):
+    change_type: TypeOptionName | None = None
+    reason: str | None = Field(default=None, min_length=1, max_length=4000)
+    status: str | None = Field(default=None, max_length=50)
+    custom_fields: dict[str, Any] | None = None
+
+
+SaveBudgetChangeLineRow = save_row_model("SaveBudgetChangeLineRow", BudgetChangeLineBase)
+
+
+class SaveBudgetChangeLinesRequest(RequestModel):
+    expected_revision: str = Field(min_length=64, max_length=64)
+    items: list[SaveBudgetChangeLineRow] = Field(min_length=1, max_length=2000)
+
+
+UpdateBudgetChangeLineRequest = partial_model(
+    "UpdateBudgetChangeLineRequest", BudgetChangeLineBase,
+)
+
+
+class BudgetChangeLineRead(APIModel):
+    id: str
+    change_id: str
+    line_no: int | None = None
+    budget_line_id: str
+    period_month: date
+    amount: float
+    note: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class BudgetChangeRead(APIModel):
+    id: str
+    change_no: str
+    budget_id: str
+    change_type: str
+    employee_id: str
+    reason: str
+    status: str
+    submitted_at: datetime | None = None
+    posted_at: datetime | None = None
+    posted_by: str | None = None
+    source_budget_id: str | None = None
+    custom_fields_jsonb: dict[str, Any] = Field(
+        validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
+        serialization_alias="custom_fields",
+    )
+    deleted_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    lines: list[BudgetChangeLineRead] | None = None
+    revision: str | None = None
+
+
+class BudgetEntryRead(APIModel):
+    id: str
+    budget_id: str
+    budget_line_id: str
+    change_id: str
+    change_line_id: str
+    entry_type: str
+    period_month: date
+    amount: float
+    created_by: str | None = None
+    created_at: datetime
+
+
+class BudgetImportRow(RequestModel):
+    line_code: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, max_length=200)
+    category: TypeOptionName | None = None
+    period_month: date
+    amount: float = Field(gt=0, le=MONEY_MAX)
+
+
+class BudgetImportRequest(RequestModel):
+    """A plan from a spreadsheet the agent parsed: missing lines are created,
+    and one change carries every new line-month; a line-month that already
+    has a planned amount is `unchanged` when equal and an error when not —
+    a different figure is a change with a reason, never an overwrite."""
+
+    employee_id: str
+    reason: str = Field(min_length=1, max_length=4000)
+    rows: list[BudgetImportRow] = Field(min_length=1, max_length=5000)
+    post: bool = False
+    dry_run: bool = False
+
+
+BudgetEnvelope = Envelope[BudgetRead]
+BudgetListEnvelope = ListEnvelope[BudgetRead]
+BudgetLineEnvelope = Envelope[BudgetLineRead]
+BudgetLineListEnvelope = ListEnvelope[BudgetLineRead]
+BudgetChangeEnvelope = Envelope[BudgetChangeRead]
+BudgetChangeListEnvelope = ListEnvelope[BudgetChangeRead]
+BudgetEntryListEnvelope = ListEnvelope[BudgetEntryRead]
+
+
 class PicklistItemBase(RequestModel):
     line_no: int | None = Field(default=None, ge=1, le=9999)
     product_id: str
@@ -2645,8 +2957,10 @@ CampaignEnvelope = Envelope[CampaignRead]
 class CampaignDetailRead(BaseModel):
     """The campaign and what it produced, read live from the leads and
     opportunities that name it — attribution is a count, never a stored
-    number. `won_expected_amount` sums the won deals' ESTIMATES: real money
-    lives in the orders and invoices those deals produced."""
+    number. `won_expected_amount` sums the won deals' ESTIMATES in the
+    campaign's own currency; deals in any other currency are summed apart in
+    `won_expected_other_currencies`, never added in. Real money lives in the
+    orders and invoices those deals produced."""
 
     campaign: CampaignRead
     members_total: int
@@ -2656,6 +2970,7 @@ class CampaignDetailRead(BaseModel):
     opportunities_total: int
     opportunities_won: int
     won_expected_amount: float
+    won_expected_other_currencies: dict[str, float] = Field(default_factory=dict)
 
 
 CampaignDetailEnvelope = Envelope[CampaignDetailRead]
@@ -4104,6 +4419,8 @@ class EmployeeBase(RequestModel):
     # agent should ask about rather than guess around.
     hire_date: date | None = None
     status: EmployeeStatus = "active"
+    # the home cost centre: what this person's spending books against
+    cost_center_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -4123,6 +4440,7 @@ class EmployeeRead(APIModel):
     timezone: str | None = None
     hire_date: date | None = None
     status: EmployeeStatus
+    cost_center_id: str | None = None
     metadata_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("metadata_jsonb", "metadata"),
         serialization_alias="metadata",
@@ -5155,6 +5473,8 @@ class TimesheetEntryRead(APIModel):
 
 class ExpenseClaimBase(RequestModel):
     employee_id: str | None = None
+    # the cost centre it books against; null takes the employee's home centre
+    cost_center_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
     claim_date: date | None = None
     currency: str = Field(default="CNY", min_length=3, max_length=3)
@@ -5186,6 +5506,7 @@ class ExpenseClaimRead(APIModel):
     employee_id: str
     # the person's name, read beside the id at answer time (never stored)
     employee_name: str | None = None
+    cost_center_id: str | None = None
     title: str
     claim_date: date | None = None
     currency: str
@@ -5218,6 +5539,8 @@ class ExpenseItemBase(RequestModel):
     project_name_snapshot: str | None = Field(default=None, max_length=200)
     client: str | None = Field(default=None, max_length=200)
     attachment_id: str | None = None
+    # the budget line this expense is sent to when no collection rule reaches it
+    budget_line_id: str | None = None
     extracted_fields: dict[str, Any] = Field(default_factory=dict)
     notes: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -5269,6 +5592,7 @@ class ExpenseItemRead(APIModel):
         validation_alias=AliasChoices("extracted_fields_jsonb", "extracted_fields"),
         serialization_alias="extracted_fields",
     )
+    budget_line_id: str | None = None
     notes: str | None = None
     custom_fields_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
@@ -5286,6 +5610,8 @@ class ExpenseItemDetailRead(ExpenseItemRead):
 
 class PurchaseRequestBase(RequestModel):
     employee_id: str | None = None
+    # the cost centre it books against; null takes the employee's home centre
+    cost_center_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
     request_date: date | None = None
     needed_by: date | None = None
@@ -5320,6 +5646,7 @@ class PurchaseRequestRead(APIModel):
     employee_id: str
     # the person's name, read beside the id at answer time (never stored)
     employee_name: str | None = None
+    cost_center_id: str | None = None
     title: str
     request_date: date | None = None
     needed_by: date | None = None
@@ -5352,6 +5679,8 @@ class PurchaseRequestItemBase(RequestModel):
     amount: float | None = Field(default=None, ge=0, le=9_999_999.99)
     # procure-to-order: the confirmed sales order line this purchase line fulfils
     sales_order_item_id: str | None = None
+    # the budget line this spend is sent to; copied onto the order line
+    budget_line_id: str | None = None
     attachment_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -5380,6 +5709,7 @@ class PurchaseRequestItemRead(APIModel):
     amount: float | None = None
     sales_order_item_id: str | None = None
     attachment_id: str | None = None
+    budget_line_id: str | None = None
     notes: str | None = None
     custom_fields_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
@@ -6064,6 +6394,8 @@ class SalesOrderAdjustmentRead(APIModel):
     description: str | None = None
     amount: float
     source_percentage: float | None = None
+    # a `points` discount: the redemption that paid for it
+    billing_account_entry_id: str | None = None
     metadata_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("metadata_jsonb", "metadata"),
         serialization_alias="metadata",
@@ -6073,6 +6405,50 @@ class SalesOrderAdjustmentRead(APIModel):
 
 
 SalesOrderAdjustmentEnvelope = Envelope[SalesOrderAdjustmentRead]
+
+
+class RedeemPointsRequest(RequestModel):
+    """Points spent for a discount on this order, as one act: the customer's
+    points account is drawn down by `points` (`redeemed`) and the order gains
+    a `points` discount of `discount_amount` naming that entry. The rate
+    between them is the workspace's rule — the server converts nothing."""
+
+    billing_account_id: str
+    points: float = Field(gt=0, le=999_999_999.99)
+    discount_amount: float = Field(gt=0, le=9_999_999.99)
+    # a line's discount, or the whole order's when null
+    order_item_id: str | None = None
+    description: str | None = Field(default=None, max_length=500)
+
+
+class RestorePointsRequest(RequestModel):
+    """Points given back from a redemption on this order (`redemption_reversed`,
+    naming it). `remove_discount` also takes the discount off an order still
+    being edited; `points` says how many come back with it (default all not
+    yet given back, 0 for none) — the workspace's rule, not the server's.
+    Without it the discount stays (a return after billing gives back part of
+    the points; the credit note handles the money)."""
+
+    entry_id: str | None = None
+    points: float | None = Field(default=None, ge=0, le=999_999_999.99)
+    remove_discount: bool = False
+    # points given back are a fresh batch: their expiry is the workspace's rule
+    expires_at: datetime | None = None
+    description: str | None = Field(default=None, max_length=500)
+
+
+class PointsRedemptionRead(APIModel):
+    entry_id: str
+    billing_account_id: str
+    order_id: str
+    points: float
+    given_back: float
+    outstanding: float
+    adjustment: SalesOrderAdjustmentRead | None = None
+    balance: float
+
+
+PointsRedemptionEnvelope = Envelope[PointsRedemptionRead]
 
 
 SalesOrderAdjustmentListEnvelope = ListEnvelope[SalesOrderAdjustmentRead]
@@ -6088,6 +6464,8 @@ class PurchaseOrderBase(RequestModel):
     contract_id: str | None = None
     vendor_name_snapshot: str | None = Field(default=None, max_length=200)
     employee_id: str | None = None
+    # the cost centre it books against; null takes the purchase request's
+    cost_center_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
     contract_no: str | None = Field(default=None, max_length=64)
     order_date: date | None = None
@@ -6131,6 +6509,7 @@ class PurchaseOrderRead(APIModel):
     id: str
     po_number: str
     contract_id: str | None = None
+    cost_center_id: str | None = None
     order_kind: str
     original_order_id: str | None = None
     vendor_id: str
@@ -6187,6 +6566,8 @@ class PurchaseOrderItemBase(RequestModel):
     promised_date: date | None = None
     # procure-to-order: the approved request line this PO line orders
     purchase_request_item_id: str | None = None
+    # the budget line this spend is sent to; inherited from the request line
+    budget_line_id: str | None = None
     attachment_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
@@ -6219,6 +6600,7 @@ class PurchaseOrderItemRead(APIModel):
     purchase_request_item_id: str | None = None
     received_quantity: float
     attachment_id: str | None = None
+    budget_line_id: str | None = None
     notes: str | None = None
     custom_fields_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
@@ -6346,6 +6728,8 @@ class InvoiceBase(RequestModel):
     contract_id: str | None = None
     invoice_type: InvoiceTypeOption | None = None
     employee_id: str | None = None
+    # the cost centre it books against; null takes the order's, or a payslip's payee's home centre
+    cost_center_id: str | None = None
     customer_id: str | None = None
     # charged to the counterparty's standing account — see billing-accounts.md
     billing_account_id: str | None = None
@@ -6402,6 +6786,7 @@ class InvoiceRead(APIModel):
     id: str
     invoice_no: str
     contract_id: str | None = None
+    cost_center_id: str | None = None
     direction: InvoiceDirection
     # present on `reimbursement`: the approved claim this was raised from
     expense_claim_id: str | None = None
@@ -6481,6 +6866,11 @@ class InvoiceItemBase(RequestModel):
     purchase_order_item_id: str | None = None
     # a payslip's salary line names the pay_histories row it was computed from
     pay_history_id: str | None = None
+    # purchase invoices only: the budget line this spend is sent to;
+    # inherited from the purchase order line
+    budget_line_id: str | None = None
+    # a `points` line: the order's redemption it bills
+    billing_account_entry_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -6520,6 +6910,8 @@ class InvoiceItemRead(APIModel):
     sales_order_item_id: str | None = None
     purchase_order_item_id: str | None = None
     pay_history_id: str | None = None
+    budget_line_id: str | None = None
+    billing_account_entry_id: str | None = None
     notes: str | None = None
     custom_fields_jsonb: dict[str, Any] = Field(
         validation_alias=AliasChoices("custom_fields_jsonb", "custom_fields"),
@@ -7154,6 +7546,22 @@ class PaymentApplicationDetailRead(PaymentApplicationRead):
     target: SettlementTargetRead | None = None
 
 
+class PaymentLandingRead(BaseModel):
+    """One register line that carries the payment: its own line (`direct`)
+    or the line that settles its batch (`batch`). The bank's facts about this
+    payment only — never the account's balance or its other lines."""
+
+    trans_id: str
+    via: Literal["direct", "batch"]
+    fin_account_id: str
+    fin_account_name: str | None = None
+    trans_date: date | None = None
+    amount: float
+    gross_amount: float | None = None
+    fee_amount: float | None = None
+    reference_no: str | None = None
+
+
 class PaymentDetailRead(BaseModel):
     payment: PaymentRead
     approval_records: list[ApprovalRecordRead]
@@ -7163,6 +7571,11 @@ class PaymentDetailRead(BaseModel):
     # what is still looking for a document to settle: advance receipt on an inbound
     # payment, advance payment on an outbound one
     unapplied_amount: float
+    # where the bank carried it (review 2026-10-26, finding 4): the register
+    # lines linked to it, what they carry, and what no bank line shows yet
+    cash_landings: list[PaymentLandingRead] = Field(default_factory=list)
+    landed_amount: float = 0.0
+    unlanded_amount: float = 0.0
 
 
 PaymentDetailEnvelope = Envelope[PaymentDetailRead]
