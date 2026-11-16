@@ -58,6 +58,11 @@ Everything else comes from conversation: the period, the hours, the original des
    (`work_date`, `hours`, `task` each; `header_id`/`employee_id` are implied
    — do not repeat them). One bad line rolls the whole document back, so
    nothing half-filled is ever left behind.
+   - When the work was on a project that has a plan, name the task as well:
+     `project_id` and `task_id` from `GET /project-tasks?project_id=<id>`
+     (the user's own tasks: `&assignee_employee_id=<theirs>`). The task must
+     be one of that project's. Hours then count against the task's plan.
+     Keep the user's words in `task` either way.
    - Validate every line BEFORE writing — see "Validate before writing"
      below. Anything that fails a reasonableness check is a conversation,
      not a write. The batch is not a reason to lower the bar per line.

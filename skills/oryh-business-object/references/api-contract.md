@@ -941,6 +941,7 @@ Body:
   | `project_id` | string | optional |  |
   | `project_name_snapshot` | string (≤200 chars) | optional |  |
   | `task` | string (≤200 chars) | optional |  |
+  | `task_id` | string | optional |  |
   | `work_date` | date | optional |  |
   | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
@@ -981,6 +982,7 @@ Body:
   | `notes` | string (≤2000 chars) | optional |  |
   | `project_id` | string | optional |  |
   | `task` | string (≤200 chars) | optional |  |
+  | `task_id` | string | optional |  |
   | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `expected_revision` | string (≤64 chars) | required |  |
 | `intent_id` | string (≤100 chars) | required |  |

@@ -76,7 +76,8 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "campaign.manage": ("Run marketing campaigns", "Create, maintain and advance marketing campaigns and record the leads and customers they reached; attribution on leads and deals is written by whoever files them"),
     "crm.own": ("Work own leads and opportunities", "Create, advance and convert one's own leads and drive one's own opportunities to won or lost; the conversion bridge creates the customer record"),
     "master_data.manage": ("Manage master data", "Create, edit and archive projects, vendors, customers, products, SKUs and resources"),
-    "project.manage": ("Manage projects", "Create, edit and archive projects and link them to a customer, an opportunity, a contract and an owner; the won-deal bridge (POST /opportunities/{id}/project) needs it too"),
+    "project.manage": ("Manage projects", "Create, edit and archive projects and link them to a customer, an opportunity, a contract and an owner; plan their tasks, dependencies and milestones, work the issue log, write status reports and read a project's money figures; the deal bridge (POST /opportunities/{id}/project) needs it too"),
+    "project.contribute": ("Work on project tasks", "State the actual dates and status of project tasks assigned to you; raise project issues and work the ones you raised or own"),
     "inventory.manage": ("Manage stock", "Register stock positions, import counts, post stock documents (damage, transfer, production receipts) and hold stock for orders; ledger rows come only from these acts. Includes shipment.manage"),
     "shipment.manage": ("Ship and receive parcels", "File, advance and post-stock shipments (sales dispatch, return receipt, purchase-return dispatch); no positions, counts or stock documents"),
     "fin_account.manage": ("Fin accounts and bank statements", "Record fin accounts (bank, cash, payment platforms) and their register lines, import statements, link payments for reconciliation; not the payment documents themselves"),
@@ -84,6 +85,10 @@ CAPABILITY_TEXT_EN: dict[str, tuple[str, str]] = {
     "budget.manage": ("Manage budgets", "Build budgets and their lines, file and post budget changes; read every budget figure (labour actuals also need payroll.read)"),
     "budget.read_all": ("Read all budgets", "Read every budget's plan and execution (labour actuals also need payroll.read); budget.manage implies it"),
     "budget.advance": ("Approve budget changes", "In a workspace that routes budget changes for approval, advance them: approve, return, reject, post"),
+    "ledger.read": ("Read the books", "Read the chart of accounts, journal entries, balances and the trial balance; any ledger grant implies it"),
+    "ledger.post": ("Post journal entries", "Draft, post and reverse journal entries; read the books"),
+    "ledger.manage": ("Manage the chart of accounts", "Keep the chart of accounts and the functional currency; read the books"),
+    "period.close": ("Close accounting periods", "Close a month so nothing posts into it, and reopen one with a reason; read the books"),
     "employees.manage": ("Manage employees", "Create and maintain employee records"),
     "users.manage": ("Manage users and roles", "Invite users, assign roles, manage roles and custom capabilities — within the holder's own grants: inviting into admin or building a wider role is the administrator's"),
     "keys.manage": ("Manage access credentials", "Issue, view and disable personal credentials — never for an administrator or for someone holding a users.manage, keys.manage or skills.manage grant the holder lacks; workspace credentials are the administrator's"),
@@ -170,7 +175,8 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
         "bills-of-materials", "bom-items", "facilities", "projects", "sales-channels", "stores",
         "store-facilities", "external-product-maps", "geos", "territories", "type-options",
     ),
-    "project.manage": ("projects", "document-parties"),
+    "project.manage": ("projects", "document-parties", "project-tasks", "project-task-dependencies", "project-milestones", "project-issues", "project-reports"),
+    "project.contribute": ("project-tasks", "project-issues"),
     "inventory.manage": ("inventory-items", "inventory-item-details", "picklists", "picklist-items"),
     "shipment.manage": ("shipments", "shipment-items", "fulfilment-backlog"),
     "fin_account.manage": ("fin-accounts", "fin-account-transactions"),
@@ -178,6 +184,10 @@ CAPABILITY_COLLECTIONS: dict[str, tuple[str, ...]] = {
     "budget.manage": ("budgets", "budget-lines", "budget-changes", "budget-entries"),
     "budget.read_all": ("budgets", "budget-lines", "budget-changes", "budget-entries"),
     "budget.advance": ("budget-changes",),
+    "ledger.read": ("ledger-accounts", "journal-entries", "accounting-periods", "accounting-settings", "trial-balance"),
+    "ledger.post": ("journal-entries",),
+    "ledger.manage": ("ledger-accounts", "accounting-settings"),
+    "period.close": ("accounting-periods",),
     "employees.manage": ("employees",),
     "users.manage": ("auth/users", "roles", "capabilities"),
     "keys.manage": ("tenant/api-keys",),
@@ -234,6 +244,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "todos.complete_own",
         "booking.own",
         "crm.own",
+        # the person a task is assigned to says when it started and how it stands
+        "project.contribute",
         # the shared families an employee reads by being one; a workspace that
         # lets an outside party in gives that role only the reads it needs
         "invoice.read:*",
@@ -337,6 +349,8 @@ IMPLIED_BY: dict[str, tuple[str, ...]] = {
     "project.manage": ("master_data.manage",),
     # whoever builds the budget reads it
     "budget.read_all": ("budget.manage",),
+    # whoever writes the books reads them
+    "ledger.read": ("ledger.post", "ledger.manage", "period.close"),
 }
 
 

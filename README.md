@@ -32,7 +32,7 @@ service — nothing to install.
 
 ```bash
 git clone https://github.com/AIE-enginehub/Oryh.git
-cd oryh
+cd Oryh
 docker compose up -d --build
 docker compose logs api | grep -A6 "standalone workspace created"
 ```

@@ -9,11 +9,22 @@ directory, no separate search index, no state hidden in the API container.
 docker compose exec -T db pg_dump -U ofbiz -d oryh > oryh-$(date +%F).sql
 ```
 
-Restore into an empty database:
+Restore into an empty database. Start only `db` on a fresh volume: starting
+the whole stack would run first boot and create a new workspace before the
+restore. Then start the rest, which migrates the restored schema forward if
+the backup is older:
 
 ```bash
+docker compose down -v      # -v DELETES the current database volume
+docker compose up -d db
 docker compose exec -T db psql -U ofbiz -d oryh < oryh-2026-08-29.sql
+docker compose up -d
 ```
+
+The restore prints `ERROR:  role "oryh_app" does not exist` for every grant
+in the backup. That is expected: the restricted runtime role is created by the
+API's first start, which grants it again. The `api` log then reports that the
+workspace already exists.
 
 Take one before every upgrade. Test a restore before you need one.
 

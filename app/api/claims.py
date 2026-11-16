@@ -436,6 +436,7 @@ def build_timesheet_entry(
         project_id=project_id,
         project_name_snapshot=project_name_snapshot,
         client=payload.client,
+        task_id=payload.task_id,
         task=payload.task,
         hours=payload.hours,
         work_type=payload.work_type,
@@ -514,7 +515,7 @@ def save_timesheet_document(
             if row.id:
                 existing = by_id[row.id]
                 db.expunge(candidate)
-                edited_fields = ("work_date", "hours", "work_type", "project_id", "task", "notes")
+                edited_fields = ("work_date", "hours", "work_type", "project_id", "task_id", "task", "notes")
                 changed_fields = [field for field in edited_fields
                                   if getattr(existing, field) != getattr(candidate, field)]
                 if "project_id" in changed_fields:

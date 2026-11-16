@@ -31,12 +31,18 @@ import pathlib
 
 APP = pathlib.Path(__file__).resolve().parent.parent / "app"
 
-# column -> the single function permitted to move it in the database.
-SINGLE_WRITER: dict[str, str] = {
-    "quantity_on_hand": "post_inventory_detail",
-    "available_to_promise": "post_inventory_detail",
-    "applied_amount": "apply_payment",
-    "balance": "post_account_entries",
+# column -> the function permitted to move it in the database: one per
+# ledger the sum is over.
+SINGLE_WRITER: dict[str, tuple[str, ...]] = {
+    "quantity_on_hand": ("post_inventory_detail",),
+    "available_to_promise": ("post_inventory_detail",),
+    # An invoice's applied_amount sums two ledgers: the payment applications,
+    # written by `apply_payment`, and the credit-note offsets (no money moves,
+    # so no payment exists to apply), written by `create_invoice_offset`.
+    # Each writes its ledger row and the sum in one function, and
+    # `scripts/data_integrity_audit.py` recomputes the sum from both.
+    "applied_amount": ("apply_payment", "create_invoice_offset"),
+    "balance": ("post_account_entries",),
 }
 
 
@@ -82,7 +88,7 @@ def test_every_materialized_sum_has_one_writer() -> None:
     offenders = {}
     for column, permitted in SINGLE_WRITER.items():
         writers = writers_of(column)
-        unexpected = sorted(f"{f}:{fn}" for f, fn in writers if fn != permitted)
+        unexpected = sorted(f"{f}:{fn}" for f, fn in writers if fn not in permitted)
         if unexpected:
             offenders[column] = unexpected
     assert offenders == {}, (
@@ -98,9 +104,10 @@ def test_the_permitted_writers_still_exist() -> None:
     passing on a technicality."""
     missing = {}
     for column, permitted in SINGLE_WRITER.items():
-        writers = writers_of(column)
-        if not any(fn == permitted for _f, fn in writers):
-            missing[column] = permitted
+        writers = {fn for _f, fn in writers_of(column)}
+        absent = [name for name in permitted if name not in writers]
+        if absent:
+            missing[column] = absent
     assert missing == {}, (
         f"{missing} name functions that no longer assign these columns — either the "
         "writer was renamed (update the map) or the column stopped being materialized"

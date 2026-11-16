@@ -7422,6 +7422,11 @@
           "name": "currency",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -7439,6 +7444,10 @@
         },
         {
           "name": "cost_center_id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
           "type": "string"
         },
         {
@@ -7549,6 +7558,11 @@
           "type": "string"
         },
         {
+          "name": "project_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "title",
           "required": false,
           "type": "string"
@@ -7644,6 +7658,11 @@
         },
         {
           "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
           "required": false,
           "type": "string"
         },
@@ -7868,6 +7887,11 @@
           "name": "currency",
           "description": "",
           "type": "string"
+        },
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
         }
       ],
       "columns": [
@@ -7885,6 +7909,10 @@
         },
         {
           "name": "cost_center_id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
           "type": "string"
         },
         {
@@ -7949,6 +7977,11 @@
           "type": "string"
         },
         {
+          "name": "project_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "title",
           "required": true,
           "type": "string",
@@ -7996,6 +8029,11 @@
       "update": [
         {
           "name": "cost_center_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
           "required": false,
           "type": "string"
         },
@@ -10754,6 +10792,10 @@
           "type": "string"
         },
         {
+          "name": "original_invoice_item_id",
+          "type": "string"
+        },
+        {
           "name": "line_no",
           "type": "integer"
         },
@@ -10928,6 +10970,11 @@
           "type": "string"
         },
         {
+          "name": "original_invoice_item_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "notes",
           "required": false,
           "type": "string"
@@ -11020,6 +11067,11 @@
           "type": "string"
         },
         {
+          "name": "original_invoice_item_id",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "notes",
           "required": false,
           "type": "string"
@@ -11099,6 +11151,16 @@
           "description": "",
           "type": "string",
           "format": "date"
+        },
+        {
+          "name": "invoice_kind",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "original_invoice_id",
+          "description": "",
+          "type": "string"
         },
         {
           "name": "status",
@@ -11267,6 +11329,14 @@
             "payroll",
             "reimbursement"
           ]
+        },
+        {
+          "name": "invoice_kind",
+          "type": "string"
+        },
+        {
+          "name": "original_invoice_id",
+          "type": "string"
         },
         {
           "name": "expense_claim_id",
@@ -11549,6 +11619,21 @@
             "payroll",
             "reimbursement"
           ]
+        },
+        {
+          "name": "invoice_kind",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "invoice",
+            "credit_note",
+            "debit_note"
+          ]
+        },
+        {
+          "name": "original_invoice_id",
+          "required": false,
+          "type": "string"
         }
       ],
       "update": [
@@ -11679,6 +11764,28 @@
       ],
       "remove": true,
       "actions": [
+        {
+          "verb": "offsets",
+          "path": "/api/v1/invoices/{credit_note_id}/offsets",
+          "summary": "Create Invoice Offset",
+          "fields": [
+            {
+              "name": "invoice_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "name": "amount",
+              "required": true,
+              "type": "number"
+            },
+            {
+              "name": "note",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
         {
           "verb": "restore",
           "path": "/api/v1/invoices/{invoice_id}/restore",
@@ -19629,6 +19736,88 @@
       "related": []
     },
     {
+      "key": "accounting-periods",
+      "path": "/api/v1/accounting-periods",
+      "group": "other",
+      "label": [
+        "Accounting periods",
+        "Accounting periods"
+      ],
+      "filters": [
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_start_from",
+          "description": "rows whose period_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_thru",
+          "description": "rows whose period_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "closed_at_from",
+          "description": "rows whose closed_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_at_thru",
+          "description": "rows whose closed_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "period_start",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "closed_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "closed_by",
+          "type": "string"
+        }
+      ],
+      "related": []
+    },
+    {
       "key": "budget-changes",
       "path": "/api/v1/budget-changes",
       "group": "other",
@@ -21006,6 +21195,1603 @@
       "remove": true,
       "actions": [],
       "recordPath": "/api/v1/document-parties/{party_id}",
+      "related": []
+    },
+    {
+      "key": "journal-entries",
+      "path": "/api/v1/journal-entries",
+      "group": "other",
+      "label": [
+        "Journal entries",
+        "Journal entries"
+      ],
+      "filters": [
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "ledger_account_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "reverses_entry_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "posting_date_from",
+          "description": "rows whose posting_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "posting_date_thru",
+          "description": "rows whose posting_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at_from",
+          "description": "rows whose posted_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at_thru",
+          "description": "rows whose posted_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "entry_no",
+          "type": "string"
+        },
+        {
+          "name": "posting_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "source_type",
+          "type": "string"
+        },
+        {
+          "name": "source_id",
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "type": "string"
+        },
+        {
+          "name": "reverses_entry_id",
+          "type": "string"
+        },
+        {
+          "name": "reversed_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "posted_by",
+          "type": "string"
+        },
+        {
+          "name": "created_by",
+          "type": "string"
+        },
+        {
+          "name": "total",
+          "type": "number"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "posting_date",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "description",
+          "required": true,
+          "type": "string",
+          "maxLength": 4000
+        },
+        {
+          "name": "source_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "entry_no",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "draft",
+            "posted"
+          ]
+        }
+      ],
+      "update": [
+        {
+          "name": "posting_date",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [
+        {
+          "verb": "post",
+          "path": "/api/v1/journal-entries/{entry_id}/post",
+          "summary": "Post Journal Entry",
+          "fields": []
+        },
+        {
+          "verb": "reverse",
+          "path": "/api/v1/journal-entries/{entry_id}/reverse",
+          "summary": "Reverse Journal Entry",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/journal-entries/{entry_id}",
+      "related": []
+    },
+    {
+      "key": "ledger-accounts",
+      "path": "/api/v1/ledger-accounts",
+      "group": "other",
+      "label": [
+        "Ledger accounts",
+        "Ledger accounts"
+      ],
+      "filters": [
+        {
+          "name": "account_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "parent_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "subledger",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "currency",
+          "description": "",
+          "type": "string"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "account_code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "account_type",
+          "type": "string"
+        },
+        {
+          "name": "parent_id",
+          "type": "string"
+        },
+        {
+          "name": "subledger",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "type": "boolean"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "parent_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "subledger",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "customer",
+            "vendor",
+            "employee"
+          ]
+        },
+        {
+          "name": "currency",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "account_code",
+          "required": true,
+          "type": "string",
+          "maxLength": 32
+        },
+        {
+          "name": "account_type",
+          "required": true,
+          "type": "string",
+          "enum": [
+            "asset",
+            "liability",
+            "equity",
+            "income",
+            "expense"
+          ]
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "parent_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "subledger",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "customer",
+            "vendor",
+            "employee"
+          ]
+        },
+        {
+          "name": "currency",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "account_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "account_type",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "asset",
+            "liability",
+            "equity",
+            "income",
+            "expense"
+          ]
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/ledger-accounts/{account_id}",
+      "related": []
+    },
+    {
+      "key": "project-issues",
+      "path": "/api/v1/project-issues",
+      "group": "other",
+      "label": [
+        "Project issues",
+        "Project issues"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "issue_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "unresolved",
+          "description": "",
+          "type": "boolean"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "raised_at_from",
+          "description": "rows whose raised_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "raised_at_thru",
+          "description": "rows whose raised_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolved_at_from",
+          "description": "rows whose resolved_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolved_at_thru",
+          "description": "rows whose resolved_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "type": "string"
+        },
+        {
+          "name": "issue_no",
+          "type": "string"
+        },
+        {
+          "name": "issue_type",
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "type": "string"
+        },
+        {
+          "name": "raised_by_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "raised_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolved_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolution",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "issue_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "raised_by_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resolved_at",
+          "required": false,
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolution",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "issue_no",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "raised_at",
+          "required": false,
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "update": [
+        {
+          "name": "task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "issue_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "raised_by_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "owner_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "resolved_at",
+          "required": false,
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "resolution",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/project-issues/{issue_id}",
+      "related": []
+    },
+    {
+      "key": "project-milestones",
+      "path": "/api/v1/project-milestones",
+      "group": "other",
+      "label": [
+        "Project milestones",
+        "Project milestones"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "due_date_from",
+          "description": "rows whose due_date is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "due_date_thru",
+          "description": "rows whose due_date is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reached_on_from",
+          "description": "rows whose reached_on is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reached_on_thru",
+          "description": "rows whose reached_on is on or before this",
+          "type": "string",
+          "format": "date"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "due_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "reached_on",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "confirmed_by",
+          "type": "string"
+        },
+        {
+          "name": "evidence_attachment_id",
+          "type": "string"
+        },
+        {
+          "name": "contract_term_id",
+          "type": "string"
+        },
+        {
+          "name": "invoice_id",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "due_date",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "contract_term_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "invoice_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "due_date",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "contract_term_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "invoice_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "open",
+            "cancelled"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "verb": "reach",
+          "path": "/api/v1/project-milestones/{milestone_id}/reach",
+          "summary": "Reach Project Milestone",
+          "fields": [
+            {
+              "name": "reached_on",
+              "required": true,
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "name": "confirmed_by",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "name": "evidence_attachment_id",
+              "required": false,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "verb": "reopen",
+          "path": "/api/v1/project-milestones/{milestone_id}/reopen",
+          "summary": "Reopen Project Milestone",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/project-milestones/{milestone_id}",
+      "related": []
+    },
+    {
+      "key": "project-reports",
+      "path": "/api/v1/project-reports",
+      "group": "other",
+      "label": [
+        "Project reports",
+        "Project reports"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "health",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "period_start_from",
+          "description": "rows whose period_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_start_thru",
+          "description": "rows whose period_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_from",
+          "description": "rows whose period_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end_thru",
+          "description": "rows whose period_end is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "published_at_from",
+          "description": "rows whose published_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "published_at_thru",
+          "description": "rows whose published_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "type": "string"
+        },
+        {
+          "name": "period_start",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "revision",
+          "type": "integer"
+        },
+        {
+          "name": "health",
+          "type": "string"
+        },
+        {
+          "name": "summary",
+          "type": "string"
+        },
+        {
+          "name": "done",
+          "type": "string"
+        },
+        {
+          "name": "next_steps",
+          "type": "string"
+        },
+        {
+          "name": "blockers",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "published_by",
+          "type": "string"
+        },
+        {
+          "name": "published_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "health",
+          "required": true,
+          "type": "string",
+          "enum": [
+            "green",
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "name": "summary",
+          "required": true,
+          "type": "string",
+          "maxLength": 20000
+        },
+        {
+          "name": "done",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "next_steps",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "blockers",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "period_start",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "period_end",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        }
+      ],
+      "update": [
+        {
+          "name": "health",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "green",
+            "amber",
+            "red"
+          ]
+        },
+        {
+          "name": "summary",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "done",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "next_steps",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "blockers",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "period_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        }
+      ],
+      "remove": true,
+      "actions": [
+        {
+          "verb": "publish",
+          "path": "/api/v1/project-reports/{report_id}/publish",
+          "summary": "Publish Project Report",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/project-reports/{report_id}",
+      "related": []
+    },
+    {
+      "key": "project-task-dependencies",
+      "path": "/api/v1/project-task-dependencies",
+      "group": "other",
+      "label": [
+        "Project task dependencies",
+        "Project task dependencies"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "task_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "predecessor_task_id",
+          "type": "string"
+        },
+        {
+          "name": "successor_task_id",
+          "type": "string"
+        },
+        {
+          "name": "dependency_type",
+          "type": "string"
+        },
+        {
+          "name": "lag_days",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "predecessor_task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "successor_task_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "dependency_type",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "FS",
+            "SS",
+            "FF",
+            "SF"
+          ]
+        },
+        {
+          "name": "lag_days",
+          "required": false,
+          "type": "integer"
+        }
+      ],
+      "remove": true,
+      "actions": [],
+      "recordPath": "/api/v1/project-task-dependencies/{dependency_id}",
+      "related": []
+    },
+    {
+      "key": "project-tasks",
+      "path": "/api/v1/project-tasks",
+      "group": "other",
+      "label": [
+        "Project tasks",
+        "Project tasks"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "parent_task_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "assignee_employee_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "planned_start_from",
+          "description": "rows whose planned_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_start_thru",
+          "description": "rows whose planned_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_end_from",
+          "description": "rows whose planned_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_end_thru",
+          "description": "rows whose planned_end is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_start_from",
+          "description": "rows whose actual_start is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_start_thru",
+          "description": "rows whose actual_start is on or before this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_end_from",
+          "description": "rows whose actual_end is on or after this",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_end_thru",
+          "description": "rows whose actual_end is on or before this",
+          "type": "string",
+          "format": "date"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "type": "string"
+        },
+        {
+          "name": "parent_task_id",
+          "type": "string"
+        },
+        {
+          "name": "task_code",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "assignee_employee_id",
+          "type": "string"
+        },
+        {
+          "name": "planned_start",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_end",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_start",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_end",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_hours",
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "sort_order",
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "parent_task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "assignee_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "planned_start",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_start",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_hours",
+          "required": false,
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "maxLength": 30
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "parent_task_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "task_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "assignee_employee_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "planned_start",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_start",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "actual_end",
+          "required": false,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "planned_hours",
+          "required": false,
+          "type": "number"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "sort_order",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [],
+      "recordPath": "/api/v1/project-tasks/{task_id}",
       "related": []
     }
   ]

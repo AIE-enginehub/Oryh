@@ -417,6 +417,10 @@
       "label": "对象类型定义",
       "related": {}
     },
+    "accounting-periods": {
+      "label": "Accounting periods",
+      "related": {}
+    },
     "budget-changes": {
       "label": "Budget changes",
       "related": {}
@@ -443,6 +447,34 @@
     },
     "document-parties": {
       "label": "Document parties",
+      "related": {}
+    },
+    "journal-entries": {
+      "label": "Journal entries",
+      "related": {}
+    },
+    "ledger-accounts": {
+      "label": "Ledger accounts",
+      "related": {}
+    },
+    "project-issues": {
+      "label": "Project issues",
+      "related": {}
+    },
+    "project-milestones": {
+      "label": "Project milestones",
+      "related": {}
+    },
+    "project-reports": {
+      "label": "Project reports",
+      "related": {}
+    },
+    "project-task-dependencies": {
+      "label": "Project task dependencies",
+      "related": {}
+    },
+    "project-tasks": {
+      "label": "Project tasks",
       "related": {}
     }
   }

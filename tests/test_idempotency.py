@@ -185,3 +185,24 @@ def test_the_answer_is_stored_before_its_first_byte_leaves(shop) -> None:
              "headers": [(b"x-api-key", admin["X-API-Key"].encode()), (b"idempotency-key", b"early-bird")]}
     asyncio.run(middleware(scope, receive, send))
     assert seen == {"completed": True, "body": '{"data": {"ok": true}}'}
+
+
+def test_a_credential_that_does_not_authenticate_claims_nothing(shop) -> None:
+    """Review 2026-11-12, finding 4: the claim ran before authentication, so
+    each made-up key left a row for 24 hours — a write anyone could make."""
+    c = shop["client"]
+    for n in range(3):
+        for forged in ({"X-API-Key": f"oryh_sk_made_up_{n}"}, {"Authorization": f"Bearer nope-{n}"}):
+            refused = c.post("/api/v1/customers", json={"name": "x"}, headers={**forged, "Idempotency-Key": f"k-{n}"})
+            assert refused.status_code == 401
+    with c.session_factory() as db:
+        assert db.scalar(select(IdempotencyRecord)) is None
+
+
+def test_a_long_path_is_kept_cut_rather_than_failing_the_claim(shop) -> None:
+    c, admin = shop["client"], shop["admin"]
+    long_path = "/api/v1/customers/" + "x" * 600
+    answer = c.patch(long_path, json={"name": "y"}, headers={**admin, "Idempotency-Key": "long"})
+    assert answer.status_code == 404
+    with c.session_factory() as db:
+        assert len(db.scalar(select(IdempotencyRecord)).path) == 500

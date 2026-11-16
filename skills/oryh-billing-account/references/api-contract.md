@@ -593,6 +593,7 @@ Body:
 | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
+| `original_invoice_item_id` | string | optional |  |
 | `pay_history_id` | string | optional |  |
 | `product_id` | string | optional |  |
 | `product_name_snapshot` | string (≤200 chars) | optional |  |
@@ -942,6 +943,7 @@ Body:
 | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `line_no` | integer (≥1.0) | optional |  |
 | `notes` | string (≤2000 chars) | optional |  |
+| `original_invoice_item_id` | string | optional |  |
 | `pay_history_id` | string | optional |  |
 | `product_id` | string | optional |  |
 | `product_name_snapshot` | string (≤200 chars) | optional |  |

@@ -1,0 +1,13 @@
+{
+  "SKILL.md": [
+    "description: Use when a project manager plans and follows a project in oryh — 拆解项目任务、分配人员与工期、设置任务依赖、设里程碑并记录达成、记录项目问题与风险、写项目周报、看项目进展（工时对比计划、里程碑按期或延期、问题、成本与回款） — the server records and derives; you schedule and judge. Requires project.manage (a member updating their own task or raising an issue needs project.contribute).",
+    "把仓库装修拆成任务：设计、货架、照明、交付",
+    "设计确认之前货架不能开工",
+    "货架分给小王，3 月 2 日到 3 月 31 日，40 个工时",
+    "客户今天验收了货架，李伟签的字",
+    "装修项目现在什么进度？",
+    "设计晚了一周，后面会怎样？",
+    "记一个风险：地脚螺栓可能晚到",
+    "写一下装修项目本周的周报"
+  ]
+}

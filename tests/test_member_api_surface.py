@@ -65,6 +65,13 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     # the project — everyone; a contract's parties are hidden from a reader
     # without the contract grant inside the handler (plan 2026-10-14)
     ("GET", "/api/v1/document-parties"): "parties follow their carrier's visibility; contracts' are filtered inside",
+    # a project's work is read by everyone who reads the project: the people
+    # assigned to it most of all (plan 2026-11-15)
+    **{("GET", f"/api/v1/{r}"): "a project's work is read with the project"
+       for r in ("project-tasks", "project-task-dependencies", "project-milestones", "project-issues")},
+    # a status report's words are read with the project; the money frozen in
+    # its figures is left out for a reader without the matching grant
+    ("GET", "/api/v1/project-reports"): "a report's money is withheld inside without the grant",
     # --- master data: what every document names ------------------------------
     **{("GET", f"/api/v1/{r}"): "master data is what documents point at"
        for r in ("customers", "customer-contacts", "customer-relations", "vendors", "employees", "products", "product-skus", "product-categories",

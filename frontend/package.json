@@ -9,8 +9,6 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
     "api:generate": "openapi-typescript openapi.json -o src/api/schema.d.ts",
     "dev:preview": "vite --mode preview --host 127.0.0.1 --port 5175 --strictPort"
   },

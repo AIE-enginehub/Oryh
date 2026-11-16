@@ -183,8 +183,12 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "project.manage",
         False,
         "项目管理",
-        "创建、编辑、归档项目，并把项目链接到客户、商机、合同与负责人；成交建项目（POST /opportunities/{id}/project）也需要它",
+        "创建、编辑、归档项目，并把项目链接到客户、商机、合同与负责人；规划项目的任务、依赖与里程碑，处理问题日志，撰写项目周报并查看项目的金额数据；从商机建项目（POST /opportunities/{id}/project）也需要它",
     ),
+    # Plan docs/plans/project-management-2026-11-15.md: the person a task is
+    # assigned to says when it started and how it stands, and anyone working on
+    # the project raises issues. Seeded to member.
+    ("project.contribute", False, "参与项目任务", "填写分配给自己的项目任务的实际起止日期与状态；提出项目问题，并处理自己提出或负责的问题"),
     # Split out of master_data.manage. The stock ledger is a warehouse's daily
     # work — receiving, issuing, stock-takes, the informal movements nobody has
     # a document for — and a keeper is not a catalog administrator. Under one
@@ -259,6 +263,12 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "审批预算调整",
         "在需要审批的工作空间中推进预算调整单（批准、退回、驳回、过账）",
     ),
+    # The book (plan docs/plans/accounting-core-2026-11-08.md): it shows payroll
+    # totals and margins, so none of the four is seeded to `member`.
+    ("ledger.read", False, "查看账簿", "查看科目表、凭证、余额与试算平衡表；任一账簿权限均隐含此能力"),
+    ("ledger.post", False, "记账", "录入、过账与冲销凭证；可查看账簿"),
+    ("ledger.manage", False, "科目表管理", "维护科目表与记账本位币；可查看账簿"),
+    ("period.close", False, "结账", "关闭会计期间使其不再入账，并可附理由重新打开；可查看账簿"),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力；只能授出自己持有的权限，不能把人请进 admin 或造出比自己更宽的角色——那是管理员的事"),
     ("keys.manage", False, "访问凭证管理", "签发、查看、停用个人访问凭证；不能为管理员或持有自己没有的用户/凭证/Skill 管理权限的人签发，工作空间凭证只由管理员签发"),

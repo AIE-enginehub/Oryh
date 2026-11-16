@@ -542,6 +542,7 @@ List Purchase Orders
 | `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
 | `contract_id` | query | string | no |  |
 | `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /purchase-orders/{po_id}
 
@@ -987,6 +988,7 @@ Body:
 | `order_date` | date | optional |  |
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | string (≤30 chars) | optional |  |
@@ -1596,6 +1598,7 @@ Body:
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
 | `po_number` | string (≤64 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |

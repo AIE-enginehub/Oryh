@@ -212,7 +212,7 @@ def list_purchase_requests(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(PurchaseRequest, ranges=('created_at', 'needed_by', 'request_date', 'submitted_at'), equals=('currency',)))] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseRequest, ranges=('created_at', 'needed_by', 'request_date', 'submitted_at'), equals=('currency', 'project_id')))] = None,
 ):
     validate_status_filter(db, tenant_id, "purchase_request", status_filter)
     stmt = select(PurchaseRequest).where(PurchaseRequest.tenant_id == tenant_id)
@@ -267,6 +267,7 @@ def create_purchase_request(
         tenant_id=tenant_id,
         employee_id=payload.employee_id,
         cost_center_id=payload.cost_center_id,
+        project_id=payload.project_id,
         title=payload.title,
         request_date=payload.request_date,
         needed_by=payload.needed_by,
@@ -500,7 +501,7 @@ def list_purchase_orders(
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
     order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
-    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrder, ranges=('created_at', 'order_date', 'promised_date',), equals=('contract_id', 'currency')))] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(PurchaseOrder, ranges=('created_at', 'order_date', 'promised_date',), equals=('contract_id', 'currency', 'project_id')))] = None,
 ):
     validate_status_filter(
         db, tenant_id,
@@ -599,6 +600,7 @@ def create_purchase_order(
         vendor_name_snapshot=payload.vendor_name_snapshot or vendor.name,
         employee_id=payload.employee_id,
         cost_center_id=payload.cost_center_id,
+        project_id=payload.project_id,
         title=payload.title,
         contract_no=payload.contract_no,
         order_date=payload.order_date,

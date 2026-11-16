@@ -31,7 +31,15 @@ SEARCHED = ("*.py", "*.md", "*.sh", "*.sql", "*.yaml", "*.yml")
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".claude", "dist", "build"}
 # This file names the revision that was never written, on purpose, as the story
 # of why it exists. Checking itself would be the one false positive.
-SKIP_FILES = {"tests/test_migration_references.py"}
+SKIP_FILES = {
+    "tests/test_migration_references.py",
+    # a parser fixture: `alembic heads` output with a second, made-up head
+    # (`20261101_0108`). It has to look like a revision ID to test the parser,
+    # and it names no migration on purpose (review 2026-11-12, finding 8).
+    "tests/ops/test_zjk_alembic_revision_output.py",
+    # the review that found it quotes the made-up ID
+    "docs/project-review-2026-11-12.md",
+}
 
 
 def known_revisions() -> set[str]:

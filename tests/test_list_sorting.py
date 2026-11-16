@@ -66,5 +66,7 @@ def test_every_paged_list_documents_order_by() -> None:
         names = {p["name"] for p in get.get("parameters", [])}
         if "size" in names and "order_by" not in names:
             missing.append(path)
-    # the lists that page by hand and render enriched rows
-    assert sorted(missing) == ["/api/v1/auth/users", "/api/v1/skills", "/api/v1/tenant/api-key-owners"], missing
+    # the lists that page by hand and render enriched rows; an account's
+    # ledger carries a running balance, which only has a meaning in posting order
+    assert sorted(missing) == ["/api/v1/auth/users", "/api/v1/ledger-accounts/{account_id}/ledger", "/api/v1/skills",
+                               "/api/v1/tenant/api-key-owners"], missing

@@ -146,6 +146,13 @@ why in the read-back. A line that does not fit — another currency, a date
 outside the budget's year, a closed line — is a 422 naming why. Being over
 budget is never refused: whoever approves reads `GET /budget-impact`.
 
+## Projects
+
+When the principal says the purchase is for a project ("bolts for the
+warehouse fit-out"), find it with `GET /projects?keyword=` and set
+`project_id` on the header, so the cost reaches the project's figures
+($oryh-project). Never guess a project from the item.
+
 ## What This Skill Never Does
 
 - Approve, decide routing, pick the winning vendor, or touch the request status (`/submit` is the only transition it makes).

@@ -313,14 +313,17 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
             )""",
     ),
     (
-        "invoice applied_amount equals the sum of its applications",
-        """select count(*) from (
-             select i.id
-               from invoices i
-               left join payment_applications pa on pa.invoice_id = i.id
-              group by i.id, i.applied_amount
-             having i.applied_amount <> coalesce(sum(pa.amount_applied), 0)
-           ) as drifted""",
+        # A credit note's running total runs below zero: a refund applied to
+        # it moves it down, and so does an offset it gives; an offset it
+        # settles moves an invoice up.
+        "invoice applied_amount equals the sum of its applications and offsets",
+        """select count(*) from invoices i
+            where i.applied_amount <>
+                  (case when i.invoice_kind = 'credit_note' then -1 else 1 end)
+                  * coalesce((select sum(pa.amount_applied) from payment_applications pa
+                               where pa.invoice_id = i.id), 0)
+                  + coalesce((select sum(o.amount) from invoice_offsets o where o.invoice_id = i.id), 0)
+                  - coalesce((select sum(o.amount) from invoice_offsets o where o.credit_note_id = i.id), 0)""",
     ),
     (
         "expense claim applied_amount equals the sum of its applications",
@@ -683,6 +686,75 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
               and (select coalesce(sum(g.amount), 0) from billing_account_entries g
                     where g.reason = 'redemption_reversed' and g.entity_type = 'billing_account_entry'
                       and g.entity_id = r.id) > -r.amount + 0.005""",
+    ),
+    # The book (docs/plans/accounting-core-2026-11-08.md): what the API holds
+    # every posting to, checked against the rows themselves.
+    (
+        "credit notes giving back more than their invoice and its debit notes billed",
+        """select count(*) from invoices o
+            where o.invoice_kind = 'invoice' and o.deleted_at is null
+              and exists (select 1 from invoices n where n.original_invoice_id = o.id and n.deleted_at is null)
+              and (select coalesce(sum(coalesce(n.total_amount, (
+                         select coalesce(sum(coalesce(li.amount, li.quantity * li.unit_price, 0)), 0)
+                           from invoice_items li where li.invoice_id = n.id and li.deleted_at is null))), 0)
+                     from invoices n where n.original_invoice_id = o.id and n.deleted_at is null)
+                  + coalesce(o.total_amount, (
+                         select coalesce(sum(coalesce(li.amount, li.quantity * li.unit_price, 0)), 0)
+                           from invoice_items li where li.invoice_id = o.id and li.deleted_at is null)) < -0.005""",
+    ),
+    (
+        "offsets taken back beyond what was set between the pair",
+        """select count(*) from (
+             select credit_note_id, invoice_id from invoice_offsets
+              group by credit_note_id, invoice_id having sum(amount) < -0.005
+           ) as overdrawn""",
+    ),
+    (
+        "notes that disagree with their original's party, direction or currency",
+        """select count(*) from invoices n join invoices o on o.id = n.original_invoice_id
+            where n.deleted_at is null
+              and (n.direction <> o.direction or n.currency <> o.currency
+                   or not (n.customer_id = o.customer_id or (n.customer_id is null and o.customer_id is null))
+                   or not (n.vendor_id = o.vendor_id or (n.vendor_id is null and o.vendor_id is null)))""",
+    ),
+    # A project's work (docs/plans/project-management-2026-11-15.md).
+    (
+        "project tasks under a parent of another project",
+        """select count(*) from project_tasks t join project_tasks parent on parent.id = t.parent_task_id
+            where parent.project_id <> t.project_id""",
+    ),
+    (
+        "timesheet entries counted against a task of another project",
+        """select count(*) from timesheet_entries e join project_tasks t on t.id = e.task_id
+            where e.deleted_at is null
+              and (e.project_id is null or e.project_id <> t.project_id)""",
+    ),
+    (
+        "project issues about a task of another project",
+        """select count(*) from project_issues i join project_tasks t on t.id = i.task_id
+            where i.project_id <> t.project_id""",
+    ),
+    (
+        "posted journal entries that do not balance",
+        """select count(*) from journal_entries e
+            where e.status = 'posted' and e.deleted_at is null
+              and (select abs(coalesce(sum(l.debit), 0) - coalesce(sum(l.credit), 0))
+                     from journal_lines l where l.entry_id = e.id) > 0.005""",
+    ),
+    (
+        "posted journal entries with fewer than two lines",
+        """select count(*) from journal_entries e
+            where e.status = 'posted' and e.deleted_at is null
+              and (select count(*) from journal_lines l where l.entry_id = e.id) < 2""",
+    ),
+    (
+        "reversals that do not mirror the entry they reverse",
+        """select count(*) from journal_entries r
+            join journal_entries o on o.id = r.reverses_entry_id
+            where r.deleted_at is null
+              and (o.reversed_at is null
+                   or (select coalesce(sum(l.debit), 0) from journal_lines l where l.entry_id = r.id)
+                      <> (select coalesce(sum(l.credit), 0) from journal_lines l where l.entry_id = o.id))""",
     ),
 )
 

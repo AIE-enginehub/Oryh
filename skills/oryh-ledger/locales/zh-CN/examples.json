@@ -1,0 +1,11 @@
+{
+  "SKILL.md": [
+    "description: Use to keep a workspace's books in oryh — 建科目表、记账（发票、收付款、工资、月末凭证）、冲销错账、月末结账、看试算平衡表、科目明细账和往来余额 — applying the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close).",
+    "按小型商贸企业给我们建一套科目表",
+    "把三月的销售发票记账",
+    "那张凭证科目用错了，改一下",
+    "二月结账",
+    "给我看一季度的试算平衡表",
+    "按账面看，谁还欠我们钱？"
+  ]
+}

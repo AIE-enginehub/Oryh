@@ -15,6 +15,14 @@ Delete Business Rule
 | `rule_id` | path | string | yes |  |
 | `reason` | query | string (≤500 chars) | no |  |
 
+## DELETE /project-tasks/{task_id}
+
+Delete Project Task
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `task_id` | path | string | yes |  |
+
 ## DELETE /projects/{project_id}
 
 Delete Project
@@ -156,6 +164,39 @@ Get Employee
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
 
+## GET /project-tasks
+
+List Project Tasks
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | query | string | no |  |
+| `parent_task_id` | query | string | no |  |
+| `assignee_employee_id` | query | string | no |  |
+| `status` | query | string | no |  |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `planned_start_from` | query | date | no | rows whose planned_start is on or after this |
+| `planned_start_thru` | query | date | no | rows whose planned_start is on or before this |
+| `planned_end_from` | query | date | no | rows whose planned_end is on or after this |
+| `planned_end_thru` | query | date | no | rows whose planned_end is on or before this |
+| `actual_start_from` | query | date | no | rows whose actual_start is on or after this |
+| `actual_start_thru` | query | date | no | rows whose actual_start is on or before this |
+| `actual_end_from` | query | date | no | rows whose actual_end is on or after this |
+| `actual_end_thru` | query | date | no | rows whose actual_end is on or before this |
+
+## GET /project-tasks/{task_id}
+
+Get Project Task
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `task_id` | path | string | yes |  |
+
 ## GET /projects
 
 List Projects
@@ -193,6 +234,15 @@ Get Project Detail
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/execution
+
+Get Project Execution
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+| `as_of` | query | date | no |  |
 
 ## GET /timesheet-entries
 
@@ -321,6 +371,31 @@ Body:
 | `title` | string (≤200 chars) | optional |  |
 | `visibility` | `internal` | `restricted` | `public` | optional |  |
 
+## PATCH /project-tasks/{task_id}
+
+Update Project Task
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `task_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `actual_end` | date | optional |  |
+| `actual_start` | date | optional |  |
+| `assignee_employee_id` | string | optional |  |
+| `description` | string (≤4000 chars) | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `parent_task_id` | string | optional |  |
+| `planned_end` | date | optional |  |
+| `planned_hours` | number (≥0.0, ≤999999.99) | optional |  |
+| `planned_start` | date | optional |  |
+| `sort_order` | integer | optional |  |
+| `status` | string (≤30 chars) | optional |  |
+| `task_code` | string (≤64 chars) | optional |  |
+
 ## PATCH /projects/{project_id}
 
 Update Project
@@ -364,6 +439,7 @@ Body:
 | `project_id` | string | optional |  |
 | `project_name_snapshot` | string (≤200 chars) | optional |  |
 | `task` | string (≤200 chars) | optional |  |
+| `task_id` | string | optional |  |
 | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 
 ## PATCH /timesheet-headers/{header_id}
@@ -537,6 +613,28 @@ Body:
 | `note` | string (≤2000 chars) | optional |  |
 | `required_capability` | string (≤100 chars) | optional |  |
 
+## POST /project-tasks
+
+Create Project Task
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `project_id` | string | required |  |
+| `actual_end` | date | optional |  |
+| `actual_start` | date | optional |  |
+| `assignee_employee_id` | string | optional |  |
+| `description` | string (≤4000 chars) | optional |  |
+| `parent_task_id` | string | optional |  |
+| `planned_end` | date | optional |  |
+| `planned_hours` | number (≥0.0, ≤999999.99) | optional |  |
+| `planned_start` | date | optional |  |
+| `sort_order` | integer | optional |  |
+| `status` | string (≤30 chars) | optional |  |
+| `task_code` | string (≤64 chars) | optional |  |
+
 ## POST /projects
 
 Create Project
@@ -575,6 +673,7 @@ Body:
 | `project_id` | string | optional |  |
 | `project_name_snapshot` | string (≤200 chars) | optional |  |
 | `task` | string (≤200 chars) | optional |  |
+| `task_id` | string | optional |  |
 | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 
 ## POST /timesheet-headers
@@ -604,6 +703,7 @@ Body:
   | `project_id` | string | optional |  |
   | `project_name_snapshot` | string (≤200 chars) | optional |  |
   | `task` | string (≤200 chars) | optional |  |
+  | `task_id` | string | optional |  |
   | `work_date` | date | optional |  |
   | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
@@ -644,6 +744,7 @@ Body:
   | `notes` | string (≤2000 chars) | optional |  |
   | `project_id` | string | optional |  |
   | `task` | string (≤200 chars) | optional |  |
+  | `task_id` | string | optional |  |
   | `work_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `expected_revision` | string (≤64 chars) | required |  |
 | `intent_id` | string (≤100 chars) | required |  |

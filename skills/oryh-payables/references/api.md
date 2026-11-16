@@ -13,6 +13,10 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `GET /invoices?direction=purchase&outstanding=true` | what is still owed to suppliers |
 | `GET /invoices?direction=purchase&outstanding=true&due_before=2026-08-02` | due or overdue for payment |
 | `GET /invoices?direction=purchase&vendor_id={id}` | one supplier's bills |
+| `GET /invoices?direction=purchase&invoice_kind=credit_note&outstanding=true` | credit notes not yet refunded or set against an invoice |
+| `GET /invoices?original_invoice_id={id}` | the credit and debit notes on one invoice |
+| `POST /invoices/{id}/offsets` | a credit note set against an open invoice of the same party: `{invoice_id, amount}` |
+| `GET /invoices/{id}/offsets` | the offsets an invoice or credit note takes part in |
 | `GET /invoices?direction=purchase&purchase_order_id={id}` | what is already booked against an order |
 | `GET /invoices?tax_invoice_number=24312000000098765432` | find a bill by the supplier's own number |
 | `POST /invoices` | book one |

@@ -41,7 +41,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
@@ -178,6 +178,7 @@ from app.schemas import (
     SavedLinesEnvelope,
     InvoiceItemBase,
 )
+from app.services import invoice_notes as _invoice_notes  # noqa: F401 — registers the note rules
 from app.services.audit import record_audit
 from app.services.treasury import landed_amount, payment_landings
 from app.core.type_options import SIGNED_TYPE_FAMILIES
@@ -745,6 +746,9 @@ def list_invoices(
     expense_claim_id: str | None = None,
     billing_account_id: str | None = None,
     period_start: date | None = None,
+    # `credit_note` / `debit_note`; with `original_invoice_id`, the notes on one invoice
+    invoice_kind: str | None = None,
+    original_invoice_id: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     outstanding: bool = False,
     due_before: date | None = None,
@@ -787,7 +791,13 @@ def list_invoices(
             .scalar_subquery()
         )
         billed = func.coalesce(Invoice.total_amount, line_sum)
-        stmt = stmt.where(billed - func.coalesce(Invoice.applied_amount, 0) > 0.005)
+        # a credit note is open while some of what it gives back has been
+        # neither refunded nor offset: its outstanding runs below zero
+        open_amount = billed - func.coalesce(Invoice.applied_amount, 0)
+        stmt = stmt.where(or_(
+            and_(Invoice.invoice_kind != "credit_note", open_amount > 0.005),
+            and_(Invoice.invoice_kind == "credit_note", open_amount < -0.005),
+        ))
     if due_before is not None:
         stmt = stmt.where(Invoice.due_date.is_not(None), Invoice.due_date < due_before)
     if without_open_todo:
@@ -807,6 +817,8 @@ def list_invoices(
             Invoice.expense_claim_id: expense_claim_id,
             Invoice.billing_account_id: billing_account_id,
             Invoice.period_start: period_start,
+            Invoice.invoice_kind: invoice_kind,
+            Invoice.original_invoice_id: original_invoice_id,
             Invoice.status: status_filter,
         },
         keyword=keyword,
@@ -822,6 +834,9 @@ def list_invoices(
         read_model=InvoiceRead,
         extra=extra,
     )
+
+
+NOTE_PREFIXES = {"credit_note": "CN-", "debit_note": "DN-"}
 
 
 @router.post(
@@ -893,12 +908,16 @@ def create_invoice(
             ),
         )
     initial_status = require_machine_state(db, actor, Invoice, payload.status)
-    invoice_no = payload.invoice_no or allocate_number(db, Invoice, tenant_id)
+    # a note has its own series beside the invoices', as a return does
+    invoice_no = payload.invoice_no or allocate_number(
+        db, Invoice, tenant_id, prefix=NOTE_PREFIXES.get(payload.invoice_kind))
     invoice = Invoice(
         tenant_id=tenant_id,
         invoice_no=invoice_no,
         contract_id=payload.contract_id,
         direction=payload.direction,
+        invoice_kind=payload.invoice_kind,
+        original_invoice_id=payload.original_invoice_id,
         invoice_type=invoice_type,
         employee_id=payload.employee_id,
         cost_center_id=payload.cost_center_id,
@@ -1471,6 +1490,7 @@ def build_invoice_item(db: Session, actor: Actor, payload, *, invoice: Invoice |
         pay_history_id=payload.pay_history_id,
         budget_line_id=payload.budget_line_id,
         billing_account_entry_id=payload.billing_account_entry_id,
+        original_invoice_item_id=payload.original_invoice_item_id,
         notes=payload.notes,
         custom_fields_jsonb=payload.custom_fields,
     )
@@ -2334,13 +2354,18 @@ SETTLEMENT_TARGETS: dict[str, SettlementTarget] = {
         "invoice",
         "invoice_id",
         # a customer invoice is settled by money coming IN; a vendor bill by
-        # money going OUT
-        lambda row: "inbound" if row.direction == "sales" else "outbound",
+        # money going OUT. A credit note runs the other way: what we owe the
+        # customer goes OUT as a refund, what the vendor owes us comes IN.
+        lambda row: ("inbound" if row.direction == "sales" else "outbound") if row.invoice_kind != "credit_note"
+        else ("outbound" if row.direction == "sales" else "inbound"),
         lambda row: f"{row.invoice_no} {row.title}",
-        bounds=lambda db, row: (
+        # an invoice's running total climbs from 0 to what it billed; a credit
+        # note's falls from 0 to its (negative) total
+        bounds=lambda db, row: tuple(sorted((
             0.0,
             invoice_billed_total(row, live_invoice_items(db, row.tenant_id, row.id)),
-        ),
+        ))),
+        effect_sign=lambda payment, row: -1.0 if row.invoice_kind == "credit_note" else 1.0,
         # an invoice names exactly one counterparty, and so does a payment
         counterparty_fields=(
             ("customer_id", "customer_id"),
@@ -3052,6 +3077,20 @@ def apply_payment(
         floor, ceiling = spec.bounds(db, row)
         running = float(getattr(row, spec.running_column) or 0)
         after = running + delta * target_effect_sign(spec, payment, row)
+        if getattr(row, "invoice_kind", None) == "credit_note":
+            # a credit note runs below zero: its floor is what it gives back
+            if after < floor - CENT:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(f"over-refunding credit note {row.invoice_no}: {running - floor:.2f} of "
+                            f"{-floor:.2f} is still open"),
+                )
+            if after > CENT:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"reversing more than was refunded on credit note {row.invoice_no}: {-running:.2f} is",
+                )
+            continue
         if after < floor - CENT and after < running:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -3131,7 +3170,7 @@ def apply_payment(
         setattr(
             row,
             spec.running_column,
-            round(float(getattr(row, spec.running_column) or 0) + delta, 2),
+            round(float(getattr(row, spec.running_column) or 0) + delta * target_effect_sign(spec, payment, row), 2),
         )
     payment.applied_amount = round(payment_after, 2)
     record_audit(

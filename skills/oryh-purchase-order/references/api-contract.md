@@ -53,6 +53,14 @@ Body:
 | `delete_reason` | string (≤2000 chars) | optional |  |
 | `deleted_by` | string (≤100 chars) | optional |  |
 
+## DELETE /projects/{project_id}
+
+Delete Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
 ## DELETE /purchase-order-adjustments/{adjustment_id}
 
 Delete Purchase Order Adjustment
@@ -381,6 +389,53 @@ Get Payment Detail
 | `payment_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
 
+## GET /projects
+
+List Projects
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `end_date_from` | query | date | no | rows whose end_date is on or after this |
+| `end_date_thru` | query | date | no | rows whose end_date is on or before this |
+| `start_date_from` | query | date | no | rows whose start_date is on or after this |
+| `start_date_thru` | query | date | no | rows whose start_date is on or before this |
+
+## GET /projects/{project_id}
+
+Get Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/detail
+
+Get Project Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/execution
+
+Get Project Execution
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+| `as_of` | query | date | no |  |
+
 ## GET /purchase-order-adjustments
 
 List Purchase Order Adjustments
@@ -457,6 +512,7 @@ List Purchase Orders
 | `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
 | `contract_id` | query | string | no |  |
 | `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /purchase-orders/{po_id}
 
@@ -507,6 +563,7 @@ List Purchase Requests
 | `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
 | `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
 | `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /purchase-requests/{request_id}
 
@@ -802,6 +859,30 @@ Body:
 | `status` | string (≤30 chars) | optional |  |
 | `vendor_id` | string | optional |  |
 
+## PATCH /projects/{project_id}
+
+Update Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## PATCH /purchase-order-adjustments/{adjustment_id}
 
 Update Purchase Order Adjustment
@@ -872,6 +953,7 @@ Body:
 | `order_date` | date | optional |  |
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | string (≤30 chars) | optional |  |
@@ -896,6 +978,7 @@ Body:
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `needed_by` | date | optional |  |
+| `project_id` | string | optional |  |
 | `request_date` | date | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string | optional |  |
@@ -1318,6 +1401,26 @@ Submit Payment
 |---|---|---|---|---|
 | `payment_id` | path | string | yes |  |
 
+## POST /projects
+
+Create Project
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `project_name` | string (≤200 chars) | required |  |
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## POST /purchase-order-adjustments
 
 Create Purchase Order Adjustment
@@ -1413,6 +1516,7 @@ Body:
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
 | `po_number` | string (≤64 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
@@ -1586,6 +1690,7 @@ Body:
   | `unit` | string (≤50 chars) | optional |  |
   | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
 | `needed_by` | date | optional |  |
+| `project_id` | string | optional |  |
 | `request_date` | date | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string | optional |  |

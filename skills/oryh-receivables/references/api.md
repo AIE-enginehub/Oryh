@@ -13,6 +13,10 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 | `GET /invoices?direction=sales&status=draft` | this workspace's sales invoices; `status` must be a state of the tenant's machine (422 names the real ones) |
 | `GET /invoices?direction=sales&customer_id={id}&outstanding=true` | one customer's open items |
 | `GET /invoices?direction=sales&outstanding=true&due_before=2026-08-02` | overdue receivables |
+| `GET /invoices?direction=sales&invoice_kind=credit_note&outstanding=true` | credit notes not yet refunded or set against an invoice |
+| `GET /invoices?original_invoice_id={id}` | the credit and debit notes on one invoice |
+| `POST /invoices/{id}/offsets` | a credit note set against an open invoice of the same party: `{invoice_id, amount}` |
+| `GET /invoices/{id}/offsets` | the offsets an invoice or credit note takes part in |
 | `GET /invoices?direction=sales&outstanding=true&without_open_todo=true` | open items nobody is chasing yet |
 | `GET /invoices?tax_invoice_number=24312000000098765432` | find by the tax document's own number |
 | `GET /invoices?sales_order_id={id}` | what has already been billed for an order |

@@ -451,8 +451,9 @@ class Territory(TenantRecord, MetadataJsonbMixin, Base):
 class CostCenter(TenantRecord, MetadataJsonbMixin, Base):
     """Where money is spent inside the company — Sales, Operations,
     Operations / Warehouse. A tree (`parent_id`), master data any module may
-    book against. An employee has a home cost centre; a spending document
-    takes it unless it names another; a budget scoped to a cost centre reads
+    book against. An employee has a home cost centre, a fact the agent reads;
+    a spending document books against the centre its writer names; a budget
+    scoped to a cost centre reads
     that centre's share — the subtree's — of what the company budget
     collects (plan docs/plans/budgets-2026-10-27.md §13)."""
 
@@ -2951,6 +2952,9 @@ class TimesheetEntry(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base
     project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
     project_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
     client: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # a task of this entry's project, counted per task; `task` stays the
+    # free-text name for entries that point at none
+    task_id: Mapped[str | None] = mapped_column(ForeignKey("project_tasks.id"), nullable=True, index=True)
     task: Mapped[str | None] = mapped_column(String(200), nullable=True)
     hours: Mapped[float] = mapped_column(Numeric(5, 2))
     work_type: Mapped[str] = mapped_column(String(20), default="regular")
@@ -2983,8 +2987,8 @@ class ExpenseClaim(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMi
     __tablename__ = "expense_claims"
 
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
-    # the cost centre this document books against (budgets phase 3); defaulted
-    # from the employee whose spend it is when nobody names one
+    # the cost centre this document books against (budgets phase 3): the one
+    # its writer names; the server infers none
     cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     claim_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -3039,9 +3043,12 @@ class PurchaseRequest(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJson
     __tablename__ = "purchase_requests"
 
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
-    # the cost centre this document books against (budgets phase 3); defaulted
-    # from the employee whose spend it is when nobody names one
+    # the cost centre this document books against (budgets phase 3): the one
+    # its writer names; the server infers none
     cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
+    # the project the purchase is for, as its writer names it (project
+    # management phase 2); bought cost reaches the project through it
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
     title: Mapped[str] = mapped_column(String(200))
     request_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     needed_by: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -3233,9 +3240,12 @@ class PurchaseOrder(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base)
     vendor_name_snapshot: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # the procurement officer who placed it
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
-    # the cost centre this document books against (budgets phase 3); defaulted
-    # from the employee whose spend it is when nobody names one
+    # the cost centre this document books against (budgets phase 3): the one
+    # its writer names; the server infers none
     cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
+    # the project the order is for; named by its writer, never taken from
+    # the purchase request
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
     title: Mapped[str | None] = mapped_column(String(200), nullable=True)
     contract_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
     order_date: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -3607,12 +3617,20 @@ class Invoice(TenantRecord, SoftDeleteAttributionMixin, CustomFieldsJsonbMixin, 
     # gets paid cannot be settled honestly — see the counterparty guard in
     # `SettlementTarget`.
     direction: Mapped[str] = mapped_column(String(20), index=True)
+    # `credit_note` or `debit_note` corrects `original_invoice_id`, the way a
+    # return is an order of another kind. A credit note's lines keep their
+    # sign (negative for what is given back), so every sum that nets invoice
+    # lines nets notes too; the kind is what settlement and the ceilings read.
+    invoice_kind: Mapped[str] = mapped_column(String(20), default="invoice")
+    original_invoice_id: Mapped[str | None] = mapped_column(
+        ForeignKey("invoices.id"), nullable=True, index=True
+    )
     # special VAT invoice / ordinary invoice / electronic invoice / pro forma invoice / receipt — tenant vocabulary
     invoice_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     # the person who owns the document, as in every other family
     employee_id: Mapped[str] = mapped_column(ForeignKey("employees.id"), index=True)
-    # the cost centre this document books against (budgets phase 3); defaulted
-    # from the employee whose spend it is when nobody names one
+    # the cost centre this document books against (budgets phase 3): the one
+    # its writer names; the server infers none
     cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
     vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
@@ -3714,6 +3732,10 @@ class InvoiceItem(TenantRecord, SoftDeleteMixin, CustomFieldsJsonbMixin, Base):
 
     invoice_id: Mapped[str] = mapped_column(ForeignKey("invoices.id"), index=True)
     line_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # on a note: the original invoice's line this one corrects
+    original_invoice_item_id: Mapped[str | None] = mapped_column(
+        ForeignKey("invoice_items.id"), nullable=True, index=True
+    )
     # goods / service / shipping / discount / tax / rounding / other
     invoice_item_type: Mapped[str] = mapped_column(String(30), default="goods")
     product_id: Mapped[str | None] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
@@ -4469,6 +4491,275 @@ class CustomerRelation(TenantRecord, MetadataJsonbMixin, Base):
     effective_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class InvoiceOffset(IdMixin, TenantMixin, CreatedAtMixin, Base):
+    """A credit note applied against an open invoice of the same party — the
+    credit settles the debt without money moving. Both invoices'
+    `applied_amount` move with it: the invoice's up, the note's down (a
+    credit note's running total runs from 0 down to its negative total).
+    Immutable, like `PaymentApplication`: a mistake is a counter-row with a
+    negative amount."""
+
+    __tablename__ = "invoice_offsets"
+    __table_args__ = (
+        CheckConstraint("amount <> 0", name="invoice_offsets_amount_chk"),
+        CheckConstraint("credit_note_id <> invoice_id", name="invoice_offsets_distinct_chk"),
+    )
+
+    credit_note_id: Mapped[str] = mapped_column(ForeignKey("invoices.id"), index=True)
+    invoice_id: Mapped[str] = mapped_column(ForeignKey("invoices.id"), index=True)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+# --- inside a project (plan docs/plans/project-management-2026-11-15.md) -------
+
+
+class ProjectTask(TenantRecord, Base):
+    """One piece of a project's work, in a tree. A task with sub-tasks is a
+    summary: its hours are theirs, summed on read. Dates are what people
+    stated — planned, then actual; the server moves none of them, and the
+    audit trail keeps every change. Status is the workspace's vocabulary
+    (`project_task_status`): nothing on the server reads it."""
+
+    __tablename__ = "project_tasks"
+    __table_args__ = (
+        Index(
+            "project_tasks_code_uk",
+            "tenant_id", "project_id", "task_code",
+            unique=True,
+            postgresql_where=text("task_code IS NOT NULL"),
+            sqlite_where=text("task_code IS NOT NULL"),
+        ),
+    )
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    parent_task_id: Mapped[str | None] = mapped_column(ForeignKey("project_tasks.id"), nullable=True, index=True)
+    task_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    assignee_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    planned_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actual_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    planned_hours: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="not_started")
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ProjectTaskDependency(TenantRecord, Base):
+    """One task waits on another — finish-to-start and its three kin, with a
+    lag. A stated fact: nothing reschedules when the predecessor slips."""
+
+    __tablename__ = "project_task_dependencies"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "predecessor_task_id", "successor_task_id",
+                         name="project_task_dependencies_pair_uk"),
+    )
+
+    predecessor_task_id: Mapped[str] = mapped_column(ForeignKey("project_tasks.id"), index=True)
+    successor_task_id: Mapped[str] = mapped_column(ForeignKey("project_tasks.id"), index=True)
+    dependency_type: Mapped[str] = mapped_column(String(10), default="FS")
+    lag_days: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ProjectMilestone(TenantRecord, Base):
+    """A dated point the project commits to. Reached is a fact with a
+    confirmer; it raises no invoice — whether to bill is the contract's term
+    and the workspace's rule, which the agent acts on."""
+
+    __tablename__ = "project_milestones"
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    due_date: Mapped[date] = mapped_column(Date)
+    reached_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confirmed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    evidence_attachment_id: Mapped[str | None] = mapped_column(ForeignKey("attachments.id"), nullable=True)
+    # the clause that pays on it, and the invoice that billed it
+    contract_term_id: Mapped[str | None] = mapped_column(ForeignKey("contract_terms.id"), nullable=True, index=True)
+    invoice_id: Mapped[str | None] = mapped_column(ForeignKey("invoices.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+
+class ProjectIssue(TenantRecord, Base):
+    """One entry of a project's log: an issue, a risk, a change request, a
+    defect. Type, severity and status are the workspace's vocabulary; the
+    server holds only that a resolved issue states how it was resolved. What
+    to do about it, and when to escalate, is the agent's."""
+
+    __tablename__ = "project_issues"
+    __table_args__ = (UniqueConstraint("tenant_id", "issue_no", name="project_issues_issue_no_uk"),)
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    task_id: Mapped[str | None] = mapped_column(ForeignKey("project_tasks.id"), nullable=True, index=True)
+    issue_no: Mapped[str] = mapped_column(String(64))
+    issue_type: Mapped[str] = mapped_column(String(30), default="issue")
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    severity: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    raised_by_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    owner_employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    raised_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="open")
+
+
+class ProjectReport(TenantRecord, Base):
+    """What the project manager said about a period, and the figures it was
+    written from, copied in at publication. The derived reads move; a report
+    that only linked to them would show this week's numbers under last
+    month's words. A published report never changes: a correction is the next
+    revision, and the earlier one stays."""
+
+    __tablename__ = "project_reports"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "project_id", "period_start", "revision", name="project_reports_period_uk"),
+    )
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    health: Mapped[str] = mapped_column(String(10))
+    summary: Mapped[str] = mapped_column(Text)
+    done: Mapped[str | None] = mapped_column(Text, nullable=True)
+    next_steps: Mapped[str | None] = mapped_column(Text, nullable=True)
+    blockers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    figures: Mapped[dict | None] = mapped_column(JsonType, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    published_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+# --- the book (plan docs/plans/accounting-core-2026-11-08.md) ------------------
+
+
+class AccountingSettings(TenantRecord, Base):
+    """One row per workspace: the currency the books are kept in. Every
+    journal amount is in it; it cannot change once anything has posted."""
+
+    __tablename__ = "accounting_settings"
+    __table_args__ = (UniqueConstraint("tenant_id", name="accounting_settings_tenant_uk"),)
+
+    functional_currency: Mapped[str] = mapped_column(String(3))
+    # where the agent's year-end closing entry lands; the server only keeps it
+    retained_earnings_account_id: Mapped[str | None] = mapped_column(
+        ForeignKey("ledger_accounts.id"), nullable=True
+    )
+
+
+class LedgerAccount(TenantRecord, Base):
+    """One account of the workspace's chart, a tree. An account with live
+    sub-accounts is a summary: it takes no lines, and its balance is theirs.
+    `account_type` is a fixed set because the trial balance's sign and the
+    year-end close branch on it; `subledger` makes every line on the account
+    name a party of that kind (receivables, payables, staff advances)."""
+
+    __tablename__ = "ledger_accounts"
+    __table_args__ = (UniqueConstraint("tenant_id", "account_code", name="ledger_accounts_code_uk"),)
+
+    account_code: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(200))
+    account_type: Mapped[str] = mapped_column(String(20))
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("ledger_accounts.id"), nullable=True, index=True)
+    subledger: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # a foreign-currency account: its lines carry the amount in this currency
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AccountingPeriod(TenantRecord, Base):
+    """A calendar month of the book, open or closed. Created the first time
+    something posts into it; nothing posts into a closed one."""
+
+    __tablename__ = "accounting_periods"
+    __table_args__ = (UniqueConstraint("tenant_id", "period_start", name="accounting_periods_start_uk"),)
+
+    period_start: Mapped[date] = mapped_column(Date)
+    period_end: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
+class JournalEntry(TenantRecord, SoftDeleteMixin, Base):
+    """Balanced debits and credits, and why. A draft is an agent's proposal
+    for a person to check and may be edited or deleted; a posted entry is
+    final, and the only thing that ever changes on it is `reversed_at`, set
+    when its reversal posts. `(source_type, source_id, source_event)` names
+    the fact it records — an invoice's issue, a payment's receipt — and one
+    fact posts once while its entry stands."""
+
+    __tablename__ = "journal_entries"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "entry_no", name="journal_entries_entry_no_uk"),
+        Index(
+            "journal_entries_source_uk",
+            "tenant_id", "source_type", "source_id", text("coalesce(source_event, '')"),
+            unique=True,
+            postgresql_where=text("status = 'posted' AND reversed_at IS NULL AND source_type IS NOT NULL"),
+            sqlite_where=text("status = 'posted' AND reversed_at IS NULL AND source_type IS NOT NULL"),
+        ),
+        Index(
+            "journal_entries_reversal_uk",
+            "tenant_id", "reverses_entry_id",
+            unique=True,
+            postgresql_where=text("reverses_entry_id IS NOT NULL AND deleted_at IS NULL"),
+            sqlite_where=text("reverses_entry_id IS NOT NULL AND deleted_at IS NULL"),
+        ),
+        Index("journal_entries_source_idx", "source_type", "source_id"),
+    )
+
+    entry_no: Mapped[str] = mapped_column(String(64))
+    posting_date: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    description: Mapped[str] = mapped_column(Text)
+    source_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), nullable=True)
+    source_event: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    reverses_entry_id: Mapped[str | None] = mapped_column(
+        ForeignKey("journal_entries.id"), nullable=True, index=True
+    )
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    posted_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    lines: Mapped[list["JournalLine"]] = relationship(
+        back_populates="entry", order_by="JournalLine.line_no"
+    )
+
+
+class JournalLine(TenantRecord, Base):
+    """One debit or one credit, in the functional currency. A converted amount
+    keeps its original currency, amount and the rate used; a line on a
+    subledger account names its party."""
+
+    __tablename__ = "journal_lines"
+
+    entry_id: Mapped[str] = mapped_column(ForeignKey("journal_entries.id"), index=True)
+    line_no: Mapped[int] = mapped_column(Integer)
+    ledger_account_id: Mapped[str] = mapped_column(ForeignKey("ledger_accounts.id"), index=True)
+    debit: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    credit: Mapped[float] = mapped_column(Numeric(14, 2), default=0)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    foreign_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    exchange_rate: Mapped[float | None] = mapped_column(Numeric(18, 8), nullable=True)
+    customer_id: Mapped[str | None] = mapped_column(ForeignKey("customers.id"), nullable=True, index=True)
+    vendor_id: Mapped[str | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
+    employee_id: Mapped[str | None] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
+    cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    entry: Mapped[JournalEntry] = relationship(back_populates="lines")
 
 
 # Every fixed-value column's CHECK, attached from one registry rather than

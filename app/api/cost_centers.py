@@ -5,8 +5,8 @@ with `master_data.manage` like every other master-data table; read by every
 member, who picks one on their documents.
 
 An employee carries a home cost centre; an expense claim, purchase request,
-purchase order or invoice carries the centre it books against, filled in
-when a document names none (`app/services/cost_centers.py`).
+purchase order or invoice carries the centre its writer names. A named
+centre must exist and be active (`app/services/cost_centers.py`).
 """
 
 from __future__ import annotations

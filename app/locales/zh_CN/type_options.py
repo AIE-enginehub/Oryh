@@ -228,6 +228,32 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("project", "项目预算", "单个项目的开支"),
         ("other", "其他", "其他预算"),
     ),
+    "project_task_status": (
+        ("not_started", "未开始", "已计划，尚未开始"),
+        ("in_progress", "进行中", "正在进行"),
+        ("blocked", "受阻", "在等待任务之外的事"),
+        ("done", "已完成", "已完成"),
+        ("cancelled", "已取消", "从计划中撤下"),
+    ),
+    "project_issue_type": (
+        ("issue", "问题", "需要处理的现存问题"),
+        ("risk", "风险", "可能发生的问题"),
+        ("change_request", "变更请求", "变更范围、进度或价格的请求"),
+        ("defect", "缺陷", "交付成果不符合约定"),
+    ),
+    "project_issue_severity": (
+        ("low", "低", "对项目影响很小"),
+        ("medium", "中", "影响某项任务或日期"),
+        ("high", "高", "影响里程碑或预算"),
+        ("critical", "严重", "威胁项目交付"),
+    ),
+    "project_issue_status": (
+        ("open", "待处理", "已提出，尚未处理"),
+        ("in_progress", "处理中", "正在处理"),
+        ("resolved", "已解决", "已处理，并写明解决方式"),
+        ("closed", "已关闭", "已确认并关闭"),
+        ("rejected", "不予受理", "不作为问题受理"),
+    ),
     "budget_category": (
         ("labour", "人工成本", "应发工资加单位承担的社保与公积金；自动归集工资单与代缴申报发票"),
         ("marketing", "市场费用", "广告、推广与活动；自动归集市场类报销与发票行"),

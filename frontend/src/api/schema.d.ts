@@ -4,6 +4,93 @@
  */
 
 export interface paths {
+    "/api/v1/accounting-periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Accounting Periods
+         * @description The months something has posted into, or that were closed; newest first.
+         */
+        get: operations["list_accounting_periods_api_v1_accounting_periods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting-periods/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Accounting Period
+         * @description Close the month `period` falls in: nothing posts into it afterwards.
+         *     A draft dated in it could then never post, so drafts are posted or
+         *     deleted first.
+         */
+        post: operations["close_accounting_period_api_v1_accounting_periods_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting-periods/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen Accounting Period
+         * @description Reopen a closed month, with the reason — the audit trail keeps it.
+         */
+        post: operations["reopen_accounting_period_api_v1_accounting_periods_reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Accounting Settings
+         * @description The functional currency; `data` is null until it is set.
+         */
+        get: operations["get_accounting_settings_api_v1_accounting_settings_get"];
+        /**
+         * Put Accounting Settings
+         * @description Set the currency the books are kept in. It cannot change once anything
+         *     has posted: every amount in the book is in it.
+         */
+        put: operations["put_accounting_settings_api_v1_accounting_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities": {
         parameters: {
             query?: never;
@@ -3957,6 +4044,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invoices/{credit_note_id}/offsets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Invoice Offset
+         * @description Set part of a credit note against an open invoice or debit note of the
+         *     same party, direction and currency. Needs `payment.apply`, the settlement
+         *     grant. Send `Idempotency-Key`: a retried offset must not apply twice.
+         */
+        post: operations["create_invoice_offset_api_v1_invoices__credit_note_id__offsets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invoices/{invoice_id}": {
         parameters: {
             query?: never;
@@ -4026,6 +4135,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/invoices/{invoice_id}/offsets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invoice Offsets
+         * @description Every offset this invoice takes part in, as the credit note or as the
+         *     invoice it settled, oldest first.
+         */
+        get: operations["list_invoice_offsets_api_v1_invoices__invoice_id__offsets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invoices/{invoice_id}/restore": {
         parameters: {
             query?: never;
@@ -4078,6 +4208,102 @@ export interface paths {
         put?: never;
         /** Submit Invoice */
         post: operations["submit_invoice_api_v1_invoices__invoice_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/journal-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Journal Entries
+         * @description Entries newest first, with their lines. `source_type` + `source_id`
+         *     answers "is this document in the book yet".
+         */
+        get: operations["list_journal_entries_api_v1_journal_entries_get"];
+        put?: never;
+        /**
+         * Create Journal Entry
+         * @description A balanced entry: a draft for a person to check, or posted at once.
+         *     Name the fact it records (`source_type`, `source_id`, `source_event`) and
+         *     that fact posts once; send `Idempotency-Key` so a retry posts nothing twice.
+         */
+        post: operations["create_journal_entry_api_v1_journal_entries_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/journal-entries/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Journal Entry */
+        get: operations["get_journal_entry_api_v1_journal_entries__entry_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Journal Entry
+         * @description Discard a draft. A posted entry is never deleted.
+         */
+        delete: operations["delete_journal_entry_api_v1_journal_entries__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Journal Entry
+         * @description Change a draft. `lines`, when sent, replaces every line.
+         */
+        patch: operations["update_journal_entry_api_v1_journal_entries__entry_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/journal-entries/{entry_id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Journal Entry
+         * @description Post a draft. Its lines are checked again: an account may have been
+         *     archived or given sub-accounts since the draft was written.
+         */
+        post: operations["post_journal_entry_api_v1_journal_entries__entry_id__post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/journal-entries/{entry_id}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reverse Journal Entry
+         * @description Post the mirror of a posted entry — every debit a credit, every credit
+         *     a debit — on `posting_date` (today by default), in an open month. The
+         *     original stays as it was, marked reversed, and its source fact may then be
+         *     posted again. Each entry is reversed at most once.
+         */
+        post: operations["reverse_journal_entry_api_v1_journal_entries__entry_id__reverse_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4156,6 +4382,95 @@ export interface paths {
         put?: never;
         /** Restore Lead */
         post: operations["restore_lead_api_v1_leads__lead_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ledger Accounts
+         * @description The chart, in code order.
+         */
+        get: operations["list_ledger_accounts_api_v1_ledger_accounts_get"];
+        put?: never;
+        /** Create Ledger Account */
+        post: operations["create_ledger_account_api_v1_ledger_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ledger Account */
+        get: operations["get_ledger_account_api_v1_ledger_accounts__account_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Ledger Account
+         * @description Rename, describe, move in the tree, archive. What an account IS — its
+         *     code, type, subledger and currency — is fixed once it carries lines:
+         *     every figure already posted means it.
+         */
+        patch: operations["update_ledger_account_api_v1_ledger_accounts__account_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/ledger-accounts/{account_id}/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Account Ledger
+         * @description The account's posted lines between the two dates (a summary account's
+         *     include its sub-accounts'), with the balance before them, a running
+         *     balance (debits minus credits) and the balance after. Lines come a page
+         *     at a time (`page`, `size`, `total_lines`); the running balance carries
+         *     across pages.
+         */
+        get: operations["get_account_ledger_api_v1_ledger_accounts__account_id__ledger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-accounts/{account_id}/parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Account Parties
+         * @description A subledger account's balance per party, as of a day: who owes what
+         *     on receivables, whom we owe on payables. Parties at zero are left out.
+         */
+        get: operations["get_account_parties_api_v1_ledger_accounts__account_id__parties_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5220,6 +5535,304 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/project-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Issues
+         * @description A project's issue log, newest first; `unresolved=true` is what is still open.
+         */
+        get: operations["list_project_issues_api_v1_project_issues_get"];
+        put?: never;
+        /**
+         * Create Project Issue
+         * @description Log an issue, a risk, a change request or a defect. Anyone working on
+         *     the project raises one (`project.contribute`); it is recorded as raised
+         *     by them unless a manager names someone else.
+         */
+        post: operations["create_project_issue_api_v1_project_issues_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-issues/{issue_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Issue */
+        get: operations["get_project_issue_api_v1_project_issues__issue_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Project Issue
+         * @description Work an issue: its owner, severity, status, and — when resolved —
+         *     how. A contributor changes the issues they raised or own; whoever
+         *     manages projects changes any.
+         */
+        patch: operations["update_project_issue_api_v1_project_issues__issue_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/project-milestones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Milestones
+         * @description Milestones by due date; `due_date_thru=<today>&status=open` is what is overdue.
+         */
+        get: operations["list_project_milestones_api_v1_project_milestones_get"];
+        put?: never;
+        /** Create Project Milestone */
+        post: operations["create_project_milestone_api_v1_project_milestones_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-milestones/{milestone_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Milestone */
+        get: operations["get_project_milestone_api_v1_project_milestones__milestone_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Project Milestone
+         * @description Rename, re-date, link the clause or the invoice, or cancel. Changing
+         *     the due date is audited like every change; it is the plan's to change.
+         */
+        patch: operations["update_project_milestone_api_v1_project_milestones__milestone_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/project-milestones/{milestone_id}/reach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reach Project Milestone
+         * @description Record that the milestone was met: on which day, confirmed by whom,
+         *     with what evidence. It bills nothing by itself.
+         */
+        post: operations["reach_project_milestone_api_v1_project_milestones__milestone_id__reach_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-milestones/{milestone_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen Project Milestone
+         * @description Undo a reached milestone recorded in error. Refused while an invoice
+         *     that billed it stands.
+         */
+        post: operations["reopen_project_milestone_api_v1_project_milestones__milestone_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Reports
+         * @description A project's reports, latest period first and the latest revision of a
+         *     period before its earlier ones — the history the agent reads trends from.
+         */
+        get: operations["list_project_reports_api_v1_project_reports_get"];
+        put?: never;
+        /**
+         * Create Project Report
+         * @description Draft the report for a period, in the project manager's words. Any
+         *     period: how often a project reports is the workspace's rule. A period
+         *     already reported takes the next revision; the earlier one stays.
+         */
+        post: operations["create_project_report_api_v1_project_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Report */
+        get: operations["get_project_report_api_v1_project_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Project Report
+         * @description Discard a draft. A published report is kept.
+         */
+        delete: operations["delete_project_report_api_v1_project_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Project Report
+         * @description Edit a draft. A published report is refused: file the next revision.
+         */
+        patch: operations["update_project_report_api_v1_project_reports__report_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/project-reports/{report_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish Project Report
+         * @description Publish the report: the project's figures as of the period's end are
+         *     copied into it, and from here it never changes. Sending it to anyone is
+         *     a notification the agent writes.
+         */
+        post: operations["publish_project_report_api_v1_project_reports__report_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-task-dependencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Task Dependencies
+         * @description A project's dependencies, or the ones a task takes part in.
+         */
+        get: operations["list_project_task_dependencies_api_v1_project_task_dependencies_get"];
+        put?: never;
+        /**
+         * Create Project Task Dependency
+         * @description One task waits on another. Nothing reschedules on it: the dates are
+         *     the plan's, and the agent proposes moves.
+         */
+        post: operations["create_project_task_dependency_api_v1_project_task_dependencies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-task-dependencies/{dependency_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Project Task Dependency */
+        delete: operations["delete_project_task_dependency_api_v1_project_task_dependencies__dependency_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Tasks
+         * @description A project's tasks in plan order; `assignee_employee_id` is one person's.
+         */
+        get: operations["list_project_tasks_api_v1_project_tasks_get"];
+        put?: never;
+        /** Create Project Task */
+        post: operations["create_project_task_api_v1_project_tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Task */
+        get: operations["get_project_task_api_v1_project_tasks__task_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Project Task
+         * @description Remove a task nothing points at. One with sub-tasks, dependencies or
+         *     recorded hours is history: set its status to `cancelled` instead.
+         */
+        delete: operations["delete_project_task_api_v1_project_tasks__task_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Project Task
+         * @description Re-plan a task (`project.manage`), or — for the person it is assigned
+         *     to, with `project.contribute` — state its actual dates and status.
+         */
+        patch: operations["update_project_task_api_v1_project_tasks__task_id__patch"];
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -5271,6 +5884,33 @@ export interface paths {
          *     owner's name and every party (plan 2026-10-14).
          */
         get: operations["get_project_detail_api_v1_projects__project_id__detail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/execution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Execution
+         * @description Where the project stands, derived on every read: hours planned against
+         *     recorded per task (summaries roll up), hours on no task, each milestone's
+         *     standing — upcoming, overdue, reached on time or late — the issue log's
+         *     counts, and the money per currency: expenses approved, purchase orders
+         *     placed, purchase and sales invoices net of credit notes, the contract's
+         *     value, and the book's lines naming the project. The money parts are
+         *     separate figures, never summed. A part the reader may not see is left
+         *     out and named in `withheld`.
+         */
+        get: operations["get_project_execution_api_v1_projects__project_id__execution_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7353,6 +7993,30 @@ export interface paths {
         patch: operations["update_todo_api_v1_todos__todo_id__patch"];
         trace?: never;
     };
+    "/api/v1/trial-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trial Balance
+         * @description Every account: the balance before `date_from`, debits and credits up to
+         *     `date_to`, and the closing balance (debits minus credits; `natural_closing`
+         *     on the side the account normally sits). Summary accounts carry their
+         *     sub-accounts' totals. With no `date_from`, everything up to `date_to` is
+         *     movement and nothing is opening.
+         */
+        get: operations["get_trial_balance_api_v1_trial_balance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/type-options": {
         parameters: {
             query?: never;
@@ -7552,6 +8216,46 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+        };
+        /** AccountingPeriodRead */
+        AccountingPeriodRead: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Closed By */
+            closed_by?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Status */
+            status: string;
+        };
+        /** AccountingSettingsRead */
+        AccountingSettingsRead: {
+            /** Functional Currency */
+            functional_currency: string;
+            /** Retained Earnings Account Id */
+            retained_earnings_account_id?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AccountingSettingsRequest */
+        AccountingSettingsRequest: {
+            /** Functional Currency */
+            functional_currency: string;
+            /** Retained Earnings Account Id */
+            retained_earnings_account_id?: string | null;
         };
         /** ActivityRead */
         ActivityRead: {
@@ -11569,6 +12273,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             /** Product Id */
@@ -11593,6 +12299,19 @@ export interface components {
             unit?: string | null;
             /** Unit Price */
             unit_price?: number | null;
+        };
+        /**
+         * CreateInvoiceOffsetRequest
+         * @description Apply part of a credit note against an open invoice of the same party.
+         *     A negative amount takes an earlier offset back.
+         */
+        CreateInvoiceOffsetRequest: {
+            /** Amount */
+            amount: number;
+            /** Invoice Id */
+            invoice_id: string;
+            /** Note */
+            note?: string | null;
         };
         /** CreateInvoiceRequest */
         CreateInvoiceRequest: {
@@ -11632,12 +12351,20 @@ export interface components {
             };
             /** Invoice Date */
             invoice_date?: string | null;
+            /**
+             * Invoice Kind
+             * @default invoice
+             * @enum {string}
+             */
+            invoice_kind: "invoice" | "credit_note" | "debit_note";
             /** Invoice No */
             invoice_no?: string | null;
             /** Invoice Type */
             invoice_type?: string | null;
             /** Items */
             items?: components["schemas"]["InvoiceItemBase"][];
+            /** Original Invoice Id */
+            original_invoice_id?: string | null;
             /** Payee Employee Id */
             payee_employee_id?: string | null;
             /** Period End */
@@ -11668,6 +12395,32 @@ export interface components {
             total_amount?: number | null;
             /** Vendor Id */
             vendor_id?: string | null;
+        };
+        /** CreateJournalEntryRequest */
+        CreateJournalEntryRequest: {
+            /** Description */
+            description: string;
+            /** Entry No */
+            entry_no?: string | null;
+            /** Lines */
+            lines: components["schemas"]["JournalLineInput"][];
+            /**
+             * Posting Date
+             * Format: date
+             */
+            posting_date: string;
+            /** Source Event */
+            source_event?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "posted";
         };
         /** CreateLeadRequest */
         CreateLeadRequest: {
@@ -11703,6 +12456,32 @@ export interface components {
             status?: string | null;
             /** Wechat */
             wechat?: string | null;
+        };
+        /** CreateLedgerAccountRequest */
+        CreateLedgerAccountRequest: {
+            /** Account Code */
+            account_code: string;
+            /**
+             * Account Type
+             * @enum {string}
+             */
+            account_type: "asset" | "liability" | "equity" | "income" | "expense";
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "archived";
+            /** Subledger */
+            subledger?: ("customer" | "vendor" | "employee") | null;
         };
         /** CreateObjectTypeDefinitionRequest */
         CreateObjectTypeDefinitionRequest: {
@@ -12111,6 +12890,81 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CreateProjectIssueRequest */
+        CreateProjectIssueRequest: {
+            /** Description */
+            description?: string | null;
+            /** Issue No */
+            issue_no?: string | null;
+            /** Issue Type */
+            issue_type?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Project Id */
+            project_id: string;
+            /** Raised At */
+            raised_at?: string | null;
+            /** Raised By Employee Id */
+            raised_by_employee_id?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /** Severity */
+            severity?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** CreateProjectMilestoneRequest */
+        CreateProjectMilestoneRequest: {
+            /** Contract Term Id */
+            contract_term_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Invoice Id */
+            invoice_id?: string | null;
+            /** Name */
+            name: string;
+            /** Project Id */
+            project_id: string;
+        };
+        /** CreateProjectReportRequest */
+        CreateProjectReportRequest: {
+            /** Blockers */
+            blockers?: string | null;
+            /** Done */
+            done?: string | null;
+            /**
+             * Health
+             * @enum {string}
+             */
+            health: "green" | "amber" | "red";
+            /** Next Steps */
+            next_steps?: string | null;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Project Id */
+            project_id: string;
+            /** Summary */
+            summary: string;
+        };
         /** CreateProjectRequest */
         CreateProjectRequest: {
             /** Client */
@@ -12141,6 +12995,56 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "archived";
+        };
+        /** CreateProjectTaskDependencyRequest */
+        CreateProjectTaskDependencyRequest: {
+            /**
+             * Dependency Type
+             * @default FS
+             * @enum {string}
+             */
+            dependency_type: "FS" | "SS" | "FF" | "SF";
+            /**
+             * Lag Days
+             * @default 0
+             */
+            lag_days: number;
+            /** Predecessor Task Id */
+            predecessor_task_id: string;
+            /** Successor Task Id */
+            successor_task_id: string;
+        };
+        /** CreateProjectTaskRequest */
+        CreateProjectTaskRequest: {
+            /** Actual End */
+            actual_end?: string | null;
+            /** Actual Start */
+            actual_start?: string | null;
+            /** Assignee Employee Id */
+            assignee_employee_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name: string;
+            /** Parent Task Id */
+            parent_task_id?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Planned Hours */
+            planned_hours?: number | null;
+            /** Planned Start */
+            planned_start?: string | null;
+            /** Project Id */
+            project_id: string;
+            /** Sort Order */
+            sort_order?: number | null;
+            /**
+             * Status
+             * @default not_started
+             */
+            status: string;
+            /** Task Code */
+            task_code?: string | null;
         };
         /** CreatePurchaseOrderAdjustmentRequest */
         CreatePurchaseOrderAdjustmentRequest: {
@@ -12241,6 +13145,8 @@ export interface components {
             payment_terms?: string | null;
             /** Po Number */
             po_number?: string | null;
+            /** Project Id */
+            project_id?: string | null;
             /** Promised Date */
             promised_date?: string | null;
             /** Remarks */
@@ -12310,6 +13216,8 @@ export interface components {
             items?: components["schemas"]["PurchaseRequestItemBase"][];
             /** Needed By */
             needed_by?: string | null;
+            /** Project Id */
+            project_id?: string | null;
             /** Request Date */
             request_date?: string | null;
             /** Source Report Text */
@@ -12956,6 +13864,8 @@ export interface components {
             project_name_snapshot?: string | null;
             /** Task */
             task?: string | null;
+            /** Task Id */
+            task_id?: string | null;
             /**
              * Work Date
              * Format: date
@@ -13655,6 +14565,11 @@ export interface components {
             /** Written */
             written?: boolean | null;
         };
+        /** Envelope[AccountingPeriodRead] */
+        Envelope_AccountingPeriodRead_: {
+            data: components["schemas"]["AccountingPeriodRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ActivityRead] */
         Envelope_ActivityRead_: {
             data: components["schemas"]["ActivityRead"];
@@ -13965,14 +14880,29 @@ export interface components {
             data: components["schemas"]["InvoiceItemRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[InvoiceOffsetRead] */
+        Envelope_InvoiceOffsetRead_: {
+            data: components["schemas"]["InvoiceOffsetRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[InvoiceRead] */
         Envelope_InvoiceRead_: {
             data: components["schemas"]["InvoiceRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[JournalEntryRead] */
+        Envelope_JournalEntryRead_: {
+            data: components["schemas"]["JournalEntryRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[LeadRead] */
         Envelope_LeadRead_: {
             data: components["schemas"]["LeadRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[LedgerAccountRead] */
+        Envelope_LedgerAccountRead_: {
+            data: components["schemas"]["LedgerAccountRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ObjectTypeDefinitionRead] */
@@ -14095,9 +15025,34 @@ export interface components {
             data: components["schemas"]["ProjectDetailRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[ProjectIssueRead] */
+        Envelope_ProjectIssueRead_: {
+            data: components["schemas"]["ProjectIssueRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectMilestoneRead] */
+        Envelope_ProjectMilestoneRead_: {
+            data: components["schemas"]["ProjectMilestoneRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ProjectRead] */
         Envelope_ProjectRead_: {
             data: components["schemas"]["ProjectRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectReportRead] */
+        Envelope_ProjectReportRead_: {
+            data: components["schemas"]["ProjectReportRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectTaskDependencyRead] */
+        Envelope_ProjectTaskDependencyRead_: {
+            data: components["schemas"]["ProjectTaskDependencyRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectTaskRead] */
+        Envelope_ProjectTaskRead_: {
+            data: components["schemas"]["ProjectTaskRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[PurchaseOrderAdjustmentRead] */
@@ -14278,6 +15233,11 @@ export interface components {
         /** Envelope[TypeOptionRead] */
         Envelope_TypeOptionRead_: {
             data: components["schemas"]["TypeOptionRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[Union[AccountingSettingsRead, NoneType]] */
+        Envelope_Union_AccountingSettingsRead__NoneType__: {
+            data: components["schemas"]["AccountingSettingsRead"] | null;
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[UserRead] */
@@ -15235,6 +16195,11 @@ export interface components {
             id: string;
             /** Invoice Date */
             invoice_date?: string | null;
+            /**
+             * Invoice Kind
+             * @default invoice
+             */
+            invoice_kind: string;
             /** Invoice No */
             invoice_no: string;
             /** Invoice Type */
@@ -15243,6 +16208,8 @@ export interface components {
             issued_at?: string | null;
             /** Items */
             items?: components["schemas"]["InvoiceItemRead"][];
+            /** Original Invoice Id */
+            original_invoice_id?: string | null;
             /** Payee Employee Id */
             payee_employee_id?: string | null;
             /** Period End */
@@ -15327,6 +16294,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             /** Product Id */
@@ -15379,6 +16348,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             product?: components["schemas"]["PurchaseProductReferenceRead"] | null;
@@ -15438,6 +16409,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             /** Product Id */
@@ -15467,6 +16440,26 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** InvoiceOffsetRead */
+        InvoiceOffsetRead: {
+            /** Amount */
+            amount: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Credit Note Id */
+            credit_note_id: string;
+            /** Id */
+            id: string;
+            /** Invoice Id */
+            invoice_id: string;
+            /** Note */
+            note?: string | null;
         };
         /**
          * InvoiceOrderMatchLineRead
@@ -15572,12 +16565,19 @@ export interface components {
             id: string;
             /** Invoice Date */
             invoice_date?: string | null;
+            /**
+             * Invoice Kind
+             * @default invoice
+             */
+            invoice_kind: string;
             /** Invoice No */
             invoice_no: string;
             /** Invoice Type */
             invoice_type?: string | null;
             /** Issued At */
             issued_at?: string | null;
+            /** Original Invoice Id */
+            original_invoice_id?: string | null;
             /** Payee Employee Id */
             payee_employee_id?: string | null;
             /** Period End */
@@ -15613,6 +16613,119 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Vendor Id */
+            vendor_id?: string | null;
+        };
+        /** JournalEntryRead */
+        JournalEntryRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Description */
+            description: string;
+            /** Entry No */
+            entry_no: string;
+            /** Id */
+            id: string;
+            /** Lines */
+            lines?: components["schemas"]["JournalLineRead"][];
+            /** Posted At */
+            posted_at?: string | null;
+            /** Posted By */
+            posted_by?: string | null;
+            /**
+             * Posting Date
+             * Format: date
+             */
+            posting_date: string;
+            /** Reversed At */
+            reversed_at?: string | null;
+            /** Reverses Entry Id */
+            reverses_entry_id?: string | null;
+            /** Source Event */
+            source_event?: string | null;
+            /** Source Id */
+            source_id?: string | null;
+            /** Source Type */
+            source_type?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** JournalLineInput */
+        JournalLineInput: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
+            /**
+             * Credit
+             * @default 0
+             */
+            credit: number;
+            /** Currency */
+            currency?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /**
+             * Debit
+             * @default 0
+             */
+            debit: number;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Exchange Rate */
+            exchange_rate?: number | null;
+            /** Foreign Amount */
+            foreign_amount?: number | null;
+            /** Ledger Account Id */
+            ledger_account_id: string;
+            /** Project Id */
+            project_id?: string | null;
+            /** Vendor Id */
+            vendor_id?: string | null;
+        };
+        /** JournalLineRead */
+        JournalLineRead: {
+            /** Cost Center Id */
+            cost_center_id?: string | null;
+            /** Credit */
+            credit: number;
+            /** Currency */
+            currency?: string | null;
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Debit */
+            debit: number;
+            /** Description */
+            description?: string | null;
+            /** Employee Id */
+            employee_id?: string | null;
+            /** Exchange Rate */
+            exchange_rate?: number | null;
+            /** Foreign Amount */
+            foreign_amount?: number | null;
+            /** Id */
+            id: string;
+            /** Ledger Account Id */
+            ledger_account_id: string;
+            /** Line No */
+            line_no: number;
+            /** Project Id */
+            project_id?: string | null;
             /** Vendor Id */
             vendor_id?: string | null;
         };
@@ -15664,6 +16777,42 @@ export interface components {
             updated_at: string;
             /** Wechat */
             wechat?: string | null;
+        };
+        /** LedgerAccountRead */
+        LedgerAccountRead: {
+            /** Account Code */
+            account_code: string;
+            /** Account Type */
+            account_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Status */
+            status: string;
+            /** Subledger */
+            subledger?: string | null;
+            /**
+             * Summary
+             * @default false
+             */
+            summary: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * LinkFinAccountTransRequest
@@ -15721,6 +16870,12 @@ export interface components {
             received_quantity: number;
             /** Unit Price */
             unit_price?: number | null;
+        };
+        /** ListEnvelope[AccountingPeriodRead] */
+        ListEnvelope_AccountingPeriodRead_: {
+            /** Data */
+            data: components["schemas"]["AccountingPeriodRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ActivityRead] */
         ListEnvelope_ActivityRead_: {
@@ -16016,16 +17171,34 @@ export interface components {
             data: components["schemas"]["InvoiceItemRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[InvoiceOffsetRead] */
+        ListEnvelope_InvoiceOffsetRead_: {
+            /** Data */
+            data: components["schemas"]["InvoiceOffsetRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[InvoiceRead] */
         ListEnvelope_InvoiceRead_: {
             /** Data */
             data: components["schemas"]["InvoiceRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[JournalEntryRead] */
+        ListEnvelope_JournalEntryRead_: {
+            /** Data */
+            data: components["schemas"]["JournalEntryRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[LeadRead] */
         ListEnvelope_LeadRead_: {
             /** Data */
             data: components["schemas"]["LeadRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[LedgerAccountRead] */
+        ListEnvelope_LedgerAccountRead_: {
+            /** Data */
+            data: components["schemas"]["LedgerAccountRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ObjectDirectoryEntryRead] */
@@ -16124,10 +17297,40 @@ export interface components {
             data: components["schemas"]["ProductSkuRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[ProjectIssueRead] */
+        ListEnvelope_ProjectIssueRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectIssueRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProjectMilestoneRead] */
+        ListEnvelope_ProjectMilestoneRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectMilestoneRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ProjectRead] */
         ListEnvelope_ProjectRead_: {
             /** Data */
             data: components["schemas"]["ProjectRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProjectReportRead] */
+        ListEnvelope_ProjectReportRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectReportRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProjectTaskDependencyRead] */
+        ListEnvelope_ProjectTaskDependencyRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectTaskDependencyRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ProjectTaskRead] */
+        ListEnvelope_ProjectTaskRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectTaskRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[PurchaseOrderAdjustmentRead] */
@@ -16898,6 +18101,19 @@ export interface components {
             /** Verified At */
             verified_at?: string | null;
         };
+        /**
+         * PeriodActionRequest
+         * @description Close or reopen one month: any day in it names it.
+         */
+        PeriodActionRequest: {
+            /**
+             * Period
+             * Format: date
+             */
+            period: string;
+            /** Reason */
+            reason?: string | null;
+        };
         /** PicklistItemBase */
         PicklistItemBase: {
             /** Description */
@@ -17311,6 +18527,88 @@ export interface components {
             /** Start Date */
             start_date?: string | null;
         };
+        /** ProjectIssueRead */
+        ProjectIssueRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Issue No */
+            issue_no: string;
+            /** Issue Type */
+            issue_type: string;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Project Id */
+            project_id: string;
+            /**
+             * Raised At
+             * Format: date-time
+             */
+            raised_at: string;
+            /** Raised By Employee Id */
+            raised_by_employee_id?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /** Severity */
+            severity?: string | null;
+            /** Status */
+            status: string;
+            /** Task Id */
+            task_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ProjectMilestoneRead */
+        ProjectMilestoneRead: {
+            /** Confirmed By */
+            confirmed_by?: string | null;
+            /** Contract Term Id */
+            contract_term_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Evidence Attachment Id */
+            evidence_attachment_id?: string | null;
+            /** Id */
+            id: string;
+            /** Invoice Id */
+            invoice_id?: string | null;
+            /** Name */
+            name: string;
+            /** Project Id */
+            project_id: string;
+            /** Reached On */
+            reached_on?: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** ProjectRead */
         ProjectRead: {
             /** Client */
@@ -17349,6 +18647,114 @@ export interface components {
             status: "active" | "archived";
             /** Updated At */
             updated_at?: string | null;
+        };
+        /** ProjectReportRead */
+        ProjectReportRead: {
+            /** Blockers */
+            blockers?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Done */
+            done?: string | null;
+            /** Figures */
+            figures?: {
+                [key: string]: unknown;
+            } | null;
+            /** Health */
+            health: string;
+            /** Id */
+            id: string;
+            /** Next Steps */
+            next_steps?: string | null;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Project Id */
+            project_id: string;
+            /** Published At */
+            published_at?: string | null;
+            /** Published By */
+            published_by?: string | null;
+            /** Revision */
+            revision: number;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ProjectTaskDependencyRead */
+        ProjectTaskDependencyRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Dependency Type */
+            dependency_type: string;
+            /** Id */
+            id: string;
+            /** Lag Days */
+            lag_days: number;
+            /** Predecessor Task Id */
+            predecessor_task_id: string;
+            /** Successor Task Id */
+            successor_task_id: string;
+        };
+        /** ProjectTaskRead */
+        ProjectTaskRead: {
+            /** Actual End */
+            actual_end?: string | null;
+            /** Actual Start */
+            actual_start?: string | null;
+            /** Assignee Employee Id */
+            assignee_employee_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parent Task Id */
+            parent_task_id?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Planned Hours */
+            planned_hours?: number | null;
+            /** Planned Start */
+            planned_start?: string | null;
+            /** Project Id */
+            project_id: string;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Status */
+            status: string;
+            /** Task Code */
+            task_code?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * PublishBusinessRuleRequest
@@ -17491,6 +18897,8 @@ export interface components {
             payment_terms?: string | null;
             /** Po Number */
             po_number: string;
+            /** Project Id */
+            project_id?: string | null;
             /** Promised Date */
             promised_date?: string | null;
             /** Remarks */
@@ -17725,6 +19133,8 @@ export interface components {
             payment_terms?: string | null;
             /** Po Number */
             po_number: string;
+            /** Project Id */
+            project_id?: string | null;
             /** Promised Date */
             promised_date?: string | null;
             /** Remarks */
@@ -17904,6 +19314,8 @@ export interface components {
             id: string;
             /** Needed By */
             needed_by?: string | null;
+            /** Project Id */
+            project_id?: string | null;
             /** Request Date */
             request_date?: string | null;
             /** Source Report Text */
@@ -18034,6 +19446,18 @@ export interface components {
             title?: string | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /** ReachProjectMilestoneRequest */
+        ReachProjectMilestoneRequest: {
+            /** Confirmed By */
+            confirmed_by?: string | null;
+            /** Evidence Attachment Id */
+            evidence_attachment_id?: string | null;
+            /**
+             * Reached On
+             * Format: date
+             */
+            reached_on: string;
         };
         /** ReceivePurchaseOrderLine */
         ReceivePurchaseOrderLine: {
@@ -18390,6 +19814,13 @@ export interface components {
         RestoreTimesheetHeaderRequest: {
             /** Restored By */
             restored_by?: string | null;
+        };
+        /** ReverseJournalEntryRequest */
+        ReverseJournalEntryRequest: {
+            /** Description */
+            description?: string | null;
+            /** Posting Date */
+            posting_date?: string | null;
         };
         /** ReviewEnterprisePilotApplicationRequest */
         ReviewEnterprisePilotApplicationRequest: {
@@ -19264,6 +20695,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             /** Product Id */
@@ -19601,6 +21034,8 @@ export interface components {
             project_id?: string | null;
             /** Task */
             task?: string | null;
+            /** Task Id */
+            task_id?: string | null;
             /**
              * Work Date
              * Format: date
@@ -20410,6 +21845,8 @@ export interface components {
             project_name_snapshot?: string | null;
             /** Task */
             task?: string | null;
+            /** Task Id */
+            task_id?: string | null;
             /** Work Date */
             work_date?: string | null;
             /**
@@ -21433,6 +22870,8 @@ export interface components {
             line_no?: number | null;
             /** Notes */
             notes?: string | null;
+            /** Original Invoice Item Id */
+            original_invoice_item_id?: string | null;
             /** Pay History Id */
             pay_history_id?: string | null;
             /** Product Id */
@@ -21517,6 +22956,18 @@ export interface components {
             /** Vendor Id */
             vendor_id?: string | null;
         };
+        /**
+         * UpdateJournalEntryRequest
+         * @description A draft only. `lines`, when sent, replaces every line.
+         */
+        UpdateJournalEntryRequest: {
+            /** Description */
+            description?: string | null;
+            /** Lines */
+            lines?: components["schemas"]["JournalLineInput"][] | null;
+            /** Posting Date */
+            posting_date?: string | null;
+        };
         /** UpdateLeadRequest */
         UpdateLeadRequest: {
             /** Campaign Id */
@@ -21547,6 +22998,25 @@ export interface components {
             status?: string | null;
             /** Wechat */
             wechat?: string | null;
+        };
+        /** UpdateLedgerAccountRequest */
+        UpdateLedgerAccountRequest: {
+            /** Account Code */
+            account_code?: string | null;
+            /** Account Type */
+            account_type?: ("asset" | "liability" | "equity" | "income" | "expense") | null;
+            /** Currency */
+            currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
+            /** Subledger */
+            subledger?: ("customer" | "vendor" | "employee") | null;
         };
         /** UpdateObjectTypeDefinitionRequest */
         UpdateObjectTypeDefinitionRequest: {
@@ -21836,6 +23306,59 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** UpdateProjectIssueRequest */
+        UpdateProjectIssueRequest: {
+            /** Description */
+            description?: string | null;
+            /** Issue Type */
+            issue_type?: string | null;
+            /** Owner Employee Id */
+            owner_employee_id?: string | null;
+            /** Raised By Employee Id */
+            raised_by_employee_id?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Resolved At */
+            resolved_at?: string | null;
+            /** Severity */
+            severity?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** UpdateProjectMilestoneRequest */
+        UpdateProjectMilestoneRequest: {
+            /** Contract Term Id */
+            contract_term_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+            /** Invoice Id */
+            invoice_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Status */
+            status?: ("open" | "cancelled") | null;
+        };
+        /** UpdateProjectReportRequest */
+        UpdateProjectReportRequest: {
+            /** Blockers */
+            blockers?: string | null;
+            /** Done */
+            done?: string | null;
+            /** Health */
+            health?: ("green" | "amber" | "red") | null;
+            /** Next Steps */
+            next_steps?: string | null;
+            /** Period End */
+            period_end?: string | null;
+            /** Summary */
+            summary?: string | null;
+        };
         /** UpdateProjectRequest */
         UpdateProjectRequest: {
             /** Client */
@@ -21866,6 +23389,33 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "archived";
+        };
+        /** UpdateProjectTaskRequest */
+        UpdateProjectTaskRequest: {
+            /** Actual End */
+            actual_end?: string | null;
+            /** Actual Start */
+            actual_start?: string | null;
+            /** Assignee Employee Id */
+            assignee_employee_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Parent Task Id */
+            parent_task_id?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Planned Hours */
+            planned_hours?: number | null;
+            /** Planned Start */
+            planned_start?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Status */
+            status?: string | null;
+            /** Task Code */
+            task_code?: string | null;
         };
         /** UpdatePurchaseOrderAdjustmentRequest */
         UpdatePurchaseOrderAdjustmentRequest: {
@@ -21945,6 +23495,8 @@ export interface components {
             original_order_id?: string | null;
             /** Payment Terms */
             payment_terms?: string | null;
+            /** Project Id */
+            project_id?: string | null;
             /** Promised Date */
             promised_date?: string | null;
             /** Remarks */
@@ -22003,6 +23555,8 @@ export interface components {
             } | null;
             /** Needed By */
             needed_by?: string | null;
+            /** Project Id */
+            project_id?: string | null;
             /** Request Date */
             request_date?: string | null;
             /** Source Report Text */
@@ -22486,6 +24040,8 @@ export interface components {
             project_name_snapshot?: string | null;
             /** Task */
             task?: string | null;
+            /** Task Id */
+            task_id?: string | null;
             /** Work Type */
             work_type?: string | null;
         };
@@ -22684,6 +24240,223 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_accounting_periods_api_v1_accounting_periods_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose period_start is on or after this */
+                period_start_from?: string | null;
+                /** @description rows whose period_start is on or before this */
+                period_start_thru?: string | null;
+                /** @description rows whose closed_at is at or after this */
+                closed_at_from?: string | null;
+                /** @description rows whose closed_at is at or before this */
+                closed_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_AccountingPeriodRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_accounting_period_api_v1_accounting_periods_close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeriodActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountingPeriodRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_accounting_period_api_v1_accounting_periods_reopen_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeriodActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountingPeriodRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_accounting_settings_api_v1_accounting_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_AccountingSettingsRead__NoneType__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_accounting_settings_api_v1_accounting_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountingSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_AccountingSettingsRead__NoneType__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_activities_api_v1_activities_get: {
         parameters: {
             query?: {
@@ -35418,6 +37191,8 @@ export interface operations {
                 expense_claim_id?: string | null;
                 billing_account_id?: string | null;
                 period_start?: string | null;
+                invoice_kind?: string | null;
+                original_invoice_id?: string | null;
                 status?: string | null;
                 outstanding?: boolean;
                 due_before?: string | null;
@@ -35569,6 +37344,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_BulkDocumentImportResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invoice_offset_api_v1_invoices__credit_note_id__offsets_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                credit_note_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvoiceOffsetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_InvoiceOffsetRead_"];
                 };
             };
             /** @description Validation Error */
@@ -35785,6 +37604,44 @@ export interface operations {
             };
         };
     };
+    list_invoice_offsets_api_v1_invoices__invoice_id__offsets_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                invoice_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_InvoiceOffsetRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_invoice_api_v1_invoices__invoice_id__restore_post: {
         parameters: {
             query?: never;
@@ -35898,6 +37755,313 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_InvoiceRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_journal_entries_api_v1_journal_entries_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                source_type?: string | null;
+                source_id?: string | null;
+                source_event?: string | null;
+                ledger_account_id?: string | null;
+                reverses_entry_id?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose posting_date is on or after this */
+                posting_date_from?: string | null;
+                /** @description rows whose posting_date is on or before this */
+                posting_date_thru?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose posted_at is at or after this */
+                posted_at_from?: string | null;
+                /** @description rows whose posted_at is at or before this */
+                posted_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_JournalEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_journal_entry_api_v1_journal_entries_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateJournalEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_JournalEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_journal_entry_api_v1_journal_entries__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_JournalEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_journal_entry_api_v1_journal_entries__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_journal_entry_api_v1_journal_entries__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateJournalEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_JournalEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_journal_entry_api_v1_journal_entries__entry_id__post_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_JournalEntryRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reverse_journal_entry_api_v1_journal_entries__entry_id__reverse_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReverseJournalEntryRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_JournalEntryRead_"];
                 };
             };
             /** @description Validation Error */
@@ -36183,6 +38347,265 @@ export interface operations {
             };
             path: {
                 lead_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ledger_accounts_api_v1_ledger_accounts_get: {
+        parameters: {
+            query?: {
+                account_type?: string | null;
+                parent_id?: string | null;
+                subledger?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                currency?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_LedgerAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_ledger_account_api_v1_ledger_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLedgerAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ledger_account_api_v1_ledger_accounts__account_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_ledger_account_api_v1_ledger_accounts__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLedgerAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerAccountRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_account_ledger_api_v1_ledger_accounts__account_id__ledger_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_account_parties_api_v1_ledger_accounts__account_id__parties_get: {
+        parameters: {
+            query?: {
+                as_of?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                account_id: string;
             };
             cookie?: {
                 oryh_session?: string | null;
@@ -39828,6 +42251,1076 @@ export interface operations {
             };
         };
     };
+    list_project_issues_api_v1_project_issues_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                task_id?: string | null;
+                issue_type?: string | null;
+                severity?: string | null;
+                owner_employee_id?: string | null;
+                status?: string | null;
+                unresolved?: boolean | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose raised_at is at or after this */
+                raised_at_from?: string | null;
+                /** @description rows whose raised_at is at or before this */
+                raised_at_thru?: string | null;
+                /** @description rows whose resolved_at is at or after this */
+                resolved_at_from?: string | null;
+                /** @description rows whose resolved_at is at or before this */
+                resolved_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectIssueRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_issue_api_v1_project_issues_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectIssueRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_issue_api_v1_project_issues__issue_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                issue_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectIssueRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_issue_api_v1_project_issues__issue_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                issue_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectIssueRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_milestones_api_v1_project_milestones_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                status?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose due_date is on or after this */
+                due_date_from?: string | null;
+                /** @description rows whose due_date is on or before this */
+                due_date_thru?: string | null;
+                /** @description rows whose reached_on is on or after this */
+                reached_on_from?: string | null;
+                /** @description rows whose reached_on is on or before this */
+                reached_on_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_milestone_api_v1_project_milestones_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectMilestoneRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_milestone_api_v1_project_milestones__milestone_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                milestone_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_milestone_api_v1_project_milestones__milestone_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                milestone_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectMilestoneRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reach_project_milestone_api_v1_project_milestones__milestone_id__reach_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                milestone_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReachProjectMilestoneRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_project_milestone_api_v1_project_milestones__milestone_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                milestone_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectMilestoneRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_reports_api_v1_project_reports_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                health?: string | null;
+                status?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose period_start is on or after this */
+                period_start_from?: string | null;
+                /** @description rows whose period_start is on or before this */
+                period_start_thru?: string | null;
+                /** @description rows whose period_end is on or after this */
+                period_end_from?: string | null;
+                /** @description rows whose period_end is on or before this */
+                period_end_thru?: string | null;
+                /** @description rows whose published_at is at or after this */
+                published_at_from?: string | null;
+                /** @description rows whose published_at is at or before this */
+                published_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectReportRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_report_api_v1_project_reports_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectReportRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_report_api_v1_project_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectReportRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_project_report_api_v1_project_reports__report_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_report_api_v1_project_reports__report_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectReportRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_project_report_api_v1_project_reports__report_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                report_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectReportRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_task_dependencies_api_v1_project_task_dependencies_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                task_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectTaskDependencyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_task_dependency_api_v1_project_task_dependencies_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectTaskDependencyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectTaskDependencyRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_project_task_dependency_api_v1_project_task_dependencies__dependency_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                dependency_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_tasks_api_v1_project_tasks_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                parent_task_id?: string | null;
+                assignee_employee_id?: string | null;
+                status?: string | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose planned_start is on or after this */
+                planned_start_from?: string | null;
+                /** @description rows whose planned_start is on or before this */
+                planned_start_thru?: string | null;
+                /** @description rows whose planned_end is on or after this */
+                planned_end_from?: string | null;
+                /** @description rows whose planned_end is on or before this */
+                planned_end_thru?: string | null;
+                /** @description rows whose actual_start is on or after this */
+                actual_start_from?: string | null;
+                /** @description rows whose actual_start is on or before this */
+                actual_start_thru?: string | null;
+                /** @description rows whose actual_end is on or after this */
+                actual_end_from?: string | null;
+                /** @description rows whose actual_end is on or before this */
+                actual_end_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectTaskRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_task_api_v1_project_tasks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectTaskRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_task_api_v1_project_tasks__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectTaskRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_project_task_api_v1_project_tasks__task_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_task_api_v1_project_tasks__task_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProjectTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectTaskRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_projects_api_v1_projects_get: {
         parameters: {
             query?: {
@@ -40075,6 +43568,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ProjectDetailRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_execution_api_v1_projects__project_id__execution_get: {
+        parameters: {
+            query?: {
+                as_of?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -40547,6 +44080,7 @@ export interface operations {
                 promised_date_thru?: string | null;
                 contract_id?: string | null;
                 currency?: string | null;
+                project_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -41227,6 +44761,7 @@ export interface operations {
                 /** @description rows whose submitted_at is at or before this */
                 submitted_at_thru?: string | null;
                 currency?: string | null;
+                project_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -47958,6 +51493,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_TodoRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trial_balance_api_v1_trial_balance_get: {
+        parameters: {
+            query?: {
+                date_from?: string | null;
+                date_to?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

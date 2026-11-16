@@ -73,6 +73,8 @@ List Invoices
 | `expense_claim_id` | query | string | no |  |
 | `billing_account_id` | query | string | no |  |
 | `period_start` | query | date | no |  |
+| `invoice_kind` | query | string | no |  |
+| `original_invoice_id` | query | string | no |  |
 | `status` | query | string | no |  |
 | `outstanding` | query | boolean | no |  |
 | `due_before` | query | date | no |  |
@@ -127,6 +129,14 @@ Get Invoice Detail
 |---|---|---|---|---|
 | `invoice_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
+
+## GET /invoices/{invoice_id}/offsets
+
+List Invoice Offsets
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `invoice_id` | path | string | yes |  |
 
 ## GET /object-directory
 

@@ -252,15 +252,20 @@ class _Applications:
     def __init__(self, db: Session, tenant_id: str):
         paid = counted_states(db, tenant_id, "payment")
         rows = db.execute(
-            select(PaymentApplication).join(Payment, Payment.id == PaymentApplication.payment_id).where(
-                PaymentApplication.tenant_id == tenant_id, _live(Payment), Payment.status.in_(paid),
-            )
-        ).scalars()
+            select(PaymentApplication, Invoice.invoice_kind)
+            .join(Payment, Payment.id == PaymentApplication.payment_id)
+            .outerjoin(Invoice, Invoice.id == PaymentApplication.invoice_id)
+            .where(PaymentApplication.tenant_id == tenant_id, _live(Payment), Payment.status.in_(paid))
+        ).all()
         self.by_item: dict[str, Decimal] = defaultdict(lambda: ZERO)
         self.by_invoice: dict[str, Decimal] = defaultdict(lambda: ZERO)
         self.by_claim: dict[str, Decimal] = defaultdict(lambda: ZERO)
-        for row in rows:
+        for row, kind in rows:
             amount = money(row.amount_applied)
+            if kind == "credit_note":
+                # a refund settles a credit note: cash running the other way,
+                # as its (negative) lines do
+                amount = -amount
             if row.invoice_item_id:
                 self.by_item[row.invoice_item_id] += amount
             elif row.invoice_id:

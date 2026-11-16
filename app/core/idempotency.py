@@ -197,6 +197,14 @@ class IdempotencyMiddleware:
         if credential is None:
             await self.app(scope, receive, send)
             return
+        # A credential that does not authenticate claims nothing: the request
+        # goes on to its own 401. Claimed first, every made-up key left a row
+        # for 24 hours — a database write anyone could make without an
+        # account (review 2026-11-12, finding 4). The replay below is served
+        # on this same check, made moments earlier.
+        if self._regate(credential) is not None:
+            await self.app(scope, receive, send)
+            return
 
         body = await _read_body(receive)
         scope_hash = hashlib.sha256(credential.encode("utf-8")).hexdigest()
@@ -207,10 +215,6 @@ class IdempotencyMiddleware:
         verdict = self._claim_in_session(scope_hash, key, fingerprint, scope["method"], scope["path"])
         if verdict[0] == "replay":
             record = verdict[1]
-            refused = self._regate(credential)
-            if refused is not None:
-                await self._reply(send, *refused)
-                return
             stored = json.loads(record.response_headers or "[]")
             response_headers = [(n.encode("latin-1"), v.encode("latin-1")) for n, v in stored]
             response_headers.append((REPLAYED_HEADER.lower().encode(), b"true"))
@@ -344,7 +348,10 @@ class IdempotencyMiddleware:
             db.commit()
             existing = None
         if existing is None:
-            record = IdempotencyRecord(scope_hash=scope_hash, key=key, fingerprint=fingerprint, method=method, path=path)
+            # the column holds 500; the fingerprint already covers the whole
+            # path, so a longer one is kept cut rather than failing the insert
+            record = IdempotencyRecord(scope_hash=scope_hash, key=key, fingerprint=fingerprint, method=method,
+                                       path=path[:500])
             db.add(record)
             try:
                 db.commit()

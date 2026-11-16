@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261101_0107
+-- Alembic revision: 20261116_0111
 --
 
 --
@@ -37,6 +37,39 @@ CREATE SCHEMA oryh;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: accounting_periods; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.accounting_periods (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    status character varying(20) DEFAULT 'open'::character varying NOT NULL,
+    closed_at timestamp with time zone,
+    closed_by character varying(200),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT accounting_periods_order_chk CHECK ((period_end >= period_start)),
+    CONSTRAINT accounting_periods_status_chk CHECK (((status)::text = ANY ((ARRAY['closed'::character varying, 'open'::character varying])::text[])))
+);
+
+
+--
+-- Name: accounting_settings; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.accounting_settings (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    functional_currency character varying(3) NOT NULL,
+    retained_earnings_account_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 
 --
 -- Name: activities; Type: TABLE; Schema: oryh; Owner: -
@@ -1324,7 +1357,26 @@ CREATE TABLE oryh.invoice_items (
     pay_history_id uuid,
     expense_item_id uuid,
     budget_line_id uuid,
-    billing_account_entry_id uuid
+    billing_account_entry_id uuid,
+    original_invoice_item_id uuid
+);
+
+
+--
+-- Name: invoice_offsets; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.invoice_offsets (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    credit_note_id uuid NOT NULL,
+    invoice_id uuid NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    note text,
+    created_by character varying(200),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT invoice_offsets_amount_chk CHECK ((amount <> (0)::numeric)),
+    CONSTRAINT invoice_offsets_distinct_chk CHECK ((credit_note_id <> invoice_id))
 );
 
 
@@ -1374,7 +1426,67 @@ CREATE TABLE oryh.invoices (
     expense_claim_id uuid,
     contract_id uuid,
     cost_center_id uuid,
-    CONSTRAINT invoices_direction_counterparty_ck CHECK (((((direction)::text = 'sales'::text) AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'purchase'::text) AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'payroll'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL)) OR (((direction)::text = 'reimbursement'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL))))
+    invoice_kind character varying(20) DEFAULT 'invoice'::character varying NOT NULL,
+    original_invoice_id uuid,
+    CONSTRAINT invoices_direction_counterparty_ck CHECK (((((direction)::text = 'sales'::text) AND (customer_id IS NOT NULL) AND (vendor_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'purchase'::text) AND (vendor_id IS NOT NULL) AND (customer_id IS NULL) AND (payee_employee_id IS NULL)) OR (((direction)::text = 'payroll'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL)) OR (((direction)::text = 'reimbursement'::text) AND (payee_employee_id IS NOT NULL) AND (customer_id IS NULL) AND (vendor_id IS NULL)))),
+    CONSTRAINT invoices_invoice_kind_chk CHECK (((invoice_kind)::text = ANY ((ARRAY['credit_note'::character varying, 'debit_note'::character varying, 'invoice'::character varying])::text[]))),
+    CONSTRAINT invoices_note_original_chk CHECK (((((invoice_kind)::text = 'invoice'::text) AND (original_invoice_id IS NULL)) OR (((invoice_kind)::text <> 'invoice'::text) AND (original_invoice_id IS NOT NULL))))
+);
+
+
+--
+-- Name: journal_entries; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.journal_entries (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    entry_no character varying(64) NOT NULL,
+    posting_date date NOT NULL,
+    status character varying(20) DEFAULT 'draft'::character varying NOT NULL,
+    description text NOT NULL,
+    source_type character varying(40),
+    source_id uuid,
+    source_event character varying(60),
+    reverses_entry_id uuid,
+    reversed_at timestamp with time zone,
+    posted_at timestamp with time zone,
+    posted_by character varying(200),
+    created_by character varying(200),
+    deleted_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT journal_entries_posted_stamp_chk CHECK ((((status)::text = 'draft'::text) OR (posted_at IS NOT NULL))),
+    CONSTRAINT journal_entries_source_pair_chk CHECK ((((source_type IS NULL) AND (source_id IS NULL) AND (source_event IS NULL)) OR ((source_type IS NOT NULL) AND (source_id IS NOT NULL)))),
+    CONSTRAINT journal_entries_status_chk CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'posted'::character varying])::text[])))
+);
+
+
+--
+-- Name: journal_lines; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.journal_lines (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    entry_id uuid NOT NULL,
+    line_no integer NOT NULL,
+    ledger_account_id uuid NOT NULL,
+    debit numeric(14,2) DEFAULT 0 NOT NULL,
+    credit numeric(14,2) DEFAULT 0 NOT NULL,
+    currency character varying(3),
+    foreign_amount numeric(14,2),
+    exchange_rate numeric(18,8),
+    customer_id uuid,
+    vendor_id uuid,
+    employee_id uuid,
+    cost_center_id uuid,
+    project_id uuid,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT journal_lines_foreign_chk CHECK ((((currency IS NULL) AND (foreign_amount IS NULL) AND (exchange_rate IS NULL)) OR ((currency IS NOT NULL) AND (foreign_amount IS NOT NULL) AND (exchange_rate > (0)::numeric)))),
+    CONSTRAINT journal_lines_side_chk CHECK ((((debit > (0)::numeric) AND (credit = (0)::numeric)) OR ((credit > (0)::numeric) AND (debit = (0)::numeric))))
 );
 
 
@@ -1405,6 +1517,30 @@ CREATE TABLE oryh.leads (
     referrer_customer_id uuid,
     referrer_contact_id uuid,
     CONSTRAINT leads_names_somebody_check CHECK (((company_name IS NOT NULL) OR (contact_name IS NOT NULL)))
+);
+
+
+--
+-- Name: ledger_accounts; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.ledger_accounts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    account_code character varying(32) NOT NULL,
+    name character varying(200) NOT NULL,
+    account_type character varying(20) NOT NULL,
+    parent_id uuid,
+    subledger character varying(20),
+    currency character varying(3),
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ledger_accounts_account_type_chk CHECK (((account_type)::text = ANY ((ARRAY['asset'::character varying, 'equity'::character varying, 'expense'::character varying, 'income'::character varying, 'liability'::character varying])::text[]))),
+    CONSTRAINT ledger_accounts_not_own_parent_chk CHECK (((parent_id IS NULL) OR (parent_id <> id))),
+    CONSTRAINT ledger_accounts_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[]))),
+    CONSTRAINT ledger_accounts_subledger_chk CHECK ((((subledger)::text = ANY ((ARRAY['customer'::character varying, 'employee'::character varying, 'vendor'::character varying])::text[])) OR (subledger IS NULL)))
 );
 
 
@@ -1875,6 +2011,133 @@ CREATE TABLE oryh.products (
 
 
 --
+-- Name: project_issues; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_issues (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    project_id uuid NOT NULL,
+    task_id uuid,
+    issue_no character varying(64) NOT NULL,
+    issue_type character varying(30) DEFAULT 'issue'::character varying NOT NULL,
+    title character varying(200) NOT NULL,
+    description text,
+    severity character varying(30),
+    raised_by_employee_id uuid,
+    owner_employee_id uuid,
+    raised_at timestamp with time zone DEFAULT now() NOT NULL,
+    resolved_at timestamp with time zone,
+    resolution text,
+    status character varying(30) DEFAULT 'open'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_issues_resolution_chk CHECK (((resolved_at IS NULL) OR (resolution IS NOT NULL)))
+);
+
+
+--
+-- Name: project_milestones; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_milestones (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    project_id uuid NOT NULL,
+    name character varying(200) NOT NULL,
+    due_date date NOT NULL,
+    reached_on date,
+    confirmed_by character varying(200),
+    evidence_attachment_id uuid,
+    contract_term_id uuid,
+    invoice_id uuid,
+    status character varying(20) DEFAULT 'open'::character varying NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_milestones_reached_chk CHECK (((((status)::text = 'reached'::text) AND (reached_on IS NOT NULL) AND (confirmed_by IS NOT NULL)) OR (((status)::text <> 'reached'::text) AND (reached_on IS NULL)))),
+    CONSTRAINT project_milestones_status_chk CHECK (((status)::text = ANY ((ARRAY['cancelled'::character varying, 'open'::character varying, 'reached'::character varying])::text[])))
+);
+
+
+--
+-- Name: project_reports; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_reports (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    project_id uuid NOT NULL,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    revision integer DEFAULT 1 NOT NULL,
+    health character varying(10) NOT NULL,
+    summary text NOT NULL,
+    done text,
+    next_steps text,
+    blockers text,
+    figures jsonb,
+    status character varying(20) DEFAULT 'draft'::character varying NOT NULL,
+    published_by character varying(200),
+    published_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_reports_health_chk CHECK (((health)::text = ANY ((ARRAY['amber'::character varying, 'green'::character varying, 'red'::character varying])::text[]))),
+    CONSTRAINT project_reports_period_order_chk CHECK ((period_end >= period_start)),
+    CONSTRAINT project_reports_published_chk CHECK (((((status)::text = 'published'::text) AND (published_at IS NOT NULL) AND (figures IS NOT NULL)) OR (((status)::text = 'draft'::text) AND (published_at IS NULL)))),
+    CONSTRAINT project_reports_revision_chk CHECK ((revision >= 1)),
+    CONSTRAINT project_reports_status_chk CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'published'::character varying])::text[])))
+);
+
+
+--
+-- Name: project_task_dependencies; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_task_dependencies (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    predecessor_task_id uuid NOT NULL,
+    successor_task_id uuid NOT NULL,
+    dependency_type character varying(10) DEFAULT 'FS'::character varying NOT NULL,
+    lag_days integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_task_dependencies_dependency_type_chk CHECK (((dependency_type)::text = ANY ((ARRAY['FF'::character varying, 'FS'::character varying, 'SF'::character varying, 'SS'::character varying])::text[]))),
+    CONSTRAINT project_task_dependencies_not_self_chk CHECK ((predecessor_task_id <> successor_task_id))
+);
+
+
+--
+-- Name: project_tasks; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_tasks (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    project_id uuid NOT NULL,
+    parent_task_id uuid,
+    task_code character varying(64),
+    name character varying(200) NOT NULL,
+    assignee_employee_id uuid,
+    planned_start date,
+    planned_end date,
+    actual_start date,
+    actual_end date,
+    planned_hours numeric(8,2),
+    status character varying(30) DEFAULT 'not_started'::character varying NOT NULL,
+    sort_order integer,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_tasks_actual_order_chk CHECK (((actual_start IS NULL) OR (actual_end IS NULL) OR (actual_end >= actual_start))),
+    CONSTRAINT project_tasks_not_own_parent_chk CHECK (((parent_task_id IS NULL) OR (parent_task_id <> id))),
+    CONSTRAINT project_tasks_planned_hours_chk CHECK (((planned_hours IS NULL) OR (planned_hours >= (0)::numeric))),
+    CONSTRAINT project_tasks_planned_order_chk CHECK (((planned_start IS NULL) OR (planned_end IS NULL) OR (planned_end >= planned_start)))
+);
+
+
+--
 -- Name: projects; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1981,6 +2244,7 @@ CREATE TABLE oryh.purchase_orders (
     original_order_id uuid,
     contract_id uuid,
     cost_center_id uuid,
+    project_id uuid,
     CONSTRAINT purchase_orders_order_kind_chk CHECK (((order_kind)::text = ANY ((ARRAY['order'::character varying, 'return'::character varying])::text[]))),
     CONSTRAINT purchase_orders_original_only_on_returns_check CHECK ((((order_kind)::text = 'return'::text) OR (original_order_id IS NULL)))
 );
@@ -2039,7 +2303,8 @@ CREATE TABLE oryh.purchase_requests (
     deleted_at timestamp with time zone,
     deleted_by text,
     delete_reason text,
-    cost_center_id uuid
+    cost_center_id uuid,
+    project_id uuid
 );
 
 
@@ -2592,6 +2857,7 @@ CREATE TABLE oryh.timesheet_entries (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
+    task_id uuid,
     CONSTRAINT timesheet_entries_hours_chk CHECK (((hours > (0)::numeric) AND (hours <= (24)::numeric)))
 );
 
@@ -2729,6 +2995,38 @@ CREATE TABLE oryh.vendors (
 --
 
 ALTER TABLE ONLY oryh.audit_logs ALTER COLUMN id SET DEFAULT nextval('oryh.audit_logs_id_seq'::regclass);
+
+
+--
+-- Name: accounting_periods accounting_periods_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.accounting_periods
+    ADD CONSTRAINT accounting_periods_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: accounting_periods accounting_periods_start_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.accounting_periods
+    ADD CONSTRAINT accounting_periods_start_uk UNIQUE (tenant_id, period_start);
+
+
+--
+-- Name: accounting_settings accounting_settings_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.accounting_settings
+    ADD CONSTRAINT accounting_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: accounting_settings accounting_settings_tenant_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.accounting_settings
+    ADD CONSTRAINT accounting_settings_tenant_uk UNIQUE (tenant_id);
 
 
 --
@@ -3316,6 +3614,14 @@ ALTER TABLE ONLY oryh.invoice_items
 
 
 --
+-- Name: invoice_offsets invoice_offsets_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoice_offsets
+    ADD CONSTRAINT invoice_offsets_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: invoices invoices_invoice_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3332,6 +3638,30 @@ ALTER TABLE ONLY oryh.invoices
 
 
 --
+-- Name: journal_entries journal_entries_entry_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_entries
+    ADD CONSTRAINT journal_entries_entry_no_uk UNIQUE (tenant_id, entry_no);
+
+
+--
+-- Name: journal_entries journal_entries_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_entries
+    ADD CONSTRAINT journal_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: journal_lines journal_lines_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: leads leads_lead_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -3345,6 +3675,22 @@ ALTER TABLE ONLY oryh.leads
 
 ALTER TABLE ONLY oryh.leads
     ADD CONSTRAINT leads_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ledger_accounts ledger_accounts_code_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.ledger_accounts
+    ADD CONSTRAINT ledger_accounts_code_uk UNIQUE (tenant_id, account_code);
+
+
+--
+-- Name: ledger_accounts ledger_accounts_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.ledger_accounts
+    ADD CONSTRAINT ledger_accounts_pkey PRIMARY KEY (id);
 
 
 --
@@ -3601,6 +3947,70 @@ ALTER TABLE ONLY oryh.product_skus
 
 ALTER TABLE ONLY oryh.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_issues project_issues_issue_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_issue_no_uk UNIQUE (tenant_id, issue_no);
+
+
+--
+-- Name: project_issues project_issues_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_milestones project_milestones_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_milestones
+    ADD CONSTRAINT project_milestones_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_reports project_reports_period_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_reports
+    ADD CONSTRAINT project_reports_period_uk UNIQUE (tenant_id, project_id, period_start, revision);
+
+
+--
+-- Name: project_reports project_reports_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_reports
+    ADD CONSTRAINT project_reports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_task_dependencies project_task_dependencies_pair_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_task_dependencies
+    ADD CONSTRAINT project_task_dependencies_pair_uk UNIQUE (tenant_id, predecessor_task_id, successor_task_id);
+
+
+--
+-- Name: project_task_dependencies project_task_dependencies_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_task_dependencies
+    ADD CONSTRAINT project_task_dependencies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_tasks project_tasks_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_tasks
+    ADD CONSTRAINT project_tasks_pkey PRIMARY KEY (id);
 
 
 --
@@ -4033,6 +4443,20 @@ ALTER TABLE ONLY oryh.users
 
 ALTER TABLE ONLY oryh.vendors
     ADD CONSTRAINT vendors_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: accounting_periods_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX accounting_periods_tenant_id_idx ON oryh.accounting_periods USING btree (tenant_id);
+
+
+--
+-- Name: accounting_settings_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX accounting_settings_tenant_id_idx ON oryh.accounting_settings USING btree (tenant_id);
 
 
 --
@@ -5352,6 +5776,13 @@ CREATE INDEX invoice_items_invoice_idx ON oryh.invoice_items USING btree (invoic
 
 
 --
+-- Name: invoice_items_original_invoice_item_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoice_items_original_invoice_item_id_idx ON oryh.invoice_items USING btree (original_invoice_item_id);
+
+
+--
 -- Name: invoice_items_pay_history_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5377,6 +5808,27 @@ CREATE INDEX invoice_items_sales_order_item_idx ON oryh.invoice_items USING btre
 --
 
 CREATE INDEX invoice_items_tenant_idx ON oryh.invoice_items USING btree (tenant_id);
+
+
+--
+-- Name: invoice_offsets_credit_note_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoice_offsets_credit_note_id_idx ON oryh.invoice_offsets USING btree (credit_note_id);
+
+
+--
+-- Name: invoice_offsets_invoice_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoice_offsets_invoice_id_idx ON oryh.invoice_offsets USING btree (invoice_id);
+
+
+--
+-- Name: invoice_offsets_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoice_offsets_tenant_id_idx ON oryh.invoice_offsets USING btree (tenant_id);
 
 
 --
@@ -5426,6 +5878,13 @@ CREATE INDEX invoices_due_date_idx ON oryh.invoices USING btree (tenant_id, due_
 --
 
 CREATE INDEX invoices_employee_idx ON oryh.invoices USING btree (employee_id);
+
+
+--
+-- Name: invoices_original_invoice_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX invoices_original_invoice_id_idx ON oryh.invoices USING btree (original_invoice_id);
 
 
 --
@@ -5583,6 +6042,104 @@ CREATE INDEX ix_sales_orders_billing_account_id ON oryh.sales_orders USING btree
 
 
 --
+-- Name: journal_entries_posting_date_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_entries_posting_date_idx ON oryh.journal_entries USING btree (posting_date);
+
+
+--
+-- Name: journal_entries_reversal_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX journal_entries_reversal_uk ON oryh.journal_entries USING btree (tenant_id, reverses_entry_id) WHERE ((reverses_entry_id IS NOT NULL) AND (deleted_at IS NULL));
+
+
+--
+-- Name: journal_entries_reverses_entry_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_entries_reverses_entry_id_idx ON oryh.journal_entries USING btree (reverses_entry_id);
+
+
+--
+-- Name: journal_entries_source_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_entries_source_idx ON oryh.journal_entries USING btree (source_type, source_id);
+
+
+--
+-- Name: journal_entries_source_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX journal_entries_source_uk ON oryh.journal_entries USING btree (tenant_id, source_type, source_id, COALESCE(source_event, ''::character varying)) WHERE (((status)::text = 'posted'::text) AND (reversed_at IS NULL) AND (source_type IS NOT NULL));
+
+
+--
+-- Name: journal_entries_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_entries_tenant_id_idx ON oryh.journal_entries USING btree (tenant_id);
+
+
+--
+-- Name: journal_lines_cost_center_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_cost_center_id_idx ON oryh.journal_lines USING btree (cost_center_id);
+
+
+--
+-- Name: journal_lines_customer_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_customer_id_idx ON oryh.journal_lines USING btree (customer_id);
+
+
+--
+-- Name: journal_lines_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_employee_id_idx ON oryh.journal_lines USING btree (employee_id);
+
+
+--
+-- Name: journal_lines_entry_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_entry_id_idx ON oryh.journal_lines USING btree (entry_id);
+
+
+--
+-- Name: journal_lines_ledger_account_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_ledger_account_id_idx ON oryh.journal_lines USING btree (ledger_account_id);
+
+
+--
+-- Name: journal_lines_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_project_id_idx ON oryh.journal_lines USING btree (project_id);
+
+
+--
+-- Name: journal_lines_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_tenant_id_idx ON oryh.journal_lines USING btree (tenant_id);
+
+
+--
+-- Name: journal_lines_vendor_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_vendor_id_idx ON oryh.journal_lines USING btree (vendor_id);
+
+
+--
 -- Name: leads_campaign_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -5622,6 +6179,20 @@ CREATE INDEX leads_tenant_id_idx ON oryh.leads USING btree (tenant_id);
 --
 
 CREATE INDEX leads_tenant_status_idx ON oryh.leads USING btree (tenant_id, status, created_at DESC);
+
+
+--
+-- Name: ledger_accounts_parent_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ledger_accounts_parent_id_idx ON oryh.ledger_accounts USING btree (parent_id);
+
+
+--
+-- Name: ledger_accounts_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ledger_accounts_tenant_id_idx ON oryh.ledger_accounts USING btree (tenant_id);
 
 
 --
@@ -6150,6 +6721,139 @@ CREATE INDEX products_tenant_idx ON oryh.products USING btree (tenant_id, status
 
 
 --
+-- Name: project_issues_owner_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_issues_owner_employee_id_idx ON oryh.project_issues USING btree (owner_employee_id);
+
+
+--
+-- Name: project_issues_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_issues_project_id_idx ON oryh.project_issues USING btree (project_id);
+
+
+--
+-- Name: project_issues_raised_by_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_issues_raised_by_employee_id_idx ON oryh.project_issues USING btree (raised_by_employee_id);
+
+
+--
+-- Name: project_issues_task_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_issues_task_id_idx ON oryh.project_issues USING btree (task_id);
+
+
+--
+-- Name: project_issues_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_issues_tenant_id_idx ON oryh.project_issues USING btree (tenant_id);
+
+
+--
+-- Name: project_milestones_contract_term_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_milestones_contract_term_id_idx ON oryh.project_milestones USING btree (contract_term_id);
+
+
+--
+-- Name: project_milestones_invoice_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_milestones_invoice_id_idx ON oryh.project_milestones USING btree (invoice_id);
+
+
+--
+-- Name: project_milestones_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_milestones_project_id_idx ON oryh.project_milestones USING btree (project_id);
+
+
+--
+-- Name: project_milestones_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_milestones_tenant_id_idx ON oryh.project_milestones USING btree (tenant_id);
+
+
+--
+-- Name: project_reports_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_reports_project_id_idx ON oryh.project_reports USING btree (project_id);
+
+
+--
+-- Name: project_reports_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_reports_tenant_id_idx ON oryh.project_reports USING btree (tenant_id);
+
+
+--
+-- Name: project_task_dependencies_predecessor_task_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_task_dependencies_predecessor_task_id_idx ON oryh.project_task_dependencies USING btree (predecessor_task_id);
+
+
+--
+-- Name: project_task_dependencies_successor_task_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_task_dependencies_successor_task_id_idx ON oryh.project_task_dependencies USING btree (successor_task_id);
+
+
+--
+-- Name: project_task_dependencies_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_task_dependencies_tenant_id_idx ON oryh.project_task_dependencies USING btree (tenant_id);
+
+
+--
+-- Name: project_tasks_assignee_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_tasks_assignee_employee_id_idx ON oryh.project_tasks USING btree (assignee_employee_id);
+
+
+--
+-- Name: project_tasks_code_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX project_tasks_code_uk ON oryh.project_tasks USING btree (tenant_id, project_id, task_code) WHERE (task_code IS NOT NULL);
+
+
+--
+-- Name: project_tasks_parent_task_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_tasks_parent_task_id_idx ON oryh.project_tasks USING btree (parent_task_id);
+
+
+--
+-- Name: project_tasks_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_tasks_project_id_idx ON oryh.project_tasks USING btree (project_id);
+
+
+--
+-- Name: project_tasks_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_tasks_tenant_id_idx ON oryh.project_tasks USING btree (tenant_id);
+
+
+--
 -- Name: projects_tenant_opportunity_uk; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -6234,6 +6938,13 @@ CREATE INDEX purchase_orders_original_order_idx ON oryh.purchase_orders USING bt
 
 
 --
+-- Name: purchase_orders_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX purchase_orders_project_id_idx ON oryh.purchase_orders USING btree (project_id);
+
+
+--
 -- Name: purchase_orders_tenant_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -6287,6 +6998,13 @@ CREATE INDEX purchase_requests_cost_center_id_idx ON oryh.purchase_requests USIN
 --
 
 CREATE INDEX purchase_requests_employee_idx ON oryh.purchase_requests USING btree (employee_id);
+
+
+--
+-- Name: purchase_requests_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX purchase_requests_project_id_idx ON oryh.purchase_requests USING btree (project_id);
 
 
 --
@@ -6738,6 +7456,13 @@ CREATE INDEX territory_members_territory_id_idx ON oryh.territory_members USING 
 
 
 --
+-- Name: timesheet_entries_task_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX timesheet_entries_task_id_idx ON oryh.timesheet_entries USING btree (task_id);
+
+
+--
 -- Name: timesheet_entries_tenant_employee_date_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -6826,6 +7551,14 @@ CREATE INDEX vendors_tenant_idx ON oryh.vendors USING btree (tenant_id, status, 
 --
 
 CREATE INDEX vendors_tenant_tax_id_idx ON oryh.vendors USING btree (tenant_id, tax_id) WHERE (tax_id IS NOT NULL);
+
+
+--
+-- Name: accounting_settings accounting_settings_retained_earnings_account_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.accounting_settings
+    ADD CONSTRAINT accounting_settings_retained_earnings_account_id_fkey FOREIGN KEY (retained_earnings_account_id) REFERENCES oryh.ledger_accounts(id);
 
 
 --
@@ -7669,6 +8402,14 @@ ALTER TABLE ONLY oryh.invoice_items
 
 
 --
+-- Name: invoice_items invoice_items_original_invoice_item_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoice_items
+    ADD CONSTRAINT invoice_items_original_invoice_item_id_fkey FOREIGN KEY (original_invoice_item_id) REFERENCES oryh.invoice_items(id);
+
+
+--
 -- Name: invoice_items invoice_items_pay_history_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -7706,6 +8447,22 @@ ALTER TABLE ONLY oryh.invoice_items
 
 ALTER TABLE ONLY oryh.invoice_items
     ADD CONSTRAINT invoice_items_sku_id_fkey FOREIGN KEY (sku_id) REFERENCES oryh.product_skus(id);
+
+
+--
+-- Name: invoice_offsets invoice_offsets_credit_note_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoice_offsets
+    ADD CONSTRAINT invoice_offsets_credit_note_id_fkey FOREIGN KEY (credit_note_id) REFERENCES oryh.invoices(id);
+
+
+--
+-- Name: invoice_offsets invoice_offsets_invoice_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoice_offsets
+    ADD CONSTRAINT invoice_offsets_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES oryh.invoices(id);
 
 
 --
@@ -7765,6 +8522,14 @@ ALTER TABLE ONLY oryh.invoices
 
 
 --
+-- Name: invoices invoices_original_invoice_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.invoices
+    ADD CONSTRAINT invoices_original_invoice_id_fkey FOREIGN KEY (original_invoice_id) REFERENCES oryh.invoices(id);
+
+
+--
 -- Name: invoices invoices_payee_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -7802,6 +8567,70 @@ ALTER TABLE ONLY oryh.invoices
 
 ALTER TABLE ONLY oryh.invoices
     ADD CONSTRAINT invoices_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES oryh.vendors(id);
+
+
+--
+-- Name: journal_entries journal_entries_reverses_entry_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_entries
+    ADD CONSTRAINT journal_entries_reverses_entry_id_fkey FOREIGN KEY (reverses_entry_id) REFERENCES oryh.journal_entries(id);
+
+
+--
+-- Name: journal_lines journal_lines_cost_center_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_cost_center_id_fkey FOREIGN KEY (cost_center_id) REFERENCES oryh.cost_centers(id);
+
+
+--
+-- Name: journal_lines journal_lines_customer_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: journal_lines journal_lines_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: journal_lines journal_lines_entry_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_entry_id_fkey FOREIGN KEY (entry_id) REFERENCES oryh.journal_entries(id);
+
+
+--
+-- Name: journal_lines journal_lines_ledger_account_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_ledger_account_id_fkey FOREIGN KEY (ledger_account_id) REFERENCES oryh.ledger_accounts(id);
+
+
+--
+-- Name: journal_lines journal_lines_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
+-- Name: journal_lines journal_lines_vendor_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES oryh.vendors(id);
 
 
 --
@@ -7850,6 +8679,14 @@ ALTER TABLE ONLY oryh.leads
 
 ALTER TABLE ONLY oryh.leads
     ADD CONSTRAINT leads_referrer_customer_id_fkey FOREIGN KEY (referrer_customer_id) REFERENCES oryh.customers(id);
+
+
+--
+-- Name: ledger_accounts ledger_accounts_parent_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.ledger_accounts
+    ADD CONSTRAINT ledger_accounts_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES oryh.ledger_accounts(id);
 
 
 --
@@ -8189,6 +9026,118 @@ ALTER TABLE ONLY oryh.products
 
 
 --
+-- Name: project_issues project_issues_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_owner_employee_id_fkey FOREIGN KEY (owner_employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: project_issues project_issues_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
+-- Name: project_issues project_issues_raised_by_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_raised_by_employee_id_fkey FOREIGN KEY (raised_by_employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: project_issues project_issues_task_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_issues
+    ADD CONSTRAINT project_issues_task_id_fkey FOREIGN KEY (task_id) REFERENCES oryh.project_tasks(id);
+
+
+--
+-- Name: project_milestones project_milestones_contract_term_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_milestones
+    ADD CONSTRAINT project_milestones_contract_term_id_fkey FOREIGN KEY (contract_term_id) REFERENCES oryh.contract_terms(id);
+
+
+--
+-- Name: project_milestones project_milestones_evidence_attachment_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_milestones
+    ADD CONSTRAINT project_milestones_evidence_attachment_id_fkey FOREIGN KEY (evidence_attachment_id) REFERENCES oryh.attachments(id);
+
+
+--
+-- Name: project_milestones project_milestones_invoice_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_milestones
+    ADD CONSTRAINT project_milestones_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES oryh.invoices(id);
+
+
+--
+-- Name: project_milestones project_milestones_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_milestones
+    ADD CONSTRAINT project_milestones_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
+-- Name: project_reports project_reports_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_reports
+    ADD CONSTRAINT project_reports_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
+-- Name: project_task_dependencies project_task_dependencies_predecessor_task_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_task_dependencies
+    ADD CONSTRAINT project_task_dependencies_predecessor_task_id_fkey FOREIGN KEY (predecessor_task_id) REFERENCES oryh.project_tasks(id);
+
+
+--
+-- Name: project_task_dependencies project_task_dependencies_successor_task_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_task_dependencies
+    ADD CONSTRAINT project_task_dependencies_successor_task_id_fkey FOREIGN KEY (successor_task_id) REFERENCES oryh.project_tasks(id);
+
+
+--
+-- Name: project_tasks project_tasks_assignee_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_tasks
+    ADD CONSTRAINT project_tasks_assignee_employee_id_fkey FOREIGN KEY (assignee_employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: project_tasks project_tasks_parent_task_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_tasks
+    ADD CONSTRAINT project_tasks_parent_task_id_fkey FOREIGN KEY (parent_task_id) REFERENCES oryh.project_tasks(id);
+
+
+--
+-- Name: project_tasks project_tasks_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_tasks
+    ADD CONSTRAINT project_tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
 -- Name: projects projects_contract_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -8325,6 +9274,14 @@ ALTER TABLE ONLY oryh.purchase_orders
 
 
 --
+-- Name: purchase_orders purchase_orders_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.purchase_orders
+    ADD CONSTRAINT purchase_orders_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
 -- Name: purchase_orders purchase_orders_vendor_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -8394,6 +9351,14 @@ ALTER TABLE ONLY oryh.purchase_requests
 
 ALTER TABLE ONLY oryh.purchase_requests
     ADD CONSTRAINT purchase_requests_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES oryh.employees(id);
+
+
+--
+-- Name: purchase_requests purchase_requests_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.purchase_requests
+    ADD CONSTRAINT purchase_requests_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
 
 
 --
@@ -8821,6 +9786,14 @@ ALTER TABLE ONLY oryh.timesheet_entries
 
 
 --
+-- Name: timesheet_entries timesheet_entries_task_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.timesheet_entries
+    ADD CONSTRAINT timesheet_entries_task_id_fkey FOREIGN KEY (task_id) REFERENCES oryh.project_tasks(id);
+
+
+--
 -- Name: timesheet_headers timesheet_headers_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -8859,6 +9832,18 @@ ALTER TABLE ONLY oryh.users
 ALTER TABLE ONLY oryh.users
     ADD CONSTRAINT users_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES oryh.tenants(id);
 
+
+--
+-- Name: accounting_periods; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.accounting_periods ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: accounting_settings; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.accounting_settings ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: activities; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -9163,16 +10148,40 @@ ALTER TABLE oryh.inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.invoice_items ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: invoice_offsets; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.invoice_offsets ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: invoices; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
 ALTER TABLE oryh.invoices ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: journal_entries; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.journal_entries ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: journal_lines; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.journal_lines ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: leads; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
 ALTER TABLE oryh.leads ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: ledger_accounts; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.ledger_accounts ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: object_type_definitions; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -9285,6 +10294,36 @@ ALTER TABLE oryh.product_skus ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE oryh.products ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: project_issues; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_issues ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: project_milestones; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_milestones ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: project_reports; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_reports ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: project_task_dependencies; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_task_dependencies ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: project_tasks; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_tasks ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: projects; Type: ROW SECURITY; Schema: oryh; Owner: -
@@ -9424,6 +10463,20 @@ CREATE POLICY tenant_insert ON oryh.api_keys FOR INSERT WITH CHECK ((((tenant_id
 --
 
 CREATE POLICY tenant_insert ON oryh.users FOR INSERT WITH CHECK ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text)));
+
+
+--
+-- Name: accounting_periods tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.accounting_periods USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: accounting_settings tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.accounting_settings USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -9742,6 +10795,13 @@ CREATE POLICY tenant_isolation ON oryh.invoice_items USING ((((tenant_id)::text 
 
 
 --
+-- Name: invoice_offsets tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.invoice_offsets USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: invoices tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -9749,10 +10809,31 @@ CREATE POLICY tenant_isolation ON oryh.invoices USING ((((tenant_id)::text = cur
 
 
 --
+-- Name: journal_entries tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.journal_entries USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: journal_lines tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.journal_lines USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: leads tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
 CREATE POLICY tenant_isolation ON oryh.leads USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: ledger_accounts tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.ledger_accounts USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -9851,6 +10932,41 @@ CREATE POLICY tenant_isolation ON oryh.product_skus USING ((((tenant_id)::text =
 --
 
 CREATE POLICY tenant_isolation ON oryh.products USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_issues tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_issues USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_milestones tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_milestones USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_reports tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_reports USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_task_dependencies tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_task_dependencies USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_tasks tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_tasks USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

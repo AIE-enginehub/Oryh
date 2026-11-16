@@ -5415,6 +5415,8 @@ class TimesheetEntryBase(RequestModel):
     project_id: str | None = None
     project_name_snapshot: str | None = Field(default=None, max_length=200)
     client: str | None = Field(default=None, max_length=200)
+    # a task of the entry's project; `task` stays the free-text name
+    task_id: str | None = None
     task: str | None = Field(default=None, max_length=200)
     hours: float | None = Field(default=None, gt=0, le=24)
     work_type: WorkType = "regular"
@@ -5428,6 +5430,7 @@ class SaveTimesheetDocumentEntry(RequestModel):
     hours: float = Field(gt=0, le=24)
     work_type: WorkType = "regular"
     project_id: str | None = None
+    task_id: str | None = None
     task: str | None = Field(default=None, max_length=200)
     notes: str | None = Field(default=None, max_length=2000)
 
@@ -5459,6 +5462,7 @@ class TimesheetEntryRead(APIModel):
     project_id: str | None = None
     project_name_snapshot: str | None = None
     client: str | None = None
+    task_id: str | None = None
     task: str | None = None
     hours: float
     work_type: WorkType
@@ -5612,6 +5616,8 @@ class PurchaseRequestBase(RequestModel):
     employee_id: str | None = None
     # the cost centre it books against; null takes the employee's home centre
     cost_center_id: str | None = None
+    # the project it is for, when there is one
+    project_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
     request_date: date | None = None
     needed_by: date | None = None
@@ -5647,6 +5653,7 @@ class PurchaseRequestRead(APIModel):
     # the person's name, read beside the id at answer time (never stored)
     employee_name: str | None = None
     cost_center_id: str | None = None
+    project_id: str | None = None
     title: str
     request_date: date | None = None
     needed_by: date | None = None
@@ -6466,6 +6473,8 @@ class PurchaseOrderBase(RequestModel):
     employee_id: str | None = None
     # the cost centre it books against; null takes the purchase request's
     cost_center_id: str | None = None
+    # the project it is for; never taken from the purchase request
+    project_id: str | None = None
     title: str | None = Field(default=None, max_length=200)
     contract_no: str | None = Field(default=None, max_length=64)
     order_date: date | None = None
@@ -6510,6 +6519,7 @@ class PurchaseOrderRead(APIModel):
     po_number: str
     contract_id: str | None = None
     cost_center_id: str | None = None
+    project_id: str | None = None
     order_kind: str
     original_order_id: str | None = None
     vendor_id: str
@@ -6744,8 +6754,10 @@ class InvoiceBase(RequestModel):
     invoice_date: date | None = None
     due_date: date | None = None
     currency: str = Field(default="CNY", min_length=3, max_length=3)
-    total_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
-    tax_amount: float | None = Field(default=None, ge=0, le=9_999_999_999.99)
+    # signed by kind: an invoice or debit note states a total of 0 or more, a
+    # credit note one of 0 or less
+    total_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
+    tax_amount: float | None = Field(default=None, ge=-9_999_999_999.99, le=9_999_999_999.99)
     # the tax document's own identity — absent until the invoice is issued or
     # the vendor's copy is entered, which is a normal fact, not an error
     tax_invoice_code: str | None = Field(default=None, max_length=32)
@@ -6776,6 +6788,16 @@ class CreateInvoiceRequest(InvoiceBase):
     # a half-built draft. Each row follows CreateInvoiceItemRequest's rules
     # minus invoice_id, which is the document being created.
     items: list[InvoiceItemBase] = Field(default_factory=list, max_length=200)
+    # a note corrects an earlier invoice and names it; fixed once written
+    invoice_kind: Literal["invoice", "credit_note", "debit_note"] = "invoice"
+    original_invoice_id: str | None = None
+
+    @model_validator(mode="after")
+    def _kind(self) -> "CreateInvoiceRequest":
+        if (self.invoice_kind == "invoice") != (self.original_invoice_id is None):
+            raise ValueError("a credit or debit note names the invoice it corrects (original_invoice_id); "
+                             "an invoice names none")
+        return self
 
 
 class UpdateInvoiceRequest(partial_model("UpdateInvoiceRequestFields", InvoiceBase, exclude=("invoice_no", "employee_id", "source_report_text"))):
@@ -6788,6 +6810,8 @@ class InvoiceRead(APIModel):
     contract_id: str | None = None
     cost_center_id: str | None = None
     direction: InvoiceDirection
+    invoice_kind: str = "invoice"
+    original_invoice_id: str | None = None
     # present on `reimbursement`: the approved claim this was raised from
     expense_claim_id: str | None = None
     invoice_type: str | None = None
@@ -6871,6 +6895,8 @@ class InvoiceItemBase(RequestModel):
     budget_line_id: str | None = None
     # a `points` line: the order's redemption it bills
     billing_account_entry_id: str | None = None
+    # on a credit or debit note: the original invoice's line this corrects
+    original_invoice_item_id: str | None = None
     notes: str | None = Field(default=None, max_length=2000)
     custom_fields: dict[str, Any] = Field(default_factory=dict)
 
@@ -6895,6 +6921,7 @@ class UpdateInvoiceItemRequest(partial_model("UpdateInvoiceItemRequestFields", I
 class InvoiceItemRead(APIModel):
     id: str
     invoice_id: str
+    original_invoice_item_id: str | None = None
     line_no: int | None = None
     invoice_item_type: str
     product_id: str | None = None
@@ -8133,3 +8160,434 @@ class ProjectDetailRead(BaseModel):
 
 
 ProjectDetailEnvelope = Envelope[ProjectDetailRead]
+
+
+# --- the book (plan docs/plans/accounting-core-2026-11-08.md) ------------------
+
+LedgerAccountType = Literal["asset", "liability", "equity", "income", "expense"]
+LedgerSubledger = Literal["customer", "vendor", "employee"]
+JOURNAL_MONEY_MAX = 999_999_999_999.99
+
+
+class AccountingSettingsRequest(RequestModel):
+    functional_currency: str = Field(min_length=3, max_length=3)
+    retained_earnings_account_id: str | None = None
+
+
+class AccountingSettingsRead(APIModel):
+    functional_currency: str
+    retained_earnings_account_id: str | None = None
+    updated_at: datetime
+
+
+# null until the functional currency is set
+AccountingSettingsEnvelope = Envelope[AccountingSettingsRead | None]
+
+
+class LedgerAccountBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_id: str | None = None
+    # every line on the account names a party of this kind
+    subledger: LedgerSubledger | None = None
+    # a foreign-currency account: its lines carry the amount in this currency
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    status: Literal["active", "archived"] = "active"
+    description: str | None = Field(default=None, max_length=4000)
+
+
+class CreateLedgerAccountRequest(LedgerAccountBase):
+    account_code: str = Field(min_length=1, max_length=32)
+    account_type: LedgerAccountType
+
+
+class UpdateLedgerAccountRequest(partial_model("UpdateLedgerAccountFields", LedgerAccountBase)):
+    # identity: refused once the account has lines
+    account_code: str | None = Field(default=None, min_length=1, max_length=32)
+    account_type: LedgerAccountType | None = None
+
+
+class LedgerAccountRead(APIModel):
+    id: str
+    account_code: str
+    name: str
+    account_type: str
+    parent_id: str | None = None
+    subledger: str | None = None
+    currency: str | None = None
+    status: str
+    description: str | None = None
+    # has live sub-accounts: takes no lines, its balance is theirs
+    summary: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+LedgerAccountEnvelope = Envelope[LedgerAccountRead]
+LedgerAccountListEnvelope = ListEnvelope[LedgerAccountRead]
+
+
+class AccountingPeriodRead(APIModel):
+    id: str
+    period_start: date
+    period_end: date
+    status: str
+    closed_at: datetime | None = None
+    closed_by: str | None = None
+
+
+AccountingPeriodEnvelope = Envelope[AccountingPeriodRead]
+AccountingPeriodListEnvelope = ListEnvelope[AccountingPeriodRead]
+
+
+class PeriodActionRequest(RequestModel):
+    """Close or reopen one month: any day in it names it."""
+
+    period: date
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class JournalLineInput(RequestModel):
+    ledger_account_id: str
+    debit: float = Field(default=0, ge=0, le=JOURNAL_MONEY_MAX)
+    credit: float = Field(default=0, ge=0, le=JOURNAL_MONEY_MAX)
+    # a converted amount: its original currency and amount, and the rate used
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    # a magnitude, like debit and credit: the side says which way it moved
+    foreign_amount: float | None = Field(default=None, gt=0, le=JOURNAL_MONEY_MAX)
+    exchange_rate: float | None = Field(default=None, gt=0)
+    customer_id: str | None = None
+    vendor_id: str | None = None
+    employee_id: str | None = None
+    cost_center_id: str | None = None
+    project_id: str | None = None
+    description: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _one_side(self) -> "JournalLineInput":
+        require_cents(self.debit, "debit")
+        require_cents(self.credit, "credit")
+        if self.foreign_amount is not None:
+            require_cents(self.foreign_amount, "foreign_amount")
+        if (self.debit > 0) == (self.credit > 0):
+            raise ValueError("a line is a debit or a credit — exactly one of them positive")
+        converted = (self.currency, self.foreign_amount, self.exchange_rate)
+        if any(v is not None for v in converted) and not all(v is not None for v in converted):
+            raise ValueError("a converted line carries currency, foreign_amount and exchange_rate together")
+        return self
+
+
+class JournalEntryBase(RequestModel):
+    posting_date: date
+    description: str = Field(min_length=1, max_length=4000)
+    # the fact this entry records: a document, and which event of it
+    source_type: str | None = Field(default=None, max_length=40)
+    source_id: str | None = None
+    source_event: str | None = Field(default=None, max_length=60)
+    lines: list[JournalLineInput] = Field(min_length=2, max_length=500)
+
+    @model_validator(mode="after")
+    def _source_pair(self):
+        if (self.source_type is None) != (self.source_id is None):
+            raise ValueError("source_type and source_id name the source together")
+        if self.source_event is not None and self.source_type is None:
+            raise ValueError("source_event names an event of a source — send source_type and source_id")
+        return self
+
+
+class CreateJournalEntryRequest(JournalEntryBase):
+    entry_no: str | None = Field(default=None, max_length=64)
+    # draft: a proposal for a person to check; posted: final
+    status: Literal["draft", "posted"] = "draft"
+
+
+class UpdateJournalEntryRequest(RequestModel):
+    """A draft only. `lines`, when sent, replaces every line."""
+
+    posting_date: date | None = None
+    description: str | None = Field(default=None, min_length=1, max_length=4000)
+    lines: list[JournalLineInput] | None = Field(default=None, min_length=2, max_length=500)
+
+
+class ReverseJournalEntryRequest(RequestModel):
+    posting_date: date | None = None
+    description: str | None = Field(default=None, max_length=4000)
+
+
+class JournalLineRead(APIModel):
+    id: str
+    line_no: int
+    ledger_account_id: str
+    debit: float
+    credit: float
+    currency: str | None = None
+    foreign_amount: float | None = None
+    exchange_rate: float | None = None
+    customer_id: str | None = None
+    vendor_id: str | None = None
+    employee_id: str | None = None
+    cost_center_id: str | None = None
+    project_id: str | None = None
+    description: str | None = None
+
+
+class JournalEntryRead(APIModel):
+    id: str
+    entry_no: str
+    posting_date: date
+    status: str
+    description: str
+    source_type: str | None = None
+    source_id: str | None = None
+    source_event: str | None = None
+    reverses_entry_id: str | None = None
+    reversed_at: datetime | None = None
+    posted_at: datetime | None = None
+    posted_by: str | None = None
+    created_by: str | None = None
+    total: float = 0.0
+    lines: list[JournalLineRead] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+JournalEntryEnvelope = Envelope[JournalEntryRead]
+JournalEntryListEnvelope = ListEnvelope[JournalEntryRead]
+
+
+class CreateInvoiceOffsetRequest(RequestModel):
+    """Apply part of a credit note against an open invoice of the same party.
+    A negative amount takes an earlier offset back."""
+
+    invoice_id: str
+    amount: float = Field(ge=-9_999_999_999.99, le=9_999_999_999.99)
+    note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _cents(self) -> "CreateInvoiceOffsetRequest":
+        require_cents(self.amount, "amount")
+        if self.amount == 0:
+            raise ValueError("an offset moves money — amount is not 0")
+        return self
+
+
+class InvoiceOffsetRead(APIModel):
+    id: str
+    credit_note_id: str
+    invoice_id: str
+    amount: float
+    note: str | None = None
+    created_by: str | None = None
+    created_at: datetime
+
+
+InvoiceOffsetEnvelope = Envelope[InvoiceOffsetRead]
+InvoiceOffsetListEnvelope = ListEnvelope[InvoiceOffsetRead]
+
+
+# --- inside a project (plan docs/plans/project-management-2026-11-15.md) -------
+
+
+class ProjectTaskBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    parent_task_id: str | None = None
+    task_code: str | None = Field(default=None, max_length=64)
+    assignee_employee_id: str | None = None
+    planned_start: date | None = None
+    planned_end: date | None = None
+    actual_start: date | None = None
+    actual_end: date | None = None
+    planned_hours: float | None = Field(default=None, ge=0, le=999_999.99)
+    # the workspace's vocabulary, GET /type-options?family=project_task_status
+    status: str = Field(default="not_started", max_length=30)
+    sort_order: int | None = None
+    description: str | None = Field(default=None, max_length=4000)
+
+
+class CreateProjectTaskRequest(ProjectTaskBase):
+    project_id: str
+
+
+UpdateProjectTaskRequest = partial_model("UpdateProjectTaskRequest", ProjectTaskBase)
+
+
+class ProjectTaskRead(APIModel):
+    id: str
+    project_id: str
+    parent_task_id: str | None = None
+    task_code: str | None = None
+    name: str
+    assignee_employee_id: str | None = None
+    planned_start: date | None = None
+    planned_end: date | None = None
+    actual_start: date | None = None
+    actual_end: date | None = None
+    planned_hours: float | None = None
+    status: str
+    sort_order: int | None = None
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+ProjectTaskEnvelope = Envelope[ProjectTaskRead]
+ProjectTaskListEnvelope = ListEnvelope[ProjectTaskRead]
+
+
+class CreateProjectTaskDependencyRequest(RequestModel):
+    predecessor_task_id: str
+    successor_task_id: str
+    dependency_type: Literal["FS", "SS", "FF", "SF"] = "FS"
+    lag_days: int = Field(default=0, ge=-3650, le=3650)
+
+
+class ProjectTaskDependencyRead(APIModel):
+    id: str
+    predecessor_task_id: str
+    successor_task_id: str
+    dependency_type: str
+    lag_days: int
+    created_at: datetime
+
+
+ProjectTaskDependencyEnvelope = Envelope[ProjectTaskDependencyRead]
+ProjectTaskDependencyListEnvelope = ListEnvelope[ProjectTaskDependencyRead]
+
+
+class ProjectMilestoneBase(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    due_date: date
+    # the contract clause that pays on it, and the invoice that billed it
+    contract_term_id: str | None = None
+    invoice_id: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+
+
+class CreateProjectMilestoneRequest(ProjectMilestoneBase):
+    project_id: str
+
+
+class UpdateProjectMilestoneRequest(partial_model("UpdateProjectMilestoneFields", ProjectMilestoneBase)):
+    status: Literal["open", "cancelled"] | None = None
+
+
+class ReachProjectMilestoneRequest(RequestModel):
+    reached_on: date
+    # who confirmed it was met — the customer's signatory, the reviewer;
+    # defaults to the credential writing it
+    confirmed_by: str | None = Field(default=None, max_length=200)
+    evidence_attachment_id: str | None = None
+
+
+class ProjectMilestoneRead(APIModel):
+    id: str
+    project_id: str
+    name: str
+    due_date: date
+    reached_on: date | None = None
+    confirmed_by: str | None = None
+    evidence_attachment_id: str | None = None
+    contract_term_id: str | None = None
+    invoice_id: str | None = None
+    status: str
+    description: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+ProjectMilestoneEnvelope = Envelope[ProjectMilestoneRead]
+ProjectMilestoneListEnvelope = ListEnvelope[ProjectMilestoneRead]
+
+
+class ProjectIssueBase(RequestModel):
+    task_id: str | None = None
+    # the workspace's vocabularies: GET /type-options?family=project_issue_type,
+    # project_issue_severity, project_issue_status
+    issue_type: str | None = Field(default=None, max_length=30)
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=10000)
+    severity: str | None = Field(default=None, max_length=30)
+    raised_by_employee_id: str | None = None
+    owner_employee_id: str | None = None
+    status: str | None = Field(default=None, max_length=30)
+    # stated together: an issue is resolved when it says how
+    resolved_at: datetime | None = None
+    resolution: str | None = Field(default=None, max_length=10000)
+
+
+class CreateProjectIssueRequest(ProjectIssueBase):
+    project_id: str
+    # server-allocated (PI-) when omitted; bring your own for a workspace's convention
+    issue_no: str | None = Field(default=None, max_length=64)
+    # when it was raised, if earlier than now
+    raised_at: datetime | None = None
+
+
+class UpdateProjectIssueRequest(partial_model("UpdateProjectIssueFields", ProjectIssueBase)):
+    pass
+
+
+class ProjectIssueRead(APIModel):
+    id: str
+    project_id: str
+    task_id: str | None = None
+    issue_no: str
+    issue_type: str
+    title: str
+    description: str | None = None
+    severity: str | None = None
+    raised_by_employee_id: str | None = None
+    owner_employee_id: str | None = None
+    raised_at: datetime
+    resolved_at: datetime | None = None
+    resolution: str | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+ProjectIssueEnvelope = Envelope[ProjectIssueRead]
+ProjectIssueListEnvelope = ListEnvelope[ProjectIssueRead]
+
+
+class ProjectReportBase(RequestModel):
+    health: Literal["green", "amber", "red"]
+    summary: str = Field(min_length=1, max_length=20000)
+    done: str | None = Field(default=None, max_length=20000)
+    next_steps: str | None = Field(default=None, max_length=20000)
+    blockers: str | None = Field(default=None, max_length=20000)
+
+
+class CreateProjectReportRequest(ProjectReportBase):
+    project_id: str
+    period_start: date
+    period_end: date
+
+
+class UpdateProjectReportRequest(partial_model("UpdateProjectReportFields", ProjectReportBase)):
+    period_end: date | None = None
+
+
+class ProjectReportRead(APIModel):
+    id: str
+    project_id: str
+    period_start: date
+    period_end: date
+    revision: int
+    health: str
+    summary: str
+    done: str | None = None
+    next_steps: str | None = None
+    blockers: str | None = None
+    # the project's figures as they stood at publication (GET
+    # /projects/{id}/execution with as_of = period_end); parts the reader
+    # may not see are left out and named in figures.withheld
+    figures: dict[str, Any] | None = None
+    status: str
+    published_by: str | None = None
+    published_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+ProjectReportEnvelope = Envelope[ProjectReportRead]
+ProjectReportListEnvelope = ListEnvelope[ProjectReportRead]

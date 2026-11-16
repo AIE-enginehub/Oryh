@@ -46,6 +46,14 @@ Delete Product
 |---|---|---|---|---|
 | `product_id` | path | string | yes |  |
 
+## DELETE /projects/{project_id}
+
+Delete Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
 ## DELETE /purchase-request-items/{item_id}
 
 Delete Purchase Request Item
@@ -365,6 +373,53 @@ Get Product Attachment
 | `product_id` | path | string | yes |  |
 | `attachment_id` | path | string | yes |  |
 
+## GET /projects
+
+List Projects
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `keyword` | query | string | no |  |
+| `status` | query | string | no |  |
+| `customer_id` | query | string | no |  |
+| `opportunity_id` | query | string | no |  |
+| `contract_id` | query | string | no |  |
+| `owner_employee_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `end_date_from` | query | date | no | rows whose end_date is on or after this |
+| `end_date_thru` | query | date | no | rows whose end_date is on or before this |
+| `start_date_from` | query | date | no | rows whose start_date is on or after this |
+| `start_date_thru` | query | date | no | rows whose start_date is on or before this |
+
+## GET /projects/{project_id}
+
+Get Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/detail
+
+Get Project Detail
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+## GET /projects/{project_id}/execution
+
+Get Project Execution
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+| `as_of` | query | date | no |  |
+
 ## GET /purchase-request-items
 
 List Purchase Request Items
@@ -407,6 +462,7 @@ List Purchase Requests
 | `submitted_at_from` | query | date-time | no | rows whose submitted_at is at or after this |
 | `submitted_at_thru` | query | date-time | no | rows whose submitted_at is at or before this |
 | `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /purchase-requests/{request_id}
 
@@ -682,6 +738,30 @@ Body:
 | `status` | `active` | `archived` | optional |  |
 | `unit` | string (≤50 chars) | optional |  |
 
+## PATCH /projects/{project_id}
+
+Update Project
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `project_name` | string (≤200 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## PATCH /purchase-request-items/{item_id}
 
 Update Purchase Request Item
@@ -724,6 +804,7 @@ Body:
 | `currency` | string (≤3 chars) | optional |  |
 | `custom_fields` | object | optional |  |
 | `needed_by` | date | optional |  |
+| `project_id` | string | optional |  |
 | `request_date` | date | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string | optional |  |
@@ -1112,6 +1193,26 @@ Body:
 | `values` | array of string | required |  |
 | `list_price` | number (≥0.0, ≤9999999.99) | string (pattern `^(?!^[-+.]*$)[+-]?0*\d*\.?\d{0,2}0*$`) | optional |  |
 
+## POST /projects
+
+Create Project
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `project_name` | string (≤200 chars) | required |  |
+| `client` | string (≤200 chars) | optional |  |
+| `contract_id` | string | optional |  |
+| `customer_id` | string | optional |  |
+| `end_date` | date | optional |  |
+| `metadata` | object | optional |  |
+| `opportunity_id` | string | optional |  |
+| `owner_employee_id` | string | optional |  |
+| `project_code` | string (≤64 chars) | optional |  |
+| `start_date` | date | optional |  |
+| `status` | `active` | `archived` | optional |  |
+
 ## POST /purchase-request-items
 
 Create Purchase Request Item
@@ -1169,6 +1270,7 @@ Body:
   | `unit` | string (≤50 chars) | optional |  |
   | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
 | `needed_by` | date | optional |  |
+| `project_id` | string | optional |  |
 | `request_date` | date | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string | optional |  |

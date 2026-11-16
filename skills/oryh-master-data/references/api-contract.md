@@ -772,6 +772,15 @@ Get Project Detail
 |---|---|---|---|---|
 | `project_id` | path | string | yes |  |
 
+## GET /projects/{project_id}/execution
+
+Get Project Execution
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | path | string | yes |  |
+| `as_of` | query | date | no |  |
+
 ## GET /sales-channels
 
 List Sales Channels

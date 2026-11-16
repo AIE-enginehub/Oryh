@@ -21,7 +21,7 @@ from app.core.config import settings
 from app.core.permissions import HOSTED_FLOW_AGENT_ROLE, DEFAULT_ROLE_PERMISSIONS, permissions_fingerprint
 from app.core.request_context import resolved_base_url
 from app.core.login_throttle import login_keys, throttle
-from app.core.security import generate_token, hash_password, hash_token, verify_password
+from app.core.security import generate_token, hash_password, hash_token, verify_password_or_decoy
 from app.db.session import bind_tenant_context, get_db
 from app.services import interactive_keys
 from app.models import (
@@ -139,12 +139,8 @@ def authenticate_user(db: Session, payload: LoginRequest, request: Request | Non
             headers={"Retry-After": str(max(1, int(wait + 0.999)))},
         )
     user = db.scalar(select(User).where(User.email == payload.email))
-    if (
-        user is None
-        or user.status != "active"
-        or user.password_hash is None
-        or not verify_password(payload.password, user.password_hash)
-    ):
+    usable = user if user is not None and user.status == "active" and user.password_hash else None
+    if not verify_password_or_decoy(payload.password, usable.password_hash if usable else None):
         throttle.record_failure(keys)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid email or password")
     throttle.record_success(keys)

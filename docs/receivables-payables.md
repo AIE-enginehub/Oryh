@@ -252,6 +252,8 @@ transfers between our own accounts).
   an account occupy its credit from order time; the charging model, the
   transfer-and-settle pattern and the release paths are in
   [billing-accounts.md](billing-accounts.md).)
-- **Credit notes as their own entity.** A refund is an outbound payment netted
-  against the receipt (OFBiz's `toPaymentId`); a corrected invoice is a voided
-  one and a new one.
+- **Credit notes as their own entity** — built 2026-11-09 as an invoice of
+  another kind (`invoice_kind`, `original_invoice_id`), refunded or set
+  against an open invoice: docs/plans/accounting-core-2026-11-08.md §3.7–3.9.
+  A refund of a receipt with no invoice behind it is still an outbound
+  payment netted against the receipt (OFBiz's `toPaymentId`).

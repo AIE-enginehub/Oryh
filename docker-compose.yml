@@ -53,6 +53,12 @@ services:
       ORYH_SMTP_USER: ${ORYH_SMTP_USER:-}
       ORYH_SMTP_PASSWORD: ${ORYH_SMTP_PASSWORD:-}
       ORYH_SMTP_FROM: ${ORYH_SMTP_FROM:-}
+      # "ssl" is implicit TLS (465); "starttls" upgrades a plain connection (587)
+      ORYH_SMTP_SECURITY: ${ORYH_SMTP_SECURITY:-ssl}
+      ORYH_SMTP_FROM_NAME: ${ORYH_SMTP_FROM_NAME:-Oryh Service}
+      ORYH_PASSWORD_RESET_TOKEN_TTL_MINUTES: ${ORYH_PASSWORD_RESET_TOKEN_TTL_MINUTES:-60}
+      # Unset is English on a standalone deployment; "zh" seeds and writes Chinese.
+      ORYH_LOCALE: ${ORYH_LOCALE:-}
       # First-boot workspace facts; inert once any tenant exists.
       ORYH_STANDALONE_COMPANY_NAME: ${ORYH_STANDALONE_COMPANY_NAME:-My Company}
       ORYH_STANDALONE_ADMIN_EMAIL: ${ORYH_STANDALONE_ADMIN_EMAIL:-admin@oryh.local}

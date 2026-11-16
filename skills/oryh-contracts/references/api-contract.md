@@ -300,6 +300,8 @@ List Invoices
 | `expense_claim_id` | query | string | no |  |
 | `billing_account_id` | query | string | no |  |
 | `period_start` | query | date | no |  |
+| `invoice_kind` | query | string | no |  |
+| `original_invoice_id` | query | string | no |  |
 | `status` | query | string | no |  |
 | `outstanding` | query | boolean | no |  |
 | `due_before` | query | date | no |  |
@@ -354,6 +356,14 @@ Get Invoice Detail
 |---|---|---|---|---|
 | `invoice_id` | path | string | yes |  |
 | `include_deleted` | query | boolean | no |  |
+
+## GET /invoices/{invoice_id}/offsets
+
+List Invoice Offsets
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `invoice_id` | path | string | yes |  |
 
 ## GET /payments
 
@@ -439,6 +449,7 @@ List Purchase Orders
 | `promised_date_thru` | query | date | no | rows whose promised_date is on or before this |
 | `contract_id` | query | string | no |  |
 | `currency` | query | string | no |  |
+| `project_id` | query | string | no |  |
 
 ## GET /purchase-orders/{po_id}
 
@@ -728,11 +739,11 @@ Body:
 | `remarks` | string (≤2000 chars) | optional |  |
 | `sales_order_id` | string | optional |  |
 | `status` | string (≤30 chars) | optional |  |
-| `tax_amount` | number (≥0.0, ≤9999999999.99) | optional |  |
+| `tax_amount` | number (≥-9999999999.99, ≤9999999999.99) | optional |  |
 | `tax_invoice_code` | string (≤32 chars) | optional |  |
 | `tax_invoice_number` | string (≤64 chars) | optional |  |
 | `title` | string (≤200 chars) | optional |  |
-| `total_amount` | number (≥0.0, ≤9999999999.99) | optional |  |
+| `total_amount` | number (≥-9999999999.99, ≤9999999999.99) | optional |  |
 | `vendor_id` | string | optional |  |
 
 ## PATCH /payments/{payment_id}
@@ -786,6 +797,7 @@ Body:
 | `order_date` | date | optional |  |
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `status` | string (≤30 chars) | optional |  |
@@ -1081,6 +1093,7 @@ Body:
 | `due_date` | date | optional |  |
 | `extracted_fields` | object | optional |  |
 | `invoice_date` | date | optional |  |
+| `invoice_kind` | `invoice` | `credit_note` | `debit_note` | optional |  |
 | `invoice_no` | string (≤64 chars) | optional |  |
 | `invoice_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
 | `items` | array of objects (fields below) | optional |  |
@@ -1093,6 +1106,7 @@ Body:
   | `invoice_item_type` | string (pattern `^[a-z][a-z0-9_]{0,49}$`) | optional |  |
   | `line_no` | integer (≥1.0) | optional |  |
   | `notes` | string (≤2000 chars) | optional |  |
+  | `original_invoice_item_id` | string | optional |  |
   | `pay_history_id` | string | optional |  |
   | `product_id` | string | optional |  |
   | `product_name_snapshot` | string (≤200 chars) | optional |  |
@@ -1105,6 +1119,7 @@ Body:
   | `tax_rate` | number (≥0.0, ≤100.0) | optional |  |
   | `unit` | string (≤50 chars) | optional |  |
   | `unit_price` | number (≥0.0, ≤9999999.99) | optional |  |
+| `original_invoice_id` | string | optional |  |
 | `payee_employee_id` | string | optional |  |
 | `period_end` | date | optional |  |
 | `period_start` | date | optional |  |
@@ -1114,10 +1129,10 @@ Body:
 | `sales_order_id` | string | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |
 | `status` | string (≤30 chars) | optional |  |
-| `tax_amount` | number (≥0.0, ≤9999999999.99) | optional |  |
+| `tax_amount` | number (≥-9999999999.99, ≤9999999999.99) | optional |  |
 | `tax_invoice_code` | string (≤32 chars) | optional |  |
 | `tax_invoice_number` | string (≤64 chars) | optional |  |
-| `total_amount` | number (≥0.0, ≤9999999999.99) | optional |  |
+| `total_amount` | number (≥-9999999999.99, ≤9999999999.99) | optional |  |
 | `vendor_id` | string | optional |  |
 
 ## POST /invoices/bulk
@@ -1172,6 +1187,22 @@ Body:
 | `on_error` | `abort` | `skip` | optional |  |
 | `on_missing_reference` | `error` | `snapshot` | optional |  |
 
+## POST /invoices/{credit_note_id}/offsets
+
+Create Invoice Offset
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `credit_note_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `amount` | number (≥-9999999999.99, ≤9999999999.99) | required |  |
+| `invoice_id` | string | required |  |
+| `note` | string (≤2000 chars) | optional |  |
+
 ## POST /invoices/{invoice_id}/restore
 
 Restore Invoice
@@ -1205,6 +1236,7 @@ Body:
   | `invoice_item_type` | string | optional |  |
   | `line_no` | integer | optional |  |
   | `notes` | string | optional |  |
+  | `original_invoice_item_id` | string | optional |  |
   | `pay_history_id` | string | optional |  |
   | `product_id` | string | optional |  |
   | `product_name_snapshot` | string | optional |  |
@@ -1380,6 +1412,7 @@ Body:
 | `original_order_id` | string | optional |  |
 | `payment_terms` | string (≤2000 chars) | optional |  |
 | `po_number` | string (≤64 chars) | optional |  |
+| `project_id` | string | optional |  |
 | `promised_date` | date | optional |  |
 | `remarks` | string (≤2000 chars) | optional |  |
 | `source_report_text` | string (≤10000 chars) | optional |  |

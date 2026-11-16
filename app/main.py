@@ -25,6 +25,9 @@ from app.api.contracts import router as contracts_router
 from app.api.budgets import router as budgets_router
 from app.api.activities import router as activities_router
 from app.api.cost_centers import router as cost_centers_router
+from app.api.ledger import router as ledger_router
+from app.api.invoice_offsets import router as invoice_offsets_router
+from app.api.project_work import router as project_work_router
 from app.api.geo import router as geo_router
 from app.api.points import router as points_router
 from app.api.parties import router as parties_router
@@ -124,6 +127,9 @@ app.include_router(budgets_router, prefix=API_PREFIX)
 app.include_router(crm_router, prefix=API_PREFIX)
 app.include_router(activities_router, prefix=API_PREFIX)
 app.include_router(cost_centers_router, prefix=API_PREFIX)
+app.include_router(ledger_router, prefix=API_PREFIX)
+app.include_router(invoice_offsets_router, prefix=API_PREFIX)
+app.include_router(project_work_router, prefix=API_PREFIX)
 app.include_router(geo_router, prefix=API_PREFIX)
 app.include_router(points_router, prefix=API_PREFIX)
 app.include_router(parties_router, prefix=API_PREFIX)

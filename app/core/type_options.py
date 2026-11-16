@@ -254,6 +254,32 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("project", "Project", "One project's spending"),
         ("other", "Other", "Any other budget"),
     ),
+    "project_task_status": (
+        ("not_started", "Not started", "Planned, not begun"),
+        ("in_progress", "In progress", "Being worked on"),
+        ("blocked", "Blocked", "Waiting on something outside the task"),
+        ("done", "Done", "Finished"),
+        ("cancelled", "Cancelled", "Dropped from the plan"),
+    ),
+    "project_issue_type": (
+        ("issue", "Issue", "Something wrong now that needs handling"),
+        ("risk", "Risk", "Something that may go wrong"),
+        ("change_request", "Change request", "A request to change scope, schedule or price"),
+        ("defect", "Defect", "Delivered work that does not meet what was agreed"),
+    ),
+    "project_issue_severity": (
+        ("low", "Low", "Little effect on the project"),
+        ("medium", "Medium", "Affects a task or a date"),
+        ("high", "High", "Affects a milestone or the budget"),
+        ("critical", "Critical", "Threatens the project's delivery"),
+    ),
+    "project_issue_status": (
+        ("open", "Open", "Raised, not yet worked on"),
+        ("in_progress", "In progress", "Being handled"),
+        ("resolved", "Resolved", "Handled; the resolution is stated"),
+        ("closed", "Closed", "Confirmed and closed"),
+        ("rejected", "Rejected", "Not accepted as an issue"),
+    ),
     "budget_category": (
         ("labour", "Labour", "Gross pay plus the employer's social insurance and housing fund; collected from payslips and remittance invoices"),
         ("marketing", "Marketing", "Advertising, promotion and events; collected from marketing expenses and invoice lines"),

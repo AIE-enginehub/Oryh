@@ -103,7 +103,8 @@ standalone box has no mail relay, and invitations must still be usable from
 ORYH_EMAIL_BACKEND=smtp
 ORYH_SMTP_HOST=smtp.example.com
 ORYH_SMTP_PORT=465
-ORYH_SMTP_SECURITY=tls
+# ssl: implicit TLS, usually port 465. starttls: usually port 587.
+ORYH_SMTP_SECURITY=ssl
 ORYH_SMTP_USER=service@example.com
 ORYH_SMTP_PASSWORD=...
 ORYH_SMTP_FROM=service@example.com

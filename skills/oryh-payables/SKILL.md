@@ -285,6 +285,46 @@ principal names one: `GET /budget-lines?status=active`, then
 budget is never a reason to hold an invoice — whoever approves reads
 `GET /budget-impact`.
 
+## Credit And Debit Notes
+
+A note corrects an invoice that was already submitted, and names it. It is an
+invoice of another kind, with its own number series (`CN-`, `DN-`):
+
+```text
+POST /invoices
+{"direction": "purchase", "invoice_kind": "credit_note", "original_invoice_id": "<the invoice>",
+ "employee_id", "vendor_id": "<same as the original>", "title": "Return of 3 cartons",
+ "items": [{"invoice_item_type": "goods", "product_name_snapshot": "tea", "amount": -300,
+            "original_invoice_item_id": "<the original's line>"}]}
+```
+
+- **Signs**: a credit note's lines carry the sign of what moves back — the
+  goods given back negative, a discount given back positive — and its total
+  is 0 or less. A debit note (`invoice_kind: "debit_note"`) adds to what is
+  owed; its total is 0 or more.
+- **Same party, direction and currency** as the original; the original must
+  be past its editable states (a draft is corrected in place).
+- **Never more than was billed**: per original line, credit notes move it
+  toward zero and never past it; in total, the credit notes on an invoice
+  never exceed what it and its debit notes billed. The 409 names the figures.
+- Whether to credit, and how much, is the workspace's rule or the person's
+  decision — say which. A note's kind and original never change: a wrong one
+  is voided and filed again.
+- `GET /invoices?original_invoice_id=<id>` lists the notes on an invoice.
+
+A submitted credit note is open until it is used, and
+`GET /invoices?invoice_kind=credit_note&outstanding=true` lists the open ones.
+Use it one of two ways, as the workspace's rule or the person says:
+
+- **Set it against an open invoice** of the same party:
+  `POST /invoices/{credit_note_id}/offsets {"invoice_id", "amount"}`. Both
+  outstanding figures move; a negative amount takes part of an offset back.
+  Needs `payment.apply`.
+- **Refund it**: record the inbound payment, then
+  `POST /payments/{id}/apply {"lines": [{"applied_to_type": "invoice",
+  "applied_to_id": "<credit note>", "amount_applied": 300}]}`. The server
+  refuses the wrong direction and a refund beyond what the note gives back.
+
 ## What This Skill Never Does
 
 - Decide that a three-way-match gap is acceptable. It reports the facts and
