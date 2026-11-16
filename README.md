@@ -3,6 +3,8 @@
 **Oryh is an ERP/CRM built for AI agents, not adapted to them.** Self-hosted,
 one company per deployment, open source.
 
+[Hosted service](https://oryh.ai) · [Video walkthrough](https://youtu.be/xmoYj1fPGxQ) · [Discord](https://discord.gg/dH38JwJUe) · [X](https://x.com/OryhAI) · [YouTube](https://www.youtube.com/@Oryhai) · [Apache-2.0](LICENSE)
+
 An AI-native ERP/CRM means three things here, each of them structural:
 
 - **The agent is the user interface.** There are no data-entry screens.
@@ -29,6 +31,10 @@ skills your workspace owns.
 
 **Just want to look?** <https://oryh.ai> runs the same product as a hosted
 service — nothing to install.
+
+[![Watch the Oryh demo: Change the Rules. Run the Order. Verify the Shipment.](docs/assets/demo-cover.jpg)](https://youtu.be/xmoYj1fPGxQ)
+
+**Video walkthrough — [Change the Rules. Run the Order. Verify the Shipment.](https://youtu.be/xmoYj1fPGxQ):** changing a workspace rule in plain English, running a sales order through an agent, and verifying stock reservation and shipment on the record.
 
 ```bash
 git clone https://github.com/AIE-enginehub/Oryh.git
@@ -84,17 +90,23 @@ one environment should not be reused against another.
 
 ## What you get
 
-- **Documents that already know their shape** — timesheets, expense claims
-  with receipt extraction, purchase requests and orders, sales quotations and
-  orders, invoices in both directions, payments with an append-only settlement
-  ledger, payroll, billing accounts for charge-to-account and points.
+- **Documents and ledgers that already know their shape** — timesheets,
+  expense claims with receipt extraction, contracts, purchase requests and
+  orders, sales quotations and orders, stock reservations and shipments,
+  invoices in both directions, credit and debit notes with invoice offsets,
+  payments with an append-only settlement ledger, general ledger (chart of
+  accounts, journal entries, accounting periods), project execution (tasks,
+  milestones, issues, frozen period reports, and cost/billing tracking),
+  payroll, and billing accounts for charge-to-account and points.
 - **Your own object types** on top: a warranty card, a site survey, whatever
   the business actually tracks, with a JSON schema and a lifecycle you define.
 - **Tenant-defined authorization** — capabilities, roles, and per-credential
   scoping, so an agent holds exactly what its principal holds.
-- **Skills, not an SDK** — an agent downloads a bundle of instructions written
-  for your workspace, with its credential rendered in. No CLI to install, no
-  client library to keep in step.
+- **Skills and MCP, not an SDK** — an agent downloads a bundle of instructions
+  written for your workspace, with its credential rendered in (no CLI to
+  install, no client library to keep in step), or connects over `POST /mcp`
+  with OAuth 2.1 under the same permissions, PostgreSQL RLS, and audit
+  attribution.
 - **An audit trail with server-side attribution**: who did what is decided by
   the credential, never by what the caller says about itself.
 - **Behaviour you change by writing a sentence** — skills, approval routing
