@@ -3,6 +3,8 @@
 **Oryh is an ERP/CRM built for AI agents, not adapted to them.** Self-hosted,
 one company per deployment, open source.
 
+[![CI](https://github.com/AIE-enginehub/Oryh/actions/workflows/ci.yml/badge.svg)](https://github.com/AIE-enginehub/Oryh/actions/workflows/ci.yml)
+
 [Hosted service](https://oryh.ai) · [Video walkthrough](https://youtu.be/xmoYj1fPGxQ) · [Discord](https://discord.gg/dH38JwJUe) · [X](https://x.com/OryhAI) · [YouTube](https://www.youtube.com/@Oryhai) · [Apache-2.0](LICENSE)
 
 An AI-native ERP/CRM means three things here, each of them structural:
@@ -29,8 +31,8 @@ general-purpose agents work as they are: Claude Code, Codex, Hermes and others
 of that class. Connect one once, and it works your company's records through
 skills your workspace owns.
 
-**Just want to look?** <https://oryh.ai> runs the same product as a hosted
-service — nothing to install.
+**Just want to look?** <https://oryh.ai> (or <https://oryh.cn> in China) runs the
+same product as a hosted service — nothing to install.
 
 [![Watch the Oryh demo: Change the Rules. Run the Order. Verify the Shipment.](docs/assets/demo-cover.jpg)](https://youtu.be/xmoYj1fPGxQ)
 
@@ -55,6 +57,15 @@ move on. Change the password after signing in.
 The workspace starts **empty**: no employees, no customers, no documents. It is
 your company's records, waiting for your company's records. Which is why the
 next step is not clicking around the console — it is connecting an agent.
+
+If you are evaluating Oryh and prefer preloaded fictional records (`Northwind
+Instruments` — customers, inventory, open invoices, a project, and published
+discount and approval rules), load the optional sample dataset once the stack is
+healthy:
+
+```bash
+docker compose exec api python scripts/seed_sample.py
+```
 
 ## Connect your agent
 
@@ -165,6 +176,11 @@ through agents.
 Requires Docker and about 2 GB of RAM. Configuration lives in `.env`; see
 [`.env.example`](.env.example) for what a real deployment sets — at minimum
 `ORYH_BASE_URL` and SMTP, once the deployment is reachable by more than you.
+Pre-built multi-arch (`linux/amd64`, `linux/arm64`) release images are also
+published to `ghcr.io/aie-enginehub/oryh-api` and
+`ghcr.io/aie-enginehub/oryh-console` — set `ORYH_API_IMAGE` and
+`ORYH_CONSOLE_IMAGE` in `.env` and run `docker compose up -d` to skip building
+from source.
 
 Upgrade by pulling a newer release and restarting: migrations run on start and
 are idempotent. Back up with `pg_dump` against the `db` service; the database

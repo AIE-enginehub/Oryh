@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions (Q&A & Skill Showcase)
+    url: https://github.com/AIE-enginehub/Oryh/discussions
+    about: Ask questions, discuss architecture, or share custom SKILL.md workflows
+  - name: Discord Community
+    url: https://discord.gg/dH38JwJUe
+    about: Chat with maintainers and other Oryh users
+  - name: Security Vulnerability Disclosure
+    url: https://github.com/AIE-enginehub/Oryh/blob/main/SECURITY.md
+    about: Report security vulnerabilities responsibly rather than opening a public issue

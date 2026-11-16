@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a bug in Oryh (API, console, skills, or Docker setup)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue. Please avoid sharing private credentials, API keys, or real customer data.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Clear description of the bug and what you expected instead.
+      placeholder: Expected vs. actual behavior...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: API calls, agent prompt, or Docker commands to reproduce the issue.
+      placeholder: |
+        1. Start Oryh with `docker compose up -d --build`
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Agent or client involved (if any)
+      options:
+        - Not agent-specific (API / Console / Docker)
+        - Claude Code
+        - Codex
+        - Hermes
+        - OpenClaw
+        - MCP client (OAuth 2.1)
+        - Other
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: e.g. v2026.11.16 or main commit hash

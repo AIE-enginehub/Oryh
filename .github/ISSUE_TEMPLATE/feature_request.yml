@@ -1,0 +1,24 @@
+name: Feature or record-layer proposal
+description: Suggest a capability, ledger invariant, or operational improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remember Oryh's boundary: the server records facts and enforces invariants; agents interpret company rules and drive flows.
+        Please open an issue to discuss before writing a large patch (see CONTRIBUTING.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the real business record or operational gap.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed design or record shape
+      description: Which endpoints, invariants, or object definitions belong in the record layer versus an agent skill?
+    validations:
+      required: true

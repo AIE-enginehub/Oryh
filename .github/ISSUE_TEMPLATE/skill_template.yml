@@ -1,0 +1,32 @@
+name: Industry workflow skill or rule pack
+description: Share or request a SKILL.md + business_rules template for a specific industry workflow
+title: "[Skill]: "
+labels: ["skill-wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most industry customizations in Oryh live as tenant data (`SKILL.md` + `business_rules` + `object_type_definitions`), with zero backend changes.
+  - type: input
+    id: industry
+    attributes:
+      label: Industry or domain
+      placeholder: e.g. Medical device after-sales, Cross-border e-commerce reconciliation, Consulting milestones
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow & business rules summary
+      description: Describe the roles, documents/objects, and natural-language approval or validation rules.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Are you sharing a working skill or requesting one?
+      options:
+        - Sharing a working skill / rule pack
+        - Requesting a skill template
+    validations:
+      required: true
