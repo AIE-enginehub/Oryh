@@ -49,15 +49,10 @@ If the workspace already exists, follow [first boot](first-boot.md) for credenti
 recovery. Use `docker compose logs --tail=100 api` to diagnose an API startup
 failure, and redact credentials before sharing logs.
 
-## Load sample data or connect an agent
+## Explore the demo workspace
 
-For a local evaluation, load the fictional Northwind Instruments dataset:
-
-```bash
-docker compose exec api python scripts/seed_sample.py
-```
-
-Use the sample data to inspect records and business rules in the console. To
+First boot loads the fictional Northwind Instruments dataset automatically.
+Use it to inspect records and business rules in the console. To
 perform work interactively, [connect a developer's agent](connect-agent.md).
 To let a server-side agent advance queued approvals, configure the
 [Flow Runner](operations.md#run-the-flow-runner). The sample data includes an
@@ -91,8 +86,12 @@ delivery refuses to send security links without it**.
 ### The first workspace
 
 Read only on the boot that creates the workspace, and inert forever after.
+The defaults use the demo dataset and the `admin@oryh.local` sign-in.
+For a fresh workspace with your own data, set the following in `.env` before
+starting Compose:
 
 ```bash
+ORYH_STANDALONE_SEED_SAMPLE=false
 ORYH_STANDALONE_COMPANY_NAME=Acme Ltd
 ORYH_STANDALONE_ADMIN_EMAIL=admin@acme.example.com
 ORYH_STANDALONE_ADMIN_PASSWORD=            # leave empty to have one generated
@@ -101,6 +100,9 @@ ORYH_STANDALONE_ADMIN_PASSWORD=            # leave empty to have one generated
 Leaving the password empty is the better default: a generated password is
 printed once and cannot have been committed to anything. See
 [first boot](first-boot.md).
+
+To load the fictional dataset into an existing evaluation workspace, run
+`docker compose exec api python scripts/seed_sample.py`.
 
 ### Language
 

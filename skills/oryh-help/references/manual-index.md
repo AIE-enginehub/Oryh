@@ -29,9 +29,9 @@ administration for what each screen is for.
 
 Two consequences worth absorbing before you start:
 
-- **A fresh workspace is empty on purpose.** No employees, no customers, no
-  documents. The first useful step after signing in is not clicking around —
-  it is connecting an agent.
+- **A fresh Compose checkout includes a demo workspace.** Explore the fictional
+  records in the console or connect an agent to work with
+  them. See installation for an empty workspace.
 - **Most of "how we do it here" is prose, not configuration.** Skills are
   markdown, approval routing is a document the flow agent reads, lifecycle
   state names are your own words. Changing behaviour is usually a sentence to

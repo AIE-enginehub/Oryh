@@ -94,7 +94,8 @@ class Settings(BaseSettings):
     # no tenant at all; afterwards these are inert. An empty password means
     # "generate one and print it to the log once", which is the right default
     # for a compose file that should work before anyone edits an .env.
-    standalone_company_name: str = "My Company"
+    standalone_company_name: str = ""
+    standalone_seed_sample: bool = False
     # The language of what a fresh workspace is SEEDED with and what the
     # server itself writes — the shipped vocabularies, the capability
     # catalogue, system emails, the console shell. Explicit `ORYH_LOCALE`

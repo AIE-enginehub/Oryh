@@ -49,8 +49,12 @@ def ensure_standalone_tenant(db: Session) -> dict | None:
     if generated_password:
         password = secrets.token_urlsafe(12)
 
+    seed_sample = settings.standalone_seed_sample
+    if seed_sample:
+        from scripts.seed_sample import SAMPLE_COMPANY_NAME, populate_sample_workspace
+
     tenant = Tenant(
-        name=settings.standalone_company_name,
+        name=settings.standalone_company_name or (SAMPLE_COMPANY_NAME if seed_sample else "My Company"),
         status="active",
         slug=derive_tenant_slug(db, None),
     )
@@ -73,6 +77,8 @@ def ensure_standalone_tenant(db: Session) -> dict | None:
     )
     db.add_all([admin, bootstrap_key])
     provision_tenant_defaults(db, tenant.id)
+    if seed_sample:
+        populate_sample_workspace(db, tenant.id)
     db.commit()
 
     return {

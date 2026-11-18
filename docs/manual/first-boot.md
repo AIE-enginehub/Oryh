@@ -8,7 +8,7 @@ Before the API serves anything, its container runs a fixed chain:
 alembic upgrade head          # create or update the schema
 bootstrap_db_roles.py         # create/refresh the restricted runtime role
 sync_tenant_defaults.py       # install the provisioned defaults
-ensure_standalone_tenant.py   # create THE workspace — only if none exists
+ensure_standalone_tenant.py    # create the workspace and load demo records on first boot
 ```
 
 The last step is the one that matters to you. A standalone deployment has
@@ -32,9 +32,9 @@ docker compose logs api | grep -A6 "standalone workspace created"
 ```text
 ================================================================
   oryh standalone workspace created
-  company:   Acme Ltd
-  console:   sign in as admin@acme.example.com
-  password:  8Kd2mQ-xR4vT9wL   (generated — change it after first sign-in)
+  company:   Northwind Instruments
+  console:   sign in as admin@oryh.local
+  password:  <generated password>   (change it after first sign-in)
   agent key: oryh_sk_...       (service key for connecting agents)
   This is printed ONCE. Store it now.
 ================================================================
@@ -53,10 +53,11 @@ administrator sign-in.
 Open <http://127.0.0.1:8080/> (or your `ORYH_BASE_URL`) and sign in as the
 administrator. Change the password immediately if it was generated.
 
-You are looking at an empty workspace: no employees, no customers, no
-documents. That is correct. The console is for administering the workspace —
-the work itself happens through agents, which is the [next
-step](connect-agent.md).
+The default Northwind Instruments workspace contains fictional employees,
+customers, documents and published rules. If you set
+`ORYH_STANDALONE_SEED_SAMPLE=false` before first boot, it starts without those
+records. [Connect your agent](connect-agent.md) to work with the records in
+either workspace.
 
 ## If you lost the credentials
 

@@ -7,7 +7,9 @@
 # First boot creates the workspace and prints its credentials ONCE to the api
 # service log: the console sign-in (ORYH_STANDALONE_ADMIN_EMAIL, password
 # generated unless ORYH_STANDALONE_ADMIN_PASSWORD is set) and a service API
-# key for connecting agents. Open http://127.0.0.1:8080/ afterwards.
+# key for connecting agents. The default workspace is Northwind Instruments
+# with fictional records. Set ORYH_STANDALONE_SEED_SAMPLE=false for an empty
+# workspace. Open http://127.0.0.1:8080/ afterwards.
 #
 # Runs on its own named volume. Point a second stack at an existing
 # database only if you mean to: sharing one between deployments is how a
@@ -60,7 +62,8 @@ services:
       # Unset is English on a standalone deployment; "zh" seeds and writes Chinese.
       ORYH_LOCALE: ${ORYH_LOCALE:-}
       # First-boot workspace facts; inert once any tenant exists.
-      ORYH_STANDALONE_COMPANY_NAME: ${ORYH_STANDALONE_COMPANY_NAME:-My Company}
+      ORYH_STANDALONE_COMPANY_NAME: ${ORYH_STANDALONE_COMPANY_NAME:-}
+      ORYH_STANDALONE_SEED_SAMPLE: ${ORYH_STANDALONE_SEED_SAMPLE:-true}
       ORYH_STANDALONE_ADMIN_EMAIL: ${ORYH_STANDALONE_ADMIN_EMAIL:-admin@oryh.local}
       ORYH_STANDALONE_ADMIN_PASSWORD: ${ORYH_STANDALONE_ADMIN_PASSWORD:-}
       ORYH_SKIP_STARTUP_MAINTENANCE: ${ORYH_SKIP_STARTUP_MAINTENANCE:-false}
@@ -69,6 +72,7 @@ services:
       - sh
       - -c
       - |
+        set -e
         if [ "$${ORYH_SKIP_STARTUP_MAINTENANCE:-false}" != "true" ]; then
           alembic upgrade head
           python scripts/bootstrap_db_roles.py

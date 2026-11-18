@@ -41,7 +41,7 @@ same product as a hosted service — nothing to install.
 ```bash
 git clone https://github.com/AIE-enginehub/Oryh.git
 cd Oryh
-docker compose up -d --build
+docker compose up -d --build --wait
 docker compose logs api | grep -A6 "standalone workspace created"
 ```
 
@@ -54,18 +54,14 @@ workspace, its administrator and a service key for agents, and prints them
 **once** — after a hundred lines of migration output. Store both before you
 move on. Change the password after signing in.
 
-The workspace starts **empty**: no employees, no customers, no documents. It is
-your company's records, waiting for your company's records. Which is why the
-next step is not clicking around the console — it is connecting an agent.
+A fresh database starts with **Northwind Instruments**, a demo workspace
+with fictional customers, inventory, a quotation, an open invoice, a project,
+and published discount and approval rules. Sign in as `admin@oryh.local`
+with the generated password from the API log.
 
-If you are evaluating Oryh and prefer preloaded fictional records (`Northwind
-Instruments` — customers, inventory, open invoices, a project, and published
-discount and approval rules), load the optional sample dataset once the stack is
-healthy:
-
-```bash
-docker compose exec api python scripts/seed_sample.py
-```
+For an empty workspace, set `ORYH_STANDALONE_SEED_SAMPLE=false` in `.env`
+before the first start. Existing workspaces keep their records when you
+restart or upgrade.
 
 See the [Docker Compose guide](docs/manual/install.md) for the development
 workflow, credentials and configuration. To advance approvals automatically,

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Load a cohesive fictional sample company ('Northwind Instruments') for evaluators.
 
-Unlike `ensure_standalone_tenant.py` (which creates an empty workspace on first
-boot), this script is optional and idempotent: operators who want a realistic
-starting dataset to test AI agents against can run:
+Standalone Compose calls the seeder when creating the demo workspace. To
+load the same records into an existing evaluation workspace, run:
 
     docker compose exec api python scripts/seed_sample.py
 
-All records are written through the real FastAPI routes using a short-lived
-service API key that is deleted in a `finally` block before returning.
+Records are written through the FastAPI routes in one transaction, using a
+temporary service key removed before commit.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from datetime import date, timedelta
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -38,6 +37,7 @@ from app.models import (
     hash_api_key,
 )
 
+SAMPLE_COMPANY_NAME = "Northwind Instruments"
 SAMPLE_SENTINEL_CODE = "NW-CAL-100"
 EPHEMERAL_KEY_LABEL = "_seed_sample_ephemeral"
 
@@ -521,57 +521,62 @@ def _ensure_admin_employee(db: Session, tenant_id: str) -> str:
     return str(employee.id)
 
 
-def seed_sample_workspace(db: Session, tenant_id: str | None = None) -> dict[str, Any]:
-    """Populate a clean sample dataset idempotently via the public API routes."""
-    tenant = _resolve_tenant(db, tenant_id)
-    tenant_id_str = str(tenant.id)
-
-    if db.scalar(
-        select(Product.id).where(
-            Product.tenant_id == tenant_id_str,
-            Product.product_code == SAMPLE_SENTINEL_CODE,
-        )
-    ):
-        return {"already_seeded": True, "tenant_id": tenant_id_str}
-
-    admin_employee_id = _ensure_admin_employee(db, tenant_id_str)
+def populate_sample_workspace(db: Session, tenant_id: str) -> dict[str, Any]:
+    """Load the sample records into the caller's transaction."""
+    admin_employee_id = _ensure_admin_employee(db, tenant_id)
     plain_key = generate_api_key()
     temp_key = ApiKey(
-        tenant_id=tenant_id_str,
+        tenant_id=tenant_id,
         key_hash=hash_api_key(plain_key),
         label=EPHEMERAL_KEY_LABEL,
         role="service",
     )
     db.add(temp_key)
-    db.commit()
+    db.flush()
 
-    had_override = get_db in app.dependency_overrides
-    if not had_override and db.get_bind().dialect.name == "sqlite":
-        sqlite_factory = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False, future=True)
+    # Routes commit their own sessions. Savepoints leave those writes in the
+    # parent transaction so first boot can roll back the workspace and fixtures
+    # together if any request fails.
+    request_sessions = sessionmaker(
+        bind=db.connection(), autoflush=False, join_transaction_mode="create_savepoint"
+    )
 
-        def _override_sqlite_db():
-            session = sqlite_factory()
-            try:
-                yield session
-            finally:
-                session.close()
+    def request_db():
+        with request_sessions() as session:
+            yield session
 
-        app.dependency_overrides[get_db] = _override_sqlite_db
+    previous_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = request_db
+    try:
+        result = asyncio.run(_populate_via_api(plain_key, admin_employee_id))
+    finally:
+        if previous_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous_override
+
+    db.delete(temp_key)
+    return {**result, "tenant_id": tenant_id}
+
+
+def seed_sample_workspace(db: Session, tenant_id: str | None = None) -> dict[str, Any]:
+    """Populate the sample dataset once in an existing workspace."""
+    tenant_id = str(_resolve_tenant(db, tenant_id).id)
+    if db.scalar(
+        select(Product.id).where(
+            Product.tenant_id == tenant_id,
+            Product.product_code == SAMPLE_SENTINEL_CODE,
+        )
+    ):
+        return {"already_seeded": True, "tenant_id": tenant_id}
 
     try:
-        summary = asyncio.run(_populate_via_api(plain_key, admin_employee_id))
-        summary["tenant_id"] = tenant_id_str
-        return summary
-    finally:
-        if not had_override and get_db in app.dependency_overrides:
-            app.dependency_overrides.pop(get_db, None)
-        db.execute(
-            delete(ApiKey).where(
-                ApiKey.tenant_id == tenant_id_str,
-                ApiKey.label == EPHEMERAL_KEY_LABEL,
-            )
-        )
+        result = populate_sample_workspace(db, tenant_id)
         db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return result
 
 
 def main() -> int:
@@ -588,7 +593,7 @@ def main() -> int:
         return 0
 
     print("")
-    print("Loaded fictional sample records (Northwind Instruments):")
+    print(f"Loaded fictional sample records ({SAMPLE_COMPANY_NAME}):")
     print(f"  customers: {', '.join(result['customers'])}")
     print(f"  products:  {', '.join(result['products'])}")
     print("  rules:     SALES-DISC-01 (policy), sales_quotation (approval_flow)")
