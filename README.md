@@ -67,6 +67,10 @@ healthy:
 docker compose exec api python scripts/seed_sample.py
 ```
 
+See the [Docker Compose guide](docs/manual/install.md) for the development
+workflow, credentials and configuration. To advance approvals automatically,
+follow the [Flow Runner setup](docs/manual/operations.md#run-the-flow-runner).
+
 ## Connect your agent
 
 `oryh-connect` is a bootstrap skill that carries **no credential** — only this
@@ -186,9 +190,10 @@ Upgrade by pulling a newer release and restarting: migrations run on start and
 are idempotent. Back up with `pg_dump` against the `db` service; the database
 is the whole state.
 
-Optional: an unattended flow runner (`--profile flow-runner`) that drives
-queues with your own agent runtime and model key. It idles until your
-workspace has a flow skill and a subscription.
+The Compose `flow-runner` profile starts the server-side approval agent. Its
+image includes Pi. To advance documents, configure a workspace credential, a
+model provider, an active approval rule and an enabled driver subscription.
+See [Flow Runner setup](docs/manual/operations.md#run-the-flow-runner).
 
 ## Documentation
 

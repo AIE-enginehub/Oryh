@@ -1,4 +1,4 @@
-# Install
+# Run ORYH with Docker Compose
 
 ## What you need
 
@@ -6,16 +6,17 @@
 - **About 2 GB of RAM** for the four services.
 - A machine you can reach on a port — `8080` by default.
 
-Nothing else. Postgres, the API, the console and the gateway all come from the
-compose file; there is no separate database to provision, no application
-server to configure, and no Node or Python toolchain to install.
+Docker builds the API and console from the checkout and starts them alongside
+Postgres and the gateway. You can run the application with Docker alone.
+For automated approval routing, complete the
+[Flow Runner setup](operations.md#run-the-flow-runner) after first boot.
 
 ## Get it running
 
 ```bash
 git clone https://github.com/AIE-enginehub/Oryh.git
 cd Oryh
-docker compose up -d --build
+docker compose up -d --build --wait
 ```
 
 The first build takes a few minutes because the API and console images are
@@ -36,14 +37,40 @@ Four services should report healthy.
 | `console` | The static browser console. |
 | `gateway` | nginx. The only service that publishes a port. |
 
-Then open <http://127.0.0.1:8080/> — but do not sign in yet. First read
-[first boot](first-boot.md), because the credentials you need were printed
-into the log while the stack was starting.
+Open <http://127.0.0.1:8080/>. Retrieve the administrator sign-in and the workspace
+service key from the first startup log:
+
+```bash
+docker compose logs api | grep -A6 "standalone workspace created"
+```
+
+The generated password and service key are printed once. Store them privately.
+If the workspace already exists, follow [first boot](first-boot.md) for credential
+recovery. Use `docker compose logs --tail=100 api` to diagnose an API startup
+failure, and redact credentials before sharing logs.
+
+## Load sample data or connect an agent
+
+For a local evaluation, load the fictional Northwind Instruments dataset:
+
+```bash
+docker compose exec api python scripts/seed_sample.py
+```
+
+Use the sample data to inspect records and business rules in the console. To
+perform work interactively, [connect a developer's agent](connect-agent.md).
+To let a server-side agent advance queued approvals, configure the
+[Flow Runner](operations.md#run-the-flow-runner). The sample data includes an
+approval rule, and the Flow Runner also needs a driver skill and a subscription.
+
+After source edits, run `docker compose up -d --build --wait` again to rebuild
+and restart affected services. Use `docker compose down` to stop the stack
+and keep its database for the next start.
 
 ## Configuration
 
-Configuration lives in a `.env` file next to the compose file. Every setting
-has a working default, so an evaluation deployment needs no `.env` at all.
+Configuration lives in a `.env` file next to the compose file. The four core
+services have working defaults, so a local evaluation needs no `.env` file.
 `.env.example` documents the full set; these are the ones that matter for a
 real deployment.
 
