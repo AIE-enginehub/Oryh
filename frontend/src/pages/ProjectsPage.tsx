@@ -10,6 +10,7 @@ import {
   listCustomers,
   listEmployees,
   listProjects,
+  listProjectStatuses,
   updateProject,
   type CreateProjectInput,
   type Project,
@@ -22,7 +23,8 @@ import { Pagination } from "../components/master-data/Pagination";
 import { useI18n } from "../i18n";
 
 const PAGE_SIZE = 20;
-type StatusFilter = "" | "active" | "archived";
+// the shipped `project_status` words, used until the workspace's own list loads
+const SHIPPED_STATUSES = ["planning", "active", "on_hold", "closed", "cancelled", "archived"];
 type ProjectForm = {
   name: string;
   code: string;
@@ -34,7 +36,7 @@ type ProjectForm = {
   ownerEmployeeId: string;
   startDate: string;
   endDate: string;
-  status: Exclude<StatusFilter, "">;
+  status: string;
 };
 
 const emptyForm: ProjectForm = {
@@ -66,7 +68,12 @@ export function ProjectsPage() {
   const { text } = useI18n();
   const queryClient = useQueryClient();
   const { notice, notify } = useRecordNotice();
-  const { keyword, status, page, setPage, applyFilters } = useListFilters<StatusFilter>(["active", "archived"]);
+  const statuses = useQuery({ queryKey: ["type-options", "project_status"], queryFn: listProjectStatuses });
+  const statusNames = statuses.data?.map((option) => option.name) ?? SHIPPED_STATUSES;
+  const statusOptions = statuses.data
+    ? statuses.data.map((option) => ({ value: option.name, label: option.title || option.name }))
+    : SHIPPED_STATUSES.map((name) => ({ value: name, label: name }));
+  const { keyword, status, page, setPage, applyFilters } = useListFilters<string>(statusNames);
   const [editing, setEditing] = useState<Project | null | undefined>(undefined);
   const [archiving, setArchiving] = useState<Project | null>(null);
   const [form, setForm] = useState<ProjectForm>(emptyForm);
@@ -176,7 +183,7 @@ export function ProjectsPage() {
           status={status}
           placeholder={text(zhCN.pagesProjectsPage.searchProjectNames, "Search project names")}
           createLabel={text(zhCN.pagesProjectsPage.newProject, "New project")}
-          statusOptions={[{ value: "active", label: text(zhCN.pagesProjectsPage.active, "Active") }, { value: "archived", label: text(zhCN.pagesProjectsPage.archived, "Archived") }]}
+          statusOptions={statusOptions}
           onCreate={openCreate}
           onApply={applyFilters}
         />
@@ -228,7 +235,7 @@ export function ProjectsPage() {
         <div className="field-grid">
           <div className="field span-2"><label htmlFor="project-name">{text(zhCN.pagesProjectsPage.projectName, "Project name")} <b>*</b></label><input id="project-name" required maxLength={200} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
           <div className="field"><label htmlFor="project-code">{text(zhCN.pagesProjectsPage.projectCode, "Project code")}</label><input id="project-code" maxLength={64} value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></div>
-          <div className="field"><label htmlFor="project-status">{text(zhCN.pagesProjectsPage.status, "Status")}</label><select id="project-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as ProjectForm["status"] })}><option value="active">{text(zhCN.pagesProjectsPage.active, "Active")}</option><option value="archived">{text(zhCN.pagesProjectsPage.archived, "Archived")}</option></select></div>
+          <div className="field"><label htmlFor="project-status">{text(zhCN.pagesProjectsPage.status, "Status")}</label><select id="project-status" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>{(statusOptions.some((option) => option.value === form.status) ? statusOptions : [...statusOptions, { value: form.status, label: form.status }]).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
           <div className="field"><label htmlFor="project-customer">{text(zhCN.pagesProjectsPage.customer, "Customer")}</label><select id="project-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })}><option value="">{text(zhCN.pagesProjectsPage.notLinked, "Not linked")}</option>{(customers.data?.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><small>{text(zhCN.pagesProjectsPage.linkedTheProjectReachesItsQuotationsContractAndInvoices, "Linked, the project reaches its quotations, contract and invoices; unlinked, the name below is only text.")}</small></div>
           <div className="field"><label htmlFor="project-owner">{text(zhCN.pagesProjectsPage.owner, "Owner")}</label><select id="project-owner" value={form.ownerEmployeeId} onChange={(event) => setForm({ ...form, ownerEmployeeId: event.target.value })}><option value="">{text(zhCN.pagesProjectsPage.unassigned, "Unassigned")}</option>{(employees.data?.data ?? []).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></div>
           <div className="field span-2"><label htmlFor="project-client">{text(zhCN.pagesProjectsPage.customerNameText, "Customer name (text)")}</label><input id="project-client" maxLength={200} value={form.client} onChange={(event) => setForm({ ...form, client: event.target.value })} placeholder={form.customerId ? text(zhCN.pagesProjectsPage.emptyTakesTheCustomerSName, "Empty takes the customer's name") : undefined} /></div>

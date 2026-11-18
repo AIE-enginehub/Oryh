@@ -34,6 +34,7 @@ from app.models import (
     Employee,
     Invoice,
     Project,
+    ProjectBaseline,
     ProjectIssue,
     ProjectMilestone,
     ProjectReport,
@@ -42,11 +43,15 @@ from app.models import (
     TimesheetEntry,
 )
 from app.schemas import (
+    CreateProjectBaselineRequest,
     CreateProjectIssueRequest,
     CreateProjectMilestoneRequest,
     CreateProjectReportRequest,
     CreateProjectTaskDependencyRequest,
     CreateProjectTaskRequest,
+    ProjectBaselineEnvelope,
+    ProjectBaselineListEnvelope,
+    ProjectBaselineRead,
     ProjectIssueEnvelope,
     ProjectIssueListEnvelope,
     ProjectIssueRead,
@@ -723,3 +728,77 @@ def list_project_reports(
 def get_project_report(report_id: str, actor: Annotated[Actor, Depends(get_actor)],
                        db: Annotated[Session, Depends(get_db)]):
     return envelope(_report_read(actor, get_scoped_or_404(db, ProjectReport, actor.tenant_id, report_id)))
+
+
+# --- baselines --------------------------------------------------------------------
+
+
+@router.post("/project-baselines", response_model=ProjectBaselineEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_project_baseline(payload: CreateProjectBaselineRequest, actor: Annotated[Actor, Depends(get_actor)],
+                            db: Annotated[Session, Depends(get_db)]):
+    """Freeze the plan as it stands: every task's planned dates and hours and
+    every milestone's due date. It never changes; a re-plan the manager
+    accepts is the next baseline."""
+    require_permission(actor, "project.manage")
+    tenant_id = actor.tenant_id
+    project = get_scoped_or_404(db, Project, tenant_id, payload.project_id)
+    plan = work.snapshot(db, tenant_id, project.id)
+    if not plan["tasks"] and not plan["milestones"]:
+        work.refuse(_422, "this project has no tasks or milestones to baseline yet")
+    baseline = ProjectBaseline(tenant_id=tenant_id, project_id=project.id, name=payload.name, note=payload.note,
+                               baseline_no=work.next_baseline_no(db, tenant_id, project.id), snapshot=plan,
+                               captured_by=actor.label)
+    db.add(baseline)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        work.refuse(_409, "another baseline was captured at the same moment — read the list and retry")
+    record_audit(db, tenant_id=tenant_id, action="project.baseline_captured", entity_type="project",
+                 entity_id=project.id, actor=actor.label,
+                 detail={"baseline_id": baseline.id, "baseline_no": baseline.baseline_no, "name": baseline.name,
+                         "tasks": len(plan["tasks"]), "milestones": len(plan["milestones"])})
+    db.commit()
+    db.refresh(baseline)
+    return envelope(ProjectBaselineRead.model_validate(baseline).model_dump(by_alias=True))
+
+
+@router.get("/project-baselines", response_model=ProjectBaselineListEnvelope, response_model_exclude_unset=True)
+def list_project_baselines(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    project_id: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(ProjectBaseline, ranges=('created_at', 'captured_at')))] = None,
+):
+    """A project's baselines, latest first."""
+    return list_rows(
+        db, select(ProjectBaseline).where(ProjectBaseline.tenant_id == actor.tenant_id),
+        filters={ProjectBaseline.project_id: project_id},
+        order_by=(ProjectBaseline.baseline_no.desc(), ProjectBaseline.created_at.desc()),
+        pagination=requested_pagination(page, size), sort=order_by, extra=extra, read_model=ProjectBaselineRead,
+    )
+
+
+@router.get("/project-baselines/{baseline_id}", response_model=ProjectBaselineEnvelope,
+            response_model_exclude_unset=True)
+def get_project_baseline(baseline_id: str, actor: Annotated[Actor, Depends(get_actor)],
+                         db: Annotated[Session, Depends(get_db)]):
+    return envelope(ProjectBaselineRead.model_validate(
+        get_scoped_or_404(db, ProjectBaseline, actor.tenant_id, baseline_id)).model_dump(by_alias=True))
+
+
+@router.get("/project-baselines/{baseline_id}/variance")
+def get_project_baseline_variance(baseline_id: str, actor: Annotated[Actor, Depends(get_actor)],
+                                  db: Annotated[Session, Depends(get_db)]):
+    """How far today's plan has moved from this baseline, derived on read:
+    per task, start and end moved by how many days, planned hours changed,
+    the actual end against the baselined end, and tasks added or removed
+    since; per milestone, the due date moved and the reached date against the
+    baselined due date; and the plan's finish then and now. Whether a move
+    matters is the manager's call."""
+    baseline = get_scoped_or_404(db, ProjectBaseline, actor.tenant_id, baseline_id)
+    return envelope(work.variance(db, baseline))

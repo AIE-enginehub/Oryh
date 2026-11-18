@@ -228,6 +228,14 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("project", "项目预算", "单个项目的开支"),
         ("other", "其他", "其他预算"),
     ),
+    "project_status": (
+        ("planning", "筹划中", "正在确定范围与计划，尚未开工"),
+        ("active", "进行中", "项目正在执行"),
+        ("on_hold", "暂停", "暂时停止，预计恢复"),
+        ("closed", "已结项", "已交付并结项"),
+        ("cancelled", "已取消", "交付前终止"),
+        ("archived", "已归档", "留档备查；DELETE /projects 设置此状态"),
+    ),
     "project_task_status": (
         ("not_started", "未开始", "已计划，尚未开始"),
         ("in_progress", "进行中", "正在进行"),

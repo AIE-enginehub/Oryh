@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261116_0111
+-- Alembic revision: 20261117_0113
 --
 
 --
@@ -2011,6 +2011,26 @@ CREATE TABLE oryh.products (
 
 
 --
+-- Name: project_baselines; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.project_baselines (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    project_id uuid NOT NULL,
+    baseline_no integer NOT NULL,
+    name character varying(200) NOT NULL,
+    note text,
+    snapshot jsonb NOT NULL,
+    captured_by character varying(200) NOT NULL,
+    captured_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT project_baselines_no_chk CHECK ((baseline_no >= 1))
+);
+
+
+--
 -- Name: project_issues; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -2157,8 +2177,7 @@ CREATE TABLE oryh.projects (
     opportunity_id uuid,
     contract_id uuid,
     owner_employee_id uuid,
-    CONSTRAINT projects_date_chk CHECK (((end_date IS NULL) OR (start_date IS NULL) OR (end_date >= start_date))),
-    CONSTRAINT projects_status_chk CHECK ((status = ANY (ARRAY['active'::text, 'archived'::text])))
+    CONSTRAINT projects_date_chk CHECK (((end_date IS NULL) OR (start_date IS NULL) OR (end_date >= start_date)))
 );
 
 
@@ -3947,6 +3966,22 @@ ALTER TABLE ONLY oryh.product_skus
 
 ALTER TABLE ONLY oryh.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: project_baselines project_baselines_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_baselines
+    ADD CONSTRAINT project_baselines_no_uk UNIQUE (tenant_id, project_id, baseline_no);
+
+
+--
+-- Name: project_baselines project_baselines_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_baselines
+    ADD CONSTRAINT project_baselines_pkey PRIMARY KEY (id);
 
 
 --
@@ -6721,6 +6756,20 @@ CREATE INDEX products_tenant_idx ON oryh.products USING btree (tenant_id, status
 
 
 --
+-- Name: project_baselines_project_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_baselines_project_id_idx ON oryh.project_baselines USING btree (project_id);
+
+
+--
+-- Name: project_baselines_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX project_baselines_tenant_id_idx ON oryh.project_baselines USING btree (tenant_id);
+
+
+--
 -- Name: project_issues_owner_employee_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -9026,6 +9075,14 @@ ALTER TABLE ONLY oryh.products
 
 
 --
+-- Name: project_baselines project_baselines_project_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.project_baselines
+    ADD CONSTRAINT project_baselines_project_id_fkey FOREIGN KEY (project_id) REFERENCES oryh.projects(id);
+
+
+--
 -- Name: project_issues project_issues_owner_employee_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -10296,6 +10353,12 @@ ALTER TABLE oryh.product_skus ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.products ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: project_baselines; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.project_baselines ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: project_issues; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -10932,6 +10995,13 @@ CREATE POLICY tenant_isolation ON oryh.product_skus USING ((((tenant_id)::text =
 --
 
 CREATE POLICY tenant_isolation ON oryh.products USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: project_baselines tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.project_baselines USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

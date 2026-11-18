@@ -1,4 +1,4 @@
-"""Synthetic OAuth desktop compatibility; no production data or network."""
+"""Synthetic OAuth client registration; no production data or network."""
 import re
 from urllib.parse import parse_qs, urlsplit
 import pytest
@@ -7,6 +7,8 @@ from test_oauth import _person, _login, _pkce
 from app.core.config import settings
 
 CALLBACK = "workbuddy://workbuddy/mcp/connector%3Aoryh/oauth/callback"
+CLOUD_CALLBACK = "https://open.workbuddy.cn/oauth/callback/connectivity"
+QUALITY_CALLBACK = "https://www.workbuddy.cn/console/as/p/connector/oauth/oryh/connect"
 
 
 def test_registration_is_opt_in(monkeypatch):
@@ -16,9 +18,11 @@ def test_registration_is_opt_in(monkeypatch):
         assert client.post('/oauth/register', json={'redirect_uris': [CALLBACK]}).status_code == 404
 
 
-@pytest.mark.parametrize('uri', [CALLBACK, 'http://127.0.0.1:53421/oauth/callback'])
+@pytest.mark.parametrize('uri', [CALLBACK, 'http://127.0.0.1:53421/oauth/callback', CLOUD_CALLBACK, QUALITY_CALLBACK])
 def test_registered_client_pkce_consent_and_tool_discovery(monkeypatch, uri):
     monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+    monkeypatch.setattr(settings, "oauth_workbuddy_connectivity_callback_enabled", uri == CLOUD_CALLBACK)
+    monkeypatch.setattr(settings, "oauth_workbuddy_quality_evaluation_callback_enabled", uri == QUALITY_CALLBACK)
     with make_client() as client:
         assert client.get('/.well-known/oauth-authorization-server').json()['registration_endpoint'].endswith('/oauth/register')
         r = client.post('/oauth/register', json={'redirect_uris': [uri], 'client_name': 'Synthetic WorkBuddy', 'grant_types': ['authorization_code', 'refresh_token'], 'token_endpoint_auth_method': 'none'})
@@ -62,6 +66,75 @@ def test_unsafe_callback_rejected(monkeypatch, uri):
     monkeypatch.setattr(settings, 'oauth_dynamic_registration_enabled', True)
     with make_client() as client:
         response = client.post('/oauth/register', json={'redirect_uris': [uri]})
+        assert response.status_code == 400
+        assert response.json()['error'] == 'invalid_redirect_uri'
+
+
+def test_rejected_callback_audit_log_contains_only_redirect_metadata(monkeypatch, caplog):
+    monkeypatch.setattr(settings, 'oauth_dynamic_registration_enabled', True)
+    uri = 'https://quality.example.test/oauth/callback'
+    with caplog.at_level('WARNING', logger='oryh.oauth'), make_client() as client:
+        response = client.post('/oauth/register', json={
+            'redirect_uris': [uri],
+            'client_name': 'must-not-appear-in-the-audit-log',
+        })
+    assert response.status_code == 400
+    assert caplog.messages == [
+        f"OAuth client registration rejected redirect_uris={[uri]!r}",
+    ]
+    assert 'must-not-appear-in-the-audit-log' not in caplog.text
+
+
+@pytest.mark.parametrize(('enabled', 'uri'), [
+    (False, CLOUD_CALLBACK),
+    (True, CLOUD_CALLBACK + '?other=true'),
+    (True, CLOUD_CALLBACK + '#fragment'),
+    (True, CLOUD_CALLBACK + '/'),
+    (True, CLOUD_CALLBACK.replace('open.workbuddy.cn', 'other.workbuddy.cn')),
+    (True, CLOUD_CALLBACK.replace('open.workbuddy.cn', 'open.workbuddy.cn.example.test')),
+])
+def test_cloud_registration_requires_the_enabled_exact_callback(monkeypatch, enabled, uri):
+    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+    monkeypatch.setattr(settings, "oauth_workbuddy_connectivity_callback_enabled", enabled)
+    with make_client() as client:
+        response = client.post('/oauth/register', json={'redirect_uris': [uri]})
+        assert response.status_code == 400
+        assert response.json()['error'] == 'invalid_redirect_uri'
+
+
+@pytest.mark.parametrize(('enabled', 'uri'), [
+    (False, QUALITY_CALLBACK),
+    (True, QUALITY_CALLBACK + '?other=true'),
+    (True, QUALITY_CALLBACK + '#fragment'),
+    (True, QUALITY_CALLBACK + '/'),
+    (True, QUALITY_CALLBACK.replace('www.workbuddy.cn', 'open.workbuddy.cn')),
+    (True, QUALITY_CALLBACK.replace('www.workbuddy.cn', 'www.workbuddy.cn.example.test')),
+])
+def test_quality_registration_requires_the_enabled_exact_callback(monkeypatch, enabled, uri):
+    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+    monkeypatch.setattr(settings, "oauth_workbuddy_quality_evaluation_callback_enabled", enabled)
+    with make_client() as client:
+        response = client.post('/oauth/register', json={'redirect_uris': [uri]})
+        assert response.status_code == 400
+        assert response.json()['error'] == 'invalid_redirect_uri'
+
+
+@pytest.mark.parametrize(('connectivity_enabled', 'quality_enabled', 'rejected_uri'), [
+    (True, False, QUALITY_CALLBACK),
+    (False, True, CLOUD_CALLBACK),
+])
+def test_workbuddy_callback_switches_are_independent(
+    monkeypatch, connectivity_enabled, quality_enabled, rejected_uri
+):
+    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+    monkeypatch.setattr(
+        settings, "oauth_workbuddy_connectivity_callback_enabled", connectivity_enabled
+    )
+    monkeypatch.setattr(
+        settings, "oauth_workbuddy_quality_evaluation_callback_enabled", quality_enabled
+    )
+    with make_client() as client:
+        response = client.post('/oauth/register', json={'redirect_uris': [rejected_uri]})
         assert response.status_code == 400
         assert response.json()['error'] == 'invalid_redirect_uri'
 

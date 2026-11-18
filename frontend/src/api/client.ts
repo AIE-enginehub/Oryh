@@ -331,6 +331,14 @@ export function listProjects(
   );
 }
 
+/** The workspace's words for a project's status (`project_status`): any
+ * may follow any other — the server keeps no order. */
+export type ProjectStatusOption = { name: string; title: string | null };
+
+export function listProjectStatuses(): Promise<ProjectStatusOption[]> {
+  return apiRequest<ProjectStatusOption[]>("/api/v1/type-options?family=project_status");
+}
+
 export function createProject(input: ProjectCreate): Promise<ProjectRead> {
   return jsonRequest<ProjectRead>("/api/v1/projects", "POST", input);
 }

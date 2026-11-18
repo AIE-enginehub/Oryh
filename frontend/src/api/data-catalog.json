@@ -2835,11 +2835,7 @@
         },
         {
           "name": "status",
-          "type": "string",
-          "enum": [
-            "active",
-            "archived"
-          ]
+          "type": "string"
         },
         {
           "name": "start_date",
@@ -2902,11 +2898,7 @@
         {
           "name": "status",
           "required": false,
-          "type": "string",
-          "enum": [
-            "active",
-            "archived"
-          ]
+          "type": "string"
         },
         {
           "name": "start_date",
@@ -2960,11 +2952,7 @@
         {
           "name": "status",
           "required": false,
-          "type": "string",
-          "enum": [
-            "active",
-            "archived"
-          ]
+          "type": "string"
         },
         {
           "name": "start_date",
@@ -21647,6 +21635,103 @@
       ],
       "actions": [],
       "recordPath": "/api/v1/ledger-accounts/{account_id}",
+      "related": []
+    },
+    {
+      "key": "project-baselines",
+      "path": "/api/v1/project-baselines",
+      "group": "other",
+      "label": [
+        "Project baselines",
+        "Project baselines"
+      ],
+      "filters": [
+        {
+          "name": "project_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "captured_at_from",
+          "description": "rows whose captured_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "captured_at_thru",
+          "description": "rows whose captured_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "project_id",
+          "type": "string"
+        },
+        {
+          "name": "baseline_no",
+          "type": "integer"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "type": "string"
+        },
+        {
+          "name": "captured_by",
+          "type": "string"
+        },
+        {
+          "name": "captured_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "project_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "note",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/project-baselines/{baseline_id}",
       "related": []
     },
     {

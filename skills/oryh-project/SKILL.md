@@ -1,6 +1,6 @@
 ---
 name: oryh-project
-description: Use when a project manager plans and follows a project in oryh — break the work into tasks, set who does what and when, record which task waits on which, set milestones and record when each was met, keep the issue log, write the weekly status report, and read where the project stands (hours against plan, milestones on time or late, issues, cost and billing). The server records and derives; you schedule and judge. Requires project.manage (a member updating their own task or raising an issue needs project.contribute).
+description: Use when a project manager plans and follows a project in oryh — break the work into tasks, set who does what and when, record which task waits on which, set milestones and record when each was met, keep the issue log, write the weekly status report, move the project through its life (planning, active, on hold, closed), freeze the plan as a baseline and compare against it, and read where the project stands (hours against plan, milestones on time or late, issues, cost and billing). The server records and derives; you schedule and judge. Requires project.manage (a member updating their own task or raising an issue needs project.contribute).
 required_capability: project.manage
 ---
 
@@ -30,6 +30,8 @@ is you, with the project manager.
 - "Design is a week late — what does that do to the rest?"
 - "Log a risk: the anchor bolts may arrive late"
 - "Write this week's status report for the fit-out"
+- "Put the canteen project on hold until the permit comes through"
+- "How far have we drifted from the signed plan?"
 
 ## Required Inputs
 
@@ -73,6 +75,26 @@ each dependency and lag, and **propose** the new dates to the project
 manager. Write them with `PATCH /project-tasks/{id}` only once agreed. The
 audit trail keeps every earlier date.
 
+## Baselines
+
+A baseline freezes the plan as it stands — every task's planned dates and
+hours, every milestone's due date — so later moves can be measured against
+it. Capture one when the manager says "this is the plan" (usually once the
+customer signs it) and again whenever they accept a re-plan:
+`POST /project-baselines {"project_id", "name": "Signed plan", "note"?}`.
+It is numbered per project, and it never changes or goes away.
+
+`GET /project-baselines/{id}/variance` compares today's plan with it: per
+task, start and end moved by how many days, planned hours changed, the
+actual end against the baselined end, and tasks added or removed since;
+per milestone, the due date moved and the reached date against the
+baselined due date; and the plan's finish, then and now. Read the latest
+baseline from `GET /project-baselines?project_id=` (latest first), unless the
+manager names another — "against the original plan" is baseline 1.
+
+Report the moves; whether they matter is the manager's call. Days are
+calendar days, so a move over a weekend counts the weekend.
+
 ## Progress
 
 - The person a task is assigned to updates its `actual_start`,
@@ -106,6 +128,17 @@ Issues, risks, change requests and defects are one log per project.
   here; the contract change itself is a supplement, through `$oryh-contracts`.
 - Severity is the person's call, and so is escalating. When you see an
   unresolved high one ageing, say so — do not change it.
+
+## The Project's Life
+
+A project's status is the workspace's word for where it is:
+`GET /type-options?family=project_status` (`planning`, `active`, `on_hold`,
+`closed`, `cancelled`, `archived`, or the workspace's own). Change it with
+`PATCH /projects/{id} {"status"}`. Any word may follow any other: the
+server keeps no order and reads nothing from it, so whether a project is
+ready to close — milestones reached, issues resolved, final invoice raised —
+is yours to check with the figures and to put to the manager. Say what is
+still open before you close one. `DELETE /projects/{id}` archives it.
 
 ## Where It Stands
 

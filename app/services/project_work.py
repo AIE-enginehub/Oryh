@@ -34,6 +34,7 @@ from app.models import (
     JournalLine,
     LedgerAccount,
     Project,
+    ProjectBaseline,
     ProjectIssue,
     ProjectMilestone,
     ProjectReport,
@@ -368,3 +369,138 @@ def execution(db: Session, project_id: str, tenant_id: str, as_of: date) -> dict
         "issues": issues(db, tenant_id, project_id),
         "money": money(db, db.get(Project, project_id), as_of),
     }
+
+
+# --- baselines -----------------------------------------------------------------
+
+
+@event.listens_for(Session, "before_flush")
+def _kept_baselines(session: Session, flush_context, instances) -> None:
+    """A baseline is the plan as it stood: it never changes and is never
+    removed. Re-baselining is the next number."""
+    for baseline in session.deleted:
+        if isinstance(baseline, ProjectBaseline):
+            refuse(status.HTTP_409_CONFLICT, "a baseline is kept — capture a new one instead")
+    for baseline in session.dirty:
+        if isinstance(baseline, ProjectBaseline) and any(
+            attr.key != "updated_at" and attr.history.has_changes() for attr in inspect(baseline).attrs
+        ):
+            refuse(status.HTTP_409_CONFLICT, "a baseline never changes — capture a new one instead")
+
+
+def _iso(value) -> str | None:
+    return value.isoformat() if value is not None else None
+
+
+def snapshot(db: Session, tenant_id: str, project_id: str) -> dict:
+    """Every task's place in the tree, planned dates and hours, and every
+    milestone's due date, as they stand now."""
+    tasks = [{
+        "task_id": t.id, "task_code": t.task_code, "name": t.name, "parent_task_id": t.parent_task_id,
+        "planned_start": _iso(t.planned_start), "planned_end": _iso(t.planned_end),
+        "planned_hours": float(t.planned_hours) if t.planned_hours is not None else None, "status": t.status,
+    } for t in db.scalars(select(ProjectTask).where(
+        ProjectTask.tenant_id == tenant_id, ProjectTask.project_id == project_id,
+    ).order_by(ProjectTask.sort_order.asc().nulls_last(), ProjectTask.task_code, ProjectTask.created_at))]
+    milestones = [{
+        "milestone_id": m.id, "name": m.name, "due_date": _iso(m.due_date), "status": m.status,
+    } for m in db.scalars(select(ProjectMilestone).where(
+        ProjectMilestone.tenant_id == tenant_id, ProjectMilestone.project_id == project_id,
+    ).order_by(ProjectMilestone.due_date, ProjectMilestone.created_at))]
+    return {"tasks": tasks, "milestones": milestones}
+
+
+def next_baseline_no(db: Session, tenant_id: str, project_id: str) -> int:
+    return (db.scalar(select(func.max(ProjectBaseline.baseline_no)).where(
+        ProjectBaseline.tenant_id == tenant_id, ProjectBaseline.project_id == project_id)) or 0) + 1
+
+
+def _days(after: str | date | None, before: str | date | None) -> int | None:
+    """Days `after` lies past `before` (negative: earlier); None if either is unset."""
+    if after is None or before is None:
+        return None
+    a = date.fromisoformat(after) if isinstance(after, str) else after
+    b = date.fromisoformat(before) if isinstance(before, str) else before
+    return (a - b).days
+
+
+def _latest(values) -> str | None:
+    dated = [v for v in values if v]
+    return max(dated) if dated else None
+
+
+def variance(db: Session, baseline: ProjectBaseline) -> dict:
+    """How far the plan has moved from the baseline, task by task and
+    milestone by milestone: start and end moved by how many days, hours
+    changed, finished against the baselined end, added since, removed
+    since. Days are calendar days; whether a move matters is the agent's."""
+    then = baseline.snapshot or {}
+    now = snapshot(db, baseline.tenant_id, baseline.project_id)
+    current_tasks = {t.id: t for t in db.scalars(select(ProjectTask).where(
+        ProjectTask.tenant_id == baseline.tenant_id, ProjectTask.project_id == baseline.project_id))}
+    base_tasks = {row["task_id"]: row for row in then.get("tasks", [])}
+    tasks = []
+    for row in now["tasks"]:
+        base = base_tasks.get(row["task_id"])
+        task = current_tasks[row["task_id"]]
+        if base is None:
+            tasks.append({"task_id": row["task_id"], "task_code": row["task_code"], "name": row["name"],
+                          "change": "added", "planned_start": row["planned_start"], "planned_end": row["planned_end"],
+                          "planned_hours": row["planned_hours"]})
+            continue
+        hours_then, hours_now = base["planned_hours"], row["planned_hours"]
+        tasks.append({
+            "task_id": row["task_id"], "task_code": row["task_code"], "name": row["name"], "change": "kept",
+            "baseline_start": base["planned_start"], "planned_start": row["planned_start"],
+            "start_moved_days": _days(row["planned_start"], base["planned_start"]),
+            "baseline_end": base["planned_end"], "planned_end": row["planned_end"],
+            "end_moved_days": _days(row["planned_end"], base["planned_end"]),
+            "baseline_hours": hours_then, "planned_hours": hours_now,
+            "hours_changed": (hours_now - hours_then) if hours_now is not None and hours_then is not None else None,
+            "actual_end": _iso(task.actual_end),
+            "finished_against_baseline_days": _days(task.actual_end, base["planned_end"]),
+        })
+    for task_id, base in base_tasks.items():
+        if task_id not in current_tasks:
+            tasks.append({"task_id": task_id, "task_code": base["task_code"], "name": base["name"],
+                          "change": "removed", "baseline_start": base["planned_start"],
+                          "baseline_end": base["planned_end"], "baseline_hours": base["planned_hours"]})
+    current_milestones = {m["milestone_id"]: m for m in now["milestones"]}
+    reached = dict(db.execute(select(ProjectMilestone.id, ProjectMilestone.reached_on).where(
+        ProjectMilestone.tenant_id == baseline.tenant_id, ProjectMilestone.project_id == baseline.project_id)).all())
+    base_milestones = {m["milestone_id"]: m for m in then.get("milestones", [])}
+    milestones = []
+    for milestone_id, row in current_milestones.items():
+        base = base_milestones.get(milestone_id)
+        entry = {"milestone_id": milestone_id, "name": row["name"], "due_date": row["due_date"],
+                 "status": row["status"], "reached_on": _iso(reached.get(milestone_id))}
+        if base is None:
+            entry["change"] = "added"
+        else:
+            entry.update(change="kept", baseline_due_date=base["due_date"],
+                         due_moved_days=_days(row["due_date"], base["due_date"]),
+                         reached_against_baseline_days=_days(reached.get(milestone_id), base["due_date"]))
+        milestones.append(entry)
+    for milestone_id, base in base_milestones.items():
+        if milestone_id not in current_milestones:
+            milestones.append({"milestone_id": milestone_id, "name": base["name"], "change": "removed",
+                               "baseline_due_date": base["due_date"]})
+    kept = [t for t in tasks if t["change"] == "kept"]
+    base_end = _latest(row["planned_end"] for row in then.get("tasks", []))
+    plan_end = _latest(row["planned_end"] for row in now["tasks"])
+    summary = {
+        "tasks_ending_later": sum(1 for t in kept if (t["end_moved_days"] or 0) > 0),
+        "tasks_ending_earlier": sum(1 for t in kept if (t["end_moved_days"] or 0) < 0),
+        "tasks_added": sum(1 for t in tasks if t["change"] == "added"),
+        "tasks_removed": sum(1 for t in tasks if t["change"] == "removed"),
+        "milestones_due_later": sum(1 for m in milestones if (m.get("due_moved_days") or 0) > 0),
+        "baseline_planned_hours": sum((row["planned_hours"] or 0) for row in then.get("tasks", [])
+                                      if not any(o["parent_task_id"] == row["task_id"] for o in then.get("tasks", []))),
+        "planned_hours": sum((row["planned_hours"] or 0) for row in now["tasks"]
+                             if not any(o["parent_task_id"] == row["task_id"] for o in now["tasks"])),
+        # the latest planned end of any task: the plan's finish, then and now
+        "baseline_finish": base_end, "planned_finish": plan_end,
+        "finish_moved_days": _days(plan_end, base_end),
+    }
+    return {"baseline_id": baseline.id, "baseline_no": baseline.baseline_no, "project_id": baseline.project_id,
+            "captured_at": baseline.captured_at, "summary": summary, "tasks": tasks, "milestones": milestones}

@@ -94,6 +94,37 @@ Get Employee
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
 
+## GET /project-baselines
+
+List Project Baselines
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `project_id` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `captured_at_from` | query | date-time | no | rows whose captured_at is at or after this |
+| `captured_at_thru` | query | date-time | no | rows whose captured_at is at or before this |
+
+## GET /project-baselines/{baseline_id}
+
+Get Project Baseline
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `baseline_id` | path | string | yes |  |
+
+## GET /project-baselines/{baseline_id}/variance
+
+Get Project Baseline Variance
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `baseline_id` | path | string | yes |  |
+
 ## GET /project-issues
 
 List Project Issues
@@ -446,7 +477,7 @@ Body:
 | `project_code` | string (≤64 chars) | optional |  |
 | `project_name` | string (≤200 chars) | optional |  |
 | `start_date` | date | optional |  |
-| `status` | `active` | `archived` | optional |  |
+| `status` | string (≤50 chars) | optional |  |
 
 ## PATCH /todos/{todo_id}
 
@@ -518,6 +549,18 @@ Body:
 | `title` | string (≤200 chars) | optional |  |
 | `todo_id` | string | optional |  |
 | `todo_ids` | array of string | optional |  |
+
+## POST /project-baselines
+
+Create Project Baseline
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `name` | string (≤200 chars) | required |  |
+| `project_id` | string | required |  |
+| `note` | string (≤10000 chars) | optional |  |
 
 ## POST /project-issues
 
@@ -658,7 +701,7 @@ Body:
 | `owner_employee_id` | string | optional |  |
 | `project_code` | string (≤64 chars) | optional |  |
 | `start_date` | date | optional |  |
-| `status` | `active` | `archived` | optional |  |
+| `status` | string (≤50 chars) | optional |  |
 
 ## POST /type-options
 

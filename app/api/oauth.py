@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import urlencode, urlsplit
@@ -43,6 +44,7 @@ from app.services import interactive_keys
 from app.services.audit import record_audit
 
 router = APIRouter(include_in_schema=False)
+logger = logging.getLogger("oryh.oauth")
 
 CODE_TTL = timedelta(minutes=10)
 CONSENT_TTL = timedelta(minutes=10)
@@ -104,9 +106,11 @@ def protected_resource_metadata_for_mcp():
 
 
 REGISTERED_CLIENT_PREFIX = "urn:oryh:oauth-client:"
+WORKBUDDY_CONNECTIVITY_CALLBACK = "https://open.workbuddy.cn/oauth/callback/connectivity"
+WORKBUDDY_QUALITY_EVALUATION_CALLBACK = "https://www.workbuddy.cn/console/as/p/connector/oauth/oryh/connect"
 
 
-def _desktop_redirect_allowed(uri: str) -> bool:
+def _registration_redirect_allowed(uri: str) -> bool:
     if len(uri) > 1000 or any(ord(c) < 33 for c in uri) or "\\" in uri:
         return False
     try:
@@ -116,6 +120,14 @@ def _desktop_redirect_allowed(uri: str) -> bool:
         return False
     if p.fragment or p.username or p.password:
         return False
+    if p.scheme == "https":
+        return (
+            settings.oauth_workbuddy_connectivity_callback_enabled
+            and uri == WORKBUDDY_CONNECTIVITY_CALLBACK
+        ) or (
+            settings.oauth_workbuddy_quality_evaluation_callback_enabled
+            and uri == WORKBUDDY_QUALITY_EVALUATION_CALLBACK
+        )
     if p.scheme == "http" and p.hostname in {"127.0.0.1", "::1"}:
         return port is not None and 0 < port < 65536 and p.path == "/oauth/callback" and not p.query
     return (p.scheme == "workbuddy" and p.netloc == "workbuddy" and not p.query
@@ -140,8 +152,15 @@ async def register_public_client(request: Request, db: Annotated[Session, Depend
         return _oauth_error(400, "invalid_client_metadata", "Expected a JSON object")
     uris = data.get("redirect_uris")
     if (not isinstance(uris, list) or not 1 <= len(uris) <= 10
-            or any(not isinstance(u, str) or not _desktop_redirect_allowed(u) for u in uris)):
-        return _oauth_error(400, "invalid_redirect_uri", "Use a WorkBuddy callback or IP loopback /oauth/callback")
+            or any(not isinstance(u, str) or not _registration_redirect_allowed(u) for u in uris)):
+        if isinstance(uris, list) and all(isinstance(uri, str) for uri in uris):
+            # Redirect URIs are public client metadata. Log only this rejected
+            # field so an operator can approve an exact callback without
+            # exposing any other registration metadata or request headers.
+            logger.warning("OAuth client registration rejected redirect_uris=%r", uris)
+        else:
+            logger.warning("OAuth client registration rejected malformed redirect_uris")
+        return _oauth_error(400, "invalid_redirect_uri", "Use an approved WorkBuddy callback or IP loopback /oauth/callback")
     if (data.get("token_endpoint_auth_method", "none") != "none"
             or data.get("response_types", ["code"]) != ["code"]
             or not isinstance(data.get("grant_types", ["authorization_code"]), list)

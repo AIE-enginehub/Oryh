@@ -5535,6 +5535,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/project-baselines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Baselines
+         * @description A project's baselines, latest first.
+         */
+        get: operations["list_project_baselines_api_v1_project_baselines_get"];
+        put?: never;
+        /**
+         * Create Project Baseline
+         * @description Freeze the plan as it stands: every task's planned dates and hours and
+         *     every milestone's due date. It never changes; a re-plan the manager
+         *     accepts is the next baseline.
+         */
+        post: operations["create_project_baseline_api_v1_project_baselines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-baselines/{baseline_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Baseline */
+        get: operations["get_project_baseline_api_v1_project_baselines__baseline_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/project-baselines/{baseline_id}/variance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Baseline Variance
+         * @description How far today's plan has moved from this baseline, derived on read:
+         *     per task, start and end moved by how many days, planned hours changed,
+         *     the actual end against the baselined end, and tasks added or removed
+         *     since; per milestone, the due date moved and the reached date against the
+         *     baselined due date; and the plan's finish then and now. Whether a move
+         *     matters is the manager's call.
+         */
+        get: operations["get_project_baseline_variance_api_v1_project_baselines__baseline_id__variance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/project-issues": {
         parameters: {
             query?: never;
@@ -12890,6 +12958,15 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** CreateProjectBaselineRequest */
+        CreateProjectBaselineRequest: {
+            /** Name */
+            name: string;
+            /** Note */
+            note?: string | null;
+            /** Project Id */
+            project_id: string;
+        };
         /** CreateProjectIssueRequest */
         CreateProjectIssueRequest: {
             /** Description */
@@ -12989,12 +13066,8 @@ export interface components {
             project_name: string;
             /** Start Date */
             start_date?: string | null;
-            /**
-             * Status
-             * @default active
-             * @enum {string}
-             */
-            status: "active" | "archived";
+            /** Status */
+            status?: string | null;
         };
         /** CreateProjectTaskDependencyRequest */
         CreateProjectTaskDependencyRequest: {
@@ -15018,6 +15091,11 @@ export interface components {
         /** Envelope[ProductSkuRead] */
         Envelope_ProductSkuRead_: {
             data: components["schemas"]["ProductSkuRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** Envelope[ProjectBaselineRead] */
+        Envelope_ProjectBaselineRead_: {
+            data: components["schemas"]["ProjectBaselineRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** Envelope[ProjectDetailRead] */
@@ -17297,6 +17375,12 @@ export interface components {
             data: components["schemas"]["ProductSkuRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** ListEnvelope[ProjectBaselineRead] */
+        ListEnvelope_ProjectBaselineRead_: {
+            /** Data */
+            data: components["schemas"]["ProjectBaselineRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** ListEnvelope[ProjectIssueRead] */
         ListEnvelope_ProjectIssueRead_: {
             /** Data */
@@ -18492,6 +18576,35 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ProjectBaselineRead */
+        ProjectBaselineRead: {
+            /** Baseline No */
+            baseline_no: number;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Captured By */
+            captured_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Note */
+            note?: string | null;
+            /** Project Id */
+            project_id: string;
+            /** Snapshot */
+            snapshot: {
+                [key: string]: unknown;
+            };
+        };
         /**
          * ProjectDetailRead
          * @description The project and where it came from, in one read: the customer it is
@@ -18640,11 +18753,8 @@ export interface components {
             project_name: string;
             /** Start Date */
             start_date?: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "active" | "archived";
+            /** Status */
+            status: string;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -23383,12 +23493,8 @@ export interface components {
             project_name?: string | null;
             /** Start Date */
             start_date?: string | null;
-            /**
-             * Status
-             * @default active
-             * @enum {string}
-             */
-            status: "active" | "archived";
+            /** Status */
+            status?: string | null;
         };
         /** UpdateProjectTaskRequest */
         UpdateProjectTaskRequest: {
@@ -42238,6 +42344,175 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_BatchCreateProductSkusRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_baselines_api_v1_project_baselines_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose captured_at is at or after this */
+                captured_at_from?: string | null;
+                /** @description rows whose captured_at is at or before this */
+                captured_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ProjectBaselineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_baseline_api_v1_project_baselines_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectBaselineRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectBaselineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_baseline_api_v1_project_baselines__baseline_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                baseline_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProjectBaselineRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_baseline_variance_api_v1_project_baselines__baseline_id__variance_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                baseline_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

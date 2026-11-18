@@ -68,7 +68,8 @@ MEMBER_READS: dict[tuple[str, str], str] = {
     # a project's work is read by everyone who reads the project: the people
     # assigned to it most of all (plan 2026-11-15)
     **{("GET", f"/api/v1/{r}"): "a project's work is read with the project"
-       for r in ("project-tasks", "project-task-dependencies", "project-milestones", "project-issues")},
+       for r in ("project-tasks", "project-task-dependencies", "project-milestones", "project-issues",
+                 "project-baselines")},
     # a status report's words are read with the project; the money frozen in
     # its figures is left out for a reader without the matching grant
     ("GET", "/api/v1/project-reports"): "a report's money is withheld inside without the grant",

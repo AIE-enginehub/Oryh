@@ -183,7 +183,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
         "project.manage",
         False,
         "项目管理",
-        "创建、编辑、归档项目，并把项目链接到客户、商机、合同与负责人；规划项目的任务、依赖与里程碑，处理问题日志，撰写项目周报并查看项目的金额数据；从商机建项目（POST /opportunities/{id}/project）也需要它",
+        "创建、编辑、归档项目，并把项目链接到客户、商机、合同与负责人；规划项目的任务、依赖与里程碑，处理问题日志，撰写项目周报，保存计划基线并查看项目的金额数据；从商机建项目（POST /opportunities/{id}/project）也需要它",
     ),
     # Plan docs/plans/project-management-2026-11-15.md: the person a task is
     # assigned to says when it started and how it stands, and anyone working on

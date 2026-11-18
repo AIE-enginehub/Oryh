@@ -154,6 +154,7 @@ from app.services.provisioning import (
     provision_tenant_defaults,
 )
 from app.services.tenants import create_tenant_with_api_key
+from app.services.type_options import require_type_option
 
 router = APIRouter()
 
@@ -484,6 +485,8 @@ def _project_links(db: Session, tenant_id: str, fields: dict, current: Project |
         get_scoped_or_404(db, Contract, tenant_id, fields["contract_id"])
     if fields.get("owner_employee_id"):
         get_scoped_or_404(db, Employee, tenant_id, fields["owner_employee_id"])
+    if fields.get("status") is not None:
+        require_type_option(db, tenant_id, "project_status", fields["status"])
 
 
 @router.post(
@@ -509,7 +512,7 @@ def create_project(
         opportunity_id=payload.opportunity_id,
         contract_id=payload.contract_id,
         owner_employee_id=payload.owner_employee_id,
-        status=payload.status,
+        status=payload.status or "active",
         start_date=payload.start_date,
         end_date=payload.end_date,
         metadata_jsonb=payload.metadata,
@@ -560,6 +563,9 @@ def update_project(
     require_project_manage(actor)
     project = get_scoped_or_404(db, Project, actor.tenant_id, project_id)
     updates = payload.model_dump(exclude_unset=True)
+    if "status" in updates and updates["status"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                            detail="status: a project always has one — name it")
     _project_links(db, actor.tenant_id, updates, current=project)
     if "metadata" in updates:
         project.metadata_jsonb = updates.pop("metadata")

@@ -881,7 +881,7 @@ Body:
 | `project_code` | string (≤64 chars) | optional |  |
 | `project_name` | string (≤200 chars) | optional |  |
 | `start_date` | date | optional |  |
-| `status` | `active` | `archived` | optional |  |
+| `status` | string (≤50 chars) | optional |  |
 
 ## PATCH /purchase-order-adjustments/{adjustment_id}
 
@@ -1419,7 +1419,7 @@ Body:
 | `owner_employee_id` | string | optional |  |
 | `project_code` | string (≤64 chars) | optional |  |
 | `start_date` | date | optional |  |
-| `status` | `active` | `archived` | optional |  |
+| `status` | string (≤50 chars) | optional |  |
 
 ## POST /purchase-order-adjustments
 

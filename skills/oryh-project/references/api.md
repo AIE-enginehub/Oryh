@@ -6,6 +6,13 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 
 {{include:_common/api-conventions.md}}
 
+## The project
+
+```text
+PATCH  /projects/{id}                  → {status} from GET /type-options?family=project_status; any word may follow any other
+DELETE /projects/{id}                  → status archived
+```
+
 ## Tasks
 
 ```text
@@ -31,6 +38,14 @@ POST   /project-milestones             → {project_id, name, due_date, contract
 PATCH  /project-milestones/{id}        → name, due_date, contract_term_id, invoice_id, description, status (open | cancelled)
 POST   /project-milestones/{id}/reach  → {reached_on, confirmed_by?, evidence_attachment_id?}
 POST   /project-milestones/{id}/reopen → back to open; refused while the invoice that billed it stands
+```
+
+## Baselines
+
+```text
+GET    /project-baselines?project_id=          → latest first
+POST   /project-baselines                      → {project_id, name, note?}; copies every task's planned dates and hours and every milestone's due date; never changes after
+GET    /project-baselines/{id}/variance        → summary {finish_moved_days, tasks_ending_later, tasks_added, ...}, tasks[] {change: kept|added|removed, start_moved_days, end_moved_days, hours_changed, finished_against_baseline_days}, milestones[] {due_moved_days, reached_against_baseline_days}
 ```
 
 ## Issues

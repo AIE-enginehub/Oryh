@@ -306,3 +306,102 @@ def test_the_money_is_each_documents_own_figure_and_withheld_without_the_grant(p
                            employee="Seller")
     partial = p["ok"](p["call"]("GET", f"projects/{p['site']}/execution", who={"X-API-Key": seller["X-API-Key"]}), 200)
     assert set(partial["money"]) == {"billing"} and "billing" not in partial["withheld"]
+
+
+# --- phase 3: the project's life is the workspace's vocabulary ---------------------
+
+
+def test_a_projects_status_is_the_workspaces_word_and_any_may_follow_any(project) -> None:
+    p = project
+    planned = p["ok"](p["call"]("POST", "projects", {"project_name": "Canteen", "status": "planning"}))
+    assert planned["status"] == "planning"
+    assert p["ok"](p["call"]("POST", "projects", {"project_name": "Lobby"}))["status"] == "active"
+    for word in ("active", "on_hold", "active", "closed"):
+        assert p["ok"](p["call"]("PATCH", f"projects/{planned['id']}", {"status": word}), 200)["status"] == word
+    unknown = p["call"]("PATCH", f"projects/{planned['id']}", {"status": "paused"})
+    assert unknown.status_code == 422 and "project_status" in unknown.text
+    assert p["call"]("PATCH", f"projects/{planned['id']}", {"status": None}).status_code == 422
+    p["ok"](p["call"]("POST", "type-options", {"family": "project_status", "name": "warranty",
+                                               "title": "In warranty"}))
+    assert p["ok"](p["call"]("PATCH", f"projects/{planned['id']}", {"status": "warranty"}), 200)["status"] == "warranty"
+    assert p["call"]("DELETE", f"projects/{planned['id']}").status_code == 204
+    assert p["ok"](p["call"]("GET", f"projects/{planned['id']}"), 200)["status"] == "archived"
+    held = p["ok"](p["call"]("GET", "projects", status="archived"), 200)
+    assert [row["id"] for row in held] == [planned["id"]]
+
+
+# --- baselines: the plan as it stood, and how far it has moved ---------------------
+
+
+def test_a_baseline_keeps_the_plan_and_the_variance_says_how_far_it_moved(project) -> None:
+    p = project
+    assert p["call"]("POST", "project-baselines", {"project_id": p["site"], "name": "x"}).status_code == 422
+    phase = p["task"]("Fit-out")
+    racking = p["task"]("Racking", parent_task_id=phase["id"], planned_start="2026-03-02",
+                        planned_end="2026-03-20", planned_hours=40)
+    lighting = p["task"]("Lighting", parent_task_id=phase["id"], planned_start="2026-03-23",
+                         planned_end="2026-03-31", planned_hours=10)
+    handover = p["ok"](p["call"]("POST", "project-milestones", {"project_id": p["site"], "name": "Handover",
+                                                                "due_date": "2026-04-03"}))
+    signed = p["ok"](p["call"]("POST", "project-baselines", {"project_id": p["site"], "name": "Signed plan"}))
+    assert signed["baseline_no"] == 1 and len(signed["snapshot"]["tasks"]) == 3
+
+    # the bolts are late: racking slips a week, lighting follows, the
+    # handover moves, a snagging task is added, the lighting sub-task cut
+    p["ok"](p["call"]("PATCH", f"project-tasks/{racking['id']}", {"planned_end": "2026-03-27", "planned_hours": 48,
+                                                                  "actual_end": "2026-03-26"}), 200)
+    p["ok"](p["call"]("PATCH", f"project-tasks/{lighting['id']}", {"planned_start": "2026-03-30",
+                                                                   "planned_end": "2026-04-07"}), 200)
+    p["task"]("Snagging", parent_task_id=phase["id"], planned_start="2026-04-08", planned_end="2026-04-10",
+              planned_hours=6)
+    p["ok"](p["call"]("PATCH", f"project-milestones/{handover['id']}", {"due_date": "2026-04-10"}), 200)
+
+    moved = p["ok"](p["call"]("GET", f"project-baselines/{signed['id']}/variance"), 200)
+    rows = {row["name"]: row for row in moved["tasks"]}
+    assert (rows["Racking"]["end_moved_days"], rows["Racking"]["hours_changed"]) == (7, 8.0)
+    assert rows["Racking"]["finished_against_baseline_days"] == 6
+    assert (rows["Lighting"]["start_moved_days"], rows["Lighting"]["end_moved_days"]) == (7, 7)
+    assert rows["Snagging"]["change"] == "added"
+    assert moved["milestones"][0]["due_moved_days"] == 7
+    summary = moved["summary"]
+    assert (summary["baseline_finish"], summary["planned_finish"], summary["finish_moved_days"]) == \
+        ("2026-03-31", "2026-04-10", 10)
+    assert (summary["baseline_planned_hours"], summary["planned_hours"]) == (50, 64)
+    assert (summary["tasks_ending_later"], summary["tasks_added"]) == (2, 1)
+
+    kept = p["ok"](p["call"]("GET", f"project-baselines/{signed['id']}"), 200)
+    assert kept["snapshot"] == signed["snapshot"], "the baseline is what stood when it was captured"
+    replan = p["ok"](p["call"]("POST", "project-baselines", {"project_id": p["site"], "name": "After the delay"}))
+    assert replan["baseline_no"] == 2
+    assert p["ok"](p["call"]("GET", f"project-baselines/{replan['id']}/variance"), 200)["summary"]["finish_moved_days"] == 0
+    invited = invite_member(p["c"], p["admin"], "member", [], email="b@build-co.example", employee="Fitter")
+    member = {"X-API-Key": invited["X-API-Key"]}
+    assert [b["baseline_no"] for b in p["ok"](p["call"]("GET", "project-baselines", who=member,
+                                                         project_id=p["site"]), 200)] == [2, 1]
+    assert p["call"]("POST", "project-baselines", {"project_id": p["site"], "name": "x"}, who=member).status_code == 403
+
+
+def test_a_baseline_never_changes_on_any_write_path(project) -> None:
+    from fastapi import HTTPException
+
+    from app.db.session import get_db
+    from app.main import app
+    from app.models import ProjectBaseline
+
+    p = project
+    p["task"]("Racking", planned_end="2026-03-20")
+    signed = p["ok"](p["call"]("POST", "project-baselines", {"project_id": p["site"], "name": "Signed plan"}))
+    db = next(app.dependency_overrides[get_db]())
+    try:
+        row = db.get(ProjectBaseline, signed["id"])
+        row.name = "Rewritten"
+        with pytest.raises(HTTPException) as refused:
+            db.flush()
+        assert refused.value.status_code == 409
+        db.rollback()
+        db.delete(db.get(ProjectBaseline, signed["id"]))
+        with pytest.raises(HTTPException):
+            db.flush()
+    finally:
+        db.rollback()
+        db.close()

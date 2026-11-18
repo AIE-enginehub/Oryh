@@ -25,7 +25,6 @@ from app.core.type_options import TYPE_NAME_PATTERN
 
 
 PrincipalKind = Literal["tenant_service", "hosted_flow_agent"]
-ProjectStatus = Literal["active", "archived"]
 EmployeeStatus = Literal["active", "inactive"]
 ResourceStatus = Literal["active", "inactive", "archived"]
 VendorStatus = Literal["active", "archived"]
@@ -263,7 +262,10 @@ class ProjectBase(RequestModel):
     opportunity_id: str | None = None
     contract_id: str | None = None
     owner_employee_id: str | None = None
-    status: ProjectStatus = "active"
+    # the workspace's vocabulary, GET /type-options?family=project_status
+    # (planning, active, on_hold, closed, cancelled, archived); a new project
+    # starts active unless told otherwise
+    status: str | None = Field(default=None, max_length=50)
     start_date: date | None = None
     end_date: date | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -286,7 +288,7 @@ class ProjectRead(APIModel):
     opportunity_id: str | None = None
     contract_id: str | None = None
     owner_employee_id: str | None = None
-    status: ProjectStatus
+    status: str
     start_date: date | None = None
     end_date: date | None = None
     metadata_jsonb: dict[str, Any] = Field(
@@ -8591,3 +8593,29 @@ class ProjectReportRead(APIModel):
 
 ProjectReportEnvelope = Envelope[ProjectReportRead]
 ProjectReportListEnvelope = ListEnvelope[ProjectReportRead]
+
+
+class CreateProjectBaselineRequest(RequestModel):
+    project_id: str
+    # what this plan is: "Signed plan", "Re-plan after the permit delay"
+    name: str = Field(min_length=1, max_length=200)
+    note: str | None = Field(default=None, max_length=10000)
+
+
+class ProjectBaselineRead(APIModel):
+    id: str
+    project_id: str
+    baseline_no: int
+    name: str
+    note: str | None = None
+    # tasks[] {task_id, task_code, name, parent_task_id, planned_start,
+    # planned_end, planned_hours, status} and milestones[] {milestone_id,
+    # name, due_date, status}, as they stood when captured
+    snapshot: dict[str, Any]
+    captured_by: str
+    captured_at: datetime
+    created_at: datetime
+
+
+ProjectBaselineEnvelope = Envelope[ProjectBaselineRead]
+ProjectBaselineListEnvelope = ListEnvelope[ProjectBaselineRead]

@@ -14,6 +14,7 @@ import { VendorsPage } from "./VendorsPage";
 
 const api = vi.hoisted(() => ({
   listProjects: vi.fn(),
+  listProjectStatuses: vi.fn(),
   createProject: vi.fn(),
   updateProject: vi.fn(),
   archiveProject: vi.fn(),
@@ -102,6 +103,7 @@ function renderPage(node: ReactNode) {
 beforeEach(() => {
   vi.clearAllMocks();
   api.listProjects.mockResolvedValue({ data: [project], meta: { total: 21, page: 1, page_size: 20, pages: 2 } });
+  api.listProjectStatuses.mockResolvedValue([{ name: "active", title: "Active" }, { name: "archived", title: "Archived" }]);
   api.createProject.mockResolvedValue(project);
   api.updateProject.mockResolvedValue(project);
   api.archiveProject.mockResolvedValue(undefined);

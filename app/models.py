@@ -4637,6 +4637,27 @@ class ProjectReport(TenantRecord, Base):
     published_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+
+class ProjectBaseline(TenantRecord, Base):
+    """The plan as it stood when someone said "this is the plan": every
+    task's planned dates and hours and every milestone's due date, copied in.
+    Planned dates move as the agent replans; this does not. It never changes
+    and is never removed — re-baselining is the next number. How far the plan
+    has moved from it is derived on read."""
+
+    __tablename__ = "project_baselines"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "project_id", "baseline_no", name="project_baselines_no_uk"),
+    )
+
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    baseline_no: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(200))
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshot: Mapped[dict] = mapped_column(JsonType)
+    captured_by: Mapped[str] = mapped_column(String(200))
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
 # --- the book (plan docs/plans/accounting-core-2026-11-08.md) ------------------
 
 

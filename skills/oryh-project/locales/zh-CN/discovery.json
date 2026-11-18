@@ -1,3 +1,3 @@
 {
-  "description": "Use when a project manager plans and follows a project in oryh — 拆解项目任务、分配人员与工期、设置任务依赖、设里程碑并记录达成、记录项目问题与风险、写项目周报、看项目进展（工时对比计划、里程碑按期或延期、问题、成本与回款） — the server records and derives; you schedule and judge. Requires project.manage (a member updating their own task or raising an issue needs project.contribute)."
+  "description": "Use when a project manager plans and follows a project in oryh — 拆解项目任务、分配人员与工期、设置任务依赖、设里程碑并记录达成、记录项目问题与风险、写项目周报、推进项目阶段（筹划、进行、暂停、结项）、保存计划基线并对比偏差、看项目进展（工时对比计划、里程碑按期或延期、问题、成本与回款） — the server records and derives; you schedule and judge. Requires project.manage (a member updating their own task or raising an issue needs project.contribute)."
 }

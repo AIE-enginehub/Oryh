@@ -254,6 +254,14 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("project", "Project", "One project's spending"),
         ("other", "Other", "Any other budget"),
     ),
+    "project_status": (
+        ("planning", "Planning", "Being scoped and planned; work not started"),
+        ("active", "Active", "Work under way"),
+        ("on_hold", "On hold", "Paused, expected to resume"),
+        ("closed", "Closed", "Delivered and closed out"),
+        ("cancelled", "Cancelled", "Stopped before delivery"),
+        ("archived", "Archived", "Kept for the record; what DELETE /projects sets"),
+    ),
     "project_task_status": (
         ("not_started", "Not started", "Planned, not begun"),
         ("in_progress", "In progress", "Being worked on"),

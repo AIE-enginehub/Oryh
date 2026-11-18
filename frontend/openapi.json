@@ -15488,6 +15488,39 @@
         "title": "CreateProductSkuRequest",
         "type": "object"
       },
+      "CreateProjectBaselineRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "name"
+        ],
+        "title": "CreateProjectBaselineRequest",
+        "type": "object"
+      },
       "CreateProjectIssueRequest": {
         "additionalProperties": false,
         "properties": {
@@ -15884,13 +15917,16 @@
             "title": "Start Date"
           },
           "status": {
-            "default": "active",
-            "enum": [
-              "active",
-              "archived"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           }
         },
         "required": [
@@ -22840,6 +22876,21 @@
           "data"
         ],
         "title": "Envelope[ProductSkuRead]",
+        "type": "object"
+      },
+      "Envelope_ProjectBaselineRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectBaselineRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ProjectBaselineRead]",
         "type": "object"
       },
       "Envelope_ProjectDetailRead_": {
@@ -30338,6 +30389,25 @@
         "title": "ListEnvelope[ProductSkuRead]",
         "type": "object"
       },
+      "ListEnvelope_ProjectBaselineRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectBaselineRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[ProjectBaselineRead]",
+        "type": "object"
+      },
       "ListEnvelope_ProjectIssueRead_": {
         "properties": {
           "data": {
@@ -33909,6 +33979,68 @@
         "title": "ProductSkuRead",
         "type": "object"
       },
+      "ProjectBaselineRead": {
+        "properties": {
+          "baseline_no": {
+            "title": "Baseline No",
+            "type": "integer"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "captured_by": {
+            "title": "Captured By",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "string"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "title": "Snapshot",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "baseline_no",
+          "name",
+          "snapshot",
+          "captured_by",
+          "captured_at",
+          "created_at"
+        ],
+        "title": "ProjectBaselineRead",
+        "type": "object"
+      },
       "ProjectDetailRead": {
         "description": "The project and where it came from, in one read: the customer it is\nfor, the deal it came from, the contract it runs under, who owns it, and\nevery party to it (plan 2026-10-14).",
         "properties": {
@@ -34406,10 +34538,6 @@
             "title": "Start Date"
           },
           "status": {
-            "enum": [
-              "active",
-              "archived"
-            ],
             "title": "Status",
             "type": "string"
           },
@@ -52941,13 +53069,16 @@
             "title": "Start Date"
           },
           "status": {
-            "default": "active",
-            "enum": [
-              "active",
-              "archived"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Status",
-            "type": "string"
+            "title": "Status"
           }
         },
         "title": "UpdateProjectRequest",
@@ -122115,6 +122246,630 @@
           }
         },
         "summary": "Batch Create Product Skus"
+      }
+    },
+    "/api/v1/project-baselines": {
+      "get": {
+        "description": "A project's baselines, latest first.",
+        "operationId": "list_project_baselines_api_v1_project_baselines_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "description": "rows whose captured_at is at or after this",
+            "in": "query",
+            "name": "captured_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose captured_at is at or after this",
+              "title": "Captured At From"
+            }
+          },
+          {
+            "description": "rows whose captured_at is at or before this",
+            "in": "query",
+            "name": "captured_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose captured_at is at or before this",
+              "title": "Captured At Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_ProjectBaselineRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Project Baselines"
+      },
+      "post": {
+        "description": "Freeze the plan as it stands: every task's planned dates and hours and\nevery milestone's due date. It never changes; a re-plan the manager\naccepts is the next baseline.",
+        "operationId": "create_project_baseline_api_v1_project_baselines_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectBaselineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProjectBaselineRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Project Baseline"
+      }
+    },
+    "/api/v1/project-baselines/{baseline_id}": {
+      "get": {
+        "operationId": "get_project_baseline_api_v1_project_baselines__baseline_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "baseline_id",
+            "required": true,
+            "schema": {
+              "title": "Baseline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProjectBaselineRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project Baseline"
+      }
+    },
+    "/api/v1/project-baselines/{baseline_id}/variance": {
+      "get": {
+        "description": "How far today's plan has moved from this baseline, derived on read:\nper task, start and end moved by how many days, planned hours changed,\nthe actual end against the baselined end, and tasks added or removed\nsince; per milestone, the due date moved and the reached date against the\nbaselined due date; and the plan's finish then and now. Whether a move\nmatters is the manager's call.",
+        "operationId": "get_project_baseline_variance_api_v1_project_baselines__baseline_id__variance_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "baseline_id",
+            "required": true,
+            "schema": {
+              "title": "Baseline Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project Baseline Variance"
       }
     },
     "/api/v1/project-issues": {
