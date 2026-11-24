@@ -4,6 +4,8 @@
 one company per deployment, open source.
 
 [![CI](https://github.com/AIE-enginehub/Oryh/actions/workflows/ci.yml/badge.svg)](https://github.com/AIE-enginehub/Oryh/actions/workflows/ci.yml)
+[![AIE-enginehub/Oryh MCP server](https://glama.ai/mcp/servers/AIE-enginehub/Oryh/badges/score.svg)](https://glama.ai/mcp/servers/AIE-enginehub/Oryh)
+[![Oryh MCP connector](https://glama.ai/mcp/connectors/ai.oryh/oryh/badges/score.svg)](https://glama.ai/mcp/connectors/ai.oryh/oryh)
 
 [Hosted service](https://oryh.ai) · [Video walkthrough](https://youtu.be/xmoYj1fPGxQ) · [Discord](https://discord.gg/dH38JwJUe) · [X](https://x.com/OryhAI) · [YouTube](https://www.youtube.com/@Oryhai) · [Apache-2.0](LICENSE)
 
