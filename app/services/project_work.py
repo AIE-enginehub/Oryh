@@ -209,15 +209,17 @@ def _invoices(db: Session, tenant_id: str, project_id: str, direction: str, as_o
     ).scalars().all()
     invoiced: dict[str, Decimal] = {}
     credited: dict[str, Decimal] = {}
+    count = 0
     for invoice in rows:
         if (_day(invoice.invoice_date, invoice.issued_at, invoice.created_at) or as_of) > as_of:
             continue
+        count += 1
         _add(credited if invoice.invoice_kind == "credit_note" else invoiced, invoice.currency, invoice.total_amount)
     net = dict(invoiced)
     for currency, amount in credited.items():
         net[currency] = net.get(currency, ZERO) + amount
     return {"invoiced": _plain(invoiced), "credited": _plain(credited), "net": _plain(net),
-            "count": len(rows)}
+            "count": count}
 
 
 def money(db: Session, project: Project, as_of: date) -> dict:
@@ -351,14 +353,15 @@ def execution(db: Session, project_id: str, tenant_id: str, as_of: date) -> dict
     for m in db.scalars(select(ProjectMilestone).where(
         ProjectMilestone.tenant_id == tenant_id, ProjectMilestone.project_id == project_id,
     ).order_by(ProjectMilestone.due_date, ProjectMilestone.created_at)):
+        reached_on = m.reached_on if m.reached_on is not None and m.reached_on <= as_of else None
         if m.status == "cancelled":
             where = "cancelled"
-        elif m.reached_on is not None:
-            where = "reached_on_time" if m.reached_on <= m.due_date else "reached_late"
+        elif reached_on is not None:
+            where = "reached_on_time" if reached_on <= m.due_date else "reached_late"
         else:
             where = "overdue" if m.due_date < as_of else "upcoming"
         standing[where] += 1
-        milestones.append({"milestone_id": m.id, "name": m.name, "due_date": m.due_date, "reached_on": m.reached_on,
+        milestones.append({"milestone_id": m.id, "name": m.name, "due_date": m.due_date, "reached_on": reached_on,
                            "standing": where, "invoice_id": m.invoice_id})
     return {
         "project_id": project_id, "as_of": as_of,

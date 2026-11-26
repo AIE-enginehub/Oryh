@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """Load a cohesive fictional sample company ('Northwind Instruments') for evaluators.
 
-Standalone Compose calls the seeder when creating the demo workspace. To
-load the same records into an existing evaluation workspace, run:
+Unlike `ensure_standalone_tenant.py` (which creates an empty workspace on first
+boot), this script is optional and idempotent: operators who want a realistic
+starting dataset to test AI agents against can run:
 
     docker compose exec api python scripts/seed_sample.py
 
-Records are written through the FastAPI routes in one transaction, using a
-temporary service key removed before commit.
+Automatic first boot creates the workspace and sample records in one
+transaction. For a manual import, rerun the same command after an interruption. The
+import recognizes the already committed prefix (including older imports) and
+records completion only after the last journal entry. A finished workspace
+is left alone even if an evaluator subsequently edits the sample records.
+
+All records are written through the real FastAPI routes using a short-lived
+service API key that is deleted in a `finally` block before returning.
 """
 
 from __future__ import annotations
@@ -16,30 +23,75 @@ import argparse
 import asyncio
 import os
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select, text
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, sessionmaker
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.core.permissions import PRINCIPAL_TENANT_SERVICE
 from app.db.session import create_ops_sessionmaker, get_db
 from app.main import app
 from app.models import (
+    AccountingSettings,
     ApiKey,
+    AuditLog,
+    BusinessRule,
+    Customer,
     Employee,
+    Facility,
+    InventoryItem,
+    InventoryItemDetail,
+    Invoice,
+    JournalEntry,
+    LedgerAccount,
     Product,
+    Project,
+    ProjectMilestone,
+    ProjectTask,
+    PurchaseOrder,
+    SalesOrder,
+    SalesQuotation,
     Tenant,
     User,
+    Vendor,
     generate_api_key,
     hash_api_key,
 )
+from app.services.audit import record_audit
 
 SAMPLE_COMPANY_NAME = "Northwind Instruments"
-SAMPLE_SENTINEL_CODE = "NW-CAL-100"
+SAMPLE_SENTINEL_CODE = "NW-CAL-100"  # A product identifier, not a completion marker.
 EPHEMERAL_KEY_LABEL = "_seed_sample_ephemeral"
+SAMPLE_COMPLETED = "sample.northwind_loaded"
+
+# Match only this tenant's committed prefix. For records with generated
+# numbers, identify the sample document by its parties and sample title,
+# not a date (a retry may run tomorrow) or a freshly allocated number.
+_SAMPLE_ROWS = {
+    "/employees": (Employee, ("employee_code", "email")),
+    "/facilities": (Facility, ("facility_code", "name")),
+    "/customers": (Customer, ("customer_code", "name")),
+    "/vendors": (Vendor, ("vendor_code", "name")),
+    "/products": (Product, ("product_code", "name")),
+    "/inventory-items": (InventoryItem, ("product_id", "facility", "lot_id", "sku_id")),
+    "/business-rules": (BusinessRule, ("kind", "code", "title", "body")),
+    "/business-rules/publish": (BusinessRule, ("kind", "entity_kind", "object_type", "title", "body")),
+    "/sales-quotations": (SalesQuotation, ("customer_id", "employee_id", "title")),
+    "/sales-orders": (SalesOrder, ("customer_id", "employee_id", "title")),
+    "/invoices": (Invoice, ("direction", "customer_id", "employee_id", "title")),
+    "/purchase-orders": (PurchaseOrder, ("vendor_id", "employee_id", "title")),
+    "/projects": (Project, ("project_code", "project_name")),
+    "/project-tasks": (ProjectTask, ("project_id", "task_code", "name")),
+    "/project-milestones": (ProjectMilestone, ("project_id", "name")),
+    "/accounting-settings": (AccountingSettings, ("functional_currency",)),
+    "/ledger-accounts": (LedgerAccount, ("account_code", "name", "account_type")),
+    "/journal-entries": (JournalEntry, ("description", "status")),
+}
 
 
 async def _api_call(
@@ -57,11 +109,67 @@ async def _api_call(
     return body.get("data", body)
 
 
+def _committed_sample(db: Session, tenant_id: str, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    model, fields = _SAMPLE_ROWS[path]
+    identity = {field: payload[field] for field in fields}
+    try:
+        existing = db.scalars(select(model).filter_by(tenant_id=tenant_id, **identity)).one_or_none()
+    except MultipleResultsFound as exc:
+        raise RuntimeError(f"seed_sample: ambiguous sample records at {path}; review before resuming") from exc
+    if existing is None:
+        return None
+    if getattr(existing, "deleted_at", None) is not None:
+        raise RuntimeError(f"seed_sample: archived sample record at {path}; review before resuming")
+    if isinstance(existing, (SalesQuotation, SalesOrder, PurchaseOrder, Invoice)):
+        amount = payload.get("total_amount")
+        actual_amount = existing.total_amount
+        if amount is None:
+            amount = sum(item["amount"] for item in payload["items"])
+        if isinstance(existing, Invoice) and actual_amount is None:
+            # A line-item invoice need not repeat its total on the header.
+            actual_amount = sum(line.amount or 0 for line in existing.items if line.deleted_at is None)
+        if existing.currency != payload["currency"] or actual_amount != amount:
+            raise RuntimeError(f"seed_sample: existing document at {path} has a different amount or currency")
+    # Similar descriptions are not proof an opening balance was
+    # posted. Verify the immutable movement/lines, not the live
+    # stock quantity or account balance that could since change.
+    if isinstance(existing, InventoryItem) and not db.scalar(select(InventoryItemDetail.id).filter_by(
+        tenant_id=tenant_id, inventory_item_id=existing.id, reason="initial",
+        description=payload["initial_description"], quantity_on_hand_diff=payload["initial_quantity"],
+    )):
+        raise RuntimeError("seed_sample: existing stock position has a different opening movement")
+    if isinstance(existing, JournalEntry):
+        actual = [(line.ledger_account_id, line.debit, line.credit) for line in existing.lines]
+        expected_lines = [(line["ledger_account_id"], line.get("debit", 0), line.get("credit", 0))
+                          for line in payload["lines"]]
+        if sorted(actual) != sorted(expected_lines):
+            raise RuntimeError("seed_sample: existing journal entry has different lines")
+    return {field: getattr(existing, field) for field in ("id", "name", "product_code", "status")
+            if hasattr(existing, field)}
+
+
 async def _populate_via_api(
     api_key: str,
     admin_employee_id: str,
+    db: Session,
+    tenant_id: str,
+    *,
+    resume: bool = True,
 ) -> dict[str, Any]:
-    today = date.today()
+    recovering = resume
+
+    async def write(path: str, payload: dict[str, Any], *, method: str = "POST", expected=(200, 201)):
+        nonlocal recovering
+        if recovering:
+            committed = _committed_sample(db, tenant_id, path, payload)
+            if committed is not None:
+                return committed
+            # The old script committed requests in order. From the first
+            # missing write onward, use normal API conflict handling: do not
+            # adopt lookalike records later in the workspace.
+            recovering = False
+        return await _api_call(client, method, path, payload, expected=expected)
+
     headers = {"X-API-Key": api_key}
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(
@@ -71,9 +179,7 @@ async def _populate_via_api(
         timeout=30.0,
     ) as client:
         # 1. Colleagues
-        priya = await _api_call(
-            client,
-            "POST",
+        priya = await write(
             "/employees",
             {
                 "employee_code": "NW-002",
@@ -83,9 +189,11 @@ async def _populate_via_api(
                 "metadata": {"department": "Sales", "title": "Account Lead"},
             },
         )
-        daniel = await _api_call(
-            client,
-            "POST",
+        # Date the sample, not this invocation: a retry next month (or year)
+        # must not move half of the example's documents to a new period.
+        sample_date = db.scalars(select(Employee.created_at).filter_by(
+            tenant_id=tenant_id, id=priya["id"])).one().date()
+        daniel = await write(
             "/employees",
             {
                 "employee_code": "NW-003",
@@ -97,9 +205,7 @@ async def _populate_via_api(
         )
 
         # 2. Facility, Customers, Vendors
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/facilities",
             {
                 "facility_code": "WH-MAIN",
@@ -108,9 +214,7 @@ async def _populate_via_api(
                 "address": "410 Harbor Way, Seattle, WA",
             },
         )
-        meridian = await _api_call(
-            client,
-            "POST",
+        meridian = await write(
             "/customers",
             {
                 "customer_code": "CUST-MERIDIAN",
@@ -122,9 +226,7 @@ async def _populate_via_api(
                 "owner_employee_id": priya["id"],
             },
         )
-        cascade = await _api_call(
-            client,
-            "POST",
+        cascade = await write(
             "/customers",
             {
                 "customer_code": "CUST-CASCADE",
@@ -136,9 +238,7 @@ async def _populate_via_api(
                 "owner_employee_id": priya["id"],
             },
         )
-        apex = await _api_call(
-            client,
-            "POST",
+        apex = await write(
             "/vendors",
             {
                 "vendor_code": "VEND-APEX",
@@ -147,9 +247,7 @@ async def _populate_via_api(
                 "email": "supply@apex-sensors.example",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/vendors",
             {
                 "vendor_code": "VEND-PAC",
@@ -160,9 +258,7 @@ async def _populate_via_api(
         )
 
         # 3. Products & Opening Inventory
-        cal_kit = await _api_call(
-            client,
-            "POST",
+        cal_kit = await write(
             "/products",
             {
                 "product_code": SAMPLE_SENTINEL_CODE,
@@ -174,9 +270,7 @@ async def _populate_via_api(
                 "spec": "Field calibration bench, ISO-17025 traceable",
             },
         )
-        probe = await _api_call(
-            client,
-            "POST",
+        probe = await write(
             "/products",
             {
                 "product_code": "NW-PRB-220",
@@ -188,9 +282,7 @@ async def _populate_via_api(
                 "spec": "0-60 bar digital transducer probe",
             },
         )
-        svc_day = await _api_call(
-            client,
-            "POST",
+        svc_day = await write(
             "/products",
             {
                 "product_code": "NW-SVC-DAY",
@@ -202,26 +294,26 @@ async def _populate_via_api(
                 "spec": "Certified engineer field calibration day",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/inventory-items",
             {
                 "product_id": cal_kit["id"],
                 "facility": "Main Warehouse",
+                "lot_id": "",
+                "sku_id": None,
                 "currency": "USD",
                 "unit_cost": 740.0,
                 "initial_quantity": 45,
                 "initial_description": "Opening sample warehouse balance",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/inventory-items",
             {
                 "product_id": probe["id"],
                 "facility": "Main Warehouse",
+                "lot_id": "",
+                "sku_id": None,
                 "currency": "USD",
                 "unit_cost": 135.0,
                 "initial_quantity": 120,
@@ -230,16 +322,14 @@ async def _populate_via_api(
         )
 
         # 4. Published Natural-Language Business Rules
-        discount_draft = await _api_call(
-            client,
-            "POST",
+        discount_draft = await write(
             "/business-rules",
             {
                 "kind": "policy",
                 "code": "SALES-DISC-01",
                 "category": "finance",
                 "title": "Commercial Discount Policy",
-                "effective_from": f"{today.year}-01-01",
+                "effective_from": f"{sample_date.year}-01-01",
                 "body": (
                     "Standard list discounts up to 8% may be offered by the account owner. "
                     "Discounts above 8% up to 15% require operations review; anything above 15% "
@@ -247,16 +337,13 @@ async def _populate_via_api(
                 ),
             },
         )
-        await _api_call(
-            client,
-            "POST",
-            f"/business-rules/{discount_draft['id']}/publish",
-            {"effective_from": f"{today.year}-01-01"},
-            expected=(200,),
-        )
-        await _api_call(
-            client,
-            "POST",
+        if discount_draft["status"] == "draft":
+            recovering = False
+            await _api_call(
+                client, "POST", f"/business-rules/{discount_draft['id']}/publish",
+                {"effective_from": f"{sample_date.year}-01-01"}, expected=(200,),
+            )
+        await write(
             "/business-rules/publish",
             {
                 "kind": "approval_flow",
@@ -271,16 +358,14 @@ async def _populate_via_api(
         )
 
         # 5. Quotations, Sales Orders, Invoices, Purchase Orders
-        quotation = await _api_call(
-            client,
-            "POST",
+        quotation = await write(
             "/sales-quotations",
             {
                 "employee_id": priya["id"],
                 "customer_id": meridian["id"],
                 "title": "Meridian Annual Calibration Package",
-                "quote_date": today.isoformat(),
-                "valid_until": (today + timedelta(days=30)).isoformat(),
+                "quote_date": sample_date.isoformat(),
+                "valid_until": (sample_date + timedelta(days=30)).isoformat(),
                 "currency": "USD",
                 "payment_terms": "Net 30",
                 "total_amount": 11200.0,
@@ -306,16 +391,14 @@ async def _populate_via_api(
                 ],
             },
         )
-        order = await _api_call(
-            client,
-            "POST",
+        order = await write(
             "/sales-orders",
             {
                 "employee_id": priya["id"],
                 "customer_id": cascade["id"],
                 "title": "Cascade Q4 Calibration Supply",
-                "order_date": today.isoformat(),
-                "promised_date": (today + timedelta(days=7)).isoformat(),
+                "order_date": sample_date.isoformat(),
+                "promised_date": (sample_date + timedelta(days=7)).isoformat(),
                 "currency": "USD",
                 "total_amount": 7400.0,
                 "items": [
@@ -338,17 +421,15 @@ async def _populate_via_api(
                 ],
             },
         )
-        invoice = await _api_call(
-            client,
-            "POST",
+        invoice = await write(
             "/invoices",
             {
                 "direction": "sales",
                 "employee_id": daniel["id"],
                 "customer_id": cascade["id"],
                 "title": "Cascade Q4 Calibration Supply",
-                "invoice_date": today.isoformat(),
-                "due_date": (today + timedelta(days=15)).isoformat(),
+                "invoice_date": sample_date.isoformat(),
+                "due_date": (sample_date + timedelta(days=15)).isoformat(),
                 "currency": "USD",
                 "items": [
                     {
@@ -360,18 +441,18 @@ async def _populate_via_api(
                 ],
             },
         )
-        await _api_call(client, "POST", f"/invoices/{invoice['id']}/submit", {}, expected=(200,))
+        if invoice["status"] == "draft":
+            recovering = False
+            await _api_call(client, "POST", f"/invoices/{invoice['id']}/submit", {}, expected=(200,))
 
-        po = await _api_call(
-            client,
-            "POST",
+        po = await write(
             "/purchase-orders",
             {
                 "employee_id": admin_employee_id,
                 "vendor_id": apex["id"],
                 "title": "Sensor Batch Replenishment",
-                "order_date": today.isoformat(),
-                "promised_date": (today + timedelta(days=14)).isoformat(),
+                "order_date": sample_date.isoformat(),
+                "promised_date": (sample_date + timedelta(days=14)).isoformat(),
                 "status": "confirmed",
                 "currency": "USD",
                 "total_amount": 4800.0,
@@ -379,18 +460,14 @@ async def _populate_via_api(
         )
 
         # 6. Project Execution
-        project = await _api_call(
-            client,
-            "POST",
+        project = await write(
             "/projects",
             {
                 "project_code": "PRJ-MERIDIAN",
                 "project_name": "Meridian Calibration Rollout",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/project-tasks",
             {
                 "project_id": project["id"],
@@ -401,9 +478,7 @@ async def _populate_via_api(
                 "status": "in_progress",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/project-tasks",
             {
                 "project_id": project["id"],
@@ -414,28 +489,23 @@ async def _populate_via_api(
                 "status": "not_started",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/project-milestones",
             {
                 "project_id": project["id"],
                 "name": "Customer Sign-Off",
-                "due_date": (today + timedelta(days=21)).isoformat(),
+                "due_date": (sample_date + timedelta(days=21)).isoformat(),
             },
         )
 
         # 7. Accounting Core (Chart + Opening Posted Journal Entry)
-        await _api_call(
-            client,
-            "PUT",
+        await write(
             "/accounting-settings",
             {"functional_currency": "USD"},
+            method="PUT",
             expected=(200,),
         )
-        bank_acc = await _api_call(
-            client,
-            "POST",
+        bank_acc = await write(
             "/ledger-accounts",
             {
                 "account_code": "1002",
@@ -443,9 +513,7 @@ async def _populate_via_api(
                 "account_type": "asset",
             },
         )
-        revenue_acc = await _api_call(
-            client,
-            "POST",
+        revenue_acc = await write(
             "/ledger-accounts",
             {
                 "account_code": "6001",
@@ -453,12 +521,10 @@ async def _populate_via_api(
                 "account_type": "income",
             },
         )
-        await _api_call(
-            client,
-            "POST",
+        await write(
             "/journal-entries",
             {
-                "posting_date": today.isoformat(),
+                "posting_date": sample_date.isoformat(),
                 "description": "Opening sample operating receipt",
                 "status": "posted",
                 "lines": [
@@ -468,6 +534,9 @@ async def _populate_via_api(
             },
         )
 
+        if recovering:
+            # A complete installation from before the completion event existed.
+            return {"already_seeded": True}
         return {
             "already_seeded": False,
             "company": "Northwind Instruments (sample)",
@@ -548,7 +617,7 @@ def populate_sample_workspace(db: Session, tenant_id: str) -> dict[str, Any]:
     previous_override = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = request_db
     try:
-        result = asyncio.run(_populate_via_api(plain_key, admin_employee_id))
+        result = asyncio.run(_populate_via_api(plain_key, admin_employee_id, db, tenant_id, resume=False))
     finally:
         if previous_override is None:
             app.dependency_overrides.pop(get_db, None)
@@ -556,27 +625,72 @@ def populate_sample_workspace(db: Session, tenant_id: str) -> dict[str, Any]:
             app.dependency_overrides[get_db] = previous_override
 
     db.delete(temp_key)
+    record_audit(db, tenant_id=tenant_id, action=SAMPLE_COMPLETED, entity_type="tenant",
+                 entity_id=tenant_id, actor="seed_sample")
     return {**result, "tenant_id": tenant_id}
 
 
 def seed_sample_workspace(db: Session, tenant_id: str | None = None) -> dict[str, Any]:
-    """Populate the sample dataset once in an existing workspace."""
-    tenant_id = str(_resolve_tenant(db, tenant_id).id)
-    if db.scalar(
-        select(Product.id).where(
-            Product.tenant_id == tenant_id,
-            Product.product_code == SAMPLE_SENTINEL_CODE,
-        )
-    ):
-        return {"already_seeded": True, "tenant_id": tenant_id}
+    """Populate a clean sample dataset idempotently via the public API routes."""
+    tenant = _resolve_tenant(db, tenant_id)
+    tenant_id_str = str(tenant.id)
+
+    if db.get_bind().dialect.name == "postgresql":
+        # Serialize imports for this workspace only. The HTTP routes commit
+        # independently, so keep this transaction open until the final marker.
+        db.execute(text("select pg_advisory_xact_lock(hashtextextended(:name, 0))"),
+                   {"name": f"sample.northwind:{tenant_id_str}"})
+    if db.scalar(select(AuditLog.id).filter_by(tenant_id=tenant_id_str, action=SAMPLE_COMPLETED)):
+        db.rollback()
+        return {"already_seeded": True, "tenant_id": tenant_id_str}
+
+    plain_key = generate_api_key()
+    with Session(bind=db.get_bind()) as setup:
+        # The old command could leave a non-expiring key on process death.
+        # Reclaim its reserved service keys, never a user's personal key.
+        stale_keys = delete(ApiKey).filter_by(tenant_id=tenant_id_str, label=EPHEMERAL_KEY_LABEL,
+                                               role="service", user_id=None, principal_kind=PRINCIPAL_TENANT_SERVICE)
+        if db.get_bind().dialect.name != "postgresql":
+            # Without the workspace advisory lock, do not revoke a live retry.
+            stale_keys = stale_keys.where(or_(ApiKey.expires_at.is_(None), ApiKey.expires_at <= datetime.now(timezone.utc)))
+        setup.execute(stale_keys)
+        admin_employee_id = _ensure_admin_employee(setup, tenant_id_str)
+        temp_key = ApiKey(tenant_id=tenant_id_str, key_hash=hash_api_key(plain_key),
+                          label=EPHEMERAL_KEY_LABEL, role="service",
+                          expires_at=datetime.now(timezone.utc) + timedelta(hours=1))
+        setup.add(temp_key)
+        setup.flush()
+        key_id = temp_key.id
+        setup.commit()
+
+    override_sqlite = get_db not in app.dependency_overrides and db.get_bind().dialect.name == "sqlite"
+    if override_sqlite:
+        sqlite_factory = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False, future=True)
+
+        def _override_sqlite_db():
+            session = sqlite_factory()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        app.dependency_overrides[get_db] = _override_sqlite_db
 
     try:
-        result = populate_sample_workspace(db, tenant_id)
-        db.commit()
-    except Exception:
+        summary = asyncio.run(_populate_via_api(plain_key, admin_employee_id, db, tenant_id_str))
+        record_audit(db, tenant_id=tenant_id_str, action=SAMPLE_COMPLETED, entity_type="tenant",
+                     entity_id=tenant_id_str, actor="seed_sample")
+        summary["tenant_id"] = tenant_id_str
+        return summary
+    except BaseException:
         db.rollback()
         raise
-    return result
+    finally:
+        if override_sqlite:
+            app.dependency_overrides.pop(get_db, None)
+        # On success, key removal and completion become visible together.
+        db.execute(delete(ApiKey).where(ApiKey.tenant_id == tenant_id_str, ApiKey.id == key_id))
+        db.commit()
 
 
 def main() -> int:
@@ -593,7 +707,7 @@ def main() -> int:
         return 0
 
     print("")
-    print(f"Loaded fictional sample records ({SAMPLE_COMPANY_NAME}):")
+    print("Loaded fictional sample records (Northwind Instruments):")
     print(f"  customers: {', '.join(result['customers'])}")
     print(f"  products:  {', '.join(result['products'])}")
     print("  rules:     SALES-DISC-01 (policy), sales_quotation (approval_flow)")

@@ -2,6 +2,7 @@
 import re
 from urllib.parse import parse_qs, urlsplit
 import pytest
+from pydantic import SecretStr
 from conftest import make_client
 from test_oauth import _person, _login, _pkce
 from app.core.config import settings
@@ -9,26 +10,38 @@ from app.core.config import settings
 CALLBACK = "workbuddy://workbuddy/mcp/connector%3Aoryh/oauth/callback"
 CLOUD_CALLBACK = "https://open.workbuddy.cn/oauth/callback/connectivity"
 QUALITY_CALLBACK = "https://www.workbuddy.cn/console/as/p/connector/oauth/oryh/connect"
+GLAMA_INSPECTOR_CALLBACK = "https://glama.ai/mcp/inspector/oauth/callback"
+GLAMA_APP_CALLBACK = "https://glama.ai/api/app/mcp/oauth/callback"
+GLAMA_APP_LOOPBACK_CALLBACK = "http://localhost:6749/callback"
 
 
 def test_registration_is_opt_in(monkeypatch):
     monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", False)
+    monkeypatch.setattr(settings, "oauth_glama_registration_enabled", False)
     with make_client() as client:
         assert "registration_endpoint" not in client.get('/.well-known/oauth-authorization-server').json()
         assert client.post('/oauth/register', json={'redirect_uris': [CALLBACK]}).status_code == 404
 
 
-@pytest.mark.parametrize('uri', [CALLBACK, 'http://127.0.0.1:53421/oauth/callback', CLOUD_CALLBACK, QUALITY_CALLBACK])
-def test_registered_client_pkce_consent_and_tool_discovery(monkeypatch, uri):
-    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+@pytest.mark.parametrize(('uri', 'fallback'), [
+    (CALLBACK, None), ('http://127.0.0.1:53421/oauth/callback', None),
+    (CLOUD_CALLBACK, None), (QUALITY_CALLBACK, None),
+    (GLAMA_INSPECTOR_CALLBACK, None), (GLAMA_APP_CALLBACK, None),
+    (GLAMA_APP_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK),
+])
+def test_registered_client_pkce_consent_and_tool_discovery(monkeypatch, uri, fallback):
+    glama = uri in (GLAMA_INSPECTOR_CALLBACK, GLAMA_APP_CALLBACK)
+    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", not glama)
+    monkeypatch.setattr(settings, "oauth_glama_registration_enabled", glama)
     monkeypatch.setattr(settings, "oauth_workbuddy_connectivity_callback_enabled", uri == CLOUD_CALLBACK)
     monkeypatch.setattr(settings, "oauth_workbuddy_quality_evaluation_callback_enabled", uri == QUALITY_CALLBACK)
     with make_client() as client:
         assert client.get('/.well-known/oauth-authorization-server').json()['registration_endpoint'].endswith('/oauth/register')
-        r = client.post('/oauth/register', json={'redirect_uris': [uri], 'client_name': 'Synthetic WorkBuddy', 'grant_types': ['authorization_code', 'refresh_token'], 'token_endpoint_auth_method': 'none'})
+        redirects = [uri, fallback] if fallback else [uri]
+        r = client.post('/oauth/register', json={'redirect_uris': redirects, 'client_name': 'Synthetic MCP client', 'grant_types': ['authorization_code', 'refresh_token'], 'token_endpoint_auth_method': 'none'})
         assert r.status_code == 201, r.text
         registration = r.json()
-        assert registration['redirect_uris'] == [uri]
+        assert registration['redirect_uris'] == redirects
         assert 'client_secret' not in registration
         person = _person(client)
         _login(client, person['email'], person['password'])
@@ -58,7 +71,63 @@ def test_registered_client_pkce_consent_and_tool_discovery(monkeypatch, uri):
                 headers['MCP-Protocol-Version'] = '2025-11-25'
             else:
                 assert len(response.json()['result']['tools']) == 8
+        if glama:
+            refreshed = client.post('/oauth/token', data={
+                'grant_type': 'refresh_token',
+                'client_id': registration['client_id'],
+                'refresh_token': result.json()['refresh_token'],
+            })
+            assert refreshed.status_code == 200, refreshed.text
+            headers['Authorization'] = 'Bearer ' + refreshed.json()['access_token']
+            response = client.post('/mcp', headers=headers, json={
+                'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list',
+            })
+            assert response.status_code == 200
+            assert len(response.json()['result']['tools']) == 8
         assert client.post('/mcp', json={'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'}).status_code == 401
+
+
+def test_glama_only_registration_rejects_other_callbacks(monkeypatch):
+    monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", False)
+    monkeypatch.setattr(settings, "oauth_glama_registration_enabled", True)
+    with make_client() as client:
+        for uri in (
+            CALLBACK, 'http://127.0.0.1:53421/oauth/callback',
+            GLAMA_APP_LOOPBACK_CALLBACK,
+            GLAMA_APP_CALLBACK + '/', GLAMA_APP_CALLBACK + '?alternate=true',
+            GLAMA_INSPECTOR_CALLBACK.replace('glama.ai', 'glama.ai.example.test'),
+        ):
+            response = client.post('/oauth/register', json={'redirect_uris': [uri]})
+            assert response.status_code == 400
+            assert response.json()['error'] == 'invalid_redirect_uri'
+        for redirects in (
+            [GLAMA_APP_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK + '/'],
+            [GLAMA_APP_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK.replace('6749', '6750')],
+            [GLAMA_APP_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK + '?test=1'],
+            [GLAMA_INSPECTOR_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK],
+            [GLAMA_APP_CALLBACK, GLAMA_APP_LOOPBACK_CALLBACK, GLAMA_INSPECTOR_CALLBACK],
+        ):
+            response = client.post('/oauth/register', json={'redirect_uris': redirects})
+            assert response.status_code == 400
+            assert response.json()['error'] == 'invalid_redirect_uri'
+        monkeypatch.setattr(settings, "oauth_dynamic_registration_enabled", True)
+        monkeypatch.setattr(settings, "oauth_glama_registration_enabled", False)
+        response = client.post('/oauth/register', json={'redirect_uris': [GLAMA_APP_CALLBACK]})
+        assert response.status_code == 400
+
+
+def test_glama_ownership_proof_requires_configuration(monkeypatch):
+    path = '/mcp/.well-known/glama.json'
+    monkeypatch.setattr(settings, "glama_connector_claim", None)
+    with make_client() as client:
+        assert client.get(path).status_code == 404
+        monkeypatch.setattr(settings, "glama_connector_claim", SecretStr('synthetic-proof'))
+        response = client.get(path, follow_redirects=False)
+        assert response.status_code == 200
+        assert response.headers['Cache-Control'] == 'no-store'
+        assert response.json() == {
+            '$schema': 'https://glama.ai/mcp/schemas/connector.json', 'claim': 'synthetic-proof',
+        }
 
 
 @pytest.mark.parametrize('uri', ['https://evil.example/callback', 'http://localhost:1234/oauth/callback', 'http://127.0.0.1.evil.example:1234/oauth/callback', 'http://user@127.0.0.1:1234/oauth/callback', 'http://127.0.0.1:1234/oauth/callback#fragment', 'workbuddy://evil/mcp/a/oauth/callback', 'javascript:alert(1)', 'http://127.0.0.1:99999/oauth/callback'])

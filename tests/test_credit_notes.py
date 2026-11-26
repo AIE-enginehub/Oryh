@@ -9,12 +9,12 @@ credit, how much, and whether to refund or offset is the agent's call.
 
 from __future__ import annotations
 
-import pathlib
-
 import pytest
-from sqlalchemy import text as sql_text
+from sqlalchemy import text as sql_text, update
 
+from app.models import Invoice, InvoiceItem, Payment
 from conftest import make_client, provision_tenant
+from scripts.data_integrity_audit import STRUCTURAL_CHECKS
 
 
 @pytest.fixture()
@@ -175,7 +175,8 @@ def test_a_credit_note_is_set_against_an_open_invoice_of_the_same_party(shop) ->
     assert s["outstanding"](original["id"]) == 900.0, "a negative offset takes part of one back"
     rows = s["ok"](s["call"]("GET", f"invoices/{original['id']}/offsets"), 200)
     assert sorted(row["amount"] for row in rows) == [-50.0, 200.0]
-    assert _audit() == {name: 0 for name in AUDITED}
+    with s["c"].session_factory() as db:
+        assert _audit(db) == {name: 0 for name in AUDITED}
 
 
 def test_an_offset_is_taken_back_only_from_the_pair_it_was_set_between(shop) -> None:
@@ -194,26 +195,59 @@ def test_an_offset_is_taken_back_only_from_the_pair_it_was_set_between(shop) -> 
     stolen = s["call"]("POST", f"invoices/{credit['id']}/offsets", {"invoice_id": second["id"], "amount": -300})
     assert stolen.status_code == 409 and "more than was offset between these two" in stolen.text
     assert (s["outstanding"](second["id"]), s["outstanding"](credit["id"])) == (550.0, 0.0)
-    assert _audit() == {name: 0 for name in AUDITED}
+    with s["c"].session_factory() as db:
+        assert _audit(db) == {name: 0 for name in AUDITED}
 
 
-AUDITED = ("invoice applied_amount equals the sum of its applications and offsets",
+BOUNDS = "no invoice is settled beyond what it bills"
+DIRECTION = "applications settle a live document of the right direction and currency"
+AUDITED = (BOUNDS, DIRECTION, "invoice applied_amount equals the sum of its applications and offsets",
            "offsets taken back beyond what was set between the pair",
            "credit notes giving back more than their invoice and its debit notes billed",
            "notes that disagree with their original's party, direction or currency")
 
 
-def _audit() -> dict[str, int]:
-    from app.db.session import get_db
-    from app.main import app
+def _audit(db, names=AUDITED) -> dict[str, int]:
+    checks = dict(STRUCTURAL_CHECKS)
+    return {name: db.execute(sql_text(checks[name])).scalar_one() for name in names}
 
-    source = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "data_integrity_audit.py"
-    text = source.read_text(encoding="utf-8")
-    namespace: dict = {"__file__": str(source)}
-    exec(text[: text.index("def main()")], namespace)
-    checks = dict(namespace["STRUCTURAL_CHECKS"])
-    db = next(app.dependency_overrides[get_db]())
-    try:
-        return {name: db.execute(sql_text(checks[name])).scalar() for name in AUDITED}
-    finally:
-        db.close()
+
+@pytest.mark.parametrize("side,refund_direction", [("sales", "outbound"), ("purchase", "inbound")])
+def test_settlement_audit_accepts_credit_offsets_and_refunds_but_rejects_corruption(shop, side, refund_direction):
+    s = shop
+    party = {"customer_id": s["buyer"]}
+    if side == "purchase":
+        vendor = s["ok"](s["call"]("POST", "vendors", {"name": "Supplier"}))
+        party = {"vendor_id": vendor["id"], "customer_id": None}
+    ordinary = s["invoice"](direction=side, **party)
+    credit = s["ok"](s["note"](ordinary, [(0, -300)], direction=side, **party))
+    s["ok"](s["call"]("POST", f"invoices/{credit['id']}/submit", {}), 200)
+    s["ok"](s["call"]("POST", f"invoices/{credit['id']}/offsets", {"invoice_id": ordinary["id"], "amount": 200}))
+    refund = s["ok"](s["call"]("POST", "payments", {
+        "direction": refund_direction, "employee_id": s["clerk"], "amount": 100, "status": "paid", **party,
+    }))
+    s["ok"](s["call"]("POST", f"payments/{refund['id']}/apply", {"lines": [
+        {"applied_to_type": "invoice", "applied_to_id": credit["id"], "amount_applied": 100}]}), 200)
+    assert s["outstanding"](credit["id"]) == 0
+    with s["c"].session_factory() as db:
+        assert _audit(db) == dict.fromkeys(AUDITED, 0)
+        # An unstated line amount uses quantity times unit price; the two
+        # remaining lines alone would not cover the original invoice's offset.
+        with db.begin_nested() as snapshot:
+            db.execute(update(InvoiceItem).where(InvoiceItem.id == ordinary["items"][0]["id"]).values(
+                amount=None, quantity=10, unit_price=100))
+            assert _audit(db, [BOUNDS]) == {BOUNDS: 0}
+            snapshot.rollback()
+        # Each damaged snapshot must still trip the deployed SQL check.
+        for invoice_id, amount in [(credit["id"], -301), (credit["id"], 1),
+                                   (ordinary["id"], 1051), (ordinary["id"], -1)]:
+            with db.begin_nested() as snapshot:
+                db.execute(update(Invoice).where(Invoice.id == invoice_id).values(applied_amount=amount))
+                assert _audit(db, [BOUNDS]) == {BOUNDS: 1}
+                snapshot.rollback()
+        for changes in [{"direction": "inbound" if refund_direction == "outbound" else "outbound"},
+                        {"currency": "EUR"}]:
+            with db.begin_nested() as snapshot:
+                db.execute(update(Payment).where(Payment.id == refund["id"]).values(**changes))
+                assert _audit(db, [DIRECTION]) == {DIRECTION: 1}
+                snapshot.rollback()

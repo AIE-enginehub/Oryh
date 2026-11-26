@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import Actor, _authenticate
 from app.api.oauth import issuer
 from app.core.browser_auth import CSRF_COOKIE, SESSION_COOKIE
+from app.core.config import settings
 from app.core.request_context import resolved_api_base_url, resolved_base_url
 from app.db.session import get_db
 from app.models import Tenant, User
@@ -376,6 +377,18 @@ async def _handle(request: Request, db: Session, actor: Actor, message: dict) ->
         text = _render(skill.files_jsonb[match.group(2)], _render_context(db, actor))
         return _ok(request_id, {"contents": [{"uri": uri, "mimeType": "text/markdown", "text": text}]})
     return _err(request_id, -32601, f"method not found: {method}")
+
+
+@router.get("/mcp/.well-known/glama.json")
+def glama_connector_proof():
+    """Publish the ownership proof for this connector when configured."""
+    claim = settings.glama_connector_claim
+    if claim is None or not claim.get_secret_value():
+        raise HTTPException(status_code=404, detail="Connector proof is not configured")
+    return JSONResponse(
+        {"$schema": "https://glama.ai/mcp/schemas/connector.json", "claim": claim.get_secret_value()},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.post("/mcp")

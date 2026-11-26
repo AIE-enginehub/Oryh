@@ -161,8 +161,8 @@ def update_project_task(task_id: str, payload: UpdateProjectTaskRequest, actor: 
 @router.delete("/project-tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project_task(task_id: str, actor: Annotated[Actor, Depends(get_actor)],
                         db: Annotated[Session, Depends(get_db)]):
-    """Remove a task nothing points at. One with sub-tasks, dependencies or
-    recorded hours is history: set its status to `cancelled` instead."""
+    """Remove an unreferenced task. Sub-tasks, dependencies, timesheet entries
+    and linked project issues block deletion (409); cancel the task instead."""
     require_permission(actor, "project.manage")
     tenant_id = actor.tenant_id
     task = get_scoped_or_404(db, ProjectTask, tenant_id, task_id)
@@ -175,12 +175,22 @@ def delete_project_task(task_id: str, actor: Annotated[Actor, Depends(get_actor)
         held.append("dependencies")
     if db.scalar(select(TimesheetEntry.id).where(TimesheetEntry.task_id == task.id).limit(1)):
         held.append("recorded hours")
+    if db.scalar(select(ProjectIssue.id).where(ProjectIssue.task_id == task.id).limit(1)):
+        held.append("linked project issues")
     if held:
         work.refuse(_409, f"this task has {', '.join(held)} — set its status to cancelled rather than delete it")
     record_audit(db, tenant_id=tenant_id, action="project.task_removed", entity_type="project",
                  entity_id=task.project_id, actor=actor.label, detail={"task_id": task.id, "name": task.name})
     db.delete(task)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        # A reference may have been committed after the checks above.
+        if (getattr(exc.orig, "sqlstate", None) == "23503"
+                or getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_CONSTRAINT_FOREIGNKEY"):
+            work.refuse(_409, "another record now references this task — set its status to cancelled instead")
+        raise
 
 
 @router.get("/project-tasks", response_model=ProjectTaskListEnvelope, response_model_exclude_unset=True)

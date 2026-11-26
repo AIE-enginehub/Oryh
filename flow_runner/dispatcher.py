@@ -101,9 +101,12 @@ class Dispatcher:
 
         recorded = []
         now = utc_now()
-        for subscription in subscriptions:
-            if not self.due(subscription, now):
-                continue
+        due = [subscription for subscription in subscriptions if self.due(subscription, now)]
+        # When a pass outlasts the cadence, the previous winner is already due
+        # again. Serve untouched subscriptions first, then the oldest poll.
+        never_polled = datetime.min.replace(tzinfo=timezone.utc)
+        due.sort(key=lambda sub: self.state_for(sub["id"]).last_polled_at or never_polled)
+        for subscription in due:
             self.state_for(subscription["id"]).last_polled_at = now
             run, spent_agent = self.dispatch(subscription, trigger=trigger)
             if run is not None:
@@ -120,11 +123,6 @@ class Dispatcher:
                 # minutes on one. The comment over that loop says a tenant's
                 # failure is its own; that is true of exceptions, which are
                 # caught, and was never true of time.
-                #
-                # Nothing is dropped. The subscriptions after this one never
-                # had `last_polled_at` touched, so they are still due on the
-                # next pass, while this one is not — the queue rotates by
-                # itself and no family can starve behind a busier one.
                 #
                 # This bounds what ONE tenant takes; it does not raise the
                 # fleet's throughput, which is still one agent call at a time.

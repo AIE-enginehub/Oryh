@@ -81,7 +81,8 @@ export interface paths {
         /**
          * Put Accounting Settings
          * @description Set the currency the books are kept in. It cannot change once anything
-         *     has posted: every amount in the book is in it.
+         *     has posted: every amount in the book is in it. `fiscal_year_start_month`
+         *     (1-12, default 1) only resolves `year_start` in the statement reads.
          */
         put: operations["put_accounting_settings_api_v1_accounting_settings_put"];
         post?: never;
@@ -1075,6 +1076,32 @@ export interface paths {
         put?: never;
         /** Verify Email */
         post: operations["verify_email_api_v1_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/balance-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Balance Sheet
+         * @description Assets, liabilities and equity at a day, on their natural side, rolled
+         *     up the chart's tree. Equity includes **earnings not yet closed** — every
+         *     income and expense balance to the day — so the sheet is right whether or
+         *     not a year-end closing entry has been posted. `balanced` states assets =
+         *     liabilities + equity; for a book of balanced entries it always holds, and
+         *     `false` is an integrity defect. Carries the open status, drafts and
+         *     coverage counts of `as_of`'s month.
+         */
+        get: operations["get_balance_sheet_api_v1_balance_sheet_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3869,6 +3896,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/income-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Income Statement
+         * @description Income and expenses for a span of days, on their natural side, rolled
+         *     up the chart's tree, and the result (income − expenses) — every figure a
+         *     sum of posted lines. `compare` adds the span before (whole months shift
+         *     by months) or the same dates a year earlier, with the change. Carries
+         *     what makes the figures provisional: `period_status.open_months`, `drafts`
+         *     (draft entries in the span, left out) and the coverage read's `missing`
+         *     and `stale` counts per month.
+         */
+        get: operations["get_income_statement_api_v1_income_statement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inventory-item-details": {
         parameters: {
             query?: never;
@@ -4471,6 +4524,103 @@ export interface paths {
         get: operations["get_account_parties_api_v1_ledger_accounts__account_id__parties_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ledger Coverage
+         * @description What happened in the month that the book does not say, and what the
+         *     book says about documents that no longer count (plan
+         *     docs/plans/ledger-coverage-2026-11-24.md). Per family: how many documents
+         *     counted, how many a posted, unreversed entry names (any event), how many
+         *     a live waiver covers, how many are missing. `missing` lists those, with
+         *     number, day, amount and party; `waived` lists the waived ones with the
+         *     reason and who decided; `stale` lists the live entries dated in the month whose source was
+         *     deleted, voided or cancelled. Which documents must be posted is the
+         *     workspace's posting rule — the server only finds and counts.
+         */
+        get: operations["get_ledger_coverage_api_v1_ledger_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-waivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ledger Waivers
+         * @description Waivers newest first, revoked ones included unless `revoked=false`.
+         *     `source_type` + `source_id` answers "why is this document not in the book".
+         */
+        get: operations["list_ledger_waivers_api_v1_ledger_waivers_get"];
+        put?: never;
+        /**
+         * Create Ledger Waiver
+         * @description Record a person's decision that a document needs no entry — the whole
+         *     document, or one `source_event` of it — with their reason. The coverage
+         *     read then lists it under `waived`, not `missing`. Refused while a posted
+         *     entry records the fact (reverse that first), and posting a waived fact is
+         *     refused until the waiver is revoked. Whether a document needs an entry is
+         *     the workspace's posting rule and the person's call, never the agent's
+         *     alone: `decided_by` names who decided.
+         */
+        post: operations["create_ledger_waiver_api_v1_ledger_waivers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-waivers/{waiver_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ledger Waiver */
+        get: operations["get_ledger_waiver_api_v1_ledger_waivers__waiver_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ledger-waivers/{waiver_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Ledger Waiver
+         * @description Withdraw a waiver: the document is missing again until it is posted or
+         *     waived anew. The waiver stays, revoked, with who revoked it and why.
+         */
+        post: operations["revoke_ledger_waiver_api_v1_ledger_waivers__waiver_id__revoke_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5887,8 +6037,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Project Task
-         * @description Remove a task nothing points at. One with sub-tasks, dependencies or
-         *     recorded hours is history: set its status to `cancelled` instead.
+         * @description Remove an unreferenced task. Sub-tasks, dependencies, timesheet entries
+         *     and linked project issues block deletion (409); cancel the task instead.
          */
         delete: operations["delete_project_task_api_v1_project_tasks__task_id__delete"];
         options?: never;
@@ -8308,6 +8458,11 @@ export interface components {
         };
         /** AccountingSettingsRead */
         AccountingSettingsRead: {
+            /**
+             * Fiscal Year Start Month
+             * @default 1
+             */
+            fiscal_year_start_month: number;
             /** Functional Currency */
             functional_currency: string;
             /** Retained Earnings Account Id */
@@ -8320,6 +8475,8 @@ export interface components {
         };
         /** AccountingSettingsRequest */
         AccountingSettingsRequest: {
+            /** Fiscal Year Start Month */
+            fiscal_year_start_month?: number | null;
             /** Functional Currency */
             functional_currency: string;
             /** Retained Earnings Account Id */
@@ -12551,6 +12708,22 @@ export interface components {
             /** Subledger */
             subledger?: ("customer" | "vendor" | "employee") | null;
         };
+        /**
+         * CreateLedgerWaiverRequest
+         * @description A person's decision that a document needs no entry in the book.
+         */
+        CreateLedgerWaiverRequest: {
+            /** Decided By */
+            decided_by?: string | null;
+            /** Reason */
+            reason: string;
+            /** Source Event */
+            source_event?: string | null;
+            /** Source Id */
+            source_id: string;
+            /** Source Type */
+            source_type: string;
+        };
         /** CreateObjectTypeDefinitionRequest */
         CreateObjectTypeDefinitionRequest: {
             /** Created By */
@@ -14978,6 +15151,11 @@ export interface components {
             data: components["schemas"]["LedgerAccountRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[LedgerWaiverRead] */
+        Envelope_LedgerWaiverRead_: {
+            data: components["schemas"]["LedgerWaiverRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ObjectTypeDefinitionRead] */
         Envelope_ObjectTypeDefinitionRead_: {
             data: components["schemas"]["ObjectTypeDefinitionRead"];
@@ -16892,6 +17070,34 @@ export interface components {
              */
             updated_at: string;
         };
+        /** LedgerWaiverRead */
+        LedgerWaiverRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided By */
+            decided_by: string;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Revoke Reason */
+            revoke_reason?: string | null;
+            /** Revoked At */
+            revoked_at?: string | null;
+            /** Revoked By */
+            revoked_by?: string | null;
+            /** Source Event */
+            source_event?: string | null;
+            /** Source Id */
+            source_id: string;
+            /** Source Type */
+            source_type: string;
+            /** Waived By */
+            waived_by: string;
+        };
         /**
          * LinkFinAccountTransRequest
          * @description The ONLY writable part of a register row after it lands: the
@@ -17277,6 +17483,12 @@ export interface components {
         ListEnvelope_LedgerAccountRead_: {
             /** Data */
             data: components["schemas"]["LedgerAccountRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[LedgerWaiverRead] */
+        ListEnvelope_LedgerWaiverRead_: {
+            /** Data */
+            data: components["schemas"]["LedgerWaiverRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ObjectDirectoryEntryRead] */
@@ -19969,6 +20181,11 @@ export interface components {
             revised_by?: string | null;
             /** Source */
             source?: ("web" | "api" | "ai" | "system") | null;
+        };
+        /** RevokeLedgerWaiverRequest */
+        RevokeLedgerWaiverRequest: {
+            /** Reason */
+            reason?: string | null;
         };
         /** RoleRead */
         RoleRead: {
@@ -26950,6 +27167,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_VerifyEmailResponse_"] | components["schemas"]["Envelope_RegistrationVerificationResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_balance_sheet_api_v1_balance_sheet_get: {
+        parameters: {
+            query?: {
+                /** @description default: today */
+                as_of?: string | null;
+                /** @description previous_period (default: the end of the month before), previous_year or none */
+                compare?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -36747,6 +37005,51 @@ export interface operations {
             };
         };
     };
+    get_income_statement_api_v1_income_statement_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD, or year_start for the start of the financial year date_to falls in; default: the first of date_to's month, or of this month */
+                date_from?: string | null;
+                /** @description default: the end of date_from's month, or of this month */
+                date_to?: string | null;
+                /** @description previous_period (default), previous_year or none */
+                compare?: string | null;
+                /** @description split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned` */
+                by?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_inventory_item_details_api_v1_inventory_item_details_get: {
         parameters: {
             query?: {
@@ -38727,6 +39030,227 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ledger_coverage_api_v1_ledger_coverage_get: {
+        parameters: {
+            query: {
+                /** @description any day of the month to read */
+                period: string;
+                /** @description comma-separated; default invoice,payment,expense_claim,fin_account_transaction. Also payment_application, invoice_offset, billing_account_entry */
+                families?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ledger_waivers_api_v1_ledger_waivers_get: {
+        parameters: {
+            query?: {
+                source_type?: string | null;
+                source_id?: string | null;
+                source_event?: string | null;
+                /** @description true: revoked only; false: live only; unset: both */
+                revoked?: boolean | null;
+                keyword?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose revoked_at is at or after this */
+                revoked_at_from?: string | null;
+                /** @description rows whose revoked_at is at or before this */
+                revoked_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_LedgerWaiverRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_ledger_waiver_api_v1_ledger_waivers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLedgerWaiverRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerWaiverRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ledger_waiver_api_v1_ledger_waivers__waiver_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                waiver_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerWaiverRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_ledger_waiver_api_v1_ledger_waivers__waiver_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                waiver_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RevokeLedgerWaiverRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LedgerWaiverRead_"];
                 };
             };
             /** @description Validation Error */

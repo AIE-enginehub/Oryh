@@ -8174,11 +8174,14 @@ JOURNAL_MONEY_MAX = 999_999_999_999.99
 class AccountingSettingsRequest(RequestModel):
     functional_currency: str = Field(min_length=3, max_length=3)
     retained_earnings_account_id: str | None = None
+    # the month the financial year starts; unchanged when omitted
+    fiscal_year_start_month: int | None = Field(default=None, ge=1, le=12)
 
 
 class AccountingSettingsRead(APIModel):
     functional_currency: str
     retained_earnings_account_id: str | None = None
+    fiscal_year_start_month: int = 1
     updated_at: datetime
 
 
@@ -8619,3 +8622,38 @@ class ProjectBaselineRead(APIModel):
 
 ProjectBaselineEnvelope = Envelope[ProjectBaselineRead]
 ProjectBaselineListEnvelope = ListEnvelope[ProjectBaselineRead]
+
+
+class CreateLedgerWaiverRequest(RequestModel):
+    """A person's decision that a document needs no entry in the book."""
+
+    source_type: str = Field(min_length=1, max_length=40)
+    source_id: str
+    # null waives the document as a whole; otherwise one event (`issued`)
+    source_event: str | None = Field(default=None, min_length=1, max_length=60)
+    # the words a reviewer reads: "pro forma, never billed"
+    reason: str = Field(min_length=1, max_length=4000)
+    # the person who decided; defaults to the writer
+    decided_by: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class RevokeLedgerWaiverRequest(RequestModel):
+    reason: str | None = Field(default=None, max_length=4000)
+
+
+class LedgerWaiverRead(APIModel):
+    id: str
+    source_type: str
+    source_id: str
+    source_event: str | None = None
+    reason: str
+    decided_by: str
+    waived_by: str
+    revoked_at: datetime | None = None
+    revoked_by: str | None = None
+    revoke_reason: str | None = None
+    created_at: datetime
+
+
+LedgerWaiverEnvelope = Envelope[LedgerWaiverRead]
+LedgerWaiverListEnvelope = ListEnvelope[LedgerWaiverRead]

@@ -90,6 +90,11 @@
       },
       "AccountingSettingsRead": {
         "properties": {
+          "fiscal_year_start_month": {
+            "default": 1,
+            "title": "Fiscal Year Start Month",
+            "type": "integer"
+          },
           "functional_currency": {
             "title": "Functional Currency",
             "type": "string"
@@ -121,6 +126,19 @@
       "AccountingSettingsRequest": {
         "additionalProperties": false,
         "properties": {
+          "fiscal_year_start_month": {
+            "anyOf": [
+              {
+                "maximum": 12.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fiscal Year Start Month"
+          },
           "functional_currency": {
             "maxLength": 3,
             "minLength": 3,
@@ -14141,6 +14159,61 @@
         "title": "CreateLedgerAccountRequest",
         "type": "object"
       },
+      "CreateLedgerWaiverRequest": {
+        "additionalProperties": false,
+        "description": "A person's decision that a document needs no entry in the book.",
+        "properties": {
+          "decided_by": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "reason": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_event": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Event"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Source Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_id",
+          "reason"
+        ],
+        "title": "CreateLedgerWaiverRequest",
+        "type": "object"
+      },
       "CreateObjectTypeDefinitionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -22533,6 +22606,21 @@
         "title": "Envelope[LedgerAccountRead]",
         "type": "object"
       },
+      "Envelope_LedgerWaiverRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LedgerWaiverRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[LedgerWaiverRead]",
+        "type": "object"
+      },
       "Envelope_ObjectTypeDefinitionRead_": {
         "properties": {
           "data": {
@@ -28896,6 +28984,95 @@
         "title": "LedgerAccountRead",
         "type": "object"
       },
+      "LedgerWaiverRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "revoke_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoke Reason"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "source_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Event"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "waived_by": {
+            "title": "Waived By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "source_id",
+          "reason",
+          "decided_by",
+          "waived_by",
+          "created_at"
+        ],
+        "title": "LedgerWaiverRead",
+        "type": "object"
+      },
       "LinkFinAccountTransRequest": {
         "additionalProperties": false,
         "description": "The ONLY writable part of a register row after it lands: the\nreconciliation links. Everything else is the bank's fact — a wrong one is\ncorrected by a counter-entry, and any other field here is a 422 by the\nstrict-request rule, which is the immutability teaching itself.",
@@ -30083,6 +30260,25 @@
           "data"
         ],
         "title": "ListEnvelope[LedgerAccountRead]",
+        "type": "object"
+      },
+      "ListEnvelope_LedgerWaiverRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerWaiverRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[LedgerWaiverRead]",
         "type": "object"
       },
       "ListEnvelope_ObjectDirectoryEntryRead_": {
@@ -38663,6 +38859,25 @@
           }
         },
         "title": "ReviseSalesQuotationRequest",
+        "type": "object"
+      },
+      "RevokeLedgerWaiverRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "RevokeLedgerWaiverRequest",
         "type": "object"
       },
       "RoleRead": {
@@ -57781,7 +57996,7 @@
         "summary": "Get Accounting Settings"
       },
       "put": {
-        "description": "Set the currency the books are kept in. It cannot change once anything\nhas posted: every amount in the book is in it.",
+        "description": "Set the currency the books are kept in. It cannot change once anything\nhas posted: every amount in the book is in it. `fiscal_year_start_month`\n(1-12, default 1) only resolves `year_start` in the statement reads.",
         "operationId": "put_accounting_settings_api_v1_accounting_settings_put",
         "parameters": [
           {
@@ -64549,6 +64764,152 @@
           }
         },
         "summary": "Verify Email"
+      }
+    },
+    "/api/v1/balance-sheet": {
+      "get": {
+        "description": "Assets, liabilities and equity at a day, on their natural side, rolled\nup the chart's tree. Equity includes **earnings not yet closed** — every\nincome and expense balance to the day — so the sheet is right whether or\nnot a year-end closing entry has been posted. `balanced` states assets =\nliabilities + equity; for a book of balanced entries it always holds, and\n`false` is an integrity defect. Carries the open status, drafts and\ncoverage counts of `as_of`'s month.",
+        "operationId": "get_balance_sheet_api_v1_balance_sheet_get",
+        "parameters": [
+          {
+            "description": "default: today",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: today",
+              "title": "As Of"
+            }
+          },
+          {
+            "description": "previous_period (default: the end of the month before), previous_year or none",
+            "in": "query",
+            "name": "compare",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "previous_period (default: the end of the month before), previous_year or none",
+              "title": "Compare"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Balance Sheet"
       }
     },
     "/api/v1/billing-account-entries": {
@@ -101301,6 +101662,188 @@
         "summary": "Get Geo Path"
       }
     },
+    "/api/v1/income-statement": {
+      "get": {
+        "description": "Income and expenses for a span of days, on their natural side, rolled\nup the chart's tree, and the result (income − expenses) — every figure a\nsum of posted lines. `compare` adds the span before (whole months shift\nby months) or the same dates a year earlier, with the change. Carries\nwhat makes the figures provisional: `period_status.open_months`, `drafts`\n(draft entries in the span, left out) and the coverage read's `missing`\nand `stale` counts per month.",
+        "operationId": "get_income_statement_api_v1_income_statement_get",
+        "parameters": [
+          {
+            "description": "YYYY-MM-DD, or year_start for the start of the financial year date_to falls in; default: the first of date_to's month, or of this month",
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD, or year_start for the start of the financial year date_to falls in; default: the first of date_to's month, or of this month",
+              "title": "Date From"
+            }
+          },
+          {
+            "description": "default: the end of date_from's month, or of this month",
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: the end of date_from's month, or of this month",
+              "title": "Date To"
+            }
+          },
+          {
+            "description": "previous_period (default), previous_year or none",
+            "in": "query",
+            "name": "compare",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "previous_period (default), previous_year or none",
+              "title": "Compare"
+            }
+          },
+          {
+            "description": "split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned`",
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned`",
+              "title": "By"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Income Statement"
+      }
+    },
     "/api/v1/inventory-item-details": {
       "get": {
         "operationId": "list_inventory_item_details_api_v1_inventory_item_details_get",
@@ -109141,6 +109684,865 @@
           }
         },
         "summary": "Get Account Parties"
+      }
+    },
+    "/api/v1/ledger-coverage": {
+      "get": {
+        "description": "What happened in the month that the book does not say, and what the\nbook says about documents that no longer count (plan\ndocs/plans/ledger-coverage-2026-11-24.md). Per family: how many documents\ncounted, how many a posted, unreversed entry names (any event), how many\na live waiver covers, how many are missing. `missing` lists those, with\nnumber, day, amount and party; `waived` lists the waived ones with the\nreason and who decided; `stale` lists the live entries dated in the month whose source was\ndeleted, voided or cancelled. Which documents must be posted is the\nworkspace's posting rule — the server only finds and counts.",
+        "operationId": "get_ledger_coverage_api_v1_ledger_coverage_get",
+        "parameters": [
+          {
+            "description": "any day of the month to read",
+            "in": "query",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "description": "any day of the month to read",
+              "format": "date",
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "description": "comma-separated; default invoice,payment,expense_claim,fin_account_transaction. Also payment_application, invoice_offset, billing_account_entry",
+            "in": "query",
+            "name": "families",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "comma-separated; default invoice,payment,expense_claim,fin_account_transaction. Also payment_application, invoice_offset, billing_account_entry",
+              "title": "Families"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ledger Coverage"
+      }
+    },
+    "/api/v1/ledger-waivers": {
+      "get": {
+        "description": "Waivers newest first, revoked ones included unless `revoked=false`.\n`source_type` + `source_id` answers \"why is this document not in the book\".",
+        "operationId": "list_ledger_waivers_api_v1_ledger_waivers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_event",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Event"
+            }
+          },
+          {
+            "description": "true: revoked only; false: live only; unset: both",
+            "in": "query",
+            "name": "revoked",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: revoked only; false: live only; unset: both",
+              "title": "Revoked"
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Keyword"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "description": "rows whose revoked_at is at or after this",
+            "in": "query",
+            "name": "revoked_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose revoked_at is at or after this",
+              "title": "Revoked At From"
+            }
+          },
+          {
+            "description": "rows whose revoked_at is at or before this",
+            "in": "query",
+            "name": "revoked_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose revoked_at is at or before this",
+              "title": "Revoked At Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_LedgerWaiverRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ledger Waivers"
+      },
+      "post": {
+        "description": "Record a person's decision that a document needs no entry — the whole\ndocument, or one `source_event` of it — with their reason. The coverage\nread then lists it under `waived`, not `missing`. Refused while a posted\nentry records the fact (reverse that first), and posting a waived fact is\nrefused until the waiver is revoked. Whether a document needs an entry is\nthe workspace's posting rule and the person's call, never the agent's\nalone: `decided_by` names who decided.",
+        "operationId": "create_ledger_waiver_api_v1_ledger_waivers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLedgerWaiverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LedgerWaiverRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Ledger Waiver"
+      }
+    },
+    "/api/v1/ledger-waivers/{waiver_id}": {
+      "get": {
+        "operationId": "get_ledger_waiver_api_v1_ledger_waivers__waiver_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "waiver_id",
+            "required": true,
+            "schema": {
+              "title": "Waiver Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LedgerWaiverRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ledger Waiver"
+      }
+    },
+    "/api/v1/ledger-waivers/{waiver_id}/revoke": {
+      "post": {
+        "description": "Withdraw a waiver: the document is missing again until it is posted or\nwaived anew. The waiver stays, revoked, with who revoked it and why.",
+        "operationId": "revoke_ledger_waiver_api_v1_ledger_waivers__waiver_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "waiver_id",
+            "required": true,
+            "schema": {
+              "title": "Waiver Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RevokeLedgerWaiverRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LedgerWaiverRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Ledger Waiver"
       }
     },
     "/api/v1/my/skill-bundle": {
@@ -126697,7 +128099,7 @@
     },
     "/api/v1/project-tasks/{task_id}": {
       "delete": {
-        "description": "Remove a task nothing points at. One with sub-tasks, dependencies or\nrecorded hours is history: set its status to `cancelled` instead.",
+        "description": "Remove an unreferenced task. Sub-tasks, dependencies, timesheet entries\nand linked project issues block deletion (409); cancel the task instead.",
         "operationId": "delete_project_task_api_v1_project_tasks__task_id__delete",
         "parameters": [
           {

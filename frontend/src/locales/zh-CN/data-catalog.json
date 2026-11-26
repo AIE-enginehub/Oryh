@@ -457,6 +457,10 @@
       "label": "Ledger accounts",
       "related": {}
     },
+    "ledger-waivers": {
+      "label": "Ledger waivers",
+      "related": {}
+    },
     "project-baselines": {
       "label": "Project baselines",
       "related": {}

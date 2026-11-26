@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import event, func, inspect, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -37,6 +37,7 @@ from app.models import (
     JournalEntry,
     JournalLine,
     LedgerAccount,
+    LedgerWaiver,
     Payment,
     PaymentApplication,
     Project,
@@ -222,6 +223,10 @@ def post(db: Session, entry: JournalEntry, actor_label: str) -> None:
     check_source(db, entry.tenant_id, entry.source_type, entry.source_id)
     require_open(db, entry.tenant_id, entry.posting_date)
     if entry.source_type is not None:
+        lock_source(db, entry.source_type, entry.source_id)
+        waiver = live_waiver(db, entry.tenant_id, entry.source_type, entry.source_id, entry.source_event)
+        if waiver is not None:
+            refuse(status.HTTP_409_CONFLICT, waived_fact(waiver))
         # A read, then a write: two posts of one fact at once both pass here.
         # `journal_entries_source_uk` is what refuses the second — this check
         # only gives the common case its sentence. Keep the index.
@@ -236,6 +241,64 @@ def post(db: Session, entry: JournalEntry, actor_label: str) -> None:
     entry.status = "posted"
     entry.posted_at = datetime.now(timezone.utc)
     entry.posted_by = actor_label
+
+
+def lock_source(db: Session, source_type: str, source_id: str) -> None:
+    """Row-lock the source document. Posting a fact and waiving it both take
+    this lock, so the two cannot pass their checks at the same instant and
+    leave a fact both in the book and waived."""
+    model = SOURCE_MODELS[source_type]
+    db.execute(select(model.id).where(model.id == source_id).with_for_update())
+
+
+def live_waiver(db: Session, tenant_id: str, source_type: str, source_id: str,
+                source_event: str | None) -> LedgerWaiver | None:
+    """The live waiver that covers this fact: one for the whole document, or
+    one for this event."""
+    return db.scalar(select(LedgerWaiver).where(
+        LedgerWaiver.tenant_id == tenant_id, LedgerWaiver.revoked_at.is_(None),
+        LedgerWaiver.source_type == source_type, LedgerWaiver.source_id == source_id,
+        or_(LedgerWaiver.source_event.is_(None),
+            func.coalesce(LedgerWaiver.source_event, "") == (source_event or "")),
+    ).limit(1))
+
+
+def waived_fact(waiver: LedgerWaiver) -> str:
+    what = f"{waiver.source_type} {waiver.source_id}" + (f" ({waiver.source_event})" if waiver.source_event else "")
+    return (f"{what} is waived — {waiver.decided_by} decided it needs no entry: {waiver.reason!r}. "
+            f"Revoke the waiver first (POST /ledger-waivers/{waiver.id}/revoke) to post it")
+
+
+def recording_entry(db: Session, tenant_id: str, source_type: str, source_id: str,
+                    source_event: str | None) -> JournalEntry | None:
+    """A live posted entry for this fact; with no event, for any event of the
+    document."""
+    conditions = [JournalEntry.tenant_id == tenant_id, JournalEntry.status == "posted",
+                  JournalEntry.reversed_at.is_(None), JournalEntry.deleted_at.is_(None),
+                  JournalEntry.source_type == source_type, JournalEntry.source_id == source_id]
+    if source_event is not None:
+        conditions.append(func.coalesce(JournalEntry.source_event, "") == source_event)
+    return db.scalar(select(JournalEntry).where(*conditions).order_by(JournalEntry.posting_date).limit(1))
+
+
+_REVOCATION = frozenset({"revoked_at", "revoked_by", "revoke_reason", "updated_at"})
+
+
+@event.listens_for(Session, "before_flush")
+def _kept_waivers(session: Session, flush_context, instances) -> None:
+    """A waiver is a decision on the record: never deleted, never edited.
+    The only change it takes is its revocation, once."""
+    for waiver in session.deleted:
+        if isinstance(waiver, LedgerWaiver):
+            refuse(status.HTTP_409_CONFLICT, "a waiver is kept — revoke it instead")
+    for waiver in session.dirty:
+        if not isinstance(waiver, LedgerWaiver):
+            continue
+        state = inspect(waiver)
+        if any(attr.key not in _REVOCATION and attr.history.has_changes() for attr in state.attrs):
+            refuse(status.HTTP_409_CONFLICT, "a waiver never changes — revoke it and record a new one")
+        if state.attrs.revoked_at.history.deleted and state.attrs.revoked_at.history.deleted[0] is not None:
+            refuse(status.HTTP_409_CONFLICT, "a revoked waiver stays revoked — record a new one")
 
 
 def duplicate_source(existing: JournalEntry) -> str:

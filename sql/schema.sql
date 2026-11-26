@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261117_0113
+-- Alembic revision: 20261125_0115
 --
 
 --
@@ -67,7 +67,9 @@ CREATE TABLE oryh.accounting_settings (
     functional_currency character varying(3) NOT NULL,
     retained_earnings_account_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    fiscal_year_start_month smallint DEFAULT 1 NOT NULL,
+    CONSTRAINT accounting_settings_fiscal_month_chk CHECK (((fiscal_year_start_month >= 1) AND (fiscal_year_start_month <= 12)))
 );
 
 
@@ -1541,6 +1543,29 @@ CREATE TABLE oryh.ledger_accounts (
     CONSTRAINT ledger_accounts_not_own_parent_chk CHECK (((parent_id IS NULL) OR (parent_id <> id))),
     CONSTRAINT ledger_accounts_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[]))),
     CONSTRAINT ledger_accounts_subledger_chk CHECK ((((subledger)::text = ANY ((ARRAY['customer'::character varying, 'employee'::character varying, 'vendor'::character varying])::text[])) OR (subledger IS NULL)))
+);
+
+
+--
+-- Name: ledger_waivers; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.ledger_waivers (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    source_type character varying(40) NOT NULL,
+    source_id uuid NOT NULL,
+    source_event character varying(60),
+    reason text NOT NULL,
+    decided_by character varying(200) NOT NULL,
+    waived_by character varying(200) NOT NULL,
+    revoked_at timestamp with time zone,
+    revoked_by character varying(200),
+    revoke_reason text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ledger_waivers_reason_chk CHECK ((length(TRIM(BOTH FROM reason)) > 0)),
+    CONSTRAINT ledger_waivers_revoked_chk CHECK ((((revoked_at IS NULL) AND (revoked_by IS NULL)) OR ((revoked_at IS NOT NULL) AND (revoked_by IS NOT NULL))))
 );
 
 
@@ -3710,6 +3735,14 @@ ALTER TABLE ONLY oryh.ledger_accounts
 
 ALTER TABLE ONLY oryh.ledger_accounts
     ADD CONSTRAINT ledger_accounts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ledger_waivers ledger_waivers_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.ledger_waivers
+    ADD CONSTRAINT ledger_waivers_pkey PRIMARY KEY (id);
 
 
 --
@@ -6228,6 +6261,27 @@ CREATE INDEX ledger_accounts_parent_id_idx ON oryh.ledger_accounts USING btree (
 --
 
 CREATE INDEX ledger_accounts_tenant_id_idx ON oryh.ledger_accounts USING btree (tenant_id);
+
+
+--
+-- Name: ledger_waivers_live_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX ledger_waivers_live_uk ON oryh.ledger_waivers USING btree (tenant_id, source_type, source_id, COALESCE(source_event, ''::character varying)) WHERE (revoked_at IS NULL);
+
+
+--
+-- Name: ledger_waivers_source_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ledger_waivers_source_idx ON oryh.ledger_waivers USING btree (source_type, source_id);
+
+
+--
+-- Name: ledger_waivers_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX ledger_waivers_tenant_id_idx ON oryh.ledger_waivers USING btree (tenant_id);
 
 
 --
@@ -10241,6 +10295,12 @@ ALTER TABLE oryh.leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.ledger_accounts ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: ledger_waivers; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.ledger_waivers ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: object_type_definitions; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -10900,6 +10960,13 @@ CREATE POLICY tenant_isolation ON oryh.ledger_accounts USING ((((tenant_id)::tex
 
 
 --
+-- Name: ledger_waivers tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.ledger_waivers USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
 -- Name: object_type_definitions tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
 --
 
@@ -11353,3 +11420,4 @@ ALTER TABLE oryh.vendors ENABLE ROW LEVEL SECURITY;
 --
 -- PostgreSQL database dump complete
 --
+

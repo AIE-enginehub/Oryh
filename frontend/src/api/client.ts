@@ -403,6 +403,10 @@ export function listCustomers(
   );
 }
 
+export function getCustomer(id: string): Promise<CustomerRead> {
+  return apiRequest<CustomerRead>(`/api/v1/customers/${encodeURIComponent(id)}`);
+}
+
 export function createCustomer(input: CustomerCreate): Promise<CustomerRead> {
   return jsonRequest<CustomerRead>("/api/v1/customers", "POST", input);
 }

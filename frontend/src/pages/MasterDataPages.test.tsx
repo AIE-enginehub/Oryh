@@ -1,4 +1,5 @@
 import { zhCN } from "../locales/zh-CN/tests";
+import { zhCN as consoleCopy } from "../locales/zh-CN/console";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -24,6 +25,8 @@ const api = vi.hoisted(() => ({
   archiveVendor: vi.fn(),
   listCustomers: vi.fn(),
   listEmployees: vi.fn(),
+  getEmployee: vi.fn(),
+  getCustomer: vi.fn(),
   createCustomer: vi.fn(),
   updateCustomer: vi.fn(),
   archiveCustomer: vi.fn(),
@@ -162,6 +165,56 @@ describe("project master data", () => {
     expect(within(confirm).getByText(zhCN.pagesMasterDataPages.pattern2())).toBeInTheDocument();
     await user.click(within(confirm).getByRole("button", { name: zhCN.pagesMasterDataPages.name11 }));
     await waitFor(() => expect(api.archiveProject).toHaveBeenCalledWith("project-1"));
+  });
+
+  it("pages and searches active project links beyond row 200 and saves their ids", async () => {
+    const user = userEvent.setup();
+    function directory(type: string) {
+      const rows = Array.from({ length: 205 }, (_, i) => ({ id: `${type}-${i + 1}`, name: `${type} ${i + 1}` }));
+      return ({ page, size, keyword, status }: { page: number; size: number; keyword?: string; status: string }) => {
+        expect(status).toBe("active");
+        const filtered = rows.filter((row) => !keyword || row.name.includes(keyword));
+        return Promise.resolve({
+          data: filtered.slice((page - 1) * size, page * size),
+          meta: { total: filtered.length, page, page_size: size, pages: Math.ceil(filtered.length / size) },
+        });
+      };
+    }
+    api.listCustomers.mockImplementation(directory("Customer"));
+    api.listEmployees.mockImplementation(directory("Employee"));
+    renderPage(<ProjectsPage />);
+    await user.click(await screen.findByRole("button", { name: project.project_name }));
+    const drawer = within(screen.getByRole("dialog"));
+    const customerSelect = drawer.getByRole("combobox", { name: consoleCopy.pagesProjectsPage.customer });
+    const ownerSelect = drawer.getByRole("combobox", { name: consoleCopy.pagesProjectsPage.owner });
+    for (const first of [1, 51, 101, 151]) {
+      await within(customerSelect).findByRole("option", { name: `Customer ${first}` });
+      await user.click(within(customerSelect.parentElement!).getByRole("button", { name: consoleCopy.componentsMasterDataPagination.next }));
+    }
+    await user.selectOptions(customerSelect, await within(customerSelect).findByRole("option", { name: "Customer 201" }));
+    const search = drawer.getByRole("searchbox", { name: consoleCopy.pagesProjectsPage.searchRecords(consoleCopy.pagesProjectsPage.owner) });
+    await user.type(search, "Employee 205");
+    await user.selectOptions(ownerSelect, await within(ownerSelect).findByRole("option", { name: "Employee 205" }));
+    await user.click(drawer.getByRole("button", { name: consoleCopy.pagesProjectsPage.saveChanges }));
+    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith(project.id,
+      expect.objectContaining({ customer_id: "Customer-201", owner_employee_id: "Employee-205" })));
+  });
+
+  it("displays existing off-page links by name and preserves them on unrelated edits", async () => {
+    const user = userEvent.setup();
+    api.listProjects.mockResolvedValue({ data: [{ ...project, customer_id: "c-201", owner_employee_id: "e-205" }],
+      meta: { total: 1, page: 1, page_size: 20, pages: 1 } });
+    api.getCustomer.mockResolvedValue({ id: "c-201", name: "Original customer" });
+    api.getEmployee.mockResolvedValue({ id: "e-205", name: "Original owner" });
+    renderPage(<ProjectsPage />);
+    await user.click(await screen.findByRole("button", { name: project.project_name }));
+    const drawer = within(screen.getByRole("dialog"));
+    expect(await drawer.findByDisplayValue("Original customer")).toHaveValue("c-201");
+    expect(await drawer.findByDisplayValue("Original owner")).toHaveValue("e-205");
+    await user.type(drawer.getByLabelText(consoleCopy.pagesProjectsPage.projectCode), "-new");
+    await user.click(drawer.getByRole("button", { name: consoleCopy.pagesProjectsPage.saveChanges }));
+    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith(project.id,
+      expect.objectContaining({ customer_id: "c-201", owner_employee_id: "e-205", project_code: "PRJ-001-new" })));
   });
 
   it("returns to the first page after archiving the only row on a later page", async () => {

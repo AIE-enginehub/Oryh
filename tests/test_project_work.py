@@ -70,6 +70,22 @@ def test_dependencies_are_facts_that_never_loop(project) -> None:
     assert held.status_code == 409 and "cancelled" in held.text
 
 
+def test_issue_reference_prevents_deletion_and_preserves_task_history(project) -> None:
+    p = project
+    task = p["task"]("Inspection")
+    issue = p["ok"](p["call"]("POST", "project-issues", {
+        "project_id": p["site"], "task_id": task["id"], "title": "Inspection delayed",
+    }))
+    held = p["call"]("DELETE", f"project-tasks/{task['id']}")
+    assert held.status_code == 409
+    assert "project issues" in held.text and "cancelled" in held.text
+    cancelled = p["ok"](p["call"]("PATCH", f"project-tasks/{task['id']}", {"status": "cancelled"}), 200)
+    assert cancelled["status"] == "cancelled"
+    assert p["ok"](p["call"]("GET", f"project-issues/{issue['id']}"), 200)["task_id"] == task["id"]
+    spare = p["task"]("Spare")
+    assert p["call"]("DELETE", f"project-tasks/{spare['id']}").status_code == 204
+
+
 def test_the_person_assigned_states_how_their_task_stands_and_nothing_else(project) -> None:
     p = project
     invited = invite_member(p["c"], p["admin"], "member", [], email="w@build-co.example", employee="Worker")
@@ -254,6 +270,25 @@ def test_a_published_report_keeps_its_words_and_figures_and_a_correction_is_a_re
     assert [r["revision"] for r in history] == [2, 1]
 
 
+def test_late_publication_freezes_milestones_at_period_end(project) -> None:
+    p = project
+    for reached_on in ("2026-03-08", "2026-03-09"):
+        milestone = p["ok"](p["call"]("POST", "project-milestones", {
+            "project_id": p["site"], "name": reached_on, "due_date": "2026-03-07",
+        }))
+        p["ok"](p["call"]("POST", f"project-milestones/{milestone['id']}/reach", {"reached_on": reached_on}), 200)
+    draft = p["ok"](p["call"]("POST", "project-reports", {
+        "project_id": p["site"], "period_start": "2026-03-02", "period_end": "2026-03-08",
+        "health": "amber", "summary": "Week ending March 8",
+    }))
+    p["ok"](p["call"]("POST", f"project-reports/{draft['id']}/publish"), 200)
+    figures = p["ok"](p["call"]("GET", f"project-reports/{draft['id']}"), 200)["figures"]
+    assert figures["milestone_standing"] == {"reached_late": 1, "overdue": 1}
+    assert {m["name"]: m["reached_on"] for m in figures["milestones"]} == {
+        "2026-03-08": "2026-03-08", "2026-03-09": None,
+    }
+
+
 def test_the_money_is_each_documents_own_figure_and_withheld_without_the_grant(project) -> None:
     p = project
     staff = p["ok"](p["call"]("POST", "employees", {"name": "Buyer"}))["id"]
@@ -296,6 +331,11 @@ def test_the_money_is_each_documents_own_figure_and_withheld_without_the_grant(p
     assert money["billing"]["contract_value"] == {"CNY": 100000.0}
     before = p["ok"](p["call"]("GET", f"projects/{p['site']}/execution", as_of="2026-03-11"), 200)["money"]
     assert before["billing"]["net"] == {}
+    assert before["billing"]["count"] == 0
+    assert before["purchase_invoices"]["count"] == 1
+    on_invoice_day = p["ok"](p["call"]("GET", f"projects/{p['site']}/execution", as_of="2026-03-12"), 200)
+    assert on_invoice_day["money"]["billing"]["count"] == 1
+    assert money["billing"]["count"] == 2
 
     invited = invite_member(p["c"], p["admin"], "member", [], email="m@build-co.example", employee="Fitter")
     member = p["ok"](p["call"]("GET", f"projects/{p['site']}/execution", who={"X-API-Key": invited["X-API-Key"]}), 200)

@@ -21638,6 +21638,153 @@
       "related": []
     },
     {
+      "key": "ledger-waivers",
+      "path": "/api/v1/ledger-waivers",
+      "group": "other",
+      "label": [
+        "Ledger waivers",
+        "Ledger waivers"
+      ],
+      "filters": [
+        {
+          "name": "source_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_id",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "revoked",
+          "description": "true: revoked only; false: live only; unset: both",
+          "type": "boolean"
+        },
+        {
+          "name": "keyword",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "revoked_at_from",
+          "description": "rows whose revoked_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "revoked_at_thru",
+          "description": "rows whose revoked_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "source_type",
+          "type": "string"
+        },
+        {
+          "name": "source_id",
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        },
+        {
+          "name": "decided_by",
+          "type": "string"
+        },
+        {
+          "name": "waived_by",
+          "type": "string"
+        },
+        {
+          "name": "revoked_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "revoked_by",
+          "type": "string"
+        },
+        {
+          "name": "revoke_reason",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "source_type",
+          "required": true,
+          "type": "string",
+          "maxLength": 40
+        },
+        {
+          "name": "source_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "source_event",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "required": true,
+          "type": "string",
+          "maxLength": 4000
+        },
+        {
+          "name": "decided_by",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "actions": [
+        {
+          "verb": "revoke",
+          "path": "/api/v1/ledger-waivers/{waiver_id}/revoke",
+          "summary": "Revoke Ledger Waiver",
+          "fields": []
+        }
+      ],
+      "recordPath": "/api/v1/ledger-waivers/{waiver_id}",
+      "related": []
+    },
+    {
       "key": "project-baselines",
       "path": "/api/v1/project-baselines",
       "group": "other",

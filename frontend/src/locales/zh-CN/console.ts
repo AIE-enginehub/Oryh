@@ -1251,6 +1251,7 @@ export const zhCN = {
     archivingKeepsHistoricalReferencesButNewPurchaseRequestsShould: "归档后保留历史引用，但新采购申请不应再选择该 SKU。" as const,
   },
   pagesProjectsPage: {
+    searchRecords: (label: string) => `搜索${label}`,
     projectNameIsRequired: "项目名称不能为空。" as const,
     endDateCannotBeEarlierThanTheStartDate: "结束日期不能早于开始日期。" as const,
     projects: "项目资料" as const,

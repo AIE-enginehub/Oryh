@@ -5,7 +5,8 @@ server holds the book to live in `app/services/ledger.py`; this module is the
 doors. Every read needs `ledger.read` (the book shows payroll totals and
 margins, so belonging to the workspace is not enough); posting needs
 `ledger.post`, the chart and settings `ledger.manage`, closing a month
-`period.close`.
+`period.close`. Waivers — a document the book needs no entry for — are
+recorded and revoked with `ledger.post`.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from app.api.common.numbering import allocate_document_number
 from app.api.deps import Actor, get_actor, require_permission
 from app.core.business_date import business_today
 from app.db.session import get_db
-from app.models import AccountingPeriod, AccountingSettings, JournalEntry, JournalLine, LedgerAccount
+from app.models import AccountingPeriod, AccountingSettings, JournalEntry, JournalLine, LedgerAccount, LedgerWaiver
 from app.schemas import (
     AccountingPeriodEnvelope,
     AccountingPeriodListEnvelope,
@@ -42,6 +43,7 @@ from app.schemas import (
     AccountingSettingsRequest,
     CreateJournalEntryRequest,
     CreateLedgerAccountRequest,
+    CreateLedgerWaiverRequest,
     JournalEntryEnvelope,
     JournalEntryListEnvelope,
     JournalEntryRead,
@@ -49,12 +51,18 @@ from app.schemas import (
     LedgerAccountEnvelope,
     LedgerAccountListEnvelope,
     LedgerAccountRead,
+    LedgerWaiverEnvelope,
+    LedgerWaiverListEnvelope,
+    LedgerWaiverRead,
     PeriodActionRequest,
     ReverseJournalEntryRequest,
+    RevokeLedgerWaiverRequest,
     UpdateJournalEntryRequest,
     UpdateLedgerAccountRequest,
 )
 from app.services import ledger as book
+from app.services import financial_statements as statements
+from app.services import ledger_coverage as coverage
 from app.services.audit import record_audit
 
 router = APIRouter()
@@ -85,7 +93,8 @@ def put_accounting_settings(
     db: Annotated[Session, Depends(get_db)],
 ):
     """Set the currency the books are kept in. It cannot change once anything
-    has posted: every amount in the book is in it."""
+    has posted: every amount in the book is in it. `fiscal_year_start_month`
+    (1-12, default 1) only resolves `year_start` in the statement reads."""
     require_permission(actor, "ledger.manage")
     tenant_id = actor.tenant_id
     currency = payload.functional_currency.upper()
@@ -98,12 +107,15 @@ def put_accounting_settings(
         if account.account_type != "equity":
             book.refuse(_422, f"account {account.account_code} is {account.account_type}; retained earnings is equity")
     if row is None:
-        row = AccountingSettings(tenant_id=tenant_id, functional_currency=currency)
+        row = AccountingSettings(tenant_id=tenant_id, functional_currency=currency, fiscal_year_start_month=1)
         db.add(row)
     row.functional_currency = currency
     row.retained_earnings_account_id = payload.retained_earnings_account_id
+    if payload.fiscal_year_start_month is not None:
+        row.fiscal_year_start_month = payload.fiscal_year_start_month
     record_audit(db, tenant_id=tenant_id, action="ledger.settings_changed", entity_type="accounting_settings",
-                 entity_id=tenant_id, actor=actor.label, detail={"functional_currency": currency})
+                 entity_id=tenant_id, actor=actor.label,
+                 detail={"functional_currency": currency, "fiscal_year_start_month": row.fiscal_year_start_month})
     db.commit()
     db.refresh(row)
     return envelope(AccountingSettingsRead.model_validate(row).model_dump(by_alias=True))
@@ -310,6 +322,204 @@ def get_trial_balance(
     movement and nothing is opening."""
     _read(actor)
     return envelope(book.trial_balance(db, actor.tenant_id, *_span(date_from, date_to)))
+
+
+@router.get("/ledger-coverage")
+def get_ledger_coverage(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    period: Annotated[date, Query(description="any day of the month to read")],
+    families: Annotated[str | None, Query(description=(
+        "comma-separated; default invoice,payment,expense_claim,fin_account_transaction. Also "
+        "payment_application, invoice_offset, billing_account_entry"))] = None,
+):
+    """What happened in the month that the book does not say, and what the
+    book says about documents that no longer count (plan
+    docs/plans/ledger-coverage-2026-11-24.md). Per family: how many documents
+    counted, how many a posted, unreversed entry names (any event), how many
+    a live waiver covers, how many are missing. `missing` lists those, with
+    number, day, amount and party; `waived` lists the waived ones with the
+    reason and who decided; `stale` lists the live entries dated in the month whose source was
+    deleted, voided or cancelled. Which documents must be posted is the
+    workspace's posting rule — the server only finds and counts."""
+    _read(actor)
+    return envelope(coverage.coverage(db, actor.tenant_id, period, coverage.parse_families(families)))
+
+
+# --- statements (plan docs/plans/financial-statements-2026-11-25.md) ---------------
+
+
+@router.get("/income-statement")
+def get_income_statement(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: Annotated[str | None, Query(description=(
+        "YYYY-MM-DD, or year_start for the start of the financial year date_to falls in; "
+        "default: the first of date_to's month, or of this month"))] = None,
+    date_to: Annotated[date | None, Query(description="default: the end of date_from's month, or of this month")] = None,
+    compare: Annotated[str | None, Query(description="previous_period (default), previous_year or none")] = None,
+    by: Annotated[str | None, Query(description=(
+        "split every figure by one of project, cost_center, customer, vendor, employee, month; lines "
+        "without it fall under `unassigned`"))] = None,
+):
+    """Income and expenses for a span of days, on their natural side, rolled
+    up the chart's tree, and the result (income − expenses) — every figure a
+    sum of posted lines. `compare` adds the span before (whole months shift
+    by months) or the same dates a year earlier, with the change. Carries
+    what makes the figures provisional: `period_status.open_months`, `drafts`
+    (draft entries in the span, left out) and the coverage read's `missing`
+    and `stale` counts per month."""
+    _read(actor)
+    start, end = statements.resolve_span(db, actor.tenant_id, date_from, date_to, business_today())
+    return envelope(statements.income_statement(
+        db, actor.tenant_id, start, end, statements.parse_compare(compare), statements.parse_by(by)))
+
+
+@router.get("/balance-sheet")
+def get_balance_sheet(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    as_of: Annotated[date | None, Query(description="default: today")] = None,
+    compare: Annotated[str | None, Query(description=(
+        "previous_period (default: the end of the month before), previous_year or none"))] = None,
+):
+    """Assets, liabilities and equity at a day, on their natural side, rolled
+    up the chart's tree. Equity includes **earnings not yet closed** — every
+    income and expense balance to the day — so the sheet is right whether or
+    not a year-end closing entry has been posted. `balanced` states assets =
+    liabilities + equity; for a book of balanced entries it always holds, and
+    `false` is an integrity defect. Carries the open status, drafts and
+    coverage counts of `as_of`'s month."""
+    _read(actor)
+    return envelope(statements.balance_sheet(db, actor.tenant_id, as_of or business_today(),
+                                             statements.parse_compare(compare)))
+
+
+# --- waivers ---------------------------------------------------------------------
+
+
+def _waiver_read(waiver: LedgerWaiver) -> dict:
+    return LedgerWaiverRead.model_validate(waiver).model_dump(by_alias=True)
+
+
+@router.post("/ledger-waivers", response_model=LedgerWaiverEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_ledger_waiver(
+    payload: CreateLedgerWaiverRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Record a person's decision that a document needs no entry — the whole
+    document, or one `source_event` of it — with their reason. The coverage
+    read then lists it under `waived`, not `missing`. Refused while a posted
+    entry records the fact (reverse that first), and posting a waived fact is
+    refused until the waiver is revoked. Whether a document needs an entry is
+    the workspace's posting rule and the person's call, never the agent's
+    alone: `decided_by` names who decided."""
+    require_permission(actor, "ledger.post")
+    tenant_id = actor.tenant_id
+    reason = payload.reason.strip()
+    if not reason:
+        book.refuse(_422, "reason: say why this document needs no entry")
+    book.check_source(db, tenant_id, payload.source_type, payload.source_id)
+    book.lock_source(db, payload.source_type, payload.source_id)
+    entry = book.recording_entry(db, tenant_id, payload.source_type, payload.source_id, payload.source_event)
+    if entry is not None:
+        event = f" ({entry.source_event})" if entry.source_event else ""
+        book.refuse(_409, f"{payload.source_type} {payload.source_id}{event} is in the book as {entry.entry_no} — "
+                          "a fact is never both posted and waived; reverse the entry first")
+    existing = db.scalar(select(LedgerWaiver).where(
+        LedgerWaiver.tenant_id == tenant_id, LedgerWaiver.revoked_at.is_(None),
+        LedgerWaiver.source_type == payload.source_type, LedgerWaiver.source_id == payload.source_id,
+        func.coalesce(LedgerWaiver.source_event, "") == (payload.source_event or "")))
+    if existing is not None:
+        book.refuse(_409, f"already waived by {existing.id} — revoke it first to record a different decision")
+    waiver = LedgerWaiver(
+        tenant_id=tenant_id, source_type=payload.source_type, source_id=payload.source_id,
+        source_event=payload.source_event, reason=reason,
+        decided_by=(payload.decided_by or "").strip() or actor.label, waived_by=actor.label,
+    )
+    db.add(waiver)
+    db.flush()
+    record_audit(db, tenant_id=tenant_id, action="ledger.waiver_recorded", entity_type="ledger_waiver",
+                 entity_id=waiver.id, actor=actor.label,
+                 detail={"source_type": waiver.source_type, "source_id": waiver.source_id,
+                         "source_event": waiver.source_event, "decided_by": waiver.decided_by})
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        book.refuse(_409, "this fact was waived concurrently — read /ledger-waivers")
+    db.refresh(waiver)
+    return envelope(_waiver_read(waiver))
+
+
+@router.post("/ledger-waivers/{waiver_id}/revoke", response_model=LedgerWaiverEnvelope,
+             response_model_exclude_unset=True)
+def revoke_ledger_waiver(
+    waiver_id: str,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    payload: RevokeLedgerWaiverRequest | None = None,
+):
+    """Withdraw a waiver: the document is missing again until it is posted or
+    waived anew. The waiver stays, revoked, with who revoked it and why."""
+    require_permission(actor, "ledger.post")
+    get_scoped_or_404(db, LedgerWaiver, actor.tenant_id, waiver_id)
+    waiver = db.scalar(select(LedgerWaiver).where(
+        LedgerWaiver.tenant_id == actor.tenant_id, LedgerWaiver.id == waiver_id,
+    ).with_for_update().execution_options(populate_existing=True))
+    if waiver.revoked_at is not None:
+        book.refuse(_409, f"already revoked by {waiver.revoked_by}")
+    waiver.revoked_at = datetime.now(timezone.utc)
+    waiver.revoked_by = actor.label
+    waiver.revoke_reason = (payload.reason.strip() or None) if payload and payload.reason else None
+    record_audit(db, tenant_id=actor.tenant_id, action="ledger.waiver_revoked", entity_type="ledger_waiver",
+                 entity_id=waiver.id, actor=actor.label,
+                 detail={"source_type": waiver.source_type, "source_id": waiver.source_id,
+                         "source_event": waiver.source_event, "reason": waiver.revoke_reason})
+    db.commit()
+    db.refresh(waiver)
+    return envelope(_waiver_read(waiver))
+
+
+@router.get("/ledger-waivers", response_model=LedgerWaiverListEnvelope, response_model_exclude_unset=True)
+def list_ledger_waivers(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    source_type: str | None = None,
+    source_id: str | None = None,
+    source_event: str | None = None,
+    revoked: Annotated[bool | None, Query(description="true: revoked only; false: live only; unset: both")] = None,
+    keyword: str | None = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(LedgerWaiver, ranges=('created_at', 'revoked_at')))] = None,
+):
+    """Waivers newest first, revoked ones included unless `revoked=false`.
+    `source_type` + `source_id` answers "why is this document not in the book"."""
+    _read(actor)
+    stmt = select(LedgerWaiver).where(LedgerWaiver.tenant_id == actor.tenant_id)
+    if revoked is not None:
+        stmt = stmt.where(LedgerWaiver.revoked_at.is_not(None) if revoked else LedgerWaiver.revoked_at.is_(None))
+    return list_rows(
+        db, stmt,
+        filters={LedgerWaiver.source_type: source_type, LedgerWaiver.source_id: source_id,
+                 LedgerWaiver.source_event: source_event},
+        keyword=keyword,
+        keyword_columns=(LedgerWaiver.reason, LedgerWaiver.decided_by),
+        order_by=(LedgerWaiver.created_at.desc(),),
+        pagination=requested_pagination(page, size), sort=order_by, extra=extra,
+        render=lambda rows: [_waiver_read(row) for row in rows],
+    )
+
+
+@router.get("/ledger-waivers/{waiver_id}", response_model=LedgerWaiverEnvelope, response_model_exclude_unset=True)
+def get_ledger_waiver(waiver_id: str, actor: Annotated[Actor, Depends(get_actor)],
+                      db: Annotated[Session, Depends(get_db)]):
+    _read(actor)
+    return envelope(_waiver_read(get_scoped_or_404(db, LedgerWaiver, actor.tenant_id, waiver_id)))
 
 
 # --- periods ---------------------------------------------------------------------

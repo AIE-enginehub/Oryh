@@ -27,7 +27,10 @@ import os
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
+
+from app.core.config import settings
 
 TEST_URL = os.environ.get("ORYH_TEST_POSTGRES_URL", "")
 SCHEMA = "oryh"
@@ -48,6 +51,11 @@ def _refuse_a_database_somebody_needs(url: str) -> None:
                 f"ORYH_TEST_POSTGRES_URL looks like a real deployment ({marker!r}); "
                 "these tests drop and recreate the schema"
             )
+    target = make_url(url)
+    if target.get_backend_name() != "postgresql" or settings.database_schema != SCHEMA:
+        raise RuntimeError("The test target must be PostgreSQL with the oryh schema")
+    if settings.migration_database_url and make_url(settings.migration_database_url) != target:
+        raise RuntimeError("ORYH_MIGRATION_DATABASE_URL differs from the test target")
 
 
 @pytest.fixture(scope="session")
@@ -70,14 +78,15 @@ def pg_schema(pg_url: str) -> str:
     import alembic.config
 
     engine = create_engine(pg_url, future=True)
-    with engine.begin() as conn:
-        conn.execute(text(f'drop schema if exists "{SCHEMA}" cascade'))
-        conn.execute(text(f'create schema "{SCHEMA}"'))
-    engine.dispose()
-
-    config = alembic.config.Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", pg_url)
-    alembic.command.upgrade(config, "head")
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f'drop schema if exists "{SCHEMA}" cascade'))
+            conn.execute(text(f'create schema "{SCHEMA}"'))
+            config = alembic.config.Config("alembic.ini")
+            config.attributes["connection"] = conn
+            alembic.command.upgrade(config, "head")
+    finally:
+        engine.dispose()
     return SCHEMA
 
 

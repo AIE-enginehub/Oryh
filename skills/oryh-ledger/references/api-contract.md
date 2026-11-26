@@ -44,6 +44,15 @@ List Accounting Periods
 
 Get Accounting Settings
 
+## GET /balance-sheet
+
+Get Balance Sheet
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `as_of` | query | date | no | default: today |
+| `compare` | query | string | no | previous_period (default: the end of the month before), previous_year or none |
+
 ## GET /business-rules
 
 List Business Rules
@@ -117,6 +126,17 @@ Get Employee
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
+
+## GET /income-statement
+
+Get Income Statement
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `date_from` | query | string | no | YYYY-MM-DD, or year_start for the start of the financial year date_to falls in; default: the first of date_to's month, or of this month |
+| `date_to` | query | date | no | default: the end of date_from's month, or of this month |
+| `compare` | query | string | no | previous_period (default), previous_year or none |
+| `by` | query | string | no | split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned` |
 
 ## GET /journal-entries
 
@@ -195,6 +215,42 @@ Get Account Parties
 |---|---|---|---|---|
 | `account_id` | path | string | yes |  |
 | `as_of` | query | date | no |  |
+
+## GET /ledger-coverage
+
+Get Ledger Coverage
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `period` | query | date | yes | any day of the month to read |
+| `families` | query | string | no | comma-separated; default invoice,payment,expense_claim,fin_account_transaction. Also payment_application, invoice_offset, billing_account_entry |
+
+## GET /ledger-waivers
+
+List Ledger Waivers
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `source_type` | query | string | no |  |
+| `source_id` | query | string | no |  |
+| `source_event` | query | string | no |  |
+| `revoked` | query | boolean | no | true: revoked only; false: live only; unset: both |
+| `keyword` | query | string | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `revoked_at_from` | query | date-time | no | rows whose revoked_at is at or after this |
+| `revoked_at_thru` | query | date-time | no | rows whose revoked_at is at or before this |
+
+## GET /ledger-waivers/{waiver_id}
+
+Get Ledger Waiver
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `waiver_id` | path | string | yes |  |
 
 ## GET /todos
 
@@ -515,6 +571,33 @@ Body:
 | `status` | `active` | `archived` | optional |  |
 | `subledger` | `customer` | `vendor` | `employee` | optional |  |
 
+## POST /ledger-waivers
+
+Create Ledger Waiver
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `reason` | string (≤4000 chars) | required |  |
+| `source_id` | string | required |  |
+| `source_type` | string (≤40 chars) | required |  |
+| `decided_by` | string (≤200 chars) | optional |  |
+| `source_event` | string (≤60 chars) | optional |  |
+
+## POST /ledger-waivers/{waiver_id}/revoke
+
+Revoke Ledger Waiver
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `waiver_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+
 ## PUT /accounting-settings
 
 Put Accounting Settings
@@ -524,4 +607,5 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 | `functional_currency` | string (≤3 chars) | required |  |
+| `fiscal_year_start_month` | integer (≥1.0, ≤12.0) | optional |  |
 | `retained_earnings_account_id` | string | optional |  |

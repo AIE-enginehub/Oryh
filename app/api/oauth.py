@@ -62,6 +62,10 @@ def mcp_resource() -> str:
     return issuer() + "/mcp"
 
 
+def _dynamic_registration_available() -> bool:
+    return settings.oauth_dynamic_registration_enabled or settings.oauth_glama_registration_enabled
+
+
 # --- discovery (RFC 8414, RFC 9728) -----------------------------------------
 
 
@@ -70,7 +74,7 @@ def authorization_server_metadata():
     base = issuer()
     return {
         **({"registration_endpoint": f"{base}/oauth/register"}
-           if settings.oauth_dynamic_registration_enabled else {}),
+           if _dynamic_registration_available() else {}),
         "issuer": base,
         "authorization_endpoint": f"{base}/oauth/authorize",
         "token_endpoint": f"{base}/oauth/token",
@@ -108,6 +112,12 @@ def protected_resource_metadata_for_mcp():
 REGISTERED_CLIENT_PREFIX = "urn:oryh:oauth-client:"
 WORKBUDDY_CONNECTIVITY_CALLBACK = "https://open.workbuddy.cn/oauth/callback/connectivity"
 WORKBUDDY_QUALITY_EVALUATION_CALLBACK = "https://www.workbuddy.cn/console/as/p/connector/oauth/oryh/connect"
+GLAMA_APP_CALLBACK = "https://glama.ai/api/app/mcp/oauth/callback"
+GLAMA_APP_LOOPBACK_CALLBACK = "http://localhost:6749/callback"
+GLAMA_CALLBACKS = frozenset({
+    "https://glama.ai/mcp/inspector/oauth/callback",
+    GLAMA_APP_CALLBACK,
+})
 
 
 def _registration_redirect_allowed(uri: str) -> bool:
@@ -119,6 +129,10 @@ def _registration_redirect_allowed(uri: str) -> bool:
     except ValueError:
         return False
     if p.fragment or p.username or p.password:
+        return False
+    if settings.oauth_glama_registration_enabled and uri in GLAMA_CALLBACKS:
+        return True
+    if not settings.oauth_dynamic_registration_enabled:
         return False
     if p.scheme == "https":
         return (
@@ -137,7 +151,7 @@ def _registration_redirect_allowed(uri: str) -> bool:
 @router.post("/oauth/register", status_code=201)
 async def register_public_client(request: Request, db: Annotated[Session, Depends(get_db)]):
     # Registration only records metadata. Login, consent and S256 remain mandatory.
-    if not settings.oauth_dynamic_registration_enabled:
+    if not _dynamic_registration_available():
         raise HTTPException(404, "Dynamic client registration is disabled")
     body = bytearray()
     async for chunk in request.stream():
@@ -151,8 +165,16 @@ async def register_public_client(request: Request, db: Annotated[Session, Depend
     if not isinstance(data, dict):
         return _oauth_error(400, "invalid_client_metadata", "Expected a JSON object")
     uris = data.get("redirect_uris")
+    # The hosted Test Profile registers its HTTPS callback with a fixed
+    # localhost fallback, even when it uses the HTTPS callback to authorize.
+    glama_callback_pair = (
+        settings.oauth_glama_registration_enabled
+        and isinstance(uris, list) and len(uris) == 2 and GLAMA_APP_CALLBACK in uris
+    )
     if (not isinstance(uris, list) or not 1 <= len(uris) <= 10
-            or any(not isinstance(u, str) or not _registration_redirect_allowed(u) for u in uris)):
+            or any(not isinstance(u, str) or not (
+                _registration_redirect_allowed(u) or (glama_callback_pair and u == GLAMA_APP_LOOPBACK_CALLBACK)
+            ) for u in uris)):
         if isinstance(uris, list) and all(isinstance(uri, str) for uri in uris):
             # Redirect URIs are public client metadata. Log only this rejected
             # field so an operator can approve an exact callback without
@@ -160,7 +182,7 @@ async def register_public_client(request: Request, db: Annotated[Session, Depend
             logger.warning("OAuth client registration rejected redirect_uris=%r", uris)
         else:
             logger.warning("OAuth client registration rejected malformed redirect_uris")
-        return _oauth_error(400, "invalid_redirect_uri", "Use an approved WorkBuddy callback or IP loopback /oauth/callback")
+        return _oauth_error(400, "invalid_redirect_uri", "Use an approved client callback")
     if (data.get("token_endpoint_auth_method", "none") != "none"
             or data.get("response_types", ["code"]) != ["code"]
             or not isinstance(data.get("grant_types", ["authorization_code"]), list)

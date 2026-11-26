@@ -7,7 +7,7 @@ import secrets
 from datetime import date, datetime
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, Uuid, func, text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, LargeBinary, Numeric, SmallInteger, String, Text, UniqueConstraint, Uuid, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -4673,6 +4673,9 @@ class AccountingSettings(TenantRecord, Base):
     retained_earnings_account_id: Mapped[str | None] = mapped_column(
         ForeignKey("ledger_accounts.id"), nullable=True
     )
+    # the month the financial year starts (1-12): resolves `year_start` in the
+    # statement reads; stores no figure, so it may change at any time
+    fiscal_year_start_month: Mapped[int] = mapped_column(SmallInteger, default=1, server_default=text("1"))
 
 
 class LedgerAccount(TenantRecord, Base):
@@ -4781,6 +4784,36 @@ class JournalLine(TenantRecord, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     entry: Mapped[JournalEntry] = relationship(back_populates="lines")
+
+
+class LedgerWaiver(TenantRecord, Base):
+    """A person's decision that a document needs no entry in the book — a pro
+    forma invoice, a claim settled outside the books — with the reason and who
+    decided. `source_event` null waives the document as a whole; otherwise one
+    event. Never edited or deleted: it is revoked, and the history stays. One
+    live waiver per fact, and a fact is never both waived and in the book."""
+
+    __tablename__ = "ledger_waivers"
+    __table_args__ = (
+        Index(
+            "ledger_waivers_live_uk",
+            "tenant_id", "source_type", "source_id", text("coalesce(source_event, '')"),
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+            sqlite_where=text("revoked_at IS NULL"),
+        ),
+        Index("ledger_waivers_source_idx", "source_type", "source_id"),
+    )
+
+    source_type: Mapped[str] = mapped_column(String(40))
+    source_id: Mapped[str] = mapped_column(Uuid(as_uuid=False))
+    source_event: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    reason: Mapped[str] = mapped_column(Text)
+    decided_by: Mapped[str] = mapped_column(String(200))
+    waived_by: Mapped[str] = mapped_column(String(200))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    revoke_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 # Every fixed-value column's CHECK, attached from one registry rather than

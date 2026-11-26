@@ -1,6 +1,6 @@
 ---
 name: oryh-ledger
-description: Use to keep a workspace's books in oryh — set up the chart of accounts, post journal entries for invoices, payments, payroll and month-end, reverse a wrong posting, close a month, and read the trial balance, an account's ledger or who owes what. Applies the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close).
+description: Use to keep a workspace's books in oryh — set up the chart of accounts, post journal entries for invoices, payments, payroll and month-end, reverse a wrong posting, find and post what the book is missing or waive what needs no entry, close a month, and read the trial balance, an account's ledger or who owes what. Applies the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close).
 required_capability: ledger.post
 ---
 
@@ -138,14 +138,70 @@ another open day. The original stays, marked reversed, and its source fact
 can then be posted again correctly. An entry is reversed once; a reversal
 is not reversed.
 
+## What The Book Does Not Say Yet
+
+`GET /ledger-coverage?period=<any day of the month>&families=` lists, per
+family, how many documents' money counted that month, how many a posted
+entry names, and which are **missing**; and the **stale** entries — posted
+that month for a document since voided, cancelled or deleted.
+
+- Default families: `invoice` (by direction: sales, purchase, payroll,
+  reimbursement), `payment` (by direction), `expense_claim`, and
+  `fin_account_transaction` (bank lines not matched to a payment — fees,
+  interest). Ask for `payment_application`, `invoice_offset` or
+  `billing_account_entry` when the workspace's rule posts them.
+- A document counts as recorded when any posted, unreversed entry names it,
+  whatever its `source_event`. The read shows no events; if the rule posts
+  one document more than once (issued, then received), check those with
+  `GET /journal-entries?source_type=&source_id=`.
+- The server does not say what must be posted. A missing row is a document
+  no entry names — post it by the rule, or, where the rule says it needs
+  none, waive it (below).
+- A stale entry is the book saying something that no longer happened.
+  Propose its reversal; reverse it once agreed.
+
+### Waiving A Document
+
+Some documents need no entry: a pro forma invoice never billed, a
+reimbursement invoice that mirrors a claim already posted. A waiver records
+that decision so the coverage stops listing it as missing:
+
+`POST /ledger-waivers {"source_type": "invoice", "source_id", "source_event"?, "reason", "decided_by"}`
+
+- **Never waive on your own judgement.** Waive only what the workspace's
+  posting rule says needs no entry, or what the person tells you to — and
+  name them in `decided_by` ("Ms Li, controller"); it defaults to you. Put
+  their reason in their words.
+- Without `source_event` the whole document is waived; with one, only that
+  event (the rule posts the issue but not the receipt).
+- A fact is never both waived and in the book: a waiver for a posted fact
+  is refused (reverse the entry first), and posting a waived fact is refused
+  with the waiver named — revoke it first if the person changed their mind.
+- A waiver is never edited or deleted.
+  `POST /ledger-waivers/{id}/revoke {"reason"?}` withdraws it; the document
+  is missing again. The coverage lists live waivers under `waived` with the
+  reason and who decided.
+
 ## Closing A Month
 
-`POST /accounting-periods/close {"period": "2026-02-01", "reason"?}` (any
-day in the month). Drafts dated in that month block it: post or discard
-them first. Before closing, check what the workspace's rule asks for:
-usually every issued invoice, payment and payslip of the month posted, and
-the trial balance read. Reopening needs a reason:
-`POST /accounting-periods/reopen {"period", "reason"}`.
+1. Read `GET /ledger-coverage?period=<the month>` with the families the
+   rule posts. Post what is missing, waive what the rule or the person says
+   needs no entry, propose reversals for what is stale, and read it again.
+2. Read the trial balance.
+3. `POST /accounting-periods/close {"period": "2026-02-01", "reason"?}` (any
+   day in the month). Drafts dated in that month block it: post or discard
+   them first. Closing is not refused while documents are missing — that is
+   the person's decision. If anything is left, say exactly what, and put it
+   in the close reason.
+
+Reopening needs a reason: `POST /accounting-periods/reopen {"period", "reason"}`.
+
+After closing, read the month's result:
+`GET /income-statement?date_to=<the month's last day>` and
+`GET /balance-sheet?as_of=<the month's last day>` — the `$oryh-financial-statements`
+skill explains them. Then report the month in one line the person can check: "Everything issued, paid
+and approved in March is in the book; two pro forma invoices waived by Ms
+Li" — or the exact list of what is not.
 
 ## Reading The Books
 
@@ -157,6 +213,8 @@ the trial balance read. Reopening needs a reason:
   lines with a running balance.
 - `GET /ledger-accounts/{id}/parties?as_of=` — a receivable or payable per
   party.
+- `GET /income-statement` and `GET /balance-sheet` — profit and loss and
+  what the business owns and owes; see `$oryh-financial-statements`.
 
 Answer in the person's terms: "Receivables stand at 48,200; Huaxin owes
 31,000 of it, all from March."
@@ -170,6 +228,8 @@ Answer in the person's terms: "Receivables stand at 48,200; Huaxin owes
 - Convert currencies at a rate nobody gave: a converted line states the rate
   and the source of it is the person's or the rule's.
 - Treat a document as booked because it exists — check the book.
+- Waive a document nobody decided needs no entry, or revoke a waiver
+  without saying so.
 
 ## Reference
 

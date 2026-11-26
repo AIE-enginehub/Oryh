@@ -10,7 +10,7 @@ Every path hangs off `api_base_url` exactly as given — no version prefix to ad
 
 ```text
 GET    /accounting-settings            → the functional currency (null until set)
-PUT    /accounting-settings            → {functional_currency, retained_earnings_account_id?}; fixed once anything posted
+PUT    /accounting-settings            → {functional_currency, retained_earnings_account_id?, fiscal_year_start_month?}; the currency is fixed once anything posted
 GET    /ledger-accounts?account_type=&parent_id=&subledger=&status=&keyword=   → the chart, code order; `summary` marks accounts with sub-accounts
 POST   /ledger-accounts                → {account_code, name, account_type, parent_id?, subledger?, currency?, description?}
 PATCH  /ledger-accounts/{id}           → name, description, parent_id, status; code, type, subledger, currency only before it has lines
@@ -29,6 +29,14 @@ POST   /journal-entries/{id}/post      → a draft becomes posted
 POST   /journal-entries/{id}/reverse   → {posting_date?, description?}: posts the mirror; once per entry
 ```
 
+## Waivers
+
+```text
+GET    /ledger-waivers?source_type=&source_id=&source_event=&revoked=   → newest first; revoked=false for live only
+POST   /ledger-waivers                 → {source_type, source_id, source_event?, reason, decided_by?}; refused while a posted entry records the fact
+POST   /ledger-waivers/{id}/revoke     → {reason?}; once; the waiver stays, revoked
+```
+
 ## Periods
 
 ```text
@@ -41,6 +49,9 @@ POST   /accounting-periods/reopen      body {"period", "reason"}; the reason is 
 
 ```text
 GET    /trial-balance?date_from=&date_to=                 → per account: opening, debit, credit, closing, natural_closing; totals
+GET    /income-statement?date_from=&date_to=&compare=&by=  → income and expenses, the result; see oryh-financial-statements
+GET    /balance-sheet?as_of=&compare=                     → assets, liabilities, equity with earnings not yet closed; balanced
+GET    /ledger-coverage?period=&families=             → per family counted / recorded / waived / missing (by direction for invoices and payments); missing[] {family, id, number, day, amount, currency, party}; waived[] {…, waiver_id, source_event, reason, decided_by}; stale[] {entry_no, source_type, source_id, why}
 GET    /ledger-accounts/{id}/ledger?date_from=&date_to=&page=&size=   → opening, a page of lines with running balance, total_lines, closing
 GET    /ledger-accounts/{id}/parties?as_of=               → a subledger account's balance per party
 ```

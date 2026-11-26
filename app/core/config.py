@@ -1,6 +1,6 @@
 import re
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     oauth_workbuddy_connectivity_callback_enabled: bool = False
     # Permit only the observed WorkBuddy quality-evaluation callback.
     oauth_workbuddy_quality_evaluation_callback_enabled: bool = False
+    # Enable dynamic registration for the exact Glama callbacks only.
+    oauth_glama_registration_enabled: bool = False
+    # The account-bound proof is installed separately for a single MCP endpoint.
+    glama_connector_claim: SecretStr | None = None
     # "console" prints to stdout (dev); "smtp" delivers via the SMTP settings
     # below. smtp_security supports implicit TLS ("ssl") and SMTP STARTTLS
     # ("starttls"). Credentials are optional for IP-authenticated relays such

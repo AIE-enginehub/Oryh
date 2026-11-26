@@ -342,15 +342,16 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
     (
         "no invoice is settled beyond what it bills",
         """select count(*) from (
-             select i.id,
+             select case when i.invoice_kind = 'credit_note' then -1 else 1 end as settlement_sign,
                     i.applied_amount,
                     coalesce(i.total_amount, (
-                      select coalesce(sum(it.amount), 0) from invoice_items it
+                      select coalesce(sum(coalesce(it.amount, it.quantity * it.unit_price)), 0) from invoice_items it
                        where it.invoice_id = i.id and it.deleted_at is null
                     )) as billed
                from invoices i
            ) as settled
-            where applied_amount < -0.005 or applied_amount > billed + 0.005""",
+            where settlement_sign * applied_amount < -0.005
+               or settlement_sign * applied_amount > settlement_sign * billed + 0.005""",
     ),
     # Existence is now a foreign key's job, so what is left to check is the
     # part a FK cannot express: direction, currency, and that the document has
@@ -364,8 +365,10 @@ STRUCTURAL_CHECKS: tuple[tuple[str, str], ...] = (
              left join payments n on pa.to_payment_id = n.id
             where (pa.invoice_id is not null
                    and (i.deleted_at is not null
-                        or (i.direction = 'sales' and p.direction <> 'inbound')
-                        or (i.direction = 'purchase' and p.direction <> 'outbound')
+                        or p.direction <> case
+                            when i.direction = 'sales' and i.invoice_kind <> 'credit_note' then 'inbound'
+                            when i.direction = 'purchase' and i.invoice_kind = 'credit_note' then 'inbound'
+                            else 'outbound' end
                         or i.currency <> p.currency))
                or (pa.expense_claim_id is not null
                    and (c.deleted_at is not null or p.direction <> 'outbound'))
