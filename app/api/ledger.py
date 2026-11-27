@@ -33,7 +33,16 @@ from app.api.common.numbering import allocate_document_number
 from app.api.deps import Actor, get_actor, require_permission
 from app.core.business_date import business_today
 from app.db.session import get_db
-from app.models import AccountingPeriod, AccountingSettings, JournalEntry, JournalLine, LedgerAccount, LedgerWaiver
+from app.models import (
+    AccountingPeriod,
+    AccountingSettings,
+    JournalEntry,
+    JournalLine,
+    LedgerAccount,
+    LedgerWaiver,
+    StatementLayout,
+    StatementLayoutRow,
+)
 from app.schemas import (
     AccountingPeriodEnvelope,
     AccountingPeriodListEnvelope,
@@ -44,6 +53,7 @@ from app.schemas import (
     CreateJournalEntryRequest,
     CreateLedgerAccountRequest,
     CreateLedgerWaiverRequest,
+    CreateStatementLayoutRequest,
     JournalEntryEnvelope,
     JournalEntryListEnvelope,
     JournalEntryRead,
@@ -55,14 +65,20 @@ from app.schemas import (
     LedgerWaiverListEnvelope,
     LedgerWaiverRead,
     PeriodActionRequest,
+    ReplaceStatementLayoutRowsRequest,
     ReverseJournalEntryRequest,
     RevokeLedgerWaiverRequest,
     UpdateJournalEntryRequest,
+    StatementLayoutEnvelope,
+    StatementLayoutListEnvelope,
+    StatementLayoutRead,
     UpdateLedgerAccountRequest,
+    UpdateStatementLayoutRequest,
 )
 from app.services import ledger as book
 from app.services import financial_statements as statements
 from app.services import ledger_coverage as coverage
+from app.services import statement_layouts as layouts
 from app.services.audit import record_audit
 
 router = APIRouter()
@@ -150,6 +166,12 @@ def _check_parent(db: Session, tenant_id: str, parent_id: str | None, account_ty
                           "Open the sub-account beside it instead")
 
 
+def _check_cash(is_cash: bool | None, account_type: str) -> None:
+    if is_cash and account_type != "asset":
+        book.refuse(_422, f"is_cash: a {account_type} account holds no cash — only an asset account (bank, cash "
+                          "on hand) is a cash account")
+
+
 @router.post("/ledger-accounts", response_model=LedgerAccountEnvelope, response_model_exclude_unset=True,
              status_code=status.HTTP_201_CREATED)
 def create_ledger_account(
@@ -160,11 +182,12 @@ def create_ledger_account(
     require_permission(actor, "ledger.manage")
     tenant_id = actor.tenant_id
     _check_parent(db, tenant_id, payload.parent_id, payload.account_type)
+    _check_cash(payload.is_cash, payload.account_type)
     account = LedgerAccount(
         tenant_id=tenant_id, account_code=payload.account_code.strip(), name=payload.name,
         account_type=payload.account_type, parent_id=payload.parent_id, subledger=payload.subledger,
         currency=payload.currency.upper() if payload.currency else None, status=payload.status,
-        description=payload.description,
+        description=payload.description, is_cash=payload.is_cash,
     )
     db.add(account)
     try:
@@ -174,7 +197,8 @@ def create_ledger_account(
         book.refuse(_409, f"account_code {payload.account_code!r} already exists")
     record_audit(db, tenant_id=tenant_id, action="ledger.account_created", entity_type="ledger_account",
                  entity_id=account.id, actor=actor.label,
-                 detail={"account_code": account.account_code, "account_type": account.account_type})
+                 detail={"account_code": account.account_code, "account_type": account.account_type,
+                         "is_cash": account.is_cash})
     db.commit()
     db.refresh(account)
     return envelope(_account_read(db, account))
@@ -209,6 +233,9 @@ def update_ledger_account(
                       current=account)
     if updates.get("currency"):
         updates["currency"] = updates["currency"].upper()
+    if updates.get("is_cash", False) is None:
+        updates.pop("is_cash")
+    _check_cash(updates.get("is_cash", account.is_cash), updates.get("account_type") or account.account_type)
     for field, value in updates.items():
         setattr(account, field, value)
     record_audit(db, tenant_id=tenant_id, action="ledger.account_changed", entity_type="ledger_account",
@@ -231,6 +258,7 @@ def list_ledger_accounts(
     parent_id: str | None = None,
     subledger: str | None = None,
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    is_cash: Annotated[bool | None, Query(description="true: the cash accounts the cash summary follows")] = None,
     keyword: str | None = None,
     page: Annotated[int | None, Query(ge=1)] = None,
     size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
@@ -246,8 +274,11 @@ def list_ledger_accounts(
         return [{**LedgerAccountRead.model_validate(r).model_dump(by_alias=True), "summary": r.id in parents}
                 for r in rows]
 
+    stmt = select(LedgerAccount).where(LedgerAccount.tenant_id == actor.tenant_id)
+    if is_cash is not None:
+        stmt = stmt.where(LedgerAccount.is_cash.is_(is_cash))
     return list_rows(
-        db, select(LedgerAccount).where(LedgerAccount.tenant_id == actor.tenant_id),
+        db, stmt,
         filters={LedgerAccount.account_type: account_type, LedgerAccount.parent_id: parent_id,
                  LedgerAccount.subledger: subledger, LedgerAccount.status: status_filter},
         keyword=keyword,
@@ -361,6 +392,9 @@ def get_income_statement(
     by: Annotated[str | None, Query(description=(
         "split every figure by one of project, cost_center, customer, vendor, employee, month; lines "
         "without it fall under `unassigned`"))] = None,
+    layout_id: Annotated[str | None, Query(description=(
+        "a statement layout to apply; default: the workspace's default layout for this statement, if any; "
+        "`none` for the default statement only"))] = None,
 ):
     """Income and expenses for a span of days, on their natural side, rolled
     up the chart's tree, and the result (income − expenses) — every figure a
@@ -368,11 +402,14 @@ def get_income_statement(
     by months) or the same dates a year earlier, with the change. Carries
     what makes the figures provisional: `period_status.open_months`, `drafts`
     (draft entries in the span, left out) and the coverage read's `missing`
-    and `stale` counts per month."""
+    and `stale` counts per month. With a layout, `layout.lines` are its rows
+    applied to the same sums, `layout.unplaced` the accounts with movement no
+    row takes; `result` is always the book's whole result."""
     _read(actor)
     start, end = statements.resolve_span(db, actor.tenant_id, date_from, date_to, business_today())
-    return envelope(statements.income_statement(
-        db, actor.tenant_id, start, end, statements.parse_compare(compare), statements.parse_by(by)))
+    compare_value, by_value = statements.parse_compare(compare), statements.parse_by(by)
+    layout = layouts.for_read(db, actor.tenant_id, "income_statement", layout_id)
+    return envelope(statements.income_statement(db, actor.tenant_id, start, end, compare_value, by_value, layout))
 
 
 @router.get("/balance-sheet")
@@ -382,6 +419,9 @@ def get_balance_sheet(
     as_of: Annotated[date | None, Query(description="default: today")] = None,
     compare: Annotated[str | None, Query(description=(
         "previous_period (default: the end of the month before), previous_year or none"))] = None,
+    layout_id: Annotated[str | None, Query(description=(
+        "a statement layout to apply; default: the workspace's default layout for this statement, if any; "
+        "`none` for the default statement only"))] = None,
 ):
     """Assets, liabilities and equity at a day, on their natural side, rolled
     up the chart's tree. Equity includes **earnings not yet closed** — every
@@ -389,10 +429,217 @@ def get_balance_sheet(
     not a year-end closing entry has been posted. `balanced` states assets =
     liabilities + equity; for a book of balanced entries it always holds, and
     `false` is an integrity defect. Carries the open status, drafts and
-    coverage counts of `as_of`'s month."""
+    coverage counts of `as_of`'s month. With a layout, `layout.lines` are its
+    rows (earnings not yet closed is placed by an `earnings_not_yet_closed`
+    reference), `layout.unplaced` what no row takes; `totals` and `balanced`
+    are always the book's whole."""
     _read(actor)
-    return envelope(statements.balance_sheet(db, actor.tenant_id, as_of or business_today(),
-                                             statements.parse_compare(compare)))
+    compare_value = statements.parse_compare(compare)
+    layout = layouts.for_read(db, actor.tenant_id, "balance_sheet", layout_id)
+    return envelope(statements.balance_sheet(db, actor.tenant_id, as_of or business_today(), compare_value, layout))
+
+
+@router.get("/cash-summary")
+def get_cash_summary(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: Annotated[str | None, Query(description=(
+        "YYYY-MM-DD, or year_start; default: the first of date_to's month, or of this month"))] = None,
+    date_to: Annotated[date | None, Query(description="default: the end of date_from's month, or of this month")] = None,
+    compare: Annotated[str | None, Query(description="previous_period (default), previous_year or none")] = None,
+    layout_id: Annotated[str | None, Query(description=(
+        "a cash_summary layout to apply (its operating, investing and financing lines); default: the "
+        "workspace's default, if any; `none` for without"))] = None,
+):
+    """Money into and out of the cash accounts (`is_cash` on the ledger
+    account, set by the person) for a span of days: each cash account's
+    opening, closing and change, and `sections[]` by the type of the account
+    on the other side of each entry — received, paid and net per account.
+    Each entry's cash is attributed to its other lines by their own amounts,
+    stated in `basis`; an entry touching only cash accounts is a transfer and
+    moves nothing in or out. `reconciled` states opening + net change =
+    closing. A direct-method view from the book, not a statutory cash flow
+    statement. Carries the open months, drafts and coverage counts like the
+    other statements."""
+    _read(actor)
+    start, end = statements.resolve_span(db, actor.tenant_id, date_from, date_to, business_today())
+    compare_value = statements.parse_compare(compare)
+    layout = layouts.for_read(db, actor.tenant_id, "cash_summary", layout_id)
+    return envelope(statements.cash_summary(db, actor.tenant_id, start, end, compare_value, layout))
+
+
+# --- statement layouts -------------------------------------------------------------
+
+
+def _layout_read(layout: StatementLayout) -> dict:
+    return StatementLayoutRead.model_validate(layout).model_dump(by_alias=True)
+
+
+def _row_dicts(rows) -> list[dict]:
+    return [{"row_no": r.row_no, "code": r.code, "label": r.label, "kind": r.kind,
+             "accounts": [ref.model_dump(exclude_none=True) for ref in r.accounts] if r.accounts is not None else None,
+             "sign": r.sign,
+             "formula": [term.model_dump() for term in r.formula] if r.formula is not None else None}
+            for r in sorted(rows, key=lambda r: r.row_no)]
+
+
+def _stored_rows(layout: StatementLayout) -> list[dict]:
+    return [{"row_no": r.row_no, "code": r.code, "label": r.label, "kind": r.kind, "accounts": r.accounts,
+             "sign": r.sign, "formula": r.formula} for r in layout.rows]
+
+
+def _take_default(db: Session, layout: StatementLayout) -> None:
+    """Make `layout` its statement's default: the previous one stops being it."""
+    for other in db.scalars(select(StatementLayout).where(
+            StatementLayout.tenant_id == layout.tenant_id, StatementLayout.statement == layout.statement,
+            StatementLayout.is_default.is_(True), StatementLayout.id != layout.id).with_for_update()):
+        other.is_default = False
+    db.flush()
+    layout.is_default = True
+
+
+def _commit_layout(db: Session) -> None:
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        book.refuse(_409, "another layout became this statement's default at the same time — read /statement-layouts")
+
+
+@router.get("/statement-layouts", response_model=StatementLayoutListEnvelope, response_model_exclude_unset=True)
+def list_statement_layouts(
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+    statement: Annotated[str | None, Query(description="income_statement or balance_sheet")] = None,
+    status_filter: Annotated[str | None, Query(alias="status", description="active or archived")] = None,
+    page: Annotated[int | None, Query(ge=1)] = None,
+    size: Annotated[int | None, Query(ge=1, description=PAGE_SIZE_DOC)] = None,
+    order_by: Annotated[str | None, Query(description=ORDER_BY_DOC)] = None,
+    extra: Annotated[ListFilters, Depends(list_filters(StatementLayout, ranges=('created_at', 'updated_at')))] = None,
+):
+    """The workspace's statement formats, each with its rows."""
+    _read(actor)
+    stmt = (select(StatementLayout).where(StatementLayout.tenant_id == actor.tenant_id)
+            .options(selectinload(StatementLayout.rows)))
+    return list_rows(
+        db, stmt, filters={StatementLayout.statement: statement, StatementLayout.status: status_filter},
+        order_by=(StatementLayout.statement, StatementLayout.name),
+        pagination=requested_pagination(page, size), sort=order_by, extra=extra,
+        render=lambda rows: [_layout_read(row) for row in rows],
+    )
+
+
+@router.get("/statement-layouts/{layout_id}", response_model=StatementLayoutEnvelope,
+            response_model_exclude_unset=True)
+def get_statement_layout(layout_id: str, actor: Annotated[Actor, Depends(get_actor)],
+                         db: Annotated[Session, Depends(get_db)]):
+    _read(actor)
+    return envelope(_layout_read(get_scoped_or_404(db, StatementLayout, actor.tenant_id, layout_id)))
+
+
+@router.post("/statement-layouts", response_model=StatementLayoutEnvelope, response_model_exclude_unset=True,
+             status_code=status.HTTP_201_CREATED)
+def create_statement_layout(
+    payload: CreateStatementLayoutRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Keep a statement format: ordered rows, each summing accounts (by id,
+    with sub-accounts, or by code range) or other rows (`formula`), or a
+    heading. Refused with 422 naming the row when a formula names a code not
+    here or goes in a circle, when an account is of a type the statement does
+    not take, or when an account would feed two rows. Which account belongs
+    on which line is the person's decision: `confirmed_by` names them."""
+    require_permission(actor, "ledger.manage")
+    confirmed_by = payload.confirmed_by.strip()
+    if not confirmed_by:
+        book.refuse(_422, "confirmed_by: name the person who accepted this layout")
+    layouts.check(db, actor.tenant_id, payload.statement, payload.rows)
+    layout = StatementLayout(tenant_id=actor.tenant_id, statement=payload.statement, name=payload.name.strip(),
+                             is_default=False, status="active", confirmed_by=confirmed_by, created_by=actor.label)
+    db.add(layout)
+    db.flush()
+    for row in _row_dicts(payload.rows):
+        layout.rows.append(StatementLayoutRow(tenant_id=actor.tenant_id, **row))
+    if payload.is_default:
+        _take_default(db, layout)
+    db.flush()
+    record_audit(db, tenant_id=actor.tenant_id, action="ledger.layout_created", entity_type="statement_layout",
+                 entity_id=layout.id, actor=actor.label,
+                 detail={"statement": layout.statement, "name": layout.name, "is_default": layout.is_default,
+                         "confirmed_by": confirmed_by, "rows": _stored_rows(layout)})
+    _commit_layout(db)
+    db.refresh(layout)
+    return envelope(_layout_read(layout))
+
+
+@router.patch("/statement-layouts/{layout_id}", response_model=StatementLayoutEnvelope,
+              response_model_exclude_unset=True)
+def update_statement_layout(
+    layout_id: str,
+    payload: UpdateStatementLayoutRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Rename a layout, make it its statement's default (the previous default
+    stops being it), or archive it (an archived layout is no one's default;
+    it stays readable by id)."""
+    require_permission(actor, "ledger.manage")
+    layout = get_scoped_or_404(db, StatementLayout, actor.tenant_id, layout_id)
+    before = {"name": layout.name, "is_default": layout.is_default, "status": layout.status}
+    if payload.name is not None:
+        layout.name = payload.name.strip()
+    if payload.status is not None:
+        layout.status = payload.status
+    if payload.status == "archived":
+        if payload.is_default:
+            book.refuse(_422, "an archived layout cannot be the default")
+        layout.is_default = False
+    if payload.is_default is True:
+        if layout.status != "active":
+            book.refuse(_422, "an archived layout cannot be the default — set status active first")
+        _take_default(db, layout)
+    elif payload.is_default is False:
+        layout.is_default = False
+    after = {"name": layout.name, "is_default": layout.is_default, "status": layout.status}
+    record_audit(db, tenant_id=actor.tenant_id, action="ledger.layout_changed", entity_type="statement_layout",
+                 entity_id=layout.id, actor=actor.label, detail={"before": before, "after": after})
+    _commit_layout(db)
+    db.refresh(layout)
+    return envelope(_layout_read(layout))
+
+
+@router.put("/statement-layouts/{layout_id}/rows", response_model=StatementLayoutEnvelope,
+            response_model_exclude_unset=True)
+def replace_statement_layout_rows(
+    layout_id: str,
+    payload: ReplaceStatementLayoutRowsRequest,
+    actor: Annotated[Actor, Depends(get_actor)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Replace every row of a layout at once — a layout is reviewed as one
+    page — with the same checks as creating one. `confirmed_by` names who
+    accepted the new rows; the audit trail keeps the rows before and after."""
+    require_permission(actor, "ledger.manage")
+    confirmed_by = payload.confirmed_by.strip()
+    if not confirmed_by:
+        book.refuse(_422, "confirmed_by: name the person who accepted these rows")
+    layout = get_scoped_or_404(db, StatementLayout, actor.tenant_id, layout_id)
+    layouts.check(db, actor.tenant_id, layout.statement, payload.rows)
+    before = _stored_rows(layout)
+    layout.rows.clear()
+    db.flush()
+    for row in _row_dicts(payload.rows):
+        layout.rows.append(StatementLayoutRow(tenant_id=actor.tenant_id, **row))
+    layout.confirmed_by = confirmed_by
+    layout.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    record_audit(db, tenant_id=actor.tenant_id, action="ledger.layout_rows_replaced", entity_type="statement_layout",
+                 entity_id=layout.id, actor=actor.label,
+                 detail={"confirmed_by": confirmed_by, "before": before, "after": _stored_rows(layout)})
+    db.commit()
+    db.refresh(layout)
+    return envelope(_layout_read(layout))
 
 
 # --- waivers ---------------------------------------------------------------------
@@ -618,7 +865,8 @@ def _write_lines(db: Session, entry: JournalEntry, lines) -> None:
             tenant_id=entry.tenant_id, entry_id=entry.id, line_no=index,
             ledger_account_id=line.ledger_account_id, debit=book.money(line.debit), credit=book.money(line.credit),
             currency=line.currency.upper() if line.currency else None, foreign_amount=line.foreign_amount,
-            exchange_rate=line.exchange_rate, customer_id=line.customer_id, vendor_id=line.vendor_id,
+            exchange_rate=line.exchange_rate, exchange_rate_id=line.exchange_rate_id,
+            customer_id=line.customer_id, vendor_id=line.vendor_id,
             employee_id=line.employee_id, cost_center_id=line.cost_center_id, project_id=line.project_id,
             description=line.description,
         ))
@@ -665,7 +913,7 @@ def create_journal_entry(
     tenant_id = actor.tenant_id
     book.functional_currency(db, tenant_id)
     book.refuse_closed(db, tenant_id, payload.posting_date)
-    book.check_lines(db, tenant_id, payload.lines)
+    book.check_lines(db, tenant_id, payload.lines, payload.source_type, payload.source_event, payload.source_id)
     book.check_source(db, tenant_id, payload.source_type, payload.source_id)
     entry = JournalEntry(
         tenant_id=tenant_id,
@@ -712,7 +960,8 @@ def update_journal_entry(
     if updates.get("posting_date") is not None:
         book.refuse_closed(db, actor.tenant_id, updates["posting_date"])
     if payload.lines is not None:
-        book.check_lines(db, actor.tenant_id, payload.lines)
+        book.check_lines(db, actor.tenant_id, payload.lines, entry.source_type, entry.source_event,
+                         entry.source_id)
         for line in list(entry.lines):
             db.delete(line)
         db.flush()
@@ -747,7 +996,7 @@ def post_journal_entry(entry_id: str, actor: Annotated[Actor, Depends(get_actor)
     archived or given sub-accounts since the draft was written."""
     require_permission(actor, "ledger.post")
     entry = _draft(db, actor, entry_id)
-    book.check_lines(db, actor.tenant_id, entry.lines)
+    book.check_lines(db, actor.tenant_id, entry.lines, entry.source_type, entry.source_event, entry.source_id)
     book.post(db, entry, actor.label)
     record_audit(db, tenant_id=actor.tenant_id, action="ledger.entry_posted", entity_type="journal_entry",
                  entity_id=entry.id, actor=actor.label, detail={"entry_no": entry.entry_no})
@@ -795,7 +1044,8 @@ def reverse_journal_entry(
             ledger_account_id=line.ledger_account_id, debit=line.credit, credit=line.debit,
             currency=line.currency,
             foreign_amount=line.foreign_amount,
-            exchange_rate=line.exchange_rate, customer_id=line.customer_id, vendor_id=line.vendor_id,
+            exchange_rate=line.exchange_rate, exchange_rate_id=line.exchange_rate_id,
+            customer_id=line.customer_id, vendor_id=line.vendor_id,
             employee_id=line.employee_id, cost_center_id=line.cost_center_id, project_id=line.project_id,
             description=line.description,
         ))

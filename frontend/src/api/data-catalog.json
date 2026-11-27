@@ -21186,6 +21186,149 @@
       "related": []
     },
     {
+      "key": "exchange-rates",
+      "path": "/api/v1/exchange-rates",
+      "group": "other",
+      "label": [
+        "Exchange rates",
+        "Exchange rates"
+      ],
+      "filters": [
+        {
+          "name": "from_currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "to_currency",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "rate_type",
+          "description": "",
+          "type": "string"
+        },
+        {
+          "name": "date_from",
+          "description": "",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "date_to",
+          "description": "",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "from_currency",
+          "type": "string"
+        },
+        {
+          "name": "to_currency",
+          "type": "string"
+        },
+        {
+          "name": "rate",
+          "type": "number"
+        },
+        {
+          "name": "rate_date",
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "rate_type",
+          "type": "string"
+        },
+        {
+          "name": "source",
+          "type": "string"
+        },
+        {
+          "name": "created_by",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "from_currency",
+          "required": true,
+          "type": "string",
+          "maxLength": 3
+        },
+        {
+          "name": "to_currency",
+          "required": true,
+          "type": "string",
+          "maxLength": 3
+        },
+        {
+          "name": "rate",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "name": "rate_date",
+          "required": true,
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "name": "rate_type",
+          "required": true,
+          "type": "string",
+          "maxLength": 50
+        },
+        {
+          "name": "source",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        }
+      ],
+      "update": [
+        {
+          "name": "rate",
+          "required": false,
+          "type": "number"
+        },
+        {
+          "name": "source",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "remove": true,
+      "actions": [],
+      "recordPath": "/api/v1/exchange-rates/{rate_id}",
+      "related": []
+    },
+    {
       "key": "journal-entries",
       "path": "/api/v1/journal-entries",
       "group": "other",
@@ -21441,6 +21584,11 @@
           "type": "string"
         },
         {
+          "name": "is_cash",
+          "description": "true: the cash accounts the cash summary follows",
+          "type": "boolean"
+        },
+        {
           "name": "keyword",
           "description": "",
           "type": "string"
@@ -21501,6 +21649,10 @@
           "type": "string"
         },
         {
+          "name": "is_cash",
+          "type": "boolean"
+        },
+        {
           "name": "summary",
           "type": "boolean"
         },
@@ -21555,6 +21707,11 @@
           "name": "description",
           "required": false,
           "type": "string"
+        },
+        {
+          "name": "is_cash",
+          "required": false,
+          "type": "boolean"
         },
         {
           "name": "account_code",
@@ -21614,6 +21771,11 @@
           "name": "description",
           "required": false,
           "type": "string"
+        },
+        {
+          "name": "is_cash",
+          "required": false,
+          "type": "boolean"
         },
         {
           "name": "account_code",
@@ -23024,6 +23186,144 @@
       "remove": true,
       "actions": [],
       "recordPath": "/api/v1/project-tasks/{task_id}",
+      "related": []
+    },
+    {
+      "key": "statement-layouts",
+      "path": "/api/v1/statement-layouts",
+      "group": "other",
+      "label": [
+        "Statement layouts",
+        "Statement layouts"
+      ],
+      "filters": [
+        {
+          "name": "statement",
+          "description": "income_statement or balance_sheet",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "description": "active or archived",
+          "type": "string"
+        },
+        {
+          "name": "created_at_from",
+          "description": "rows whose created_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "created_at_thru",
+          "description": "rows whose created_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at_from",
+          "description": "rows whose updated_at is at or after this",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at_thru",
+          "description": "rows whose updated_at is at or before this",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "statement",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "is_default",
+          "type": "boolean"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "confirmed_by",
+          "type": "string"
+        },
+        {
+          "name": "created_by",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updated_at",
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "create": [
+        {
+          "name": "statement",
+          "required": true,
+          "type": "string",
+          "enum": [
+            "income_statement",
+            "balance_sheet",
+            "cash_summary"
+          ]
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        },
+        {
+          "name": "is_default",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "confirmed_by",
+          "required": true,
+          "type": "string",
+          "maxLength": 200
+        }
+      ],
+      "update": [
+        {
+          "name": "name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "is_default",
+          "required": false,
+          "type": "boolean"
+        },
+        {
+          "name": "status",
+          "required": false,
+          "type": "string",
+          "enum": [
+            "active",
+            "archived"
+          ]
+        }
+      ],
+      "actions": [],
+      "recordPath": "/api/v1/statement-layouts/{layout_id}",
       "related": []
     }
   ]

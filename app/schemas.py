@@ -8198,6 +8198,9 @@ class LedgerAccountBase(RequestModel):
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     status: Literal["active", "archived"] = "active"
     description: str | None = Field(default=None, max_length=4000)
+    # a bank or cash account: the cash summary follows money in and out of it.
+    # Only an asset account; its sub-accounts are cash too.
+    is_cash: bool = False
 
 
 class CreateLedgerAccountRequest(LedgerAccountBase):
@@ -8221,6 +8224,7 @@ class LedgerAccountRead(APIModel):
     currency: str | None = None
     status: str
     description: str | None = None
+    is_cash: bool = False
     # has live sub-accounts: takes no lines, its balance is theirs
     summary: bool = False
     created_at: datetime
@@ -8257,9 +8261,14 @@ class JournalLineInput(RequestModel):
     credit: float = Field(default=0, ge=0, le=JOURNAL_MONEY_MAX)
     # a converted amount: its original currency and amount, and the rate used
     currency: str | None = Field(default=None, min_length=3, max_length=3)
-    # a magnitude, like debit and credit: the side says which way it moved
-    foreign_amount: float | None = Field(default=None, gt=0, le=JOURNAL_MONEY_MAX)
+    # a magnitude, like debit and credit: the side says which way it moved.
+    # 0 on an exchange-difference line (a revaluation): the book figure moves,
+    # the foreign one does not
+    foreign_amount: float | None = Field(default=None, ge=0, le=JOURNAL_MONEY_MAX)
     exchange_rate: float | None = Field(default=None, gt=0)
+    # the rate fact the conversion used (GET /exchange-rates/lookup): it must
+    # be the line's currency against the book's, at exchange_rate
+    exchange_rate_id: str | None = None
     customer_id: str | None = None
     vendor_id: str | None = None
     employee_id: str | None = None
@@ -8327,6 +8336,7 @@ class JournalLineRead(APIModel):
     currency: str | None = None
     foreign_amount: float | None = None
     exchange_rate: float | None = None
+    exchange_rate_id: str | None = None
     customer_id: str | None = None
     vendor_id: str | None = None
     employee_id: str | None = None
@@ -8657,3 +8667,122 @@ class LedgerWaiverRead(APIModel):
 
 LedgerWaiverEnvelope = Envelope[LedgerWaiverRead]
 LedgerWaiverListEnvelope = ListEnvelope[LedgerWaiverRead]
+
+
+class StatementLayoutAccountRef(RequestModel):
+    """What feeds an `accounts` row: one account (and its sub-accounts), a
+    code range (`code_from` to `code_to`, inclusive, by code order — it takes
+    accounts added later), or, on a balance sheet, the earnings not yet
+    closed into equity. Exactly one of the three."""
+
+    ledger_account_id: str | None = None
+    code_from: str | None = Field(default=None, min_length=1, max_length=32)
+    code_to: str | None = Field(default=None, min_length=1, max_length=32)
+    earnings_not_yet_closed: bool | None = None
+
+
+class StatementLayoutFormulaTerm(RequestModel):
+    # another row of the same layout
+    code: str = Field(min_length=1, max_length=40)
+    sign: Literal[1, -1] = 1
+
+
+class StatementLayoutRowRequest(RequestModel):
+    row_no: int = Field(ge=1, le=100000)
+    # stable key the formulas and the agent refer to: revenue, gross_profit
+    code: str = Field(min_length=1, max_length=40, pattern=r"^[a-z0-9_]+$")
+    label: str = Field(min_length=1, max_length=200)
+    kind: Literal["accounts", "total", "heading"]
+    accounts: list[StatementLayoutAccountRef] | None = Field(default=None, max_length=200)
+    # 1: the accounts' natural side; -1: subtracted (a contra line)
+    sign: Literal[1, -1] = 1
+    formula: list[StatementLayoutFormulaTerm] | None = Field(default=None, max_length=100)
+
+
+class CreateStatementLayoutRequest(RequestModel):
+    statement: Literal["income_statement", "balance_sheet", "cash_summary"]
+    name: str = Field(min_length=1, max_length=200)
+    # the read uses the default layout when no layout_id is given
+    is_default: bool = False
+    # the person who accepted the layout; required — which account is cost of
+    # sales is their decision
+    confirmed_by: str = Field(min_length=1, max_length=200)
+    rows: list[StatementLayoutRowRequest] = Field(min_length=1, max_length=500)
+
+
+class UpdateStatementLayoutRequest(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    is_default: bool | None = None
+    status: Literal["active", "archived"] | None = None
+
+
+class ReplaceStatementLayoutRowsRequest(RequestModel):
+    rows: list[StatementLayoutRowRequest] = Field(min_length=1, max_length=500)
+    confirmed_by: str = Field(min_length=1, max_length=200)
+
+
+class StatementLayoutRowRead(APIModel):
+    row_no: int
+    code: str
+    label: str
+    kind: str
+    accounts: list[dict[str, Any]] | None = None
+    sign: int
+    formula: list[dict[str, Any]] | None = None
+
+
+class StatementLayoutRead(APIModel):
+    id: str
+    statement: str
+    name: str
+    is_default: bool
+    status: str
+    confirmed_by: str
+    created_by: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    rows: list[StatementLayoutRowRead] = []
+
+
+StatementLayoutEnvelope = Envelope[StatementLayoutRead]
+StatementLayoutListEnvelope = ListEnvelope[StatementLayoutRead]
+
+
+class ExchangeRateRequest(RequestModel):
+    """A rate as its source states it: one unit of from_currency in to_currency."""
+
+    from_currency: str = Field(min_length=3, max_length=3)
+    to_currency: str = Field(min_length=3, max_length=3)
+    rate: float = Field(gt=0, le=1_000_000_000)
+    rate_date: date
+    # the workspace's `exchange_rate_type` vocabulary: spot, month_end, bank_buying, bank_selling, contract
+    rate_type: str = Field(min_length=1, max_length=50)
+    # who published it: "HKMA", "HSBC advice 2026-06-30", "contract C-0142 §4"
+    source: str = Field(min_length=1, max_length=200)
+
+
+class ImportExchangeRatesRequest(RequestModel):
+    rates: list[ExchangeRateRequest] = Field(min_length=1, max_length=1000)
+
+
+class UpdateExchangeRateRequest(RequestModel):
+    """Only a rate no journal line cites may be corrected."""
+
+    rate: float | None = Field(default=None, gt=0, le=1_000_000_000)
+    source: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class ExchangeRateRead(APIModel):
+    id: str
+    from_currency: str
+    to_currency: str
+    rate: float
+    rate_date: date
+    rate_type: str
+    source: str
+    created_by: str | None = None
+    created_at: datetime
+
+
+ExchangeRateEnvelope = Envelope[ExchangeRateRead]
+ExchangeRateListEnvelope = ListEnvelope[ExchangeRateRead]

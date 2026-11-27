@@ -26,6 +26,7 @@ import {
   canManageTenantConfiguration,
   hasCapability,
 } from "./components/AppShell";
+import { canReadBooks } from "./access";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -43,6 +44,7 @@ const ProjectsPage = lazy(() => import("./pages/ProjectsPage").then(module => ({
 const ResourcesPage = lazy(() => import("./pages/ResourcesPage").then(module => ({ default: module.ResourcesPage })));
 const RolesPage = lazy(() => import("./pages/RolesPage").then(module => ({ default: module.RolesPage })));
 const FlowAgentPage = lazy(() => import("./pages/FlowAgentPage").then(module => ({ default: module.FlowAgentPage })));
+const StatementsPage = lazy(() => import("./pages/StatementsPage").then(module => ({ default: module.StatementsPage })));
 const SkillsPage = lazy(() => import("./pages/SkillsPage").then(module => ({ default: module.SkillsPage })));
 const TodosPage = lazy(() => import("./pages/TodosPage").then(module => ({ default: module.TodosPage })));
 const UsersPage = lazy(() => import("./pages/UsersPage").then(module => ({ default: module.UsersPage })));
@@ -185,6 +187,22 @@ function ObjectConfigurationBoundary() {
   return <Outlet context={context} />;
 }
 
+function BooksBoundary() {
+  const { t, text } = useI18n();
+  const context = useOutletContext<ConsoleContext>();
+  if (!canReadBooks(context.bootstrap)) {
+    return (
+      <section className="panel access-denied" role="alert">
+        <span className="eyebrow">{t("insufficientPermission")}</span>
+        <h2>{t("accessPrefix")} {t("statements")}</h2>
+        <p>{text(zhCN.app.theBooksNeedALedgerPermission, "The financial statements need a ledger permission (reading the books). Contact your workspace administrator if this looks incorrect.")}</p>
+        <Link className="button" to="/dashboard">{t("returnDashboard")}</Link>
+      </section>
+    );
+  }
+  return <Outlet context={context} />;
+}
+
 function CapabilityBoundary({ capability, title }: { capability: string; title: string }) {
   const { t, text } = useI18n();
   const context = useOutletContext<ConsoleContext>();
@@ -269,6 +287,9 @@ function ConsoleRoutes() {
           <Route path="/objects/:entityType/:recordId" element={<ObjectDetailPage />} />
           <Route path="/data" element={<DataBrowserPage />} />
           <Route path="/data/:resource" element={<DataBrowserPage />} />
+        </Route>
+        <Route element={<BooksBoundary />}>
+          <Route path="/statements" element={<StatementsPage />} />
         </Route>
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />

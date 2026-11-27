@@ -1097,7 +1097,10 @@ export interface paths {
          *     not a year-end closing entry has been posted. `balanced` states assets =
          *     liabilities + equity; for a book of balanced entries it always holds, and
          *     `false` is an integrity defect. Carries the open status, drafts and
-         *     coverage counts of `as_of`'s month.
+         *     coverage counts of `as_of`'s month. With a layout, `layout.lines` are its
+         *     rows (earnings not yet closed is placed by an `earnings_not_yet_closed`
+         *     reference), `layout.unplaced` what no row takes; `totals` and `balanced`
+         *     are always the book's whole.
          */
         get: operations["get_balance_sheet_api_v1_balance_sheet_get"];
         put?: never;
@@ -2262,6 +2265,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cash-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cash Summary
+         * @description Money into and out of the cash accounts (`is_cash` on the ledger
+         *     account, set by the person) for a span of days: each cash account's
+         *     opening, closing and change, and `sections[]` by the type of the account
+         *     on the other side of each entry — received, paid and net per account.
+         *     Each entry's cash is attributed to its other lines by their own amounts,
+         *     stated in `basis`; an entry touching only cash accounts is a transfer and
+         *     moves nothing in or out. `reconciled` states opening + net change =
+         *     closing. A direct-method view from the book, not a statutory cash flow
+         *     statement. Carries the open months, drafts and coverage counts like the
+         *     other statements.
+         */
+        get: operations["get_cash_summary_api_v1_cash_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/communication-events": {
         parameters: {
             query?: never;
@@ -3206,6 +3238,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exchange-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Exchange Rates
+         * @description The rates the workspace has stated, newest day first.
+         */
+        get: operations["list_exchange_rates_api_v1_exchange_rates_get"];
+        put?: never;
+        /**
+         * Create Exchange Rate
+         * @description State one rate with its type and source. One rate per pair, day and type.
+         */
+        post: operations["create_exchange_rate_api_v1_exchange_rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exchange-rates/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Exchange Rates
+         * @description State many rates at once, all or nothing. A row equal to one already
+         *     stated (same pair, day, type and rate) is skipped, so an import can be
+         *     re-run; a row that differs from one stated is refused, naming it.
+         */
+        post: operations["import_exchange_rates_api_v1_exchange_rates_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exchange-rates/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup Exchange Rate
+         * @description The latest rate of `rate_type` dated on or before `on`, with its
+         *     `rate_date` so its age shows. When only the reverse pair is stated, it is
+         *     answered inverted (`inverted: true`, `stated` shows the fact as written).
+         *     404 when none is stated: the server never falls back to another type.
+         */
+        get: operations["lookup_exchange_rate_api_v1_exchange_rates_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exchange-rates/{rate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Exchange Rate
+         * @description Withdraw a rate stated by mistake — only while no journal line cites it.
+         */
+        delete: operations["delete_exchange_rate_api_v1_exchange_rates__rate_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Exchange Rate
+         * @description Correct a rate or its source — only while no journal line cites it.
+         */
+        patch: operations["update_exchange_rate_api_v1_exchange_rates__rate_id__patch"];
+        trace?: never;
+    };
     "/api/v1/expense-claims": {
         parameters: {
             query?: never;
@@ -3819,6 +3944,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fx-revaluation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Fx Revaluation
+         * @description What each foreign-currency account — per party on a subledger account
+         *     — is worth at `as_of`, against the figure the book holds (which already
+         *     includes earlier revaluations). `difference` > 0: debit the account, a
+         *     gain; < 0: credit it, a loss. A currency with no rate is listed under
+         *     `missing_rates`, never valued at a guess. `revaluation_entry_no` names
+         *     an entry already posted for the account and month (`source_type:
+         *     ledger_account`, `source_event: revalued:YYYY-MM`). Proposes only: the
+         *     agent posts by the workspace's rule.
+         */
+        get: operations["get_fx_revaluation_api_v1_fx_revaluation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/geos": {
         parameters: {
             query?: never;
@@ -3911,7 +4063,9 @@ export interface paths {
          *     by months) or the same dates a year earlier, with the change. Carries
          *     what makes the figures provisional: `period_status.open_months`, `drafts`
          *     (draft entries in the span, left out) and the coverage read's `missing`
-         *     and `stale` counts per month.
+         *     and `stale` counts per month. With a layout, `layout.lines` are its rows
+         *     applied to the same sums, `layout.unplaced` the accounts with movement no
+         *     row takes; `result` is always the book's whole result.
          */
         get: operations["get_income_statement_api_v1_income_statement_get"];
         put?: never;
@@ -7649,6 +7803,80 @@ export interface paths {
         /** Get Skill File */
         get: operations["get_skill_file_api_v1_skills__skill_ref__files__file_path__get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Statement Layouts
+         * @description The workspace's statement formats, each with its rows.
+         */
+        get: operations["list_statement_layouts_api_v1_statement_layouts_get"];
+        put?: never;
+        /**
+         * Create Statement Layout
+         * @description Keep a statement format: ordered rows, each summing accounts (by id,
+         *     with sub-accounts, or by code range) or other rows (`formula`), or a
+         *     heading. Refused with 422 naming the row when a formula names a code not
+         *     here or goes in a circle, when an account is of a type the statement does
+         *     not take, or when an account would feed two rows. Which account belongs
+         *     on which line is the person's decision: `confirmed_by` names them.
+         */
+        post: operations["create_statement_layout_api_v1_statement_layouts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statement-layouts/{layout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Statement Layout */
+        get: operations["get_statement_layout_api_v1_statement_layouts__layout_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Statement Layout
+         * @description Rename a layout, make it its statement's default (the previous default
+         *     stops being it), or archive it (an archived layout is no one's default;
+         *     it stays readable by id).
+         */
+        patch: operations["update_statement_layout_api_v1_statement_layouts__layout_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/statement-layouts/{layout_id}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace Statement Layout Rows
+         * @description Replace every row of a layout at once — a layout is reviewed as one
+         *     page — with the same checks as creating one. `confirmed_by` names who
+         *     accepted the new rows; the audit trail keeps the rows before and after.
+         */
+        put: operations["replace_statement_layout_rows_api_v1_statement_layouts__layout_id__rows_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -12695,6 +12923,11 @@ export interface components {
             currency?: string | null;
             /** Description */
             description?: string | null;
+            /**
+             * Is Cash
+             * @default false
+             */
+            is_cash: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -13895,6 +14128,25 @@ export interface components {
              */
             subject_type: "user" | "role";
         };
+        /** CreateStatementLayoutRequest */
+        CreateStatementLayoutRequest: {
+            /** Confirmed By */
+            confirmed_by: string;
+            /**
+             * Is Default
+             * @default false
+             */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /** Rows */
+            rows: components["schemas"]["StatementLayoutRowRequest"][];
+            /**
+             * Statement
+             * @enum {string}
+             */
+            statement: "income_statement" | "balance_sheet" | "cash_summary";
+        };
         /** CreateStoreFacilityRequest */
         CreateStoreFacilityRequest: {
             /** Facility Id */
@@ -15051,6 +15303,11 @@ export interface components {
             data: components["schemas"]["EventRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[ExchangeRateRead] */
+        Envelope_ExchangeRateRead_: {
+            data: components["schemas"]["ExchangeRateRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[ExpenseClaimDetailRead] */
         Envelope_ExpenseClaimDetailRead_: {
             data: components["schemas"]["ExpenseClaimDetailRead"];
@@ -15436,6 +15693,11 @@ export interface components {
             data: components["schemas"]["SkillReachRead"];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
+        /** Envelope[StatementLayoutRead] */
+        Envelope_StatementLayoutRead_: {
+            data: components["schemas"]["StatementLayoutRead"];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
         /** Envelope[StockReservationRead] */
         Envelope_StockReservationRead_: {
             data: components["schemas"]["StockReservationRead"];
@@ -15587,6 +15849,54 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** ExchangeRateRead */
+        ExchangeRateRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** From Currency */
+            from_currency: string;
+            /** Id */
+            id: string;
+            /** Rate */
+            rate: number;
+            /**
+             * Rate Date
+             * Format: date
+             */
+            rate_date: string;
+            /** Rate Type */
+            rate_type: string;
+            /** Source */
+            source: string;
+            /** To Currency */
+            to_currency: string;
+        };
+        /**
+         * ExchangeRateRequest
+         * @description A rate as its source states it: one unit of from_currency in to_currency.
+         */
+        ExchangeRateRequest: {
+            /** From Currency */
+            from_currency: string;
+            /** Rate */
+            rate: number;
+            /**
+             * Rate Date
+             * Format: date
+             */
+            rate_date: string;
+            /** Rate Type */
+            rate_type: string;
+            /** Source */
+            source: string;
+            /** To Currency */
+            to_currency: string;
         };
         /** ExpenseClaimDetailRead */
         ExpenseClaimDetailRead: {
@@ -16154,6 +16464,11 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImportExchangeRatesRequest */
+        ImportExchangeRatesRequest: {
+            /** Rates */
+            rates: components["schemas"]["ExchangeRateRequest"][];
         };
         /**
          * InlineAdjustmentRow
@@ -16945,6 +17260,8 @@ export interface components {
             employee_id?: string | null;
             /** Exchange Rate */
             exchange_rate?: number | null;
+            /** Exchange Rate Id */
+            exchange_rate_id?: string | null;
             /** Foreign Amount */
             foreign_amount?: number | null;
             /** Ledger Account Id */
@@ -16972,6 +17289,8 @@ export interface components {
             employee_id?: string | null;
             /** Exchange Rate */
             exchange_rate?: number | null;
+            /** Exchange Rate Id */
+            exchange_rate_id?: string | null;
             /** Foreign Amount */
             foreign_amount?: number | null;
             /** Id */
@@ -17051,6 +17370,11 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+            /**
+             * Is Cash
+             * @default false
+             */
+            is_cash: boolean;
             /** Name */
             name: string;
             /** Parent Id */
@@ -17375,6 +17699,12 @@ export interface components {
         ListEnvelope_EventRead_: {
             /** Data */
             data: components["schemas"]["EventRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[ExchangeRateRead] */
+        ListEnvelope_ExchangeRateRead_: {
+            /** Data */
+            data: components["schemas"]["ExchangeRateRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[ExpenseClaimRead] */
@@ -17723,6 +18053,12 @@ export interface components {
         ListEnvelope_ShipmentRead_: {
             /** Data */
             data: components["schemas"]["ShipmentRead"][];
+            meta?: components["schemas"]["EnvelopeMeta"];
+        };
+        /** ListEnvelope[StatementLayoutRead] */
+        ListEnvelope_StatementLayoutRead_: {
+            /** Data */
+            data: components["schemas"]["StatementLayoutRead"][];
             meta?: components["schemas"]["EnvelopeMeta"];
         };
         /** ListEnvelope[StoreFacilityRead] */
@@ -19893,6 +20229,13 @@ export interface components {
             /** Note */
             note?: string | null;
         };
+        /** ReplaceStatementLayoutRowsRequest */
+        ReplaceStatementLayoutRowsRequest: {
+            /** Confirmed By */
+            confirmed_by: string;
+            /** Rows */
+            rows: components["schemas"]["StatementLayoutRowRequest"][];
+        };
         /**
          * ReportDriverStateRequest
          * @description The runner's own operational bookkeeping about one subscription.
@@ -21724,6 +22067,111 @@ export interface components {
             /** Withheld */
             withheld?: components["schemas"]["SkillReachEntry"][];
         };
+        /**
+         * StatementLayoutAccountRef
+         * @description What feeds an `accounts` row: one account (and its sub-accounts), a
+         *     code range (`code_from` to `code_to`, inclusive, by code order — it takes
+         *     accounts added later), or, on a balance sheet, the earnings not yet
+         *     closed into equity. Exactly one of the three.
+         */
+        StatementLayoutAccountRef: {
+            /** Code From */
+            code_from?: string | null;
+            /** Code To */
+            code_to?: string | null;
+            /** Earnings Not Yet Closed */
+            earnings_not_yet_closed?: boolean | null;
+            /** Ledger Account Id */
+            ledger_account_id?: string | null;
+        };
+        /** StatementLayoutFormulaTerm */
+        StatementLayoutFormulaTerm: {
+            /** Code */
+            code: string;
+            /**
+             * Sign
+             * @default 1
+             * @enum {integer}
+             */
+            sign: 1 | -1;
+        };
+        /** StatementLayoutRead */
+        StatementLayoutRead: {
+            /** Confirmed By */
+            confirmed_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Id */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Rows
+             * @default []
+             */
+            rows: components["schemas"]["StatementLayoutRowRead"][];
+            /** Statement */
+            statement: string;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** StatementLayoutRowRead */
+        StatementLayoutRowRead: {
+            /** Accounts */
+            accounts?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Code */
+            code: string;
+            /** Formula */
+            formula?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Row No */
+            row_no: number;
+            /** Sign */
+            sign: number;
+        };
+        /** StatementLayoutRowRequest */
+        StatementLayoutRowRequest: {
+            /** Accounts */
+            accounts?: components["schemas"]["StatementLayoutAccountRef"][] | null;
+            /** Code */
+            code: string;
+            /** Formula */
+            formula?: components["schemas"]["StatementLayoutFormulaTerm"][] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accounts" | "total" | "heading";
+            /** Label */
+            label: string;
+            /** Row No */
+            row_no: number;
+            /**
+             * Sign
+             * @default 1
+             * @enum {integer}
+             */
+            sign: 1 | -1;
+        };
         /** StockReservationLineRead */
         StockReservationLineRead: {
             /** Available To Promise */
@@ -22997,6 +23445,16 @@ export interface components {
             /** Subject */
             subject?: string | null;
         };
+        /**
+         * UpdateExchangeRateRequest
+         * @description Only a rate no journal line cites may be corrected.
+         */
+        UpdateExchangeRateRequest: {
+            /** Rate */
+            rate?: number | null;
+            /** Source */
+            source?: string | null;
+        };
         /** UpdateExpenseClaimRequest */
         UpdateExpenseClaimRequest: {
             /** Claim Date */
@@ -23336,6 +23794,8 @@ export interface components {
             currency?: string | null;
             /** Description */
             description?: string | null;
+            /** Is Cash */
+            is_cash?: boolean | null;
             /** Name */
             name?: string | null;
             /** Parent Id */
@@ -24225,6 +24685,15 @@ export interface components {
             title?: string | null;
             /** Tracking No */
             tracking_no?: string | null;
+        };
+        /** UpdateStatementLayoutRequest */
+        UpdateStatementLayoutRequest: {
+            /** Is Default */
+            is_default?: boolean | null;
+            /** Name */
+            name?: string | null;
+            /** Status */
+            status?: ("active" | "archived") | null;
         };
         /** UpdateStoreFacilityRequest */
         UpdateStoreFacilityRequest: {
@@ -27187,6 +27656,8 @@ export interface operations {
                 as_of?: string | null;
                 /** @description previous_period (default: the end of the month before), previous_year or none */
                 compare?: string | null;
+                /** @description a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only */
+                layout_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -30903,6 +31374,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cash_summary_api_v1_cash_summary_get: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM-DD, or year_start; default: the first of date_to's month, or of this month */
+                date_from?: string | null;
+                /** @description default: the end of date_from's month, or of this month */
+                date_to?: string | null;
+                /** @description previous_period (default), previous_year or none */
+                compare?: string | null;
+                /** @description a cash_summary layout to apply (its operating, investing and financing lines); default: the workspace's default, if any; `none` for without */
+                layout_id?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {
@@ -34692,6 +35208,266 @@ export interface operations {
             };
         };
     };
+    list_exchange_rates_api_v1_exchange_rates_get: {
+        parameters: {
+            query?: {
+                from_currency?: string | null;
+                to_currency?: string | null;
+                rate_type?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_ExchangeRateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_exchange_rate_api_v1_exchange_rates_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeRateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExchangeRateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_exchange_rates_api_v1_exchange_rates_import_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportExchangeRatesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_exchange_rate_api_v1_exchange_rates_lookup_get: {
+        parameters: {
+            query: {
+                from_currency: string;
+                to_currency: string;
+                /** @description required: the server does not choose between rate types */
+                rate_type: string;
+                /** @description default: today */
+                on?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_exchange_rate_api_v1_exchange_rates__rate_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rate_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_exchange_rate_api_v1_exchange_rates__rate_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                rate_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExchangeRateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ExchangeRateRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_expense_claims_api_v1_expense_claims_get: {
         parameters: {
             query?: {
@@ -36750,6 +37526,49 @@ export interface operations {
             };
         };
     };
+    get_fx_revaluation_api_v1_fx_revaluation_get: {
+        parameters: {
+            query?: {
+                /** @description default: today */
+                as_of?: string | null;
+                /** @description the type of rate to value at (the workspace's rule, usually month_end); looked up on or before as_of */
+                rate_type?: string | null;
+                /** @description CUR:rate pairs into the functional currency, for rates no table holds: USD:7.82,CNY:1.083 */
+                rates?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_geos_api_v1_geos_get: {
         parameters: {
             query?: {
@@ -37016,6 +37835,8 @@ export interface operations {
                 compare?: string | null;
                 /** @description split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned` */
                 by?: string | null;
+                /** @description a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only */
+                layout_id?: string | null;
             };
             header?: {
                 "X-API-Key"?: string | null;
@@ -38791,6 +39612,8 @@ export interface operations {
                 parent_id?: string | null;
                 subledger?: string | null;
                 status?: string | null;
+                /** @description true: the cash accounts the cash summary follows */
+                is_cash?: boolean | null;
                 keyword?: string | null;
                 page?: number | null;
                 /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
@@ -50006,6 +50829,228 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_statement_layouts_api_v1_statement_layouts_get: {
+        parameters: {
+            query?: {
+                /** @description income_statement or balance_sheet */
+                statement?: string | null;
+                /** @description active or archived */
+                status?: string | null;
+                page?: number | null;
+                /** @description Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total. */
+                size?: number | null;
+                /** @description Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). */
+                order_by?: string | null;
+                /** @description rows whose created_at is at or after this */
+                created_at_from?: string | null;
+                /** @description rows whose created_at is at or before this */
+                created_at_thru?: string | null;
+                /** @description rows whose updated_at is at or after this */
+                updated_at_from?: string | null;
+                /** @description rows whose updated_at is at or before this */
+                updated_at_thru?: string | null;
+            };
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListEnvelope_StatementLayoutRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_statement_layout_api_v1_statement_layouts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStatementLayoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StatementLayoutRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_statement_layout_api_v1_statement_layouts__layout_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                layout_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StatementLayoutRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_statement_layout_api_v1_statement_layouts__layout_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                layout_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStatementLayoutRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StatementLayoutRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_statement_layout_rows_api_v1_statement_layouts__layout_id__rows_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+                authorization?: string | null;
+                "X-CSRF-Token"?: string | null;
+                /** @description A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                layout_id: string;
+            };
+            cookie?: {
+                oryh_session?: string | null;
+                oryh_csrf?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceStatementLayoutRowsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StatementLayoutRead_"];
                 };
             };
             /** @description Validation Error */

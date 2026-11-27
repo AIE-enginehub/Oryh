@@ -4697,6 +4697,9 @@ class LedgerAccount(TenantRecord, Base):
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # a bank or cash account the person marked: the cash summary follows the
+    # money in and out of these. Only an asset holds cash.
+    is_cash: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
 
 
 class AccountingPeriod(TenantRecord, Base):
@@ -4761,6 +4764,28 @@ class JournalEntry(TenantRecord, SoftDeleteMixin, Base):
     )
 
 
+class ExchangeRate(TenantRecord, Base):
+    """A dated rate the workspace stated, with its type and who published it:
+    one unit of `from_currency` in `to_currency`. The server never picks or
+    fetches a rate; which type applies where is the workspace's posting rule.
+    Once a journal line cites it, it never changes."""
+
+    __tablename__ = "exchange_rates"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "from_currency", "to_currency", "rate_date", "rate_type",
+                         name="exchange_rates_fact_uk"),
+        Index("exchange_rates_lookup_idx", "tenant_id", "from_currency", "to_currency", "rate_type", "rate_date"),
+    )
+
+    from_currency: Mapped[str] = mapped_column(String(3))
+    to_currency: Mapped[str] = mapped_column(String(3))
+    rate: Mapped[float] = mapped_column(Numeric(18, 8))
+    rate_date: Mapped[date] = mapped_column(Date)
+    rate_type: Mapped[str] = mapped_column(String(50))
+    source: Mapped[str] = mapped_column(String(200))
+    created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+
 class JournalLine(TenantRecord, Base):
     """One debit or one credit, in the functional currency. A converted amount
     keeps its original currency, amount and the rate used; a line on a
@@ -4782,6 +4807,10 @@ class JournalLine(TenantRecord, Base):
     cost_center_id: Mapped[str | None] = mapped_column(ForeignKey("cost_centers.id"), nullable=True, index=True)
     project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # the rate fact the conversion used, when it came from the table
+    exchange_rate_id: Mapped[str | None] = mapped_column(
+        ForeignKey("exchange_rates.id"), nullable=True, index=True
+    )
 
     entry: Mapped[JournalEntry] = relationship(back_populates="lines")
 
@@ -4814,6 +4843,59 @@ class LedgerWaiver(TenantRecord, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
     revoke_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# a null here is SQL NULL, not JSON `null`: the rows' shape CHECK reads it
+_NullableJson = JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql")
+
+
+class StatementLayout(TenantRecord, Base):
+    """A statement format as data — a statutory or management layout — that
+    the statement reads apply mechanically. Which account sits on which line
+    is the workspace's accountant's decision, so `confirmed_by` names who
+    accepted it. At most one default per statement."""
+
+    __tablename__ = "statement_layouts"
+    __table_args__ = (
+        Index(
+            "statement_layouts_default_uk", "tenant_id", "statement", unique=True,
+            postgresql_where=text("is_default"), sqlite_where=text("is_default"),
+        ),
+    )
+
+    statement: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(200))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    status: Mapped[str] = mapped_column(String(20), default="active", server_default=text("'active'"))
+    confirmed_by: Mapped[str] = mapped_column(String(200))
+    created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    rows: Mapped[list["StatementLayoutRow"]] = relationship(
+        back_populates="layout", order_by="StatementLayoutRow.row_no", cascade="all, delete-orphan"
+    )
+
+
+class StatementLayoutRow(TenantRecord, Base):
+    """One line of a layout: `accounts` sums accounts (by id, or by a code
+    range that also takes sub-accounts added later), `total` sums other rows
+    by `formula`, `heading` carries no figure."""
+
+    __tablename__ = "statement_layout_rows"
+    __table_args__ = (
+        UniqueConstraint("layout_id", "row_no", name="statement_layout_rows_row_no_uk"),
+        UniqueConstraint("layout_id", "code", name="statement_layout_rows_code_uk"),
+    )
+
+    layout_id: Mapped[str] = mapped_column(ForeignKey("statement_layouts.id", ondelete="CASCADE"), index=True)
+    row_no: Mapped[int] = mapped_column(Integer)
+    code: Mapped[str] = mapped_column(String(40))
+    label: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(20))
+    accounts: Mapped[list | None] = mapped_column(_NullableJson, nullable=True)
+    sign: Mapped[int] = mapped_column(SmallInteger, default=1, server_default=text("1"))
+    formula: Mapped[list | None] = mapped_column(_NullableJson, nullable=True)
+
+    layout: Mapped[StatementLayout] = relationship(back_populates="rows")
 
 
 # Every fixed-value column's CHECK, attached from one registry rather than

@@ -7,7 +7,7 @@
 -- those migrations land, dumped from a database migrated to head. The "why"
 -- behind any table lives in its migration's docstring, not here.
 --
--- Alembic revision: 20261125_0115
+-- Alembic revision: 20261127_0118
 --
 
 --
@@ -1024,6 +1024,28 @@ CREATE TABLE oryh.events (
 
 
 --
+-- Name: exchange_rates; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.exchange_rates (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    from_currency character varying(3) NOT NULL,
+    to_currency character varying(3) NOT NULL,
+    rate numeric(18,8) NOT NULL,
+    rate_date date NOT NULL,
+    rate_type character varying(50) NOT NULL,
+    source character varying(200) NOT NULL,
+    created_by character varying(200),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT exchange_rates_pair_chk CHECK (((from_currency)::text <> (to_currency)::text)),
+    CONSTRAINT exchange_rates_rate_chk CHECK ((rate > (0)::numeric)),
+    CONSTRAINT exchange_rates_source_chk CHECK ((length(TRIM(BOTH FROM source)) > 0))
+);
+
+
+--
 -- Name: expense_claims; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -1487,6 +1509,7 @@ CREATE TABLE oryh.journal_lines (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    exchange_rate_id uuid,
     CONSTRAINT journal_lines_foreign_chk CHECK ((((currency IS NULL) AND (foreign_amount IS NULL) AND (exchange_rate IS NULL)) OR ((currency IS NOT NULL) AND (foreign_amount IS NOT NULL) AND (exchange_rate > (0)::numeric)))),
     CONSTRAINT journal_lines_side_chk CHECK ((((debit > (0)::numeric) AND (credit = (0)::numeric)) OR ((credit > (0)::numeric) AND (debit = (0)::numeric))))
 );
@@ -1539,7 +1562,9 @@ CREATE TABLE oryh.ledger_accounts (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_cash boolean DEFAULT false NOT NULL,
     CONSTRAINT ledger_accounts_account_type_chk CHECK (((account_type)::text = ANY ((ARRAY['asset'::character varying, 'equity'::character varying, 'expense'::character varying, 'income'::character varying, 'liability'::character varying])::text[]))),
+    CONSTRAINT ledger_accounts_cash_asset_chk CHECK (((is_cash = false) OR ((account_type)::text = 'asset'::text))),
     CONSTRAINT ledger_accounts_not_own_parent_chk CHECK (((parent_id IS NULL) OR (parent_id <> id))),
     CONSTRAINT ledger_accounts_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[]))),
     CONSTRAINT ledger_accounts_subledger_chk CHECK ((((subledger)::text = ANY ((ARRAY['customer'::character varying, 'employee'::character varying, 'vendor'::character varying])::text[])) OR (subledger IS NULL)))
@@ -2704,6 +2729,51 @@ CREATE TABLE oryh.shipments (
 
 
 --
+-- Name: statement_layout_rows; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.statement_layout_rows (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    layout_id uuid NOT NULL,
+    row_no integer NOT NULL,
+    code character varying(40) NOT NULL,
+    label character varying(200) NOT NULL,
+    kind character varying(20) NOT NULL,
+    accounts jsonb,
+    sign smallint DEFAULT 1 NOT NULL,
+    formula jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT statement_layout_rows_kind_chk CHECK (((kind)::text = ANY ((ARRAY['accounts'::character varying, 'heading'::character varying, 'total'::character varying])::text[]))),
+    CONSTRAINT statement_layout_rows_shape_chk CHECK (((((kind)::text = 'accounts'::text) AND (accounts IS NOT NULL) AND (formula IS NULL)) OR (((kind)::text = 'total'::text) AND (formula IS NOT NULL) AND (accounts IS NULL)) OR (((kind)::text = 'heading'::text) AND (accounts IS NULL) AND (formula IS NULL)))),
+    CONSTRAINT statement_layout_rows_sign_chk CHECK (((sign = 1) OR (sign = '-1'::integer)))
+);
+
+
+--
+-- Name: statement_layouts; Type: TABLE; Schema: oryh; Owner: -
+--
+
+CREATE TABLE oryh.statement_layouts (
+    id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    statement character varying(20) NOT NULL,
+    name character varying(200) NOT NULL,
+    is_default boolean DEFAULT false NOT NULL,
+    status character varying(20) DEFAULT 'active'::character varying NOT NULL,
+    confirmed_by character varying(200) NOT NULL,
+    created_by character varying(200),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT statement_layouts_confirmed_chk CHECK ((length(TRIM(BOTH FROM confirmed_by)) > 0)),
+    CONSTRAINT statement_layouts_default_active_chk CHECK (((is_default = false) OR ((status)::text = 'active'::text))),
+    CONSTRAINT statement_layouts_statement_chk CHECK (((statement)::text = ANY ((ARRAY['balance_sheet'::character varying, 'cash_summary'::character varying, 'income_statement'::character varying])::text[]))),
+    CONSTRAINT statement_layouts_status_chk CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'archived'::character varying])::text[])))
+);
+
+
+--
 -- Name: store_facilities; Type: TABLE; Schema: oryh; Owner: -
 --
 
@@ -3514,6 +3584,22 @@ ALTER TABLE ONLY oryh.events
 
 
 --
+-- Name: exchange_rates exchange_rates_fact_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.exchange_rates
+    ADD CONSTRAINT exchange_rates_fact_uk UNIQUE (tenant_id, from_currency, to_currency, rate_date, rate_type);
+
+
+--
+-- Name: exchange_rates exchange_rates_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.exchange_rates
+    ADD CONSTRAINT exchange_rates_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: expense_claims expense_claims_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -4271,6 +4357,38 @@ ALTER TABLE ONLY oryh.shipments
 
 ALTER TABLE ONLY oryh.shipments
     ADD CONSTRAINT shipments_shipment_no_uk UNIQUE (tenant_id, shipment_no);
+
+
+--
+-- Name: statement_layout_rows statement_layout_rows_code_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.statement_layout_rows
+    ADD CONSTRAINT statement_layout_rows_code_uk UNIQUE (layout_id, code);
+
+
+--
+-- Name: statement_layout_rows statement_layout_rows_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.statement_layout_rows
+    ADD CONSTRAINT statement_layout_rows_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: statement_layout_rows statement_layout_rows_row_no_uk; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.statement_layout_rows
+    ADD CONSTRAINT statement_layout_rows_row_no_uk UNIQUE (layout_id, row_no);
+
+
+--
+-- Name: statement_layouts statement_layouts_pkey; Type: CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.statement_layouts
+    ADD CONSTRAINT statement_layouts_pkey PRIMARY KEY (id);
 
 
 --
@@ -5536,6 +5654,20 @@ CREATE INDEX events_tenant_id_idx ON oryh.events USING btree (tenant_id);
 
 
 --
+-- Name: exchange_rates_lookup_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX exchange_rates_lookup_idx ON oryh.exchange_rates USING btree (tenant_id, from_currency, to_currency, rate_type, rate_date);
+
+
+--
+-- Name: exchange_rates_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX exchange_rates_tenant_id_idx ON oryh.exchange_rates USING btree (tenant_id);
+
+
+--
 -- Name: expense_claims_cost_center_id_idx; Type: INDEX; Schema: oryh; Owner: -
 --
 
@@ -6177,6 +6309,13 @@ CREATE INDEX journal_lines_employee_id_idx ON oryh.journal_lines USING btree (em
 --
 
 CREATE INDEX journal_lines_entry_id_idx ON oryh.journal_lines USING btree (entry_id);
+
+
+--
+-- Name: journal_lines_exchange_rate_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX journal_lines_exchange_rate_id_idx ON oryh.journal_lines USING btree (exchange_rate_id);
 
 
 --
@@ -7388,6 +7527,34 @@ CREATE INDEX shipments_tenant_idx ON oryh.shipments USING btree (tenant_id);
 --
 
 CREATE INDEX shipments_tenant_status_idx ON oryh.shipments USING btree (tenant_id, status, created_at DESC);
+
+
+--
+-- Name: statement_layout_rows_layout_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX statement_layout_rows_layout_id_idx ON oryh.statement_layout_rows USING btree (layout_id);
+
+
+--
+-- Name: statement_layout_rows_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX statement_layout_rows_tenant_id_idx ON oryh.statement_layout_rows USING btree (tenant_id);
+
+
+--
+-- Name: statement_layouts_default_uk; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE UNIQUE INDEX statement_layouts_default_uk ON oryh.statement_layouts USING btree (tenant_id, statement) WHERE is_default;
+
+
+--
+-- Name: statement_layouts_tenant_id_idx; Type: INDEX; Schema: oryh; Owner: -
+--
+
+CREATE INDEX statement_layouts_tenant_id_idx ON oryh.statement_layouts USING btree (tenant_id);
 
 
 --
@@ -8713,6 +8880,14 @@ ALTER TABLE ONLY oryh.journal_lines
 
 
 --
+-- Name: journal_lines journal_lines_exchange_rate_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.journal_lines
+    ADD CONSTRAINT journal_lines_exchange_rate_id_fkey FOREIGN KEY (exchange_rate_id) REFERENCES oryh.exchange_rates(id);
+
+
+--
 -- Name: journal_lines journal_lines_ledger_account_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -9777,6 +9952,14 @@ ALTER TABLE ONLY oryh.shipments
 
 
 --
+-- Name: statement_layout_rows statement_layout_rows_layout_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
+--
+
+ALTER TABLE ONLY oryh.statement_layout_rows
+    ADD CONSTRAINT statement_layout_rows_layout_id_fkey FOREIGN KEY (layout_id) REFERENCES oryh.statement_layouts(id) ON DELETE CASCADE;
+
+
+--
 -- Name: store_facilities store_facilities_facility_id_fkey; Type: FK CONSTRAINT; Schema: oryh; Owner: -
 --
 
@@ -10181,6 +10364,12 @@ ALTER TABLE oryh.event_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.events ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: exchange_rates; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.exchange_rates ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: expense_claims; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -10557,6 +10746,18 @@ ALTER TABLE oryh.shipment_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE oryh.shipments ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: statement_layout_rows; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.statement_layout_rows ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: statement_layouts; Type: ROW SECURITY; Schema: oryh; Owner: -
+--
+
+ALTER TABLE oryh.statement_layouts ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: store_facilities; Type: ROW SECURITY; Schema: oryh; Owner: -
 --
 
@@ -10838,6 +11039,13 @@ CREATE POLICY tenant_isolation ON oryh.event_participants USING ((((tenant_id)::
 --
 
 CREATE POLICY tenant_isolation ON oryh.events USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: exchange_rates tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.exchange_rates USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --
@@ -11230,6 +11438,20 @@ CREATE POLICY tenant_isolation ON oryh.shipment_items USING ((((tenant_id)::text
 --
 
 CREATE POLICY tenant_isolation ON oryh.shipments USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: statement_layout_rows tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.statement_layout_rows USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
+
+
+--
+-- Name: statement_layouts tenant_isolation; Type: POLICY; Schema: oryh; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON oryh.statement_layouts USING ((((tenant_id)::text = current_setting('app.tenant_id'::text, true)) OR (current_setting('app.is_platform_admin'::text, true) = 'on'::text))) WITH CHECK (((tenant_id)::text = current_setting('app.tenant_id'::text, true)));
 
 
 --

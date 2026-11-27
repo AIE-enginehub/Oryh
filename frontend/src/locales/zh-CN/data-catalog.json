@@ -449,6 +449,10 @@
       "label": "Document parties",
       "related": {}
     },
+    "exchange-rates": {
+      "label": "Exchange rates",
+      "related": {}
+    },
     "journal-entries": {
       "label": "Journal entries",
       "related": {}
@@ -483,6 +487,10 @@
     },
     "project-tasks": {
       "label": "Project tasks",
+      "related": {}
+    },
+    "statement-layouts": {
+      "label": "Statement layouts",
       "related": {}
     }
   }

@@ -267,7 +267,7 @@ SYSTEM_CAPABILITIES: tuple[tuple[str, bool, str, str], ...] = (
     # totals and margins, so none of the four is seeded to `member`.
     ("ledger.read", False, "查看账簿", "查看科目表、凭证、余额与试算平衡表；任一账簿权限均隐含此能力"),
     ("ledger.post", False, "记账", "录入、过账与冲销凭证，记录或撤销免记账说明（某单据无需凭证）；可查看账簿"),
-    ("ledger.manage", False, "科目表管理", "维护科目表与记账本位币；可查看账簿"),
+    ("ledger.manage", False, "科目表管理", "维护科目表、记账本位币、汇率与报表格式；可查看账簿"),
     ("period.close", False, "结账", "关闭会计期间使其不再入账，并可附理由重新打开；可查看账簿"),
     ("employees.manage", False, "员工管理", "创建和维护员工档案"),
     ("users.manage", False, "用户与角色管理", "邀请用户、分配角色、管理角色与自定义能力；只能授出自己持有的权限，不能把人请进 admin 或造出比自己更宽的角色——那是管理员的事"),

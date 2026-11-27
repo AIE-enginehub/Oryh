@@ -128,6 +128,13 @@ SYSTEM_TYPE_OPTIONS: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("wallet", "第三方支付", "微信支付/支付宝/PayPal 等商户账户余额"),
         ("other", "其他", "其余资金形态"),
     ),
+    "exchange_rate_type": (
+        ("spot", "即期汇率", "当日公布的汇率，如央行中间价"),
+        ("month_end", "月末汇率", "月末折算外币余额所用的汇率"),
+        ("bank_buying", "银行买入价", "银行买入外币的汇率"),
+        ("bank_selling", "银行卖出价", "银行卖出外币的汇率"),
+        ("contract", "合同汇率", "与客户或供应商合同中约定的汇率"),
+    ),
     "product_image_type": (
         ("main", "展示图", "对外展示/主图类图片"),
         ("detail", "详情图", "商品详情页用图"),

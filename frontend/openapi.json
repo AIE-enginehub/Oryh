@@ -14108,6 +14108,11 @@
             ],
             "title": "Description"
           },
+          "is_cash": {
+            "default": false,
+            "title": "Is Cash",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -18650,6 +18655,54 @@
         "title": "CreateSkillAssignmentRequest",
         "type": "object"
       },
+      "CreateStatementLayoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "is_default": {
+            "default": false,
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/StatementLayoutRowRequest"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          },
+          "statement": {
+            "enum": [
+              "income_statement",
+              "balance_sheet",
+              "cash_summary"
+            ],
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement",
+          "name",
+          "confirmed_by",
+          "rows"
+        ],
+        "title": "CreateStatementLayoutRequest",
+        "type": "object"
+      },
       "CreateStoreFacilityRequest": {
         "additionalProperties": false,
         "properties": {
@@ -22306,6 +22359,21 @@
         "title": "Envelope[EventRead]",
         "type": "object"
       },
+      "Envelope_ExchangeRateRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExchangeRateRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ExchangeRateRead]",
+        "type": "object"
+      },
       "Envelope_ExpenseClaimDetailRead_": {
         "properties": {
           "data": {
@@ -23461,6 +23529,21 @@
         "title": "Envelope[SkillReachRead]",
         "type": "object"
       },
+      "Envelope_StatementLayoutRead_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/StatementLayoutRead"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[StatementLayoutRead]",
+        "type": "object"
+      },
       "Envelope_StockReservationRead_": {
         "properties": {
           "data": {
@@ -23917,6 +24000,118 @@
           "updated_at"
         ],
         "title": "EventRead",
+        "type": "object"
+      },
+      "ExchangeRateRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "from_currency": {
+            "title": "From Currency",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "rate": {
+            "title": "Rate",
+            "type": "number"
+          },
+          "rate_date": {
+            "format": "date",
+            "title": "Rate Date",
+            "type": "string"
+          },
+          "rate_type": {
+            "title": "Rate Type",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "to_currency": {
+            "title": "To Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from_currency",
+          "to_currency",
+          "rate",
+          "rate_date",
+          "rate_type",
+          "source",
+          "created_at"
+        ],
+        "title": "ExchangeRateRead",
+        "type": "object"
+      },
+      "ExchangeRateRequest": {
+        "additionalProperties": false,
+        "description": "A rate as its source states it: one unit of from_currency in to_currency.",
+        "properties": {
+          "from_currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "From Currency",
+            "type": "string"
+          },
+          "rate": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1000000000.0,
+            "title": "Rate",
+            "type": "number"
+          },
+          "rate_date": {
+            "format": "date",
+            "title": "Rate Date",
+            "type": "string"
+          },
+          "rate_type": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Rate Type",
+            "type": "string"
+          },
+          "source": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          },
+          "to_currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "To Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_currency",
+          "to_currency",
+          "rate",
+          "rate_date",
+          "rate_type",
+          "source"
+        ],
+        "title": "ExchangeRateRequest",
         "type": "object"
       },
       "ExpenseClaimDetailRead": {
@@ -25698,6 +25893,25 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportExchangeRatesRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/ExchangeRateRequest"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Rates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rates"
+        ],
+        "title": "ImportExchangeRatesRequest",
         "type": "object"
       },
       "InlineAdjustmentRow": {
@@ -28534,11 +28748,22 @@
             ],
             "title": "Exchange Rate"
           },
+          "exchange_rate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Rate Id"
+          },
           "foreign_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
                 "maximum": 999999999999.99,
+                "minimum": 0.0,
                 "type": "number"
               },
               {
@@ -28655,6 +28880,17 @@
               }
             ],
             "title": "Exchange Rate"
+          },
+          "exchange_rate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Rate Id"
           },
           "foreign_amount": {
             "anyOf": [
@@ -28930,6 +29166,11 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "is_cash": {
+            "default": false,
+            "title": "Is Cash",
+            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -29918,6 +30159,25 @@
           "data"
         ],
         "title": "ListEnvelope[EventRead]",
+        "type": "object"
+      },
+      "ListEnvelope_ExchangeRateRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ExchangeRateRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[ExchangeRateRead]",
         "type": "object"
       },
       "ListEnvelope_ExpenseClaimRead_": {
@@ -31020,6 +31280,25 @@
           "data"
         ],
         "title": "ListEnvelope[ShipmentRead]",
+        "type": "object"
+      },
+      "ListEnvelope_StatementLayoutRead_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/StatementLayoutRead"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EnvelopeMeta"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ListEnvelope[StatementLayoutRead]",
         "type": "object"
       },
       "ListEnvelope_StoreFacilityRead_": {
@@ -37997,6 +38276,32 @@
         "title": "RepealBusinessRuleRequest",
         "type": "object"
       },
+      "ReplaceStatementLayoutRowsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_by": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/StatementLayoutRowRequest"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows",
+          "confirmed_by"
+        ],
+        "title": "ReplaceStatementLayoutRowsRequest",
+        "type": "object"
+      },
       "ReportDriverStateRequest": {
         "additionalProperties": false,
         "description": "The runner's own operational bookkeeping about one subscription.\n\nThe threshold that decides when to give up is the runner's policy, not the\nrecord layer's, so the runner counts and reports rather than asking the\nserver to count for it.",
@@ -44802,6 +45107,299 @@
         "title": "SkillReachRead",
         "type": "object"
       },
+      "StatementLayoutAccountRef": {
+        "additionalProperties": false,
+        "description": "What feeds an `accounts` row: one account (and its sub-accounts), a\ncode range (`code_from` to `code_to`, inclusive, by code order — it takes\naccounts added later), or, on a balance sheet, the earnings not yet\nclosed into equity. Exactly one of the three.",
+        "properties": {
+          "code_from": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code From"
+          },
+          "code_to": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code To"
+          },
+          "earnings_not_yet_closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earnings Not Yet Closed"
+          },
+          "ledger_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ledger Account Id"
+          }
+        },
+        "title": "StatementLayoutAccountRef",
+        "type": "object"
+      },
+      "StatementLayoutFormulaTerm": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "sign": {
+            "default": 1,
+            "enum": [
+              1,
+              -1
+            ],
+            "title": "Sign",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "StatementLayoutFormulaTerm",
+        "type": "object"
+      },
+      "StatementLayoutRead": {
+        "properties": {
+          "confirmed_by": {
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rows": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StatementLayoutRowRead"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "name",
+          "is_default",
+          "status",
+          "confirmed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "StatementLayoutRead",
+        "type": "object"
+      },
+      "StatementLayoutRowRead": {
+        "properties": {
+          "accounts": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accounts"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "row_no": {
+            "title": "Row No",
+            "type": "integer"
+          },
+          "sign": {
+            "title": "Sign",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_no",
+          "code",
+          "label",
+          "kind",
+          "sign"
+        ],
+        "title": "StatementLayoutRowRead",
+        "type": "object"
+      },
+      "StatementLayoutRowRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StatementLayoutAccountRef"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accounts"
+          },
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$",
+            "title": "Code",
+            "type": "string"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/StatementLayoutFormulaTerm"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "kind": {
+            "enum": [
+              "accounts",
+              "total",
+              "heading"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "row_no": {
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Row No",
+            "type": "integer"
+          },
+          "sign": {
+            "default": 1,
+            "enum": [
+              1,
+              -1
+            ],
+            "title": "Sign",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_no",
+          "code",
+          "label",
+          "kind"
+        ],
+        "title": "StatementLayoutRowRequest",
+        "type": "object"
+      },
       "StockReservationLineRead": {
         "properties": {
           "available_to_promise": {
@@ -49798,6 +50396,40 @@
         "title": "UpdateEventRequest",
         "type": "object"
       },
+      "UpdateExchangeRateRequest": {
+        "additionalProperties": false,
+        "description": "Only a rate no journal line cites may be corrected.",
+        "properties": {
+          "rate": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "title": "UpdateExchangeRateRequest",
+        "type": "object"
+      },
       "UpdateExpenseClaimRequest": {
         "additionalProperties": false,
         "properties": {
@@ -51495,6 +52127,17 @@
               }
             ],
             "title": "Description"
+          },
+          "is_cash": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Cash"
           },
           "name": {
             "anyOf": [
@@ -55912,6 +56555,52 @@
           }
         },
         "title": "UpdateShipmentRequest",
+        "type": "object"
+      },
+      "UpdateStatementLayoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "is_default": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Default"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "active",
+                  "archived"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "UpdateStatementLayoutRequest",
         "type": "object"
       },
       "UpdateStoreFacilityRequest": {
@@ -64768,7 +65457,7 @@
     },
     "/api/v1/balance-sheet": {
       "get": {
-        "description": "Assets, liabilities and equity at a day, on their natural side, rolled\nup the chart's tree. Equity includes **earnings not yet closed** — every\nincome and expense balance to the day — so the sheet is right whether or\nnot a year-end closing entry has been posted. `balanced` states assets =\nliabilities + equity; for a book of balanced entries it always holds, and\n`false` is an integrity defect. Carries the open status, drafts and\ncoverage counts of `as_of`'s month.",
+        "description": "Assets, liabilities and equity at a day, on their natural side, rolled\nup the chart's tree. Equity includes **earnings not yet closed** — every\nincome and expense balance to the day — so the sheet is right whether or\nnot a year-end closing entry has been posted. `balanced` states assets =\nliabilities + equity; for a book of balanced entries it always holds, and\n`false` is an integrity defect. Carries the open status, drafts and\ncoverage counts of `as_of`'s month. With a layout, `layout.lines` are its\nrows (earnings not yet closed is placed by an `earnings_not_yet_closed`\nreference), `layout.unplaced` what no row takes; `totals` and `balanced`\nare always the book's whole.",
         "operationId": "get_balance_sheet_api_v1_balance_sheet_get",
         "parameters": [
           {
@@ -64806,6 +65495,24 @@
               ],
               "description": "previous_period (default: the end of the month before), previous_year or none",
               "title": "Compare"
+            }
+          },
+          {
+            "description": "a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only",
+            "in": "query",
+            "name": "layout_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only",
+              "title": "Layout Id"
             }
           },
           {
@@ -78848,6 +79555,188 @@
           }
         },
         "summary": "Delete Capability"
+      }
+    },
+    "/api/v1/cash-summary": {
+      "get": {
+        "description": "Money into and out of the cash accounts (`is_cash` on the ledger\naccount, set by the person) for a span of days: each cash account's\nopening, closing and change, and `sections[]` by the type of the account\non the other side of each entry — received, paid and net per account.\nEach entry's cash is attributed to its other lines by their own amounts,\nstated in `basis`; an entry touching only cash accounts is a transfer and\nmoves nothing in or out. `reconciled` states opening + net change =\nclosing. A direct-method view from the book, not a statutory cash flow\nstatement. Carries the open months, drafts and coverage counts like the\nother statements.",
+        "operationId": "get_cash_summary_api_v1_cash_summary_get",
+        "parameters": [
+          {
+            "description": "YYYY-MM-DD, or year_start; default: the first of date_to's month, or of this month",
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM-DD, or year_start; default: the first of date_to's month, or of this month",
+              "title": "Date From"
+            }
+          },
+          {
+            "description": "default: the end of date_from's month, or of this month",
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: the end of date_from's month, or of this month",
+              "title": "Date To"
+            }
+          },
+          {
+            "description": "previous_period (default), previous_year or none",
+            "in": "query",
+            "name": "compare",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "previous_period (default), previous_year or none",
+              "title": "Compare"
+            }
+          },
+          {
+            "description": "a cash_summary layout to apply (its operating, investing and financing lines); default: the workspace's default, if any; `none` for without",
+            "in": "query",
+            "name": "layout_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a cash_summary layout to apply (its operating, investing and financing lines); default: the workspace's default, if any; `none` for without",
+              "title": "Layout Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cash Summary"
       }
     },
     "/api/v1/communication-events": {
@@ -92982,6 +93871,975 @@
         "summary": "Restore Event"
       }
     },
+    "/api/v1/exchange-rates": {
+      "get": {
+        "description": "The rates the workspace has stated, newest day first.",
+        "operationId": "list_exchange_rates_api_v1_exchange_rates_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_currency",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Currency"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_currency",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Currency"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rate_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rate Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_ExchangeRateRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Exchange Rates"
+      },
+      "post": {
+        "description": "State one rate with its type and source. One rate per pair, day and type.",
+        "operationId": "create_exchange_rate_api_v1_exchange_rates_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeRateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ExchangeRateRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Exchange Rate"
+      }
+    },
+    "/api/v1/exchange-rates/import": {
+      "post": {
+        "description": "State many rates at once, all or nothing. A row equal to one already\nstated (same pair, day, type and rate) is skipped, so an import can be\nre-run; a row that differs from one stated is refused, naming it.",
+        "operationId": "import_exchange_rates_api_v1_exchange_rates_import_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportExchangeRatesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Exchange Rates"
+      }
+    },
+    "/api/v1/exchange-rates/lookup": {
+      "get": {
+        "description": "The latest rate of `rate_type` dated on or before `on`, with its\n`rate_date` so its age shows. When only the reverse pair is stated, it is\nanswered inverted (`inverted: true`, `stated` shows the fact as written).\n404 when none is stated: the server never falls back to another type.",
+        "operationId": "lookup_exchange_rate_api_v1_exchange_rates_lookup_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_currency",
+            "required": true,
+            "schema": {
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "From Currency",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_currency",
+            "required": true,
+            "schema": {
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "To Currency",
+              "type": "string"
+            }
+          },
+          {
+            "description": "required: the server does not choose between rate types",
+            "in": "query",
+            "name": "rate_type",
+            "required": true,
+            "schema": {
+              "description": "required: the server does not choose between rate types",
+              "title": "Rate Type",
+              "type": "string"
+            }
+          },
+          {
+            "description": "default: today",
+            "in": "query",
+            "name": "on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: today",
+              "title": "On"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup Exchange Rate"
+      }
+    },
+    "/api/v1/exchange-rates/{rate_id}": {
+      "delete": {
+        "description": "Withdraw a rate stated by mistake — only while no journal line cites it.",
+        "operationId": "delete_exchange_rate_api_v1_exchange_rates__rate_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Exchange Rate"
+      },
+      "patch": {
+        "description": "Correct a rate or its source — only while no journal line cites it.",
+        "operationId": "update_exchange_rate_api_v1_exchange_rates__rate_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExchangeRateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ExchangeRateRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Exchange Rate"
+      }
+    },
     "/api/v1/expense-claims": {
       "get": {
         "operationId": "list_expense_claims_api_v1_expense_claims_get",
@@ -100742,6 +102600,170 @@
         "summary": "List Fulfilment Backlog"
       }
     },
+    "/api/v1/fx-revaluation": {
+      "get": {
+        "description": "What each foreign-currency account — per party on a subledger account\n— is worth at `as_of`, against the figure the book holds (which already\nincludes earlier revaluations). `difference` > 0: debit the account, a\ngain; < 0: credit it, a loss. A currency with no rate is listed under\n`missing_rates`, never valued at a guess. `revaluation_entry_no` names\nan entry already posted for the account and month (`source_type:\nledger_account`, `source_event: revalued:YYYY-MM`). Proposes only: the\nagent posts by the workspace's rule.",
+        "operationId": "get_fx_revaluation_api_v1_fx_revaluation_get",
+        "parameters": [
+          {
+            "description": "default: today",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "default: today",
+              "title": "As Of"
+            }
+          },
+          {
+            "description": "the type of rate to value at (the workspace's rule, usually month_end); looked up on or before as_of",
+            "in": "query",
+            "name": "rate_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the type of rate to value at (the workspace's rule, usually month_end); looked up on or before as_of",
+              "title": "Rate Type"
+            }
+          },
+          {
+            "description": "CUR:rate pairs into the functional currency, for rates no table holds: USD:7.82,CNY:1.083",
+            "in": "query",
+            "name": "rates",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "CUR:rate pairs into the functional currency, for rates no table holds: USD:7.82,CNY:1.083",
+              "title": "Rates"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Fx Revaluation"
+      }
+    },
     "/api/v1/geos": {
       "get": {
         "operationId": "list_geos_api_v1_geos_get",
@@ -101664,7 +103686,7 @@
     },
     "/api/v1/income-statement": {
       "get": {
-        "description": "Income and expenses for a span of days, on their natural side, rolled\nup the chart's tree, and the result (income − expenses) — every figure a\nsum of posted lines. `compare` adds the span before (whole months shift\nby months) or the same dates a year earlier, with the change. Carries\nwhat makes the figures provisional: `period_status.open_months`, `drafts`\n(draft entries in the span, left out) and the coverage read's `missing`\nand `stale` counts per month.",
+        "description": "Income and expenses for a span of days, on their natural side, rolled\nup the chart's tree, and the result (income − expenses) — every figure a\nsum of posted lines. `compare` adds the span before (whole months shift\nby months) or the same dates a year earlier, with the change. Carries\nwhat makes the figures provisional: `period_status.open_months`, `drafts`\n(draft entries in the span, left out) and the coverage read's `missing`\nand `stale` counts per month. With a layout, `layout.lines` are its rows\napplied to the same sums, `layout.unplaced` the accounts with movement no\nrow takes; `result` is always the book's whole result.",
         "operationId": "get_income_statement_api_v1_income_statement_get",
         "parameters": [
           {
@@ -101738,6 +103760,24 @@
               ],
               "description": "split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned`",
               "title": "By"
+            }
+          },
+          {
+            "description": "a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only",
+            "in": "query",
+            "name": "layout_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only",
+              "title": "Layout Id"
             }
           },
           {
@@ -108757,6 +110797,24 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "description": "true: the cash accounts the cash summary follows",
+            "in": "query",
+            "name": "is_cash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "true: the cash accounts the cash summary follows",
+              "title": "Is Cash"
             }
           },
           {
@@ -150007,6 +152065,812 @@
           }
         },
         "summary": "Get Skill File"
+      }
+    },
+    "/api/v1/statement-layouts": {
+      "get": {
+        "description": "The workspace's statement formats, each with its rows.",
+        "operationId": "list_statement_layouts_api_v1_statement_layouts_get",
+        "parameters": [
+          {
+            "description": "income_statement or balance_sheet",
+            "in": "query",
+            "name": "statement",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "income_statement or balance_sheet",
+              "title": "Statement"
+            }
+          },
+          {
+            "description": "active or archived",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "active or archived",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Rows per page, 1–200; larger values are clamped to 200 (meta.page_size says what was used). Sending page or size turns paging on: the response carries meta.total, meta.page, meta.page_size. Omit both for the complete list. To count, send page=1&size=1 and read meta.total.",
+              "title": "Size"
+            }
+          },
+          {
+            "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents).",
+              "title": "Order By"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or after this",
+            "in": "query",
+            "name": "created_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or after this",
+              "title": "Created At From"
+            }
+          },
+          {
+            "description": "rows whose created_at is at or before this",
+            "in": "query",
+            "name": "created_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose created_at is at or before this",
+              "title": "Created At Thru"
+            }
+          },
+          {
+            "description": "rows whose updated_at is at or after this",
+            "in": "query",
+            "name": "updated_at_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose updated_at is at or after this",
+              "title": "Updated At From"
+            }
+          },
+          {
+            "description": "rows whose updated_at is at or before this",
+            "in": "query",
+            "name": "updated_at_thru",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "rows whose updated_at is at or before this",
+              "title": "Updated At Thru"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_StatementLayoutRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Statement Layouts"
+      },
+      "post": {
+        "description": "Keep a statement format: ordered rows, each summing accounts (by id,\nwith sub-accounts, or by code range) or other rows (`formula`), or a\nheading. Refused with 422 naming the row when a formula names a code not\nhere or goes in a circle, when an account is of a type the statement does\nnot take, or when an account would feed two rows. Which account belongs\non which line is the person's decision: `confirmed_by` names them.",
+        "operationId": "create_statement_layout_api_v1_statement_layouts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStatementLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StatementLayoutRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Statement Layout"
+      }
+    },
+    "/api/v1/statement-layouts/{layout_id}": {
+      "get": {
+        "operationId": "get_statement_layout_api_v1_statement_layouts__layout_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layout_id",
+            "required": true,
+            "schema": {
+              "title": "Layout Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StatementLayoutRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Statement Layout"
+      },
+      "patch": {
+        "description": "Rename a layout, make it its statement's default (the previous default\nstops being it), or archive it (an archived layout is no one's default;\nit stays readable by id).",
+        "operationId": "update_statement_layout_api_v1_statement_layouts__layout_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layout_id",
+            "required": true,
+            "schema": {
+              "title": "Layout Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatementLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StatementLayoutRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Statement Layout"
+      }
+    },
+    "/api/v1/statement-layouts/{layout_id}/rows": {
+      "put": {
+        "description": "Replace every row of a layout at once — a layout is reviewed as one\npage — with the same checks as creating one. `confirmed_by` names who\naccepted the new rows; the audit trail keeps the rows before and after.",
+        "operationId": "replace_statement_layout_rows_api_v1_statement_layouts__layout_id__rows_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layout_id",
+            "required": true,
+            "schema": {
+              "title": "Layout Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Session"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "oryh_csrf",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oryh Csrf"
+            }
+          },
+          {
+            "description": "A client-chosen token for this write (a UUID will do). Retrying with the same key replays the first attempt's response instead of writing again; the same key with a different request is refused (422). Scoped to the credential, kept 24 hours.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceStatementLayoutRowsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_StatementLayoutRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Statement Layout Rows"
       }
     },
     "/api/v1/store-facilities": {

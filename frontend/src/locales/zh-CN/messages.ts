@@ -39,6 +39,7 @@ export const messages = {
     skills: "技能",
     apiKeys: "访问凭证",
     flowAgent: "流程代理",
+    statements: "财务报表",
     closeNavigation: "关闭导航",
     navigation: "管理控制台导航",
     signOut: "退出登录",

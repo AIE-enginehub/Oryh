@@ -160,6 +160,13 @@ SYSTEM_TYPE_OPTIONS_EN: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("wallet", "Payment platform", "Merchant balance at WeChat Pay, Alipay, PayPal or similar"),
         ("other", "Other", "Any other form of funds"),
     ),
+    "exchange_rate_type": (
+        ("spot", "Spot", "A published rate for the day, such as the central bank's"),
+        ("month_end", "Month end", "The rate used to state foreign balances at a month's end"),
+        ("bank_buying", "Bank buying", "The rate a bank buys the foreign currency at"),
+        ("bank_selling", "Bank selling", "The rate a bank sells the foreign currency at"),
+        ("contract", "Contract", "A rate fixed in a contract with a customer or supplier"),
+    ),
     "product_image_type": (
         ("main", "Main image", "The image shown first, for listings and catalogues"),
         ("detail", "Detail image", "Images for the product detail page"),

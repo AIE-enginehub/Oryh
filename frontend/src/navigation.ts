@@ -1,6 +1,7 @@
 import { zhCN } from "./locales/zh-CN/console";
 import {
   Buildings,
+  ChartLine,
   CalendarBlank,
   CheckSquare,
   ClipboardText,
@@ -27,6 +28,7 @@ import {
   canManageMasterData,
   canManageObjectConfiguration,
   canManageTenantConfiguration,
+  canReadBooks,
   hasCapability,
 } from "./access";
 
@@ -85,6 +87,16 @@ export const navigation: NavigationGroup[] = [
           "Quotations, purchases, expenses and business records",
         ],
         visible: canManageTenantConfiguration,
+      },
+      {
+        label: "statements",
+        href: "/statements",
+        icon: ChartLine,
+        description: [
+          zhCN.navigation.financialStatements,
+          "Income statement, balance sheet and cash summary",
+        ],
+        visible: canReadBooks,
       },
       {
         label: "dataBrowser",

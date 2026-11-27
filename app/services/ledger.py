@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import event, func, inspect, or_, select
+from sqlalchemy import case, event, func, inspect, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -64,6 +64,9 @@ SOURCE_MODELS: dict[str, type] = {
     "fin_account_transaction": FinAccountTrans,
     "billing_account_entry": BillingAccountEntry,
     "business_object": BusinessObject,
+    # an entry about the account itself: a month-end revaluation
+    # (`source_event: revalued:2026-06`), one live per account and month
+    "ledger_account": LedgerAccount,
 }
 
 SUBLEDGER_COLUMNS = {"customer": "customer_id", "vendor": "vendor_id", "employee": "employee_id"}
@@ -113,7 +116,15 @@ def has_posted(db: Session, tenant_id: str) -> bool:
 # --- an entry's lines -------------------------------------------------------------
 
 
-def check_lines(db: Session, tenant_id: str, lines) -> Decimal:
+def exchange_source(source_type: str | None, source_event: str | None) -> bool:
+    """An entry that records an exchange difference: a month-end revaluation
+    of an account, or the difference on a settlement."""
+    return (source_type == "ledger_account" and (source_event or "").startswith("revalued:")) \
+        or source_type == "payment_application"
+
+
+def check_lines(db: Session, tenant_id: str, lines, source_type: str | None = None,
+                source_event: str | None = None, source_id: str | None = None) -> Decimal:
     """Every rule a set of lines is held to. Returns the entry's total."""
     debit = credit = ZERO
     for index, line in enumerate(lines):
@@ -141,7 +152,21 @@ def check_lines(db: Session, tenant_id: str, lines) -> Decimal:
             refuse(status.HTTP_422_UNPROCESSABLE_CONTENT,
                    f"{where}: account {account.account_code} is kept in {account.currency} — "
                    f"state the {account.currency} amount and the rate used")
-        if line.currency is not None:
+        if getattr(line, "exchange_rate_id", None):
+            from app.services.exchange_rates import check_cited  # the rates module reads this one
+            check_cited(db, tenant_id, line, where)
+        if line.currency is not None and money(line.foreign_amount) == ZERO:
+            # an exchange difference: the book figure moves, the foreign one does not
+            if not exchange_source(source_type, source_event):
+                refuse(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                       f"{where}: a zero foreign amount is an exchange difference — only an entry recording one "
+                       "(source_type ledger_account with source_event revalued:YYYY-MM, or payment_application) "
+                       "moves the book figure without the foreign one")
+            if source_type == "ledger_account" and line.ledger_account_id != source_id:
+                refuse(status.HTTP_422_UNPROCESSABLE_CONTENT,
+                       f"{where}: this entry revalues account {source_id}; another account's exchange difference "
+                       "is its own entry")
+        elif line.currency is not None:
             converted = (Decimal(str(line.foreign_amount)) * Decimal(str(line.exchange_rate))).quantize(
                 CENT, rounding=ROUND_HALF_UP)
             if abs(converted - amount) > CENT:
@@ -394,6 +419,15 @@ def trial_balance(db: Session, tenant_id: str, date_from: date | None, date_to: 
             # the closing figure on the side the account normally sits on
             "natural_closing": float(figures.closing if account.account_type in DEBIT_NATURED else -figures.closing),
         })
+    from app.services.exchange_rates import foreign_movements  # the rates module reads this one
+    foreign = foreign_movements(db, tenant_id, [a for a in accounts if a.id not in with_children], date_from,
+                                date_to)
+    for row in rows:
+        figures = foreign.get(row["ledger_account_id"])
+        if figures is not None:
+            # the account's own currency, beside the functional figures
+            row["foreign"] = {"currency": figures["currency"], **{k: float(figures[k]) for k in
+                                                                  ("opening", "debit", "credit", "closing")}}
     leaves = [m for account_id, m in moved.items() if account_id not in with_children]
     return {
         "date_from": date_from, "date_to": date_to, "rows": rows,
@@ -418,6 +452,15 @@ def account_ledger(db: Session, account: LedgerAccount, date_from: date | None, 
     )
     opening = money(db.scalar(posted.where(JournalEntry.posting_date < date_from))) if date_from else ZERO
     closing = money(db.scalar(posted.where(JournalEntry.posting_date <= date_to)))
+    # a foreign-currency account without sub-accounts reads in its currency too
+    foreign = account.currency if account.currency and ids == {account.id} else None
+    if foreign:
+        from app.services.exchange_rates import signed_foreign  # the rates module reads this one
+        in_currency = case((JournalLine.currency == foreign, signed_foreign()), else_=0)
+        posted_foreign = posted.with_only_columns(func.coalesce(func.sum(in_currency), 0))
+        foreign_opening = (money(db.scalar(posted_foreign.where(JournalEntry.posting_date < date_from)))
+                           if date_from else ZERO)
+        foreign_closing = money(db.scalar(posted_foreign.where(JournalEntry.posting_date <= date_to)))
     in_range = _posted_lines(account.tenant_id).where(JournalLine.ledger_account_id.in_(ids),
                                                       JournalEntry.posting_date <= date_to)
     if date_from is not None:
@@ -428,18 +471,34 @@ def account_ledger(db: Session, account: LedgerAccount, date_from: date | None, 
     earlier = ordered.with_only_columns((JournalLine.debit - JournalLine.credit).label("delta")).limit(skipped)
     running = opening + money(db.scalar(select(func.coalesce(func.sum(earlier.subquery().c.delta), 0)))) \
         if skipped else opening
+    if foreign:
+        earlier_foreign = ordered.with_only_columns(in_currency.label("delta")).limit(skipped)
+        running_foreign = foreign_opening + (
+            money(db.scalar(select(func.coalesce(func.sum(earlier_foreign.subquery().c.delta), 0))))
+            if skipped else ZERO)
     out = []
     for line, day in db.execute(ordered.limit(size).offset(skipped)):
         running += money(line.debit) - money(line.credit)
-        out.append({
+        item = {
             "posting_date": day, "entry_id": line.entry_id, "entry_no": line.entry.entry_no,
             "description": line.description or line.entry.description, "ledger_account_id": line.ledger_account_id,
             "debit": float(money(line.debit)), "credit": float(money(line.credit)), "balance": float(running),
             "customer_id": line.customer_id, "vendor_id": line.vendor_id, "employee_id": line.employee_id,
-        })
-    return {"ledger_account_id": account.id, "account_code": account.account_code, "date_from": date_from,
-            "date_to": date_to, "opening": float(opening), "lines": out, "closing": float(closing),
-            "total_lines": total, "page": page, "size": size}
+        }
+        if foreign:
+            amount = money(line.foreign_amount) if line.currency == foreign else ZERO
+            running_foreign += amount if line.debit > 0 else -amount
+            item.update({"currency": line.currency, "foreign_amount": float(money(line.foreign_amount))
+                         if line.foreign_amount is not None else None, "exchange_rate": float(line.exchange_rate)
+                         if line.exchange_rate is not None else None, "foreign_balance": float(running_foreign)})
+        out.append(item)
+    result = {"ledger_account_id": account.id, "account_code": account.account_code, "date_from": date_from,
+              "date_to": date_to, "opening": float(opening), "lines": out, "closing": float(closing),
+              "total_lines": total, "page": page, "size": size}
+    if foreign:
+        result.update({"currency": foreign, "foreign_opening": float(foreign_opening),
+                       "foreign_closing": float(foreign_closing)})
+    return result
 
 
 def party_balances(db: Session, account: LedgerAccount, as_of: date) -> list[dict]:
@@ -452,6 +511,16 @@ def party_balances(db: Session, account: LedgerAccount, as_of: date) -> list[dic
                JournalEntry.deleted_at.is_(None), JournalEntry.posting_date <= as_of)
         .group_by(column)
     )
-    return [{SUBLEDGER_COLUMNS[account.subledger]: party, "debit": float(money(debit)),
+    rows = [{SUBLEDGER_COLUMNS[account.subledger]: party, "debit": float(money(debit)),
              "credit": float(money(credit)), "balance": float(money(debit) - money(credit))}
-            for party, debit, credit in db.execute(stmt) if money(debit) != money(credit)]
+            for party, debit, credit in db.execute(stmt)]
+    if account.currency:
+        # each party's balance in the account's own currency too; a party
+        # whose foreign side is settled but whose book figure is not stays
+        from app.services.exchange_rates import signed_foreign  # the rates module reads this one
+        in_currency = case((JournalLine.currency == account.currency, signed_foreign()), else_=0)
+        foreign = dict(db.execute(stmt.with_only_columns(column, func.coalesce(func.sum(in_currency), 0))).all())
+        for row in rows:
+            row["currency"] = account.currency
+            row["foreign_balance"] = float(money(foreign.get(row[SUBLEDGER_COLUMNS[account.subledger]])))
+    return [row for row in rows if row["balance"] != 0 or row.get("foreign_balance")]

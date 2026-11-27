@@ -39,6 +39,7 @@ export const messages = {
     skills: "Skills",
     apiKeys: "Access credentials",
     flowAgent: "Flow agent",
+    statements: "Financial statements",
     closeNavigation: "Close navigation",
     navigation: "Workspace console navigation",
     signOut: "Sign out",

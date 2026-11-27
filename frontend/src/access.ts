@@ -47,3 +47,14 @@ export function canManageEmployees(bootstrap: BootstrapData): boolean {
 export function canManageAccess(bootstrap: BootstrapData): boolean {
   return permissionCovers(bootstrap.permissions, "users.manage");
 }
+
+// The books show payroll totals and margins: any ledger grant reads them
+// (the server's `ledger.read` is implied by the other three).
+export function canReadBooks(bootstrap: BootstrapData): boolean {
+  return (
+    bootstrap.role === "admin" ||
+    ["ledger.read", "ledger.post", "ledger.manage", "period.close"].some((capability) =>
+      permissionCovers(bootstrap.permissions, capability),
+    )
+  );
+}

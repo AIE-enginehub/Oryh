@@ -1,10 +1,12 @@
 {
   "SKILL.md": [
-    "description: Use when someone asks how the business did or where it stands according to the books in oryh — 看利润表（损益表：某月、某季度、本年累计，与上期或去年同期对比，按项目、成本中心、客户或月份拆分）和资产负债表（某日资产、负债与所有者权益） — every figure is a sum of posted journal entries; you read and explain, you post nothing. Requires ledger.read.",
+    "description: Use when someone asks how the business did or where it stands according to the books in oryh — 看利润表（损益表：某月、某季度、本年累计，与上期或去年同期对比，按项目、成本中心、客户或月份拆分）、资产负债表（某日资产、负债与所有者权益）、现金收支汇总（资金来源与去向），以及经确认后设置本单位的报表格式（毛利、法定格式） — every figure is a sum of posted journal entries; you read and explain, you post nothing. Requires ledger.read; writing a layout needs ledger.manage.",
     "三月经营得怎么样？",
     "今年到目前为止的利润表，和去年比一下",
     "这个季度哪个项目赚钱？",
     "六月底我们有多少资产和负债？",
-    "这个月费用为什么涨了？"
+    "这个月费用为什么涨了？",
+    "按小企业会计准则设置我们的利润表格式",
+    "这个季度我们的现金都花到哪里去了？"
   ]
 }

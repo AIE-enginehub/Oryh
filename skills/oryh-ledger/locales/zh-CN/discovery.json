@@ -1,3 +1,3 @@
 {
-  "description": "Use to keep a workspace's books in oryh — 建科目表、记账（发票、收付款、工资、月末凭证）、冲销错账、查找未入账的单据并补记或登记免记、月末结账、看试算平衡表、科目明细账和往来余额 — applying the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close)."
+  "description": "Use to keep a workspace's books in oryh — 建科目表、记账（发票、收付款、工资、月末凭证）、冲销错账、查找未入账的单据并补记或登记免记、维护汇率并对外币余额进行期末调汇、月末结账、看试算平衡表、科目明细账和往来余额 — applying the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close)."
 }

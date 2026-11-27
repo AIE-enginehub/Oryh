@@ -16,6 +16,15 @@ agent's and the accountant's.
 
 Each read carries what makes its figures provisional: open months, draft
 entries it leaves out, and the coverage read's missing and stale counts.
+
+Phase 3: the **cash summary** — money into and out of the accounts the
+person marked `is_cash`, grouped by the account on the other side of each
+entry; a direct-method view from the book, not a statutory cash flow
+statement.
+
+Phase 2: a stored layout (`app/services/statement_layouts.py`) is applied to
+the same sums and returned beside the default statement as `layout`, with the
+accounts no row takes under `unplaced`.
 """
 
 from __future__ import annotations
@@ -43,6 +52,7 @@ from app.models import (
     Vendor,
 )
 from app.services import ledger_coverage
+from app.services import statement_layouts as layouts
 from app.services.ledger import ZERO, money
 
 COMPARES = ("previous_period", "previous_year", "none")
@@ -329,11 +339,66 @@ def _columns(db: Session, tenant_id: str, by: str, start: date, end: date,
     return out
 
 
+# --- a stored layout ------------------------------------------------------------------
+
+
+def _layout_block(layout, accounts: list[LedgerAccount], raw, raw_compare, keys: list[str] | None,
+                  special: dict[str, Decimal] | None = None,
+                  special_compare: dict[str, Decimal] | None = None, signed: bool = True) -> dict:
+    """The layout's lines, applied mechanically to the same sums as the
+    default statement; what no row takes is listed as `unplaced`."""
+    types = layouts.TYPES[layout.statement]
+    rows = list(layout.rows)
+    taken, placed_special, clashes = layouts.assign(rows, accounts, types)
+    kinds = {a.id: a for a in accounts if a.account_type in types}
+
+    def natural(sums, column: str | None = None) -> dict[str, Decimal]:
+        # `signed=False`: the figures are already on the statement's side
+        return {a: (NATURAL[kinds[a].account_type] if signed else 1) * (
+                    sum(cols.values(), ZERO) if column is None else cols.get(column, ZERO))
+                for a, cols in sums.items() if a in kinds}
+
+    values = natural(raw)
+    main = layouts.evaluate(rows, taken, placed_special, values, special or {})
+    per_column = ({c: layouts.evaluate(rows, taken, placed_special, natural(raw, c), {}) for c in keys}
+                  if keys is not None else None)
+    compared = natural(raw_compare) if raw_compare is not None else None
+    base = (layouts.evaluate(rows, taken, placed_special, compared, special_compare or {})
+            if compared is not None else None)
+    moved = set(values) | set(compared or {})
+    lines = []
+    for row in rows:
+        amount = main[row.code]
+        line = {"row_no": row.row_no, "code": row.code, "label": row.label, "kind": row.kind,
+                "amount": _figure(amount) if amount is not None else None}
+        if amount is not None:
+            if per_column is not None:
+                line["amounts"] = {c: _figure(per_column[c][row.code]) for c in keys}
+            if base is not None:
+                line.update(_change(amount, base[row.code]))
+        if row.kind == "accounts":
+            feeding = sorted((kinds[a] for a in moved if taken.get(a) == row.code), key=lambda a: a.account_code)
+            line["accounts"] = [{"ledger_account_id": a.id, "account_code": a.account_code, "name": a.name,
+                                 "amount": _figure(row.sign * values.get(a.id, ZERO))} for a in feeding]
+        lines.append(line)
+    unplaced = []
+    for account in sorted((kinds[a] for a in moved if a not in taken), key=lambda a: a.account_code):
+        item = {"ledger_account_id": account.id, "account_code": account.account_code, "name": account.name,
+                "account_type": account.account_type, "amount": _figure(values.get(account.id, ZERO))}
+        if compared is not None:
+            item["compare"] = _figure(compared.get(account.id, ZERO))
+        unplaced.append(item)
+    for key, value in (special or {}).items():
+        if key not in placed_special and (value != ZERO or (special_compare or {}).get(key, ZERO) != ZERO):
+            unplaced.append({"key": key, "name": "Earnings not yet closed", "amount": _figure(value)})
+    return {**layouts.describe(layout), "lines": lines, "unplaced": unplaced, "clashes": clashes}
+
+
 # --- the statements -------------------------------------------------------------------
 
 
 def income_statement(db: Session, tenant_id: str, start: date, end: date, compare: str,
-                     by: str | None) -> dict:
+                     by: str | None, layout=None) -> dict:
     accounts = _accounts(db, tenant_id, ("income", "expense"))
     ids = {a.id for a in accounts}
     raw = {k: v for k, v in _sums(db, tenant_id, start, end, by).items() if k in ids}
@@ -361,12 +426,13 @@ def income_statement(db: Session, tenant_id: str, start: date, end: date, compar
         "date_from": start, "date_to": end, "currency": settings.functional_currency if settings else None,
         "compare": {"date_from": span[0], "date_to": span[1]} if span else None,
         "by": by, "columns": columns, "sections": sections, "result": result,
+        "layout": _layout_block(layout, accounts, raw, raw_compare, keys) if layout is not None else None,
     }
     out.update(_provisional(db, tenant_id, start, end, _months(start, end)))
     return out
 
 
-def balance_sheet(db: Session, tenant_id: str, as_of: date, compare: str) -> dict:
+def balance_sheet(db: Session, tenant_id: str, as_of: date, compare: str, layout=None) -> dict:
     accounts = _accounts(db, tenant_id, ("asset", "liability", "equity", "income", "expense"))
     day = compare_day(as_of, compare)
     raw = _sums(db, tenant_id, None, as_of)
@@ -408,6 +474,141 @@ def balance_sheet(db: Session, tenant_id: str, as_of: date, compare: str) -> dic
         "totals": {"assets": _figure(assets), "liabilities_and_equity": _figure(claims)},
         "balanced": assets == claims,
         "retained_earnings_account_id": settings.retained_earnings_account_id if settings else None,
+        "layout": (_layout_block(layout, accounts, raw, raw_compare, None, {layouts.EARNINGS: unclosed},
+                                 {layouts.EARNINGS: unclosed_compare} if raw_compare is not None else None)
+                   if layout is not None else None),
     }
     out.update(_provisional(db, tenant_id, None, as_of, [as_of.replace(day=1)]))
+    return out
+
+
+# --- the cash summary (phase 3) -------------------------------------------------------------
+
+CASH_BASIS = (
+    "Money into and out of the cash accounts (is_cash), from posted entries. Each entry's cash movement is "
+    "attributed to its other lines by their own amounts (credit minus debit), so the groups add up to the "
+    "change in cash. An entry touching only cash accounts is a transfer: it moves no money in or out. A "
+    "direct-method view from the book, not a statutory cash flow statement."
+)
+CASH_SECTIONS = (("income", "Income"), ("expense", "Expenses"), ("asset", "Other assets"),
+                 ("liability", "Liabilities"), ("equity", "Equity"))
+
+
+def cash_ids(accounts: list[LedgerAccount]) -> set[str]:
+    """Every account the person marked as cash, and its sub-accounts."""
+    by_id = {a.id: a for a in accounts}
+    out = set()
+    for account in accounts:
+        node = account
+        while node is not None:
+            if node.is_cash:
+                out.add(account.id)
+                break
+            node = by_id.get(node.parent_id) if node.parent_id else None
+    return out
+
+
+def _cash_flows(db: Session, tenant_id: str, cash: set[str], start: date, end: date):
+    """Per counterpart account, the cash received from it and paid to it in
+    the span; and the transfers between cash accounts."""
+    flows: dict[str, dict[str, Decimal]] = defaultdict(lambda: {"received": ZERO, "paid": ZERO})
+    transfers = {"count": 0, "amount": ZERO}
+    if not cash:
+        return flows, transfers
+    touching = (select(JournalLine.entry_id)
+                .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+                .where(JournalLine.tenant_id == tenant_id, JournalEntry.status == "posted",
+                       JournalEntry.deleted_at.is_(None), JournalEntry.posting_date >= start,
+                       JournalEntry.posting_date <= end, JournalLine.ledger_account_id.in_(cash)))
+    lines = db.execute(select(JournalLine.entry_id, JournalLine.ledger_account_id, JournalLine.debit,
+                              JournalLine.credit)
+                       .where(JournalLine.tenant_id == tenant_id, JournalLine.entry_id.in_(touching))
+                       .order_by(JournalLine.entry_id, JournalLine.line_no))
+    entries: dict[str, list] = defaultdict(list)
+    for entry_id, account_id, debit, credit in lines:
+        entries[entry_id].append((account_id, money(debit), money(credit)))
+    for entry_lines in entries.values():
+        others = [line for line in entry_lines if line[0] not in cash]
+        if not others:
+            transfers["count"] += 1
+            transfers["amount"] += sum((debit for _, debit, _ in entry_lines), ZERO)
+            continue
+        for account_id, debit, credit in others:
+            net = credit - debit
+            if net > ZERO:
+                flows[account_id]["received"] += net
+            elif net < ZERO:
+                flows[account_id]["paid"] -= net
+    return flows, transfers
+
+
+def cash_summary(db: Session, tenant_id: str, start: date, end: date, compare: str, layout=None) -> dict:
+    accounts = _accounts(db, tenant_id, ("asset", "liability", "equity", "income", "expense"))
+    by_id = {a.id: a for a in accounts}
+    cash = cash_ids(accounts)
+    flows, transfers = _cash_flows(db, tenant_id, cash, start, end)
+    span = compare_span(start, end, compare)
+    compared = _cash_flows(db, tenant_id, cash, *span)[0] if span is not None else None
+
+    def net(f) -> Decimal:
+        return f["received"] - f["paid"]
+
+    sections = []
+    for key, label in CASH_SECTIONS:
+        ids = sorted({a for a in (set(flows) | set(compared or {})) if by_id[a].account_type == key},
+                     key=lambda a: by_id[a].account_code)
+        if not ids:
+            continue
+        rows, total, base = [], ZERO, ZERO
+        for account_id in ids:
+            f = flows.get(account_id, {"received": ZERO, "paid": ZERO})
+            account = by_id[account_id]
+            row = {"ledger_account_id": account_id, "account_code": account.account_code, "name": account.name,
+                   "received": _figure(f["received"]), "paid": _figure(f["paid"]), "net": _figure(net(f))}
+            total += net(f)
+            if compared is not None:
+                before = net(compared[account_id]) if account_id in compared else ZERO
+                base += before
+                row.update(_change(net(f), before))
+            rows.append(row)
+        section = {"key": key, "label": label, "net": _figure(total), "rows": rows}
+        if compared is not None:
+            section.update(_change(total, base))
+        sections.append(section)
+
+    cash_accounts = [a for a in accounts if a.id in cash]
+    opening = {k: v for k, v in _sums(db, tenant_id, None, start - timedelta(days=1)).items() if k in cash}
+    closing = {k: v for k, v in _sums(db, tenant_id, None, end).items() if k in cash}
+    open_total = sum((sum(v.values(), ZERO) for v in opening.values()), ZERO)
+    close_total = sum((sum(v.values(), ZERO) for v in closing.values()), ZERO)
+    rolled_open, rolled_close = _rolled(cash_accounts, opening), _rolled(cash_accounts, closing)
+    parents = {a.parent_id for a in cash_accounts if a.parent_id}
+    cash_rows = []
+    for account, depth in _tree_order(cash_accounts):
+        before = sum(rolled_open.get(account.id, {}).values(), ZERO)
+        after = sum(rolled_close.get(account.id, {}).values(), ZERO)
+        cash_rows.append({"ledger_account_id": account.id, "account_code": account.account_code,
+                          "name": account.name, "depth": depth, "summary": account.id in parents,
+                          "opening": _figure(before), "closing": _figure(after), "change": _figure(after - before)})
+    net_change = sum((net(f) for f in flows.values()), ZERO)
+    settings = _settings(db, tenant_id)
+    out = {
+        "date_from": start, "date_to": end, "currency": settings.functional_currency if settings else None,
+        "compare": {"date_from": span[0], "date_to": span[1]} if span else None,
+        "basis": CASH_BASIS,
+        "cash_accounts": cash_rows,
+        "opening": _figure(open_total), "closing": _figure(close_total), "net_change": _figure(net_change),
+        "sections": sections,
+        "transfers": {"count": transfers["count"], "amount": _figure(transfers["amount"])},
+        # opening + what came in and went out = closing; always, for a book of balanced entries
+        "reconciled": open_total + net_change == close_total,
+        "layout": None,
+    }
+    if compared is not None:
+        out["net_change_compare"] = _figure(sum((net(f) for f in compared.values()), ZERO))
+    if layout is not None:
+        values = {a: {"total": net(f)} for a, f in flows.items()}
+        base_values = ({a: {"total": net(f)} for a, f in compared.items()} if compared is not None else None)
+        out["layout"] = _layout_block(layout, accounts, values, base_values, None, signed=False)
+    out.update(_provisional(db, tenant_id, start, end, _months(start, end)))
     return out

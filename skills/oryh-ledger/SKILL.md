@@ -1,6 +1,6 @@
 ---
 name: oryh-ledger
-description: Use to keep a workspace's books in oryh — set up the chart of accounts, post journal entries for invoices, payments, payroll and month-end, reverse a wrong posting, find and post what the book is missing or waive what needs no entry, close a month, and read the trial balance, an account's ledger or who owes what. Applies the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close).
+description: Use to keep a workspace's books in oryh — set up the chart of accounts, post journal entries for invoices, payments, payroll and month-end, reverse a wrong posting, find and post what the book is missing or waive what needs no entry, keep exchange rates and revalue foreign-currency balances, close a month, and read the trial balance, an account's ledger or who owes what. Applies the workspace's own posting rules; the server only keeps the book balanced and closed months shut. Requires ledger.post (reading needs ledger.read; closing a month needs period.close).
 required_capability: ledger.post
 ---
 
@@ -35,6 +35,7 @@ read.
 - "Close February"
 - "Show me the trial balance for Q1"
 - "Who still owes us money according to the books?"
+- "Revalue our USD balances at the June month-end rate"
 
 ## Required Inputs
 
@@ -91,6 +92,9 @@ suggest writing it down as a rule so the next posting does not ask again.
      sub-account shares its parent's type.
    - A foreign-currency account (`"currency": "USD"`) takes lines that state
      the foreign amount and the rate.
+   - `"is_cash": true` on bank and cash-on-hand accounts (assets only): the
+     cash summary follows the money in and out of them. Ask which they are;
+     do not guess from a name.
 
 ## Posting A Document
 
@@ -182,13 +186,64 @@ that decision so the coverage stops listing it as missing:
   is missing again. The coverage lists live waivers under `waived` with the
   reason and who decided.
 
+## Foreign Currency
+
+The book is kept in one currency (`functional_currency`). A document in
+another currency is posted at a rate, and the line keeps the foreign amount
+and the rate. Which rate applies where — booking an invoice, a payment, the
+month end — is the workspace's posting rule. Ask once and write it into the
+rules; never choose a rate yourself.
+
+**Rates are facts with a source.** `POST /exchange-rates {"from_currency":
+"USD", "to_currency": "HKD", "rate": 7.82, "rate_date": "2026-06-30",
+"rate_type": "month_end", "source": "HKMA"}` (`ledger.manage`), or many at
+once with `POST /exchange-rates/import` — it can be re-run. A rate the bank
+applied is imported with the bank's advice as its source before you cite
+it. Never invent a rate, and never take one from memory.
+
+**Posting a foreign document.**
+`GET /exchange-rates/lookup?from_currency=USD&to_currency=HKD&rate_type=spot&on=2026-03-05`
+gives the latest rate of that type on or before the day, with its
+`rate_date` (say so when it is old) and `exchange_rate_id`; `inverted:
+true` means only the reverse pair is stated. On each line in that currency
+state `currency`, `foreign_amount`, `exchange_rate` and `exchange_rate_id`.
+The server checks `foreign_amount × exchange_rate` against the line to the
+cent and that the cited rate is the line's. A cited rate never changes; a
+wrong one is answered with a new rate and a reversal of what used it.
+
+An account with `currency` set (a USD bank, a USD receivable) takes only
+lines that state an amount in its currency, and reads in it too: `foreign`
+on the trial balance, `foreign_balance` on its ledger and per party.
+
+**Revaluing at month end.** `GET /fx-revaluation?as_of=<the month's last
+day>&rate_type=month_end` lists each foreign-currency account (per party on
+a subledger) with its `foreign_balance`, the `book_balance`, the `rate`,
+what it is `revalued` at and the `difference`. `difference` > 0: debit the
+account (a gain); < 0: credit it (a loss). `missing_rates` stops the
+revaluation for that currency: import the rate, never skip the account.
+`settled: true` means the foreign side is cleared and what is left is the
+exchange on settling.
+
+Show the person the differences, then post one entry per account by the
+rule: `source_type: "ledger_account"`, `source_id` the account,
+`source_event` the read's `source_event` (`revalued:2026-06`). On the
+foreign account the line states `currency`, `foreign_amount: 0` and the
+rate used — the book figure moves, the foreign one does not; the other line
+is the exchange gain or loss account the rule names. The server takes a
+zero foreign amount only on such an entry, refuses a second live
+revaluation of the account in the month, and the read then shows
+`revaluation_entry_no`. Because `book_balance` includes earlier
+revaluations, the read always proposes only what is left — whether the
+workspace reverses each revaluation next month or lets them accumulate.
+
 ## Closing A Month
 
 1. Read `GET /ledger-coverage?period=<the month>` with the families the
    rule posts. Post what is missing, waive what the rule or the person says
    needs no entry, propose reversals for what is stale, and read it again.
-2. Read the trial balance.
-3. `POST /accounting-periods/close {"period": "2026-02-01", "reason"?}` (any
+2. If the workspace has foreign-currency accounts, revalue them as above.
+3. Read the trial balance.
+4. `POST /accounting-periods/close {"period": "2026-02-01", "reason"?}` (any
    day in the month). Drafts dated in that month block it: post or discard
    them first. Closing is not refused while documents are missing — that is
    the person's decision. If anything is left, say exactly what, and put it
@@ -214,7 +269,10 @@ Li" — or the exact list of what is not.
 - `GET /ledger-accounts/{id}/parties?as_of=` — a receivable or payable per
   party.
 - `GET /income-statement` and `GET /balance-sheet` — profit and loss and
-  what the business owns and owes; see `$oryh-financial-statements`.
+  what the business owns and owes; see `$oryh-financial-statements`, which
+  also sets up the workspace's statement layout (`/statement-layouts`).
+  After adding an account, read the statements once: a layout lists an
+  account no row takes under `layout.unplaced`.
 
 Answer in the person's terms: "Receivables stand at 48,200; Huaxin owes
 31,000 of it, all from March."

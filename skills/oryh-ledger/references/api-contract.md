@@ -15,6 +15,14 @@ Delete Business Rule
 | `rule_id` | path | string | yes |  |
 | `reason` | query | string (≤500 chars) | no |  |
 
+## DELETE /exchange-rates/{rate_id}
+
+Delete Exchange Rate
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rate_id` | path | string | yes |  |
+
 ## DELETE /journal-entries/{entry_id}
 
 Delete Journal Entry
@@ -52,6 +60,7 @@ Get Balance Sheet
 |---|---|---|---|---|
 | `as_of` | query | date | no | default: today |
 | `compare` | query | string | no | previous_period (default: the end of the month before), previous_year or none |
+| `layout_id` | query | string | no | a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only |
 
 ## GET /business-rules
 
@@ -103,6 +112,17 @@ Get Business Rule Attachment
 | `rule_id` | path | string | yes |  |
 | `attachment_id` | path | string | yes |  |
 
+## GET /cash-summary
+
+Get Cash Summary
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `date_from` | query | string | no | YYYY-MM-DD, or year_start; default: the first of date_to's month, or of this month |
+| `date_to` | query | date | no | default: the end of date_from's month, or of this month |
+| `compare` | query | string | no | previous_period (default), previous_year or none |
+| `layout_id` | query | string | no | a cash_summary layout to apply (its operating, investing and financing lines); default: the workspace's default, if any; `none` for without |
+
 ## GET /employees
 
 List Employees
@@ -127,6 +147,44 @@ Get Employee
 |---|---|---|---|---|
 | `employee_id` | path | string | yes |  |
 
+## GET /exchange-rates
+
+List Exchange Rates
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `from_currency` | query | string | no |  |
+| `to_currency` | query | string | no |  |
+| `rate_type` | query | string | no |  |
+| `date_from` | query | date | no |  |
+| `date_to` | query | date | no |  |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+
+## GET /exchange-rates/lookup
+
+Lookup Exchange Rate
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `from_currency` | query | string (≤3 chars) | yes |  |
+| `to_currency` | query | string (≤3 chars) | yes |  |
+| `rate_type` | query | string | yes | required: the server does not choose between rate types |
+| `on` | query | date | no | default: today |
+
+## GET /fx-revaluation
+
+Get Fx Revaluation
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `as_of` | query | date | no | default: today |
+| `rate_type` | query | string | no | the type of rate to value at (the workspace's rule, usually month_end); looked up on or before as_of |
+| `rates` | query | string | no | CUR:rate pairs into the functional currency, for rates no table holds: USD:7.82,CNY:1.083 |
+
 ## GET /income-statement
 
 Get Income Statement
@@ -137,6 +195,7 @@ Get Income Statement
 | `date_to` | query | date | no | default: the end of date_from's month, or of this month |
 | `compare` | query | string | no | previous_period (default), previous_year or none |
 | `by` | query | string | no | split every figure by one of project, cost_center, customer, vendor, employee, month; lines without it fall under `unassigned` |
+| `layout_id` | query | string | no | a statement layout to apply; default: the workspace's default layout for this statement, if any; `none` for the default statement only |
 
 ## GET /journal-entries
 
@@ -179,6 +238,7 @@ List Ledger Accounts
 | `parent_id` | query | string | no |  |
 | `subledger` | query | string | no |  |
 | `status` | query | string | no |  |
+| `is_cash` | query | boolean | no | true: the cash accounts the cash summary follows |
 | `keyword` | query | string | no |  |
 | `page` | query | integer (≥1) | no |  |
 | `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
@@ -251,6 +311,30 @@ Get Ledger Waiver
 | parameter | in | type | required | notes |
 |---|---|---|---|---|
 | `waiver_id` | path | string | yes |  |
+
+## GET /statement-layouts
+
+List Statement Layouts
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `statement` | query | string | no | income_statement or balance_sheet |
+| `status` | query | string | no | active or archived |
+| `page` | query | integer (≥1) | no |  |
+| `size` | query | integer (≥1) | no | paging — see the conventions in this skill |
+| `order_by` | query | string | no | Sort order: a column name, `-` prefix for descending, comma-separated for several (e.g. -created_at,order_no). Any column of the row may be named; an unknown name answers 422 listing the sortable columns. Omit for the collection's own order (newest first for documents). |
+| `created_at_from` | query | date-time | no | rows whose created_at is at or after this |
+| `created_at_thru` | query | date-time | no | rows whose created_at is at or before this |
+| `updated_at_from` | query | date-time | no | rows whose updated_at is at or after this |
+| `updated_at_thru` | query | date-time | no | rows whose updated_at is at or before this |
+
+## GET /statement-layouts/{layout_id}
+
+Get Statement Layout
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `layout_id` | path | string | yes |  |
 
 ## GET /todos
 
@@ -327,6 +411,21 @@ Body:
 | `title` | string (≤200 chars) | optional |  |
 | `visibility` | `internal` | `restricted` | `public` | optional |  |
 
+## PATCH /exchange-rates/{rate_id}
+
+Update Exchange Rate
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `rate_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `rate` | number (≤1000000000.0) | optional |  |
+| `source` | string (≤200 chars) | optional |  |
+
 ## PATCH /journal-entries/{entry_id}
 
 Update Journal Entry
@@ -359,10 +458,27 @@ Body:
 | `account_type` | `asset` | `liability` | `equity` | `income` | `expense` | optional |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `description` | string (≤4000 chars) | optional |  |
+| `is_cash` | boolean | optional |  |
 | `name` | string (≤200 chars) | optional |  |
 | `parent_id` | string | optional |  |
 | `status` | `active` | `archived` | optional |  |
 | `subledger` | `customer` | `vendor` | `employee` | optional |  |
+
+## PATCH /statement-layouts/{layout_id}
+
+Update Statement Layout
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `layout_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `is_default` | boolean | optional |  |
+| `name` | string (≤200 chars) | optional |  |
+| `status` | `active` | `archived` | optional |  |
 
 ## PATCH /todos/{todo_id}
 
@@ -503,6 +619,38 @@ Body:
 | `note` | string (≤2000 chars) | optional |  |
 | `required_capability` | string (≤100 chars) | optional |  |
 
+## POST /exchange-rates
+
+Create Exchange Rate
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `from_currency` | string (≤3 chars) | required |  |
+| `rate` | number (≤1000000000.0) | required |  |
+| `rate_date` | date | required |  |
+| `rate_type` | string (≤50 chars) | required |  |
+| `source` | string (≤200 chars) | required |  |
+| `to_currency` | string (≤3 chars) | required |  |
+
+## POST /exchange-rates/import
+
+Import Exchange Rates
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `rates` | array of objects (fields below) | required |  |
+| ↳ each `rates[]` item: | | | |
+  | `from_currency` | string (≤3 chars) | required |  |
+  | `rate` | number (≤1000000000.0) | required |  |
+  | `rate_date` | date | required |  |
+  | `rate_type` | string (≤50 chars) | required |  |
+  | `source` | string (≤200 chars) | required |  |
+  | `to_currency` | string (≤3 chars) | required |  |
+
 ## POST /journal-entries
 
 Create Journal Entry
@@ -523,7 +671,8 @@ Body:
   | `description` | string (≤2000 chars) | optional |  |
   | `employee_id` | string | optional |  |
   | `exchange_rate` | number | optional |  |
-  | `foreign_amount` | number (≤999999999999.99) | optional |  |
+  | `exchange_rate_id` | string | optional |  |
+  | `foreign_amount` | number (≥0.0, ≤999999999999.99) | optional |  |
   | `project_id` | string | optional |  |
   | `vendor_id` | string | optional |  |
 | `posting_date` | date | required |  |
@@ -567,6 +716,7 @@ Body:
 | `name` | string (≤200 chars) | required |  |
 | `currency` | string (≤3 chars) | optional |  |
 | `description` | string (≤4000 chars) | optional |  |
+| `is_cash` | boolean | optional |  |
 | `parent_id` | string | optional |  |
 | `status` | `active` | `archived` | optional |  |
 | `subledger` | `customer` | `vendor` | `employee` | optional |  |
@@ -598,6 +748,28 @@ Body:
 | field | type | | notes |
 |---|---|---|---|
 
+## POST /statement-layouts
+
+Create Statement Layout
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `confirmed_by` | string (≤200 chars) | required |  |
+| `name` | string (≤200 chars) | required |  |
+| `rows` | array of objects (fields below) | required |  |
+| ↳ each `rows[]` item: | | | |
+  | `code` | string (≤40 chars, pattern `^[a-z0-9_]+$`) | required |  |
+  | `kind` | `accounts` | `total` | `heading` | required |  |
+  | `label` | string (≤200 chars) | required |  |
+  | `row_no` | integer (≥1.0, ≤100000.0) | required |  |
+  | `accounts` | array of objects (fields below) | optional |  |
+  | `formula` | array of objects (fields below) | optional |  |
+  | `sign` | `1` | `-1` | optional |  |
+| `statement` | `income_statement` | `balance_sheet` | `cash_summary` | required |  |
+| `is_default` | boolean | optional |  |
+
 ## PUT /accounting-settings
 
 Put Accounting Settings
@@ -609,3 +781,26 @@ Body:
 | `functional_currency` | string (≤3 chars) | required |  |
 | `fiscal_year_start_month` | integer (≥1.0, ≤12.0) | optional |  |
 | `retained_earnings_account_id` | string | optional |  |
+
+## PUT /statement-layouts/{layout_id}/rows
+
+Replace Statement Layout Rows
+
+| parameter | in | type | required | notes |
+|---|---|---|---|---|
+| `layout_id` | path | string | yes |  |
+
+Body:
+
+| field | type | | notes |
+|---|---|---|---|
+| `confirmed_by` | string (≤200 chars) | required |  |
+| `rows` | array of objects (fields below) | required |  |
+| ↳ each `rows[]` item: | | | |
+  | `code` | string (≤40 chars, pattern `^[a-z0-9_]+$`) | required |  |
+  | `kind` | `accounts` | `total` | `heading` | required |  |
+  | `label` | string (≤200 chars) | required |  |
+  | `row_no` | integer (≥1.0, ≤100000.0) | required |  |
+  | `accounts` | array of objects (fields below) | optional |  |
+  | `formula` | array of objects (fields below) | optional |  |
+  | `sign` | `1` | `-1` | optional |  |
